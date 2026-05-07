@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GenerationPlatform",
+  "type": "object",
+  "required": ["name", "kind"],
+  "properties": {
+    "name": { "type": "string" },
+    "kind": { "enum": ["image", "video"] }
+  }
+}

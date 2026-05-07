@@ -1,0 +1,20 @@
+{
+  "name": "ai-video-workflow",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.19.0",
+  "scripts": {
+    "build": "pnpm --filter ai-video-workflow build && pnpm docs:build",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "test": "pnpm --filter ai-video-workflow test"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^24.6.0",
+    "typescript": "^5.9.3",
+    "vitepress": "^1.6.4",
+    "vitest": "^3.2.4"
+  }
+}

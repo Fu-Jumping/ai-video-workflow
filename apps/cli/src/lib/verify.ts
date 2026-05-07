@@ -1,0 +1,131 @@
+import fs from "fs-extra";
+import path from "node:path";
+
+import { STEP6_FILES } from "./constants.js";
+import type { ProjectConfig, VerificationIssue, VerificationResult } from "./types.js";
+import { parseYaml } from "./yaml.js";
+
+const step4RequiredSections = ["快速导读", "中文完整版本", "English Version (Copy Ready)"];
+const step4ForbiddenText = ["参考前文", "同上", "模型应自行理解剧情", "same as previous"];
+
+async function loadConfig(projectRoot: string): Promise<ProjectConfig | null> {
+  const configPath = path.join(projectRoot, "project.config.yaml");
+  if (!(await fs.pathExists(configPath))) {
+    return null;
+  }
+  return parseYaml<ProjectConfig>(await fs.readFile(configPath, "utf8"));
+}
+
+function pushIssue(issues: VerificationIssue[], issue: VerificationIssue): void {
+  issues.push(issue);
+}
+
+async function verifyStep6(projectRoot: string, issues: VerificationIssue[]): Promise<void> {
+  for (const file of STEP6_FILES) {
+    const fullPath = path.join(projectRoot, "06_execution_plan", file);
+    if (!(await fs.pathExists(fullPath))) {
+      pushIssue(issues, {
+        code: "missing-step6-file",
+        message: `Missing ${file}`,
+        path: "06_execution_plan"
+      });
+    }
+  }
+}
+
+async function verifyStep4(projectRoot: string, issues: VerificationIssue[]): Promise<void> {
+  const dir = path.join(projectRoot, "04_image_prompts");
+  if (!(await fs.pathExists(dir))) {
+    return;
+  }
+  const files = (await fs.readdir(dir)).filter((name) => name.endsWith(".md"));
+  for (const file of files) {
+    const relPath = path.join("04_image_prompts", file);
+    const content = await fs.readFile(path.join(dir, file), "utf8");
+    for (const section of step4RequiredSections) {
+      if (!content.includes(section)) {
+        pushIssue(issues, {
+          code: "missing-step4-section",
+          message: `Missing Step 4 section: ${section}`,
+          path: relPath
+        });
+      }
+    }
+    if (!content.includes("避免:") || !content.includes("Avoid:")) {
+      pushIssue(issues, {
+        code: "missing-step4-section",
+        message: "Missing `避免:` or `Avoid:` in Step 4 contract",
+        path: relPath
+      });
+    }
+    if (/([A-Za-z]:\\|file:\/\/|vscode:\/\/)/.test(content)) {
+      pushIssue(issues, {
+        code: "absolute-path-link",
+        message: "Found absolute path link",
+        path: relPath
+      });
+    }
+    for (const forbidden of step4ForbiddenText) {
+      if (content.includes(forbidden)) {
+        pushIssue(issues, {
+          code: "step4-forbidden-text",
+          message: `Found forbidden Step 4 text: ${forbidden}`,
+          path: relPath
+        });
+      }
+    }
+  }
+}
+
+async function verifyIdeRuntime(projectRoot: string, ide: string, issues: VerificationIssue[]): Promise<void> {
+  if (ide === "codex") {
+    if (!(await fs.pathExists(path.join(projectRoot, ".codex", "ai-video-workflow", "WORKFLOW_OVERVIEW.md")))) {
+      pushIssue(issues, {
+        code: "missing-ide-runtime",
+        message: "Missing Codex runtime mirror",
+        path: ".codex/ai-video-workflow"
+      });
+    }
+    if (!(await fs.pathExists(path.join(projectRoot, ".codex", "skills")))) {
+      pushIssue(issues, {
+        code: "missing-ide-runtime",
+        message: "Missing Codex runtime skills",
+        path: ".codex/skills"
+      });
+    }
+  }
+}
+
+export async function verifyProject({
+  projectRoot,
+  ide
+}: {
+  projectRoot: string;
+  ide: string;
+  pack: string;
+}): Promise<VerificationResult> {
+  const issues: VerificationIssue[] = [];
+  const config = await loadConfig(projectRoot);
+  if (!config) {
+    pushIssue(issues, { code: "missing-config", message: "Missing project.config.yaml", path: projectRoot });
+  } else {
+    if (!config.platforms?.image?.default) {
+      pushIssue(issues, {
+        code: "missing-image-default-platform",
+        message: "Missing image default platform",
+        path: "project.config.yaml"
+      });
+    }
+    if (!config.platforms?.video?.default) {
+      pushIssue(issues, {
+        code: "missing-video-default-platform",
+        message: "Missing video default platform",
+        path: "project.config.yaml"
+      });
+    }
+  }
+  await verifyStep6(projectRoot, issues);
+  await verifyStep4(projectRoot, issues);
+  await verifyIdeRuntime(projectRoot, ide, issues);
+  return { ok: issues.length === 0, issues };
+}

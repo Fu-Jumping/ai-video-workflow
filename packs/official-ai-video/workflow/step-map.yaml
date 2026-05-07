@@ -1,0 +1,19 @@
+steps:
+  - id: step-01
+    slug: concept
+    directory: 01_concept
+  - id: step-02
+    slug: setting
+    directory: 02_setting
+  - id: step-03
+    slug: storyboard
+    directory: 03_storyboard
+  - id: step-04
+    slug: image-prompts
+    directory: 04_image_prompts
+  - id: step-05
+    slug: video-prompts
+    directory: 05_video_prompts
+  - id: step-06
+    slug: execution-plan
+    directory: 06_execution_plan

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ProjectConfig",
+  "type": "object",
+  "required": ["pack", "ide", "platforms", "workflow"],
+  "properties": {
+    "pack": { "type": "string" },
+    "ide": { "type": "string" },
+    "platforms": {
+      "type": "object",
+      "required": ["image", "video"],
+      "properties": {
+        "image": {
+          "type": "object",
+          "required": ["default"],
+          "properties": {
+            "default": { "type": "string" }
+          }
+        },
+        "video": {
+          "type": "object",
+          "required": ["default"],
+          "properties": {
+            "default": { "type": "string" }
+          }
+        }
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "required": ["enhanced_flow"],
+      "properties": {
+        "enhanced_flow": {
+          "type": "object",
+          "required": ["enabled"],
+          "properties": {
+            "enabled": { "type": "boolean" }
+          }
+        }
+      }
+    }
+  }
+}

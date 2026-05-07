@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkflowPack",
+  "type": "object",
+  "required": ["name", "version", "displayName"],
+  "properties": {
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "displayName": { "type": "string" },
+    "description": { "type": "string" }
+  }
+}

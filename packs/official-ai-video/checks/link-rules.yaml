@@ -1,0 +1,5 @@
+allowAbsolutePaths: false
+forbiddenPrefixes:
+  - "file://"
+  - "vscode://"
+  - "G:\\"
