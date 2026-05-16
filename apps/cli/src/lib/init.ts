@@ -1,5 +1,6 @@
 import fs from "fs-extra";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { STEP6_FILES, STEP_DIRS } from "./constants.js";
 import { copyDirectory } from "./fs-utils.js";
@@ -7,6 +8,8 @@ import { resolveRepoRoot } from "./paths.js";
 import { syncProject } from "./sync.js";
 import type { CreateProjectOptions, ProjectConfig } from "./types.js";
 import { stringifyYaml } from "./yaml.js";
+
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
 async function seedProjectDirectories(projectRoot: string): Promise<void> {
   for (const dir of STEP_DIRS) {
@@ -41,7 +44,7 @@ async function seedStarterFiles(repoRoot: string, projectRoot: string): Promise<
 
 export async function createProject(options: CreateProjectOptions): Promise<void> {
   const projectRoot = path.join(options.targetRoot, options.projectName);
-  const repoRoot = resolveRepoRoot(__dirname);
+  const repoRoot = resolveRepoRoot(moduleDir);
   await fs.ensureDir(projectRoot);
   await seedStarterFiles(repoRoot, projectRoot);
   await seedProjectDirectories(projectRoot);

@@ -1,6 +1,7 @@
 import { input, select } from "@inquirer/prompts";
 import { Command } from "commander";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { DEFAULT_PACK, SUPPORTED_IDES, SUPPORTED_PLATFORMS } from "./lib/constants.js";
 import { diagnoseProject } from "./lib/doctor.js";
@@ -9,6 +10,8 @@ import { createPackScaffold } from "./lib/new-pack.js";
 import { resolveRepoRoot } from "./lib/paths.js";
 import { syncProject } from "./lib/sync.js";
 import { verifyProject } from "./lib/verify.js";
+
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
 const program = new Command();
 program.name("ai-video-workflow").description("AI video workflow CLI");
@@ -48,7 +51,7 @@ program
   .requiredOption("--ide <ide>")
   .action(async (options) => {
     await syncProject({
-      repoRoot: resolveRepoRoot(__dirname),
+      repoRoot: resolveRepoRoot(moduleDir),
       projectRoot: path.resolve(options.project),
       pack: DEFAULT_PACK,
       ide: options.ide
