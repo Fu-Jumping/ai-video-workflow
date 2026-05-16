@@ -24,4 +24,26 @@ describe("diagnoseProject", () => {
     expect(output).toContain("00_execution_plan.md");
     expect(output).toContain("relative path");
   });
+
+  test("suggests sync when codex runtime layers are missing", async () => {
+    const output = await diagnoseProject({
+      issues: [
+        {
+          code: "missing-ide-runtime",
+          message: "Missing Codex runtime mirror",
+          path: ".codex/ai-video-workflow"
+        },
+        {
+          code: "missing-ide-runtime",
+          message: "Missing Codex runtime skills",
+          path: ".codex/skills"
+        }
+      ]
+    });
+
+    expect(output).toContain("IDE Runtime");
+    expect(output).toContain("ai-video-workflow sync --project <path> --ide codex");
+    expect(output).toContain(".codex/ai-video-workflow");
+    expect(output).toContain(".codex/skills");
+  });
 });

@@ -8,6 +8,7 @@
     "build": "pnpm --filter ai-video-workflow build && pnpm docs:build",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
+    "example:verify": "node apps/cli/dist/index.js verify --project examples/official-mini-film --ide codex",
     "test": "pnpm --filter ai-video-workflow test"
   },
   "devDependencies": {

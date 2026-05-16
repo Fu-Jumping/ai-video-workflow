@@ -34,6 +34,9 @@ export async function diagnoseProject({
       if (issue.code === "missing-step6-file") {
         lines.push("  Restore the missing Step 6 execution plan file.");
       }
+      if (issue.code === "missing-ide-runtime") {
+        lines.push("  Run `ai-video-workflow sync --project <path> --ide codex` to restore the IDE runtime files.");
+      }
     }
     lines.push("");
   }
