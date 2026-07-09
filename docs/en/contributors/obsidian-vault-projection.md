@@ -18,8 +18,9 @@ The source of truth remains `packs/official-ai-video/` and the project Step 1 to
 - Generated Obsidian vault directory
 - Projected Markdown files with properties and tags
 - Project home, review dashboard, shot index, and production board
+- Immersive `Shots/<shotId>.md` single-shot review pages
 - Bases `.base` files with Review Queue, Shot Progress, Execution Readiness, and Modified Generated Files views
-- Canvas `.canvas` files for Workflow Map, Shot Pipeline, and Review Map
+- Canvas `.canvas` files for Workflow Map, Shot Pipeline, Review Map, and per-shot `Canvas/Shot Reviews/<shotId>.canvas` review canvases
 - `Projection Manifest.json`
 - `Notes/` user-note entry point
 - Optional community plugin recipes
@@ -34,6 +35,8 @@ Use `--force` to clear and rebuild the output directory. Use `--dry-run` to prin
 
 Starting in v0.3.2, the generated project home is a review command center. It links to review queues, shot progress, execution readiness, Graph/Canvas routes, Bases, and the user note area. The Review Map canvas is a spatial route through Project Home, Review Dashboard, Shot Index, Production Board, Bases, Notes, Workflow Map, and Shot Pipeline.
 
+Starting in v0.3.3, each generated `Shots/<shotId>.md` page is an immersive single-shot review hub. It links and embeds the storyboard, Step 4 image prompt, Step 5 video prompt, execution readiness, user review note target, and per-shot `Canvas/Shot Reviews/<shotId>.canvas`. The shot page is still generated projection content; durable human comments belong under `Notes/`.
+
 By default, export does not write `.obsidian/`. Use `--include-obsidian-ui` only when you want optional suggested Bookmarks, Workspace, core plugin, and appearance JSON files. Existing user `.obsidian` files are not overwritten; the exporter reports `skipped-user-config-existing` and writes suggested copies under `.obsidian/ai-video-workflow-suggested/`.
 
 ## User Notes
@@ -47,7 +50,7 @@ By default, export does not write `.obsidian/`. Use `--include-obsidian-ui` only
 - Backlinks / Outgoing links / Graph: show workflow relationships through real internal links.
 - Search query blocks: surface review items in dashboards.
 - Bases: browse Review Queue, Shot Progress, Execution Readiness, Modified Generated Files, shots, files, and production status as tables and cards.
-- Canvas: use JSON Canvas to show Step 1 to Step 6 relationships, shot pipelines, and the project-level review route.
+- Canvas: use JSON Canvas to show Step 1 to Step 6 relationships, shot pipelines, the project-level review route, and each single-shot review route.
 
 ## Non-Goals
 
@@ -63,6 +66,7 @@ By default, export does not write `.obsidian/`. Use `--include-obsidian-ui` only
 - Canvas files parse as JSON.
 - `.base` files are valid YAML.
 - Review Map, key dashboard markers, and key Bases views exist.
+- Single-shot review pages and per-shot review canvases exist and use relative vault paths.
 - Optional `.obsidian/ai-video-workflow-suggested/*.json` files parse when present.
 - Every projected file remains traceable to a source project path.
 - `Projection Manifest.json` exists, parses, and records hashes that match generated files.

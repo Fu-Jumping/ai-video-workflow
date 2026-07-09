@@ -40,7 +40,7 @@ node apps/cli/dist/index.js verify-obsidian --project examples/official-mini-fil
 
 默认导出是安全增量模式。再次导出到同一个 vault 时，CLI 会读取 `Projection Manifest.json`，只更新未被用户改动的生成文件，并保留用户在 `Notes/` 中新增的笔记。
 
-生成的 vault 包含 Project Home、Review Dashboard、Shot Index、Production Board、Review Queue、Shot Progress、Execution Readiness、Workflow Map、Shot Pipeline 和 Review Map。这些都是基于 Step 文件生成的审阅视图，不是第二套事实源。
+生成的 vault 包含 Project Home、Review Dashboard、Shot Index、Production Board、Review Queue、Shot Progress、Execution Readiness、Workflow Map、Shot Pipeline、Review Map、沉浸式 `Shots/<shotId>.md` 单镜头审阅页，以及逐镜头 `Canvas/Shot Reviews/<shotId>.canvas`。打开 `00_Project_Home.md` 后，可以从 `Immersive Shot Reviews` 进入单镜头页和对应 Review Canvas。这些都是基于 Step 文件生成的审阅视图，不是第二套事实源。
 
 常用选项：
 

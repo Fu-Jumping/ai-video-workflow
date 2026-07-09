@@ -14,10 +14,20 @@ const requiredDashboardMarkers: Record<string, string[]> = {
 const requiredBaseFiles = ["Bases/Workflow Files.base", "Bases/Shots.base", "Bases/Production Status.base"];
 const requiredBaseViews: Record<string, string[]> = {
   "Bases/Workflow Files.base": ["Workflow Files", "Review Queue", "Modified Generated Files"],
-  "Bases/Shots.base": ["Shot Table", "Shot Cards", "Shot Progress"],
+  "Bases/Shots.base": ["Shot Table", "Shot Cards", "Shot Progress", "Immersive Review"],
   "Bases/Production Status.base": ["Production Status", "Execution Readiness"]
 };
 const requiredCanvasFiles = ["Canvas/Workflow Map.canvas", "Canvas/Shot Pipeline.canvas", "Canvas/Review Map.canvas"];
+const requiredShotReviewMarkers = [
+  "Immersive Review",
+  "Review Route",
+  "Source Sequence",
+  "Frame Continuity",
+  "Prompt Handoff",
+  "Execution Readiness",
+  "User Notes",
+  "Review Canvas"
+];
 const absoluteLinkPattern = /([A-Za-z]:\\|[A-Za-z]:\/|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
 
 interface VerifyObsidianOptions {
@@ -144,7 +154,8 @@ async function verifyRequiredFiles(vaultRoot: string, issues: VerificationIssue[
 }
 
 async function verifyCanvasFiles(vaultRoot: string, issues: VerificationIssue[]): Promise<void> {
-  for (const file of requiredCanvasFiles) {
+  const canvasFiles = [...requiredCanvasFiles, ...(await listVaultFiles(vaultRoot)).filter((file) => file.startsWith("Canvas/Shot Reviews/") && file.endsWith(".canvas"))];
+  for (const file of canvasFiles) {
     const fullPath = vaultFsPath(vaultRoot, file);
     if (!(await fs.pathExists(fullPath))) {
       pushIssue(issues, { code: "invalid-obsidian-canvas-json", message: `Missing Obsidian canvas: ${file}`, path: file });
@@ -166,6 +177,26 @@ async function verifyCanvasFiles(vaultRoot: string, issues: VerificationIssue[])
       }
     } catch {
       pushIssue(issues, { code: "invalid-obsidian-canvas-json", message: "Canvas JSON is invalid", path: file });
+    }
+  }
+}
+
+async function verifyShotReviewPages(vaultRoot: string, files: string[], issues: VerificationIssue[]): Promise<void> {
+  for (const file of files.filter((filePath) => filePath.startsWith("Shots/") && filePath.endsWith(".md"))) {
+    const content = await fs.readFile(vaultFsPath(vaultRoot, file), "utf8");
+    const frontmatter = readFrontmatter(content);
+    const shotId = frontmatter?.shot_id ?? path.basename(file, ".md");
+    if (frontmatter?.review_mode !== "immersive") {
+      pushIssue(issues, { code: "invalid-obsidian-shot-review", message: `Shot review page is missing immersive review mode: ${file}`, path: file });
+    }
+    for (const marker of requiredShotReviewMarkers) {
+      if (!content.includes(marker)) {
+        pushIssue(issues, { code: "invalid-obsidian-shot-review", message: `Shot review page is missing marker: ${marker}`, path: file });
+      }
+    }
+    const reviewCanvasPath = `Canvas/Shot Reviews/${shotId}.canvas`;
+    if (!content.includes(`[[${reviewCanvasPath}`) || !(await fs.pathExists(vaultFsPath(vaultRoot, reviewCanvasPath)))) {
+      pushIssue(issues, { code: "invalid-obsidian-shot-review", message: `Shot review canvas is missing or not linked: ${reviewCanvasPath}`, path: file });
     }
   }
 }
@@ -288,6 +319,7 @@ export async function verifyObsidianVault({ projectRoot, vaultRoot }: VerifyObsi
   await verifyCanvasFiles(resolvedVaultRoot, issues);
   const manifest = await verifyManifest(resolvedProjectRoot, resolvedVaultRoot, issues);
   const files = await listVaultFiles(resolvedVaultRoot);
+  await verifyShotReviewPages(resolvedVaultRoot, files, issues);
   await verifyGeneratedMarkdown(resolvedProjectRoot, resolvedVaultRoot, files, manifest, issues);
   await verifyNoAbsoluteLinks(resolvedVaultRoot, files, issues);
   await verifyOptionalUiConfig(resolvedVaultRoot, issues);

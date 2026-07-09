@@ -40,7 +40,7 @@ node apps/cli/dist/index.js verify-obsidian --project examples/official-mini-fil
 
 Default export is safe and incremental. When exporting to the same vault again, the CLI reads `Projection Manifest.json`, updates generated files that have not been user-edited, and preserves user notes created under `Notes/`.
 
-The generated vault includes a Project Home, Review Dashboard, Shot Index, Production Board, Review Queue, Shot Progress, Execution Readiness, Workflow Map, Shot Pipeline, and Review Map. These are generated views over the Step files, not a second source of truth.
+The generated vault includes a Project Home, Review Dashboard, Shot Index, Production Board, Review Queue, Shot Progress, Execution Readiness, Workflow Map, Shot Pipeline, Review Map, immersive `Shots/<shotId>.md` review pages, and per-shot `Canvas/Shot Reviews/<shotId>.canvas` canvases. Open `00_Project_Home.md`, then use `Immersive Shot Reviews` to enter a shot page and its review canvas. These are generated views over the Step files, not a second source of truth.
 
 Common options:
 

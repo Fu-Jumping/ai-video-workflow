@@ -97,6 +97,7 @@ describe("exportObsidianVault", () => {
 
     const home = await fs.readFile(path.join(outRoot, "00_Project_Home.md"), "utf8");
     expect(home).toContain("Review Command Center");
+    expect(home).toContain("Immersive Shot Reviews");
     expect(home).toContain("Project Health");
     expect(home).toContain("Shot Progress");
     expect(home).toContain("Execution Readiness");
@@ -109,7 +110,30 @@ describe("exportObsidianVault", () => {
 
     const reviewDashboard = await fs.readFile(path.join(outRoot, "01_Review_Dashboard.md"), "utf8");
     expect(reviewDashboard).toContain("Generated File Conflicts");
+    expect(reviewDashboard).toContain("Shot Review Canvases");
     expect(reviewDashboard).toContain("![[Bases/Workflow Files.base#Modified Generated Files]]");
+  });
+
+  test("exports immersive single-shot review pages", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-shot-review-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+
+    const shotReview = await fs.readFile(path.join(outRoot, "Shots", "shot-001.md"), "utf8");
+    expect(shotReview).toContain("review_mode: immersive");
+    expect(shotReview).toContain('review_canvas: "[[Canvas/Shot Reviews/shot-001.canvas]]"');
+    expect(shotReview).toContain('review_note: "[[Notes/Shot Reviews/shot-001]]"');
+    expect(shotReview).toContain("has_storyboard: true");
+    expect(shotReview).toContain("has_image_prompt: true");
+    expect(shotReview).toContain("has_video_prompt: true");
+    expect(shotReview).toContain("## Immersive Review");
+    expect(shotReview).toContain("## Frame Continuity");
+    expect(shotReview).toContain("## Prompt Handoff");
+    expect(shotReview).toContain("## Review Canvas");
+    expect(shotReview).toContain("![[Workflow/Step 3 - Storyboard/Shot 001 - Storyboard.md]]");
+    expect(shotReview).toContain("![[Workflow/Step 4 - Image Prompts/Shot 001 Keyframe - Image Prompt.md]]");
+    expect(shotReview).toContain("![[Workflow/Step 5 - Video Prompts/Shot 001 - Video Prompt.md]]");
   });
 
   test("exports Obsidian Bases for workflow files and shots", async () => {
@@ -123,6 +147,9 @@ describe("exportObsidianVault", () => {
     expect(shotsBase).toContain("type: table");
     expect(shotsBase).toContain("type: cards");
     expect(shotsBase).toContain("Shot Progress");
+    expect(shotsBase).toContain("Immersive Review");
+    expect(shotsBase).toContain("review_canvas");
+    expect(shotsBase).toContain("review_note");
 
     const workflowBase = await fs.readFile(path.join(outRoot, "Bases", "Workflow Files.base"), "utf8");
     expect(workflowBase).toContain("Review Queue");
@@ -149,6 +176,25 @@ describe("exportObsidianVault", () => {
     expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "00_Project_Home.md" })]));
     expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "Bases/Workflow Files.base" })]));
     expect(reviewMap.edges.length).toBeGreaterThan(0);
+
+    const shotReview = await fs.readJson(path.join(outRoot, "Canvas", "Shot Reviews", "shot-001.canvas"));
+    expect(shotReview.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "Shots/shot-001.md" })]));
+    expect(shotReview.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "03_Production_Board.md" })]));
+    expect(shotReview.nodes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "file", file: "Workflow/Step 3 - Storyboard/Shot 001 - Storyboard.md" })])
+    );
+    expect(shotReview.nodes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "file", file: "Workflow/Step 4 - Image Prompts/Shot 001 Keyframe - Image Prompt.md" })])
+    );
+    expect(shotReview.nodes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "file", file: "Workflow/Step 5 - Video Prompts/Shot 001 - Video Prompt.md" })])
+    );
+    expect(
+      shotReview.nodes
+        .filter((node: { type?: string }) => node.type === "file")
+        .every((node: { file?: string }) => node.file && !path.isAbsolute(node.file) && !node.file.includes(":\\") && !node.file.includes(":/"))
+    ).toBe(true);
+    expect(shotReview.edges).toEqual(expect.arrayContaining([expect.objectContaining({ label: "review start / frame" })]));
   });
 
   test("preserves user-authored notes during incremental export", async () => {

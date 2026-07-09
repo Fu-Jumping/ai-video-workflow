@@ -2,7 +2,7 @@ import fs from "fs-extra";
 import path from "node:path";
 
 import { renderBaseFiles } from "./bases.js";
-import { renderReviewMapCanvas, renderShotPipelineCanvas, renderWorkflowCanvas } from "./canvas.js";
+import { renderReviewMapCanvas, renderShotPipelineCanvas, renderShotReviewCanvases, renderWorkflowCanvas } from "./canvas.js";
 import { renderDashboardFiles } from "./dashboard.js";
 import {
   hashContent,
@@ -203,6 +203,7 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
     ...renderBaseFiles(),
     renderWorkflowCanvas(sourceFiles),
     renderShotPipelineCanvas(sourceFiles),
+    ...renderShotReviewCanvases(sourceFiles),
     renderReviewMapCanvas(),
     ...(options.includeObsidianUi ? renderObsidianUiConfigFiles() : [])
   ];

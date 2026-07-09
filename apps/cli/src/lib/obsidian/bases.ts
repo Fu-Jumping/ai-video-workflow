@@ -77,6 +77,18 @@ properties:
     displayName: Shot
   shot_order:
     displayName: Order
+  review_mode:
+    displayName: Review Mode
+  review_canvas:
+    displayName: Review Canvas
+  review_note:
+    displayName: Review Note
+  has_storyboard:
+    displayName: Storyboard
+  has_image_prompt:
+    displayName: Image Prompt
+  has_video_prompt:
+    displayName: Video Prompt
   review_status:
     displayName: Review
   execution_status:
@@ -115,6 +127,18 @@ views:
       - execution_status
       - needs_attention
       - source_path
+  - type: table
+    name: Immersive Review
+    order:
+      - shot_order
+      - file.name
+      - review_mode
+      - review_canvas
+      - review_note
+      - has_storyboard
+      - has_image_prompt
+      - has_video_prompt
+      - execution_status
 `
     },
     {

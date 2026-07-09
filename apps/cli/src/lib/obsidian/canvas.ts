@@ -43,6 +43,76 @@ function canvasJson(canvas: CanvasFile): string {
   return `${JSON.stringify(canvas, null, 2)}\n`;
 }
 
+function uniqueShotIds(sourceFiles: ObsidianSourceFile[]): string[] {
+  return [...new Set(sourceFiles.map((file) => file.shotId).filter((shotId): shotId is string => Boolean(shotId)))].sort();
+}
+
+function shotFileForKind(sourceFiles: ObsidianSourceFile[], shotId: string, sourceKind: ObsidianSourceFile["sourceKind"]): ObsidianSourceFile | undefined {
+  return sourceFiles.find((file) => file.shotId === shotId && file.sourceKind === sourceKind);
+}
+
+function addSourceOrMissingNode({
+  nodes,
+  edges,
+  nodeId,
+  previousNodeId,
+  sourceFile,
+  missingText,
+  x,
+  y,
+  color,
+  edgeLabel
+}: {
+  nodes: CanvasNode[];
+  edges: CanvasEdge[];
+  nodeId: string;
+  previousNodeId: string;
+  sourceFile: ObsidianSourceFile | undefined;
+  missingText: string;
+  x: number;
+  y: number;
+  color: string;
+  edgeLabel: string;
+}): string {
+  if (sourceFile) {
+    nodes.push({
+      id: nodeId,
+      type: "file",
+      file: workflowVaultPath(sourceFile),
+      x,
+      y,
+      width: 320,
+      height: 110,
+      color
+    });
+  } else {
+    nodes.push({
+      id: nodeId,
+      type: "text",
+      text: missingText,
+      x,
+      y,
+      width: 320,
+      height: 110,
+      color
+    });
+  }
+  edges.push({
+    id: `${previousNodeId}-${nodeId}`,
+    fromNode: previousNodeId,
+    toNode: nodeId,
+    fromSide: "right",
+    toSide: "left",
+    toEnd: "arrow",
+    label: edgeLabel
+  });
+  return nodeId;
+}
+
+export function shotReviewCanvasPath(shotId: string): string {
+  return `Canvas/Shot Reviews/${shotId}.canvas`;
+}
+
 export function renderWorkflowCanvas(sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedFile {
   const nodes: CanvasNode[] = [];
   const edges: CanvasEdge[] = [];
@@ -102,7 +172,7 @@ export function renderWorkflowCanvas(sourceFiles: ObsidianSourceFile[]): Obsidia
 export function renderShotPipelineCanvas(sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedFile {
   const nodes: CanvasNode[] = [];
   const edges: CanvasEdge[] = [];
-  const shotIds = [...new Set(sourceFiles.map((file) => file.shotId).filter((shotId): shotId is string => Boolean(shotId)))].sort();
+  const shotIds = uniqueShotIds(sourceFiles);
   let nodeIndex = 0;
 
   shotIds.forEach((shotId, shotIndex) => {
@@ -147,6 +217,109 @@ export function renderShotPipelineCanvas(sourceFiles: ObsidianSourceFile[]): Obs
   });
 
   return { vaultPath: "Canvas/Shot Pipeline.canvas", content: canvasJson({ nodes, edges }) };
+}
+
+export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedFile[] {
+  return uniqueShotIds(sourceFiles).map((shotId) => {
+    const nodes: CanvasNode[] = [
+      {
+        id: "shot-review",
+        type: "file",
+        file: `Shots/${shotId}.md`,
+        x: 0,
+        y: 0,
+        width: 320,
+        height: 120,
+        color: "1"
+      }
+    ];
+    const edges: CanvasEdge[] = [];
+    const storyboard = shotFileForKind(sourceFiles, shotId, "storyboard");
+    const imagePrompt = shotFileForKind(sourceFiles, shotId, "image-prompt");
+    const videoPrompt = shotFileForKind(sourceFiles, shotId, "video-prompt");
+
+    let previousNodeId = addSourceOrMissingNode({
+      nodes,
+      edges,
+      nodeId: "storyboard",
+      previousNodeId: "shot-review",
+      sourceFile: storyboard,
+      missingText: `Missing storyboard for ${shotId}`,
+      x: 420,
+      y: -150,
+      color: "3",
+      edgeLabel: "review start / frame"
+    });
+    previousNodeId = addSourceOrMissingNode({
+      nodes,
+      edges,
+      nodeId: "image-prompt",
+      previousNodeId,
+      sourceFile: imagePrompt,
+      missingText: `Missing image prompt for ${shotId}`,
+      x: 840,
+      y: -150,
+      color: "4",
+      edgeLabel: "image prompt"
+    });
+    previousNodeId = addSourceOrMissingNode({
+      nodes,
+      edges,
+      nodeId: "video-prompt",
+      previousNodeId,
+      sourceFile: videoPrompt,
+      missingText: `Missing video prompt for ${shotId}`,
+      x: 1260,
+      y: -150,
+      color: "5",
+      edgeLabel: "video prompt"
+    });
+
+    nodes.push(
+      {
+        id: "production-board",
+        type: "file",
+        file: "03_Production_Board.md",
+        x: 1680,
+        y: -150,
+        width: 320,
+        height: 110,
+        color: "6"
+      },
+      {
+        id: "notes",
+        type: "file",
+        file: "Notes/README.md",
+        x: 420,
+        y: 120,
+        width: 320,
+        height: 110,
+        color: "5"
+      }
+    );
+    edges.push(
+      {
+        id: "video-production",
+        fromNode: previousNodeId,
+        toNode: "production-board",
+        fromSide: "right",
+        toSide: "left",
+        toEnd: "arrow",
+        label: "execute"
+      },
+      {
+        id: "shot-notes",
+        fromNode: "shot-review",
+        toNode: "notes",
+        fromSide: "bottom",
+        toSide: "left",
+        toEnd: "arrow",
+        label: "notes"
+      }
+    );
+
+    return { vaultPath: shotReviewCanvasPath(shotId), content: canvasJson({ nodes, edges }) };
+  });
 }
 
 export function renderReviewMapCanvas(): ObsidianGeneratedFile {

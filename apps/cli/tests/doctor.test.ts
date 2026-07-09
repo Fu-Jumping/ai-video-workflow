@@ -128,4 +128,20 @@ describe("diagnoseProject", () => {
     expect(output).toContain("Notes/");
     expect(output).toContain("--force");
   });
+
+  test("suggests Obsidian single-shot review fixes", async () => {
+    const output = await diagnoseProject({
+      issues: [
+        {
+          code: "invalid-obsidian-shot-review",
+          message: "Shot review canvas is missing or not linked: Canvas/Shot Reviews/shot-001.canvas",
+          path: "Shots/shot-001.md"
+        }
+      ]
+    });
+
+    expect(output).toContain("Obsidian Projection");
+    expect(output).toContain("single-shot review format");
+    expect(output).toContain("Canvas/Shot Reviews/");
+  });
 });

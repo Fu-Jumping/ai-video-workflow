@@ -94,4 +94,32 @@ describe("verifyObsidianVault", () => {
     expect(result.ok).toBe(false);
     expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "invalid-obsidian-ui-config" })]));
   });
+
+  test("fails when a shot review page is missing an immersive review marker", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-shot-marker-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    const shotReviewPath = path.join(outRoot, "Shots", "shot-001.md");
+    const content = await fs.readFile(shotReviewPath, "utf8");
+    await fs.writeFile(shotReviewPath, content.replace("## Prompt Handoff", "## Prompt Bridge"), "utf8");
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "invalid-obsidian-shot-review" })]));
+  });
+
+  test("fails when a linked shot review canvas is missing", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-shot-canvas-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    await fs.remove(path.join(outRoot, "Canvas", "Shot Reviews", "shot-001.canvas"));
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "invalid-obsidian-shot-review" })]));
+  });
 });

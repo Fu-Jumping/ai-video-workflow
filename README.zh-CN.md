@@ -35,9 +35,9 @@ pnpm build
 pnpm example:obsidian
 ```
 
-该命令会把官方示例导出为 Obsidian vault 投影，并校验 dashboard、Bases、Canvas 和来源路径。生成的 vault 包含项目首页、审阅队列、镜头进度、执行就绪视图、Workflow Map、Shot Pipeline 和 Review Map。设计边界见 `docs/zh/contributors/obsidian-vault-projection.md`。
+该命令会把官方示例导出为 Obsidian vault 投影，并校验 dashboard、Bases、Canvas 和来源路径。生成的 vault 包含项目首页、审阅队列、镜头进度、执行就绪视图、Workflow Map、Shot Pipeline、Review Map、沉浸式 `Shots/<shotId>.md` 单镜头审阅页，以及逐镜头 `Canvas/Shot Reviews/<shotId>.canvas`。设计边界见 `docs/zh/contributors/obsidian-vault-projection.md`。
 
-`export-obsidian` 默认使用安全增量导出：再次导出到同一个 vault 时，只更新投影层生成文件，保留用户在 Obsidian 中新增的笔记。`--force` 会清空并重建输出目录，`--dry-run` 会只打印将创建、更新、跳过或保留的文件，不写入磁盘。导出的 `Projection Manifest.json` 用于追踪生成文件；`Notes/` 目录用于用户自己的 Obsidian 笔记。
+`export-obsidian` 默认使用安全增量导出：再次导出到同一个 vault 时，只更新投影层生成文件，保留用户在 Obsidian 中新增的笔记。`--force` 会清空并重建输出目录，`--dry-run` 会只打印将创建、更新、跳过或保留的文件，不写入磁盘。导出的 `Projection Manifest.json` 用于追踪生成文件；`Shots/` 仍属于投影生成区，`Notes/` 目录用于用户自己的 Obsidian 笔记。
 
 默认导出不会写入 `.obsidian/`。只有显式使用 `--include-obsidian-ui` 时，才会生成可选的 Bookmarks、Workspace、核心插件和 appearance 建议 JSON。已有用户 `.obsidian` 文件不会被覆盖；建议副本会写入 `.obsidian/ai-video-workflow-suggested/`。
 

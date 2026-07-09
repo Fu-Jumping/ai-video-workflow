@@ -1,5 +1,6 @@
 import type { ObsidianGeneratedFile, ObsidianSourceFile } from "./types.js";
 import { workflowVaultPath } from "./markdown.js";
+import { shotReviewCanvasPath } from "./canvas.js";
 
 function uniqueShotIds(sourceFiles: ObsidianSourceFile[]): string[] {
   return [...new Set(sourceFiles.map((file) => file.shotId).filter((shotId): shotId is string => Boolean(shotId)))].sort();
@@ -15,11 +16,38 @@ function linkForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSourceFile
   return file ? `[[${workflowVaultPath(file)}|${label}]]` : `${label}: missing`;
 }
 
-function renderShotHub(shotId: string, shotFiles: ObsidianSourceFile[]): ObsidianGeneratedFile {
+function fileForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSourceFile["sourceKind"]): ObsidianSourceFile | undefined {
+  return sourceFiles.find((sourceFile) => sourceFile.sourceKind === kind);
+}
+
+function embeddedFileForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSourceFile["sourceKind"], missingLabel: string): string {
+  const file = fileForKind(sourceFiles, kind);
+  return file ? `![[${workflowVaultPath(file)}]]` : `> ${missingLabel}: missing`;
+}
+
+function shotNavigation(shotId: string, shotIds: string[]): string {
+  const index = shotIds.indexOf(shotId);
+  const previousShotId = index > 0 ? shotIds[index - 1] : undefined;
+  const nextShotId = index >= 0 && index < shotIds.length - 1 ? shotIds[index + 1] : undefined;
+  return [
+    previousShotId ? `- Previous shot: [[Shots/${previousShotId}|${previousShotId}]]` : "- Previous shot: none",
+    nextShotId ? `- Next shot: [[Shots/${nextShotId}|${nextShotId}]]` : "- Next shot: none"
+  ].join("\n");
+}
+
+function booleanProperty(value: boolean): string {
+  return value ? "true" : "false";
+}
+
+function renderShotHub(shotId: string, shotFiles: ObsidianSourceFile[], allSourceFiles: ObsidianSourceFile[], shotIds: string[]): ObsidianGeneratedFile {
   const sourcePath = shotFiles.find((file) => file.sourceKind === "storyboard")?.sourcePath ?? shotFiles[0]?.sourcePath;
   const sourcePathLine = sourcePath ? `source_path: ${sourcePath}\n` : "";
   const order = shotOrder(shotId);
   const shotOrderLine = order === undefined ? "" : `shot_order: ${order}\n`;
+  const storyboard = fileForKind(shotFiles, "storyboard");
+  const imagePrompt = fileForKind(shotFiles, "image-prompt");
+  const videoPrompt = fileForKind(shotFiles, "video-prompt");
+  const reviewCanvasPath = shotReviewCanvasPath(shotId);
   return {
     vaultPath: `Shots/${shotId}.md`,
     content: `---
@@ -30,6 +58,12 @@ ${shotOrderLine}stage_group: shot-review
 review_status: shot-review
 execution_status: prompt-ready
 needs_attention: false
+review_mode: immersive
+review_canvas: "[[${reviewCanvasPath}]]"
+review_note: "[[Notes/Shot Reviews/${shotId}]]"
+has_storyboard: ${booleanProperty(Boolean(storyboard))}
+has_image_prompt: ${booleanProperty(Boolean(imagePrompt))}
+has_video_prompt: ${booleanProperty(Boolean(videoPrompt))}
 status: ready
 tags:
   - ai-video/project
@@ -40,14 +74,43 @@ tags:
 
 # ${shotId}
 
-## Shot Links
+## Immersive Review
 
 - Storyboard: ${linkForKind(shotFiles, "storyboard", "Storyboard")}
 - Image prompt: ${linkForKind(shotFiles, "image-prompt", "Image Prompt")}
 - Video prompt: ${linkForKind(shotFiles, "video-prompt", "Video Prompt")}
+- Execution plan: ${linkForKind(allSourceFiles, "execution-plan", "Execution Plan")}
+- Review canvas: [[${reviewCanvasPath}|Shot Review Canvas]]
+- User review note: [[Notes/Shot Reviews/${shotId}|${shotId} Review Note]]
+
+## Review Route
+
 - Review dashboard: [[01_Review_Dashboard]]
 - Production board: [[03_Production_Board]]
 - Review map: [[Canvas/Review Map.canvas]]
+${shotNavigation(shotId, shotIds)}
+
+## Source Sequence
+
+${embeddedFileForKind(shotFiles, "storyboard", "Storyboard")}
+
+## Frame Continuity
+
+Use the storyboard frame as the reference when reviewing Step 4 image prompt continuity.
+
+${embeddedFileForKind(shotFiles, "image-prompt", "Image prompt")}
+
+## Prompt Handoff
+
+Check whether the Step 5 video prompt preserves the Step 4 visual frame and adds only motion, timing, and camera behavior.
+
+${embeddedFileForKind(shotFiles, "video-prompt", "Video prompt")}
+
+## Execution Readiness
+
+- Source Step files remain the source of truth.
+- Confirm the storyboard, image prompt, and video prompt are aligned before execution.
+- Use [[03_Production_Board]] for project-level execution checks.
 
 ## Shot Records
 
@@ -56,6 +119,14 @@ tags:
 ## Progress View
 
 ![[Bases/Shots.base#Shot Progress]]
+
+## User Notes
+
+Write durable review comments under [[Notes/Shot Reviews/${shotId}|Notes/Shot Reviews/${shotId}]] so incremental export can keep generated files replaceable.
+
+## Review Canvas
+
+![[${reviewCanvasPath}]]
 `
   };
 }
@@ -88,7 +159,7 @@ Use Excalidraw only when the project needs richer visual sketching than core Can
 
 export function renderDashboardFiles(projectName: string, sourceFiles: ObsidianSourceFile[], includePluginRecipes: boolean): ObsidianGeneratedFile[] {
   const shotIds = uniqueShotIds(sourceFiles);
-  const shotLinks = shotIds.length > 0 ? shotIds.map((shotId) => `- [[Shots/${shotId}|${shotId}]]`).join("\n") : "- No shot files found yet.";
+  const shotLinks = shotIds.length > 0 ? shotIds.map((shotId) => `- [[Shots/${shotId}|${shotId}]] - [[${shotReviewCanvasPath(shotId)}|Review Canvas]]`).join("\n") : "- No shot files found yet.";
   const files: ObsidianGeneratedFile[] = [
     {
       vaultPath: "README.md",
@@ -112,6 +183,10 @@ Do not treat generated projection files as the source of truth. Edit the origina
 - [[Canvas/Review Map.canvas|Review Map]]
 - [[Canvas/Workflow Map.canvas|Workflow Map]]
 - [[Canvas/Shot Pipeline.canvas|Shot Pipeline]]
+
+## Immersive Shot Reviews
+
+${shotLinks}
 
 ## Project Health
 
@@ -200,6 +275,10 @@ Use \`verify-obsidian\` when this queue shows possible projection conflicts. Mov
 
 ![[Canvas/Review Map.canvas]]
 
+## Shot Review Canvases
+
+${shotLinks}
+
 `
     },
     {
@@ -215,6 +294,10 @@ ${shotLinks}
 ## Shot Progress
 
 ![[Bases/Shots.base#Shot Progress]]
+
+## Immersive Review Table
+
+![[Bases/Shots.base#Immersive Review]]
 `
     },
     {
@@ -245,6 +328,7 @@ tag:#ai-video/status/ready
 - Shot index: [[02_Shot_Index]]
 - Workflow map: [[Canvas/Workflow Map.canvas]]
 - Review map: [[Canvas/Review Map.canvas]]
+- Shot reviews: [[02_Shot_Index]]
 `
     },
     {
@@ -290,7 +374,7 @@ Files you create in this folder are not part of the generated projection manifes
 If you edit a generated file, the next incremental export will skip that file and report it as \`skipped-user-modified\`.
 `
     },
-    ...shotIds.map((shotId) => renderShotHub(shotId, sourceFiles.filter((file) => file.shotId === shotId)))
+    ...shotIds.map((shotId) => renderShotHub(shotId, sourceFiles.filter((file) => file.shotId === shotId), sourceFiles, shotIds))
   ];
   if (includePluginRecipes) {
     files.push(renderCommunityPluginRecipes());
