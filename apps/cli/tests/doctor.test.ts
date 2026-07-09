@@ -46,4 +46,19 @@ describe("diagnoseProject", () => {
     expect(output).toContain(".codex/ai-video-workflow");
     expect(output).toContain(".codex/skills");
   });
+
+  test("suggests Step 3 to Step 4 traceability fixes", async () => {
+    const output = await diagnoseProject({
+      issues: [
+        {
+          code: "broken-step3-step4-link",
+          message: "Storyboard file links to missing Step 4 target: missing.md",
+          path: "03_storyboard/shot-001.md"
+        }
+      ]
+    });
+
+    expect(output).toContain("Traceability");
+    expect(output).toContain("Step 4 link target");
+  });
 });

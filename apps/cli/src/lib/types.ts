@@ -10,7 +10,9 @@ export type IssueCode =
   | "missing-step4-section"
   | "absolute-path-link"
   | "step4-forbidden-text"
-  | "missing-ide-runtime";
+  | "missing-ide-runtime"
+  | "missing-step3-step4-link"
+  | "broken-step3-step4-link";
 
 export interface ProjectConfig {
   pack: string;

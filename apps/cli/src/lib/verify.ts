@@ -10,6 +10,7 @@ const step4ForbiddenText = ["参考前文", "同上", "模型应自行理解剧�
 const ignoredMarkdownDirs = new Set(["node_modules", ".git"]);
 const absoluteLinkPattern = /([A-Za-z]:\\|[A-Za-z]:\/|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
 const inlineCodePattern = /`[^`\r\n]*`/g;
+const step4LinkPattern = /\]\((?:\.\.\/)?04_image_prompts\/([^)#]+)(?:#[^)]+)?\)/g;
 
 async function loadConfig(projectRoot: string): Promise<ProjectConfig | null> {
   const configPath = path.join(projectRoot, "project.config.yaml");
@@ -108,6 +109,45 @@ async function verifyStep4(projectRoot: string, issues: VerificationIssue[]): Pr
   }
 }
 
+async function verifyStep3Step4Traceability(projectRoot: string, issues: VerificationIssue[]): Promise<void> {
+  const storyboardDir = path.join(projectRoot, "03_storyboard");
+  if (!(await fs.pathExists(storyboardDir))) {
+    return;
+  }
+  const files = (await fs.readdir(storyboardDir)).filter((name) => name.endsWith(".md"));
+  for (const file of files) {
+    const relPath = path.join("03_storyboard", file);
+    const content = await fs.readFile(path.join(storyboardDir, file), "utf8");
+    const matches = [...content.matchAll(step4LinkPattern)];
+    if (matches.length === 0) {
+      pushIssue(issues, {
+        code: "missing-step3-step4-link",
+        message: "Storyboard file does not link to a Step 4 image prompt",
+        path: relPath
+      });
+      continue;
+    }
+    for (const match of matches) {
+      const target = match[1];
+      if (!target || target.includes("..")) {
+        pushIssue(issues, {
+          code: "broken-step3-step4-link",
+          message: "Storyboard file links to an invalid Step 4 target",
+          path: relPath
+        });
+        continue;
+      }
+      if (!(await fs.pathExists(path.join(projectRoot, "04_image_prompts", target)))) {
+        pushIssue(issues, {
+          code: "broken-step3-step4-link",
+          message: `Storyboard file links to missing Step 4 target: ${target}`,
+          path: relPath
+        });
+      }
+    }
+  }
+}
+
 async function verifyIdeRuntime(projectRoot: string, ide: string, issues: VerificationIssue[]): Promise<void> {
   if (ide === "codex") {
     if (!(await fs.pathExists(path.join(projectRoot, ".codex", "ai-video-workflow", "WORKFLOW_OVERVIEW.md")))) {
@@ -157,6 +197,7 @@ export async function verifyProject({
   }
   await verifyStep6(projectRoot, issues);
   await verifyStep4(projectRoot, issues);
+  await verifyStep3Step4Traceability(projectRoot, issues);
   await verifyRelativeMarkdownLinks(projectRoot, issues);
   await verifyIdeRuntime(projectRoot, ide, issues);
   return { ok: issues.length === 0, issues };

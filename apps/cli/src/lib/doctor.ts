@@ -8,7 +8,9 @@ const groups: Record<string, string> = {
   "missing-step4-section": "Step 4 Contract",
   "step4-forbidden-text": "Step 4 Contract",
   "absolute-path-link": "Links",
-  "missing-ide-runtime": "IDE Runtime"
+  "missing-ide-runtime": "IDE Runtime",
+  "missing-step3-step4-link": "Traceability",
+  "broken-step3-step4-link": "Traceability"
 };
 
 export async function diagnoseProject({
@@ -36,6 +38,12 @@ export async function diagnoseProject({
       }
       if (issue.code === "missing-ide-runtime") {
         lines.push("  Run `ai-video-workflow sync --project <path> --ide codex` to restore the IDE runtime files.");
+      }
+      if (issue.code === "missing-step3-step4-link") {
+        lines.push("  Add a relative link from the storyboard card to the matching Step 4 image prompt.");
+      }
+      if (issue.code === "broken-step3-step4-link") {
+        lines.push("  Fix the Step 4 link target or create the referenced image prompt file.");
       }
     }
     lines.push("");

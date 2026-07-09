@@ -117,4 +117,54 @@ describe("verifyProject", () => {
       ])
     );
   });
+
+  test("requires storyboard files to link to existing Step 4 prompt files", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-trace-"));
+    tempRoots.push(root);
+
+    const projectRoot = path.join(root, "bad-trace");
+    await fs.ensureDir(path.join(projectRoot, "03_storyboard"));
+    await fs.ensureDir(path.join(projectRoot, "04_image_prompts"));
+    await fs.ensureDir(path.join(projectRoot, "06_execution_plan"));
+    await fs.writeFile(
+      path.join(projectRoot, "project.config.yaml"),
+      [
+        "pack: official-ai-video",
+        "ide: codex",
+        "platforms:",
+        "  image:",
+        "    default: openai",
+        "  video:",
+        "    default: runway",
+        "workflow:",
+        "  enhanced_flow:",
+        "    enabled: true"
+      ].join("\n"),
+      "utf8"
+    );
+    await fs.writeFile(path.join(projectRoot, "06_execution_plan", "00_execution_plan.md"), "# Plan\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "06_execution_plan", "01_image_execution_plan.md"), "# Images\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "06_execution_plan", "02_video_execution_plan.md"), "# Videos\n", "utf8");
+    await fs.writeFile(
+      path.join(projectRoot, "03_storyboard", "shot-001.md"),
+      "[missing](../04_image_prompts/missing.md)\n",
+      "utf8"
+    );
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "cursor",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "broken-step3-step4-link",
+          path: path.join("03_storyboard", "shot-001.md")
+        })
+      ])
+    );
+  });
 });
