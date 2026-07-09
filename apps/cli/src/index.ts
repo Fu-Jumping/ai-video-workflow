@@ -7,6 +7,8 @@ import { DEFAULT_PACK, SUPPORTED_IDES, SUPPORTED_PLATFORMS } from "./lib/constan
 import { diagnoseProject } from "./lib/doctor.js";
 import { createProject } from "./lib/init.js";
 import { createPackScaffold } from "./lib/new-pack.js";
+import { exportObsidianVault } from "./lib/obsidian/export.js";
+import { verifyObsidianVault } from "./lib/obsidian/verify.js";
 import { resolveRepoRoot } from "./lib/paths.js";
 import { syncProject } from "./lib/sync.js";
 import { verifyProject } from "./lib/verify.js";
@@ -119,6 +121,43 @@ program
     if (!result.ok) {
       process.exitCode = 1;
     }
+  });
+
+program
+  .command("export-obsidian")
+  .description("Export a project into an Obsidian vault projection")
+  .requiredOption("--project <path>")
+  .requiredOption("--out <path>")
+  .option("--force", "Overwrite the output directory if it already contains files", false)
+  .option("--no-plugin-recipes", "Skip optional community plugin recipe notes")
+  .action(async (options) => {
+    const result = await exportObsidianVault({
+      projectRoot: path.resolve(options.project),
+      outRoot: path.resolve(options.out),
+      force: options.force,
+      includePluginRecipes: options.pluginRecipes
+    });
+    console.log(`Exported Obsidian vault projection to ${result.vaultRoot}`);
+  });
+
+program
+  .command("verify-obsidian")
+  .description("Verify an Obsidian vault projection")
+  .requiredOption("--project <path>")
+  .requiredOption("--vault <path>")
+  .action(async (options) => {
+    const result = await verifyObsidianVault({
+      projectRoot: path.resolve(options.project),
+      vaultRoot: path.resolve(options.vault)
+    });
+    if (!result.ok) {
+      for (const issue of result.issues) {
+        console.error(`- ${issue.code}: ${issue.message}${issue.path ? ` (${issue.path})` : ""}`);
+      }
+      process.exitCode = 1;
+      return;
+    }
+    console.log("Obsidian projection verification passed");
   });
 
 program

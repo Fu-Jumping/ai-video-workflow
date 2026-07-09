@@ -5,11 +5,12 @@
   "type": "module",
   "packageManager": "pnpm@10.19.0",
   "scripts": {
-    "build": "pnpm --filter ai-video-workflow build && pnpm docs:build",
+    "build": "pnpm --filter ./apps/cli build && pnpm docs:build",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
+    "example:obsidian": "node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian --force && node apps/cli/dist/index.js verify-obsidian --project examples/official-mini-film --vault .tmp/official-mini-film-obsidian",
     "example:verify": "node apps/cli/dist/index.js verify --project examples/official-mini-film --ide codex",
-    "test": "pnpm --filter ai-video-workflow test",
+    "test": "pnpm --filter ./apps/cli test",
     "verify:v0.2": "pnpm build && pnpm test && pnpm example:verify"
   },
   "devDependencies": {

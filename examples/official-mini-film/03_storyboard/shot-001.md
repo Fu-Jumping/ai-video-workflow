@@ -2,7 +2,7 @@
 
 ## Visible Description
 
-A lone courier in a dark rain jacket walks along an empty riverside path at night. The wet pavement reflects a line of pale streetlights. The courier holds a small sealed data card near the body while passing a low metal railing beside the dark river.
+A lone courier in a dark rain jacket enters an empty riverside path at night. The wet pavement reflects a line of pale streetlights. The courier holds a small sealed data card near the body while passing a low metal railing beside the dark river.
 
 ## Frame Mapping
 

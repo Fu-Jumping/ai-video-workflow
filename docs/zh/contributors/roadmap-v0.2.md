@@ -25,7 +25,9 @@ v0.2 的目标是让新人能拉下仓库、初始化项目、查看官方示例
 
 v0.2 稳定后，再按以下顺序推进：
 
-1. Obsidian vault 投影。
+1. v0.3 Obsidian vault 投影：先做单向生成的阅读、审阅、Bases 和 Canvas 视图，不开发 Obsidian 插件。
 2. LibTV 执行投影。
 3. MCP server。
 4. 更多智能体平台适配。
+
+Obsidian 投影的边界见 [Obsidian Vault 投影](./obsidian-vault-projection.md)。

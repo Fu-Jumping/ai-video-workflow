@@ -9,6 +9,7 @@ coverage/
 Thumbs.db
 .turbo/
 tmp/
+.tmp/
 temp/
 .vscode/
 .idea/

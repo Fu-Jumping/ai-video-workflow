@@ -25,7 +25,9 @@ v0.2 should let a new user clone the repo, initialize a project, inspect the off
 
 After v0.2 is stable:
 
-1. Obsidian vault projection.
+1. v0.3 Obsidian vault projection: start with one-way generation for reading, review, Bases, and Canvas views without developing an Obsidian plugin.
 2. LibTV execution projection.
 3. MCP server.
 4. More agent platform adapters.
+
+See [Obsidian vault projection](./obsidian-vault-projection.md) for the adapter boundary.

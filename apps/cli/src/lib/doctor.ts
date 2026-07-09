@@ -10,7 +10,14 @@ const groups: Record<string, string> = {
   "absolute-path-link": "Links",
   "missing-ide-runtime": "IDE Runtime",
   "missing-step3-step4-link": "Traceability",
-  "broken-step3-step4-link": "Traceability"
+  "broken-step3-step4-link": "Traceability",
+  "missing-obsidian-dashboard": "Obsidian Projection",
+  "missing-obsidian-base": "Obsidian Projection",
+  "invalid-obsidian-base-yaml": "Obsidian Projection",
+  "invalid-obsidian-canvas-json": "Obsidian Projection",
+  "missing-obsidian-source-path": "Obsidian Projection",
+  "broken-obsidian-source-path": "Obsidian Projection",
+  "obsidian-absolute-link": "Obsidian Projection"
 };
 
 export async function diagnoseProject({
@@ -59,6 +66,21 @@ export async function diagnoseProject({
       }
       if (issue.code === "broken-step3-step4-link") {
         lines.push("  Fix the Step 4 link target or create the referenced image prompt file.");
+      }
+      if (issue.code === "missing-obsidian-dashboard" || issue.code === "missing-obsidian-base") {
+        lines.push("  Rerun `ai-video-workflow export-obsidian --project <path> --out <vault> --force`.");
+      }
+      if (issue.code === "invalid-obsidian-canvas-json") {
+        lines.push("  Regenerate the Obsidian projection with `export-obsidian`; do not hand-edit generated Canvas JSON.");
+      }
+      if (issue.code === "invalid-obsidian-base-yaml") {
+        lines.push("  Regenerate the Obsidian projection with `export-obsidian`; do not hand-edit generated `.base` YAML.");
+      }
+      if (issue.code === "missing-obsidian-source-path" || issue.code === "broken-obsidian-source-path") {
+        lines.push("  Regenerate the projection so each generated note records a valid relative `source_path`.");
+      }
+      if (issue.code === "obsidian-absolute-link") {
+        lines.push("  Replace the Obsidian projection link with a vault-relative path or regenerate the projection.");
       }
     }
     lines.push("");

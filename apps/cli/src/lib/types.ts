@@ -12,7 +12,14 @@ export type IssueCode =
   | "step4-forbidden-text"
   | "missing-ide-runtime"
   | "missing-step3-step4-link"
-  | "broken-step3-step4-link";
+  | "broken-step3-step4-link"
+  | "missing-obsidian-dashboard"
+  | "missing-obsidian-base"
+  | "invalid-obsidian-base-yaml"
+  | "invalid-obsidian-canvas-json"
+  | "missing-obsidian-source-path"
+  | "broken-obsidian-source-path"
+  | "obsidian-absolute-link";
 
 export interface ProjectConfig {
   pack: string;

@@ -77,4 +77,19 @@ describe("diagnoseProject", () => {
     expect(output).toContain("project.config.yaml");
     expect(output).toContain("platforms.video.default");
   });
+
+  test("suggests Obsidian projection fixes", async () => {
+    const output = await diagnoseProject({
+      issues: [
+        {
+          code: "invalid-obsidian-canvas-json",
+          message: "Canvas JSON is invalid",
+          path: "Canvas/Workflow Map.canvas"
+        }
+      ]
+    });
+
+    expect(output).toContain("Obsidian Projection");
+    expect(output).toContain("export-obsidian");
+  });
 });

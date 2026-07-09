@@ -78,4 +78,30 @@ describe("built CLI", () => {
     expect(config).toContain("default: openai");
     expect(config).toContain("default: runway");
   });
+
+  test("export-obsidian creates a vault projection from the official example", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const repoRoot = path.resolve(cliRoot, "..", "..");
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-obsidian-"));
+    tempRoots.push(outRoot);
+
+    await buildCli(cliRoot);
+    await run(
+      process.execPath,
+      [
+        path.join(cliRoot, "dist", "index.js"),
+        "export-obsidian",
+        "--project",
+        path.join(repoRoot, "examples", "official-mini-film"),
+        "--out",
+        outRoot,
+        "--force"
+      ],
+      repoRoot
+    );
+
+    await expect(fs.pathExists(path.join(outRoot, "00_Project_Home.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, "Canvas", "Workflow Map.canvas"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, "Bases", "Shots.base"))).resolves.toBe(true);
+  });
 });

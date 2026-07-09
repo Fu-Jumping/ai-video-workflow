@@ -28,6 +28,15 @@ pnpm verify:v0.2
 
 该命令会构建 CLI 与文档站、运行测试，并验证官方示例项目。
 
+## Obsidian vault 投影
+
+```powershell
+pnpm build
+pnpm example:obsidian
+```
+
+该命令会把官方示例导出为 Obsidian vault 投影，并校验 dashboard、Bases、Canvas 和来源路径。设计边界见 `docs/zh/contributors/obsidian-vault-projection.md`。
+
 ## 快速开始
 
 1. 运行 `pnpm install` 安装依赖。

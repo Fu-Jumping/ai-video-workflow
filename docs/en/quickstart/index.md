@@ -21,3 +21,21 @@ node apps/cli/dist/index.js init --name my-ai-video-project --ide codex --image 
 ```
 
 The default pack is `official-ai-video`, and enhanced flow is enabled unless the project explicitly disables it.
+
+## Export an Obsidian Vault Projection
+
+After building, export the official example into an Obsidian-readable vault projection:
+
+```powershell
+pnpm build
+pnpm example:obsidian
+```
+
+You can also specify the project and output directory directly:
+
+```powershell
+node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian --force
+node apps/cli/dist/index.js verify-obsidian --project examples/official-mini-film --vault .tmp/official-mini-film-obsidian
+```
+
+The projection is a one-way reading and review view. Do not treat projected files as source Step files. See [Obsidian vault projection](../contributors/obsidian-vault-projection.md) for the boundary.

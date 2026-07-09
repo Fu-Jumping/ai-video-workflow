@@ -6,7 +6,7 @@ A lone night courier crosses an empty riverside walkway to deliver a sealed data
 
 ## Creative Baseline
 
-- Format: one-shot mini film demo
+- Format: three-shot mini film demo
 - Tone: restrained, cinematic, quiet tension
 - Visual baseline: wet pavement, pale streetlights, distant city reflections
 - Production goal: prove the workflow structure, not produce a final public film
@@ -14,6 +14,6 @@ A lone night courier crosses an empty riverside walkway to deliver a sealed data
 ## Constraints
 
 - Use one character.
-- Use one primary location.
-- Keep the demo to one storyboard shot.
+- Use one primary location with three connected positions.
+- Keep the demo to three storyboard shots.
 - Do not depend on generated media files.

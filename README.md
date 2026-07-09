@@ -28,6 +28,15 @@ pnpm verify:v0.2
 
 This command builds the CLI and docs site, runs tests, and verifies the official example project.
 
+## Obsidian Vault Projection
+
+```powershell
+pnpm build
+pnpm example:obsidian
+```
+
+This command exports the official example into an Obsidian vault projection and verifies dashboards, Bases, Canvas, and source paths. See `docs/en/contributors/obsidian-vault-projection.md` for the adapter boundary.
+
 ## Quick Start
 
 1. Install dependencies with `pnpm install`.
