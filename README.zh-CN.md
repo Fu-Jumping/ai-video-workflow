@@ -20,6 +20,14 @@
 
 后续 Obsidian、LibTV、MCP 和更多智能体平台都应作为 adapter 接入，不作为第二套工作流来源。
 
+## v0.2 验证
+
+```powershell
+pnpm verify:v0.2
+```
+
+该命令会构建 CLI 与文档站、运行测试，并验证官方示例项目。
+
 ## 快速开始
 
 1. 运行 `pnpm install` 安装依赖。

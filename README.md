@@ -20,6 +20,14 @@ The current recommended focus is the mainline demo loop: non-interactive init, t
 
 Future Obsidian, LibTV, MCP, and agent-platform work should attach as adapters, not as second workflow sources.
 
+## v0.2 Verification
+
+```powershell
+pnpm verify:v0.2
+```
+
+This command builds the CLI and docs site, runs tests, and verifies the official example project.
+
 ## Quick Start
 
 1. Install dependencies with `pnpm install`.
