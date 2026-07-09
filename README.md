@@ -14,6 +14,12 @@ It combines:
 
 This repository is the first-stage refactor from the former internal mother package. The current default pack is `official-ai-video`.
 
+## v0.2 Mainline
+
+The current recommended focus is the mainline demo loop: non-interactive init, the official example project, verification and doctor guidance, adapter boundaries, and quickstart docs.
+
+Future Obsidian, LibTV, MCP, and agent-platform work should attach as adapters, not as second workflow sources.
+
 ## Quick Start
 
 1. Install dependencies with `pnpm install`.

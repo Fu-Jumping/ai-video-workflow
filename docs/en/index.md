@@ -5,3 +5,9 @@
 - Use `official-ai-video` as the flagship learning pack.
 - Use the CLI to initialize, sync, verify, diagnose, and scaffold.
 - Use docs to learn the workflow and supported integrations.
+
+## Continue Reading
+
+- [Quickstart](./quickstart/index.md)
+- [Adapter boundaries](./contributors/adapter-boundaries.md)
+- [v0.2 roadmap](./contributors/roadmap-v0.2.md)
