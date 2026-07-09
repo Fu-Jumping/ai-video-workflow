@@ -7,6 +7,9 @@ import { parseYaml } from "./yaml.js";
 
 const step4RequiredSections = ["快速导读", "中文完整版本", "English Version (Copy Ready)"];
 const step4ForbiddenText = ["参考前文", "同上", "模型应自行理解剧情", "same as previous"];
+const ignoredMarkdownDirs = new Set(["node_modules", ".git"]);
+const absoluteLinkPattern = /([A-Za-z]:\\|[A-Za-z]:\/|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
+const inlineCodePattern = /`[^`\r\n]*`/g;
 
 async function loadConfig(projectRoot: string): Promise<ProjectConfig | null> {
   const configPath = path.join(projectRoot, "project.config.yaml");
@@ -18,6 +21,41 @@ async function loadConfig(projectRoot: string): Promise<ProjectConfig | null> {
 
 function pushIssue(issues: VerificationIssue[], issue: VerificationIssue): void {
   issues.push(issue);
+}
+
+async function listMarkdownFiles(root: string, current = root): Promise<string[]> {
+  const entries = await fs.readdir(current, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    if (ignoredMarkdownDirs.has(entry.name)) {
+      continue;
+    }
+    const fullPath = path.join(current, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await listMarkdownFiles(root, fullPath)));
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      files.push(path.relative(root, fullPath));
+    }
+  }
+  return files;
+}
+
+async function verifyRelativeMarkdownLinks(projectRoot: string, issues: VerificationIssue[]): Promise<void> {
+  if (!(await fs.pathExists(projectRoot))) {
+    return;
+  }
+  const files = await listMarkdownFiles(projectRoot);
+  for (const relPath of files) {
+    const content = await fs.readFile(path.join(projectRoot, relPath), "utf8");
+    const searchableContent = content.replace(inlineCodePattern, "");
+    if (absoluteLinkPattern.test(searchableContent)) {
+      pushIssue(issues, {
+        code: "absolute-path-link",
+        message: "Found absolute path link",
+        path: relPath
+      });
+    }
+  }
 }
 
 async function verifyStep6(projectRoot: string, issues: VerificationIssue[]): Promise<void> {
@@ -55,13 +93,6 @@ async function verifyStep4(projectRoot: string, issues: VerificationIssue[]): Pr
       pushIssue(issues, {
         code: "missing-step4-section",
         message: "Missing `避免:` or `Avoid:` in Step 4 contract",
-        path: relPath
-      });
-    }
-    if (/([A-Za-z]:\\|file:\/\/|vscode:\/\/)/.test(content)) {
-      pushIssue(issues, {
-        code: "absolute-path-link",
-        message: "Found absolute path link",
         path: relPath
       });
     }
@@ -126,6 +157,7 @@ export async function verifyProject({
   }
   await verifyStep6(projectRoot, issues);
   await verifyStep4(projectRoot, issues);
+  await verifyRelativeMarkdownLinks(projectRoot, issues);
   await verifyIdeRuntime(projectRoot, ide, issues);
   return { ok: issues.length === 0, issues };
 }

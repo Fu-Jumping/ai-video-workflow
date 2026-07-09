@@ -68,4 +68,53 @@ describe("verifyProject", () => {
       ])
     );
   });
+
+  test("finds absolute links outside Step 4 markdown files", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-links-"));
+    tempRoots.push(root);
+
+    const projectRoot = path.join(root, "bad-links");
+    await fs.ensureDir(path.join(projectRoot, "01_concept"));
+    await fs.ensureDir(path.join(projectRoot, "06_execution_plan"));
+    await fs.writeFile(
+      path.join(projectRoot, "project.config.yaml"),
+      [
+        "pack: official-ai-video",
+        "ide: codex",
+        "platforms:",
+        "  image:",
+        "    default: openai",
+        "  video:",
+        "    default: runway",
+        "workflow:",
+        "  enhanced_flow:",
+        "    enabled: true"
+      ].join("\n"),
+      "utf8"
+    );
+    await fs.writeFile(path.join(projectRoot, "06_execution_plan", "00_execution_plan.md"), "# Plan\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "06_execution_plan", "01_image_execution_plan.md"), "# Images\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "06_execution_plan", "02_video_execution_plan.md"), "# Videos\n", "utf8");
+    await fs.writeFile(
+      path.join(projectRoot, "01_concept", "story.md"),
+      "[bad](file:///C:/Users/example/story.md)\n",
+      "utf8"
+    );
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "cursor",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "absolute-path-link",
+          path: path.join("01_concept", "story.md")
+        })
+      ])
+    );
+  });
 });
