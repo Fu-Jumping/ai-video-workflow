@@ -16,23 +16,47 @@ const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 const program = new Command();
 program.name("ai-video-workflow").description("AI video workflow CLI");
 
+function parseChoice<T extends string>(value: string | undefined, allowed: readonly T[], label: string): T | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if ((allowed as readonly string[]).includes(value)) {
+    return value as T;
+  }
+  throw new Error(`Invalid ${label}: ${value}. Expected one of: ${allowed.join(", ")}`);
+}
+
 program
   .command("init")
   .description("Create a project with the official AI video workflow starter")
-  .action(async () => {
-    const projectName = await input({ message: "Project directory name", default: "my-ai-video-project" });
-    const ide = await select({
-      message: "Choose an AI IDE",
-      choices: SUPPORTED_IDES.map((value) => ({ name: value, value }))
-    });
-    const imagePlatform = await select({
-      message: "Choose the default image platform",
-      choices: SUPPORTED_PLATFORMS.map((value) => ({ name: value, value }))
-    });
-    const videoPlatform = await select({
-      message: "Choose the default video platform",
-      choices: SUPPORTED_PLATFORMS.map((value) => ({ name: value, value }))
-    });
+  .option("--name <name>", "Project directory name")
+  .option("--ide <ide>", "AI IDE target")
+  .option("--image <platform>", "Default image platform")
+  .option("--video <platform>", "Default video platform")
+  .action(async (options) => {
+    const parsedIde = parseChoice(options.ide, SUPPORTED_IDES, "AI IDE");
+    const parsedImagePlatform = parseChoice(options.image, SUPPORTED_PLATFORMS, "image platform");
+    const parsedVideoPlatform = parseChoice(options.video, SUPPORTED_PLATFORMS, "video platform");
+
+    const projectName = options.name ?? (await input({ message: "Project directory name", default: "my-ai-video-project" }));
+    const ide =
+      parsedIde ??
+      (await select({
+        message: "Choose an AI IDE",
+        choices: SUPPORTED_IDES.map((value) => ({ name: value, value }))
+      }));
+    const imagePlatform =
+      parsedImagePlatform ??
+      (await select({
+        message: "Choose the default image platform",
+        choices: SUPPORTED_PLATFORMS.map((value) => ({ name: value, value }))
+      }));
+    const videoPlatform =
+      parsedVideoPlatform ??
+      (await select({
+        message: "Choose the default video platform",
+        choices: SUPPORTED_PLATFORMS.map((value) => ({ name: value, value }))
+      }));
     await createProject({
       targetRoot: process.cwd(),
       projectName,

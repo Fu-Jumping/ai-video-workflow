@@ -45,4 +45,37 @@ describe("built CLI", () => {
     await expect(fs.pathExists(path.join(projectRoot, ".codex", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, ".codex", "skills", "film-workflow", "SKILL.md"))).resolves.toBe(true);
   });
+
+  test("init accepts explicit options for scripted project creation", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const targetRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-init-"));
+    tempRoots.push(targetRoot);
+
+    await buildCli(cliRoot);
+    await run(
+      process.execPath,
+      [
+        path.join(cliRoot, "dist", "index.js"),
+        "init",
+        "--name",
+        "scripted-demo",
+        "--ide",
+        "codex",
+        "--image",
+        "openai",
+        "--video",
+        "runway"
+      ],
+      targetRoot
+    );
+
+    const projectRoot = path.join(targetRoot, "scripted-demo");
+    await expect(fs.pathExists(path.join(projectRoot, "project.config.yaml"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".codex", "skills", "film-workflow", "SKILL.md"))).resolves.toBe(true);
+
+    const config = await fs.readFile(path.join(projectRoot, "project.config.yaml"), "utf8");
+    expect(config).toContain("ide: codex");
+    expect(config).toContain("default: openai");
+    expect(config).toContain("default: runway");
+  });
 });
