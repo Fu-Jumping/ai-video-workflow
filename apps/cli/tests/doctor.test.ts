@@ -61,4 +61,20 @@ describe("diagnoseProject", () => {
     expect(output).toContain("Traceability");
     expect(output).toContain("Step 4 link target");
   });
+
+  test("suggests configuration fixes for missing default platforms", async () => {
+    const output = await diagnoseProject({
+      issues: [
+        {
+          code: "missing-video-default-platform",
+          message: "Missing video default platform",
+          path: "project.config.yaml"
+        }
+      ]
+    });
+
+    expect(output).toContain("Configuration");
+    expect(output).toContain("project.config.yaml");
+    expect(output).toContain("platforms.video.default");
+  });
 });

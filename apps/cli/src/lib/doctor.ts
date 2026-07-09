@@ -30,11 +30,26 @@ export async function diagnoseProject({
     lines.push(`## ${group}`, "");
     for (const issue of bucket) {
       lines.push(`- ${issue.message}${issue.path ? ` (${issue.path})` : ""}`);
+      if (issue.code === "missing-config") {
+        lines.push("  Create `project.config.yaml` or rerun `ai-video-workflow init`.");
+      }
+      if (issue.code === "missing-image-default-platform") {
+        lines.push("  Add `platforms.image.default` to `project.config.yaml`.");
+      }
+      if (issue.code === "missing-video-default-platform") {
+        lines.push("  Add `platforms.video.default` to `project.config.yaml`.");
+      }
       if (issue.code === "absolute-path-link") {
         lines.push("  Replace the link with a relative path.");
       }
       if (issue.code === "missing-step6-file") {
         lines.push("  Restore the missing Step 6 execution plan file.");
+      }
+      if (issue.code === "missing-step4-section") {
+        lines.push("  Restore the Step 4 sections: `快速导读`, `中文完整版本`, and `English Version (Copy Ready)`, plus `避免:` and `Avoid:`.");
+      }
+      if (issue.code === "step4-forbidden-text") {
+        lines.push("  Replace inherited or context-dependent wording with a self-contained visual prompt.");
       }
       if (issue.code === "missing-ide-runtime") {
         lines.push("  Run `ai-video-workflow sync --project <path> --ide codex` to restore the IDE runtime files.");
