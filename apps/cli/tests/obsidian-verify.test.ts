@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { exportObsidianVault } from "../src/lib/obsidian/export.js";
+import { projectionManifestPath } from "../src/lib/obsidian/manifest.js";
 import { verifyObsidianVault } from "../src/lib/obsidian/verify.js";
 
 const tempRoots: string[] = [];
@@ -25,5 +26,72 @@ describe("verifyObsidianVault", () => {
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
     expect(result.ok).toBe(true);
+  });
+
+  test("fails when projection manifest is missing", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-missing-manifest-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    await fs.remove(path.join(outRoot, projectionManifestPath));
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "missing-obsidian-manifest" })]));
+  });
+
+  test("fails when a generated file no longer matches the manifest hash", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-hash-mismatch-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    await fs.appendFile(path.join(outRoot, "Workflow", "Step 3 - Storyboard", "Shot 001 - Storyboard.md"), "\nManual generated-file edit.\n", "utf8");
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "obsidian-manifest-hash-mismatch" })]));
+  });
+
+  test("fails when Review Map canvas is missing", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-missing-review-map-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    await fs.remove(path.join(outRoot, "Canvas", "Review Map.canvas"));
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "invalid-obsidian-canvas-json" })]));
+  });
+
+  test("fails when a required Base view is missing", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-missing-base-view-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    const workflowBase = path.join(outRoot, "Bases", "Workflow Files.base");
+    const content = await fs.readFile(workflowBase, "utf8");
+    await fs.writeFile(workflowBase, content.replace("Review Queue", "Review Queue Removed"), "utf8");
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "missing-obsidian-base-view" })]));
+  });
+
+  test("fails when optional Obsidian UI suggestion JSON is invalid", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-invalid-ui-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, includeObsidianUi: true });
+    await fs.writeFile(path.join(outRoot, ".obsidian", "ai-video-workflow-suggested", "bookmarks.json"), "{ invalid json", "utf8");
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "invalid-obsidian-ui-config" })]));
   });
 });

@@ -4,8 +4,10 @@ import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { exportObsidianVault } from "../src/lib/obsidian/export.js";
+import { hashContent, projectionManifestPath, readProjectionManifest, renderProjectionManifest } from "../src/lib/obsidian/manifest.js";
 import { toVaultPath } from "../src/lib/obsidian/paths.js";
 import { scanProjectForObsidian } from "../src/lib/obsidian/scan.js";
+import type { ObsidianProjectionManifest } from "../src/lib/obsidian/types.js";
 
 const tempRoots: string[] = [];
 
@@ -22,6 +24,32 @@ describe("Obsidian export paths", () => {
     expect(toVaultPath(path.join("Workflow", "Step 3 - Storyboard", "Shot 001.md"))).toBe(
       "Workflow/Step 3 - Storyboard/Shot 001.md"
     );
+  });
+});
+
+describe("Obsidian projection manifests", () => {
+  test("hashes content and round-trips manifest JSON", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-manifest-"));
+    tempRoots.push(outRoot);
+    const manifest: ObsidianProjectionManifest = {
+      schemaVersion: 1,
+      generator: "ai-video-workflow",
+      generatedAt: "2026-07-09T00:00:00.000Z",
+      projectName: "demo",
+      projectRoot: "demo",
+      files: [
+        {
+          vaultPath: "Workflow/Step 1 - Concept/Story Kernel.md",
+          sourcePath: "01_concept/story-kernel.md",
+          contentHash: hashContent("story")
+        }
+      ]
+    };
+
+    await fs.writeFile(path.join(outRoot, projectionManifestPath), renderProjectionManifest(manifest), "utf8");
+
+    expect(hashContent("story")).toHaveLength(64);
+    await expect(readProjectionManifest(outRoot)).resolves.toEqual(manifest);
   });
 });
 
@@ -51,7 +79,14 @@ describe("exportObsidianVault", () => {
     const storyboard = await fs.readFile(path.join(outRoot, "Workflow", "Step 3 - Storyboard", "Shot 001 - Storyboard.md"), "utf8");
     expect(storyboard).toContain("projection_generated: true");
     expect(storyboard).toContain("source_path: 03_storyboard/shot-001.md");
+    expect(storyboard).toContain("stage_group: shot-review");
+    expect(storyboard).toContain("review_status: shot-review");
+    expect(storyboard).toContain("execution_status: not-applicable");
+    expect(storyboard).toContain("shot_order: 1");
     expect(storyboard).toContain("ai-video/step/03-storyboard");
+    expect(storyboard).toContain("[[01_Review_Dashboard]]");
+    expect(storyboard).toContain("[[Canvas/Review Map.canvas]]");
+    await expect(fs.pathExists(path.join(outRoot, projectionManifestPath))).resolves.toBe(true);
   });
 
   test("exports Obsidian dashboards with embedded Bases and query blocks", async () => {
@@ -61,9 +96,20 @@ describe("exportObsidianVault", () => {
     await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const home = await fs.readFile(path.join(outRoot, "00_Project_Home.md"), "utf8");
+    expect(home).toContain("Review Command Center");
+    expect(home).toContain("Project Health");
+    expect(home).toContain("Shot Progress");
+    expect(home).toContain("Execution Readiness");
     expect(home).toContain("![[Bases/Workflow Files.base#Workflow Files]]");
+    expect(home).toContain("![[Bases/Workflow Files.base#Review Queue]]");
     expect(home).toContain("![[Canvas/Workflow Map.canvas]]");
+    expect(home).toContain("[[Canvas/Review Map.canvas|Review Map]]");
+    expect(home).toContain("[[Notes/README|Obsidian Notes]]");
     expect(home).toContain("```query");
+
+    const reviewDashboard = await fs.readFile(path.join(outRoot, "01_Review_Dashboard.md"), "utf8");
+    expect(reviewDashboard).toContain("Generated File Conflicts");
+    expect(reviewDashboard).toContain("![[Bases/Workflow Files.base#Modified Generated Files]]");
   });
 
   test("exports Obsidian Bases for workflow files and shots", async () => {
@@ -76,6 +122,14 @@ describe("exportObsidianVault", () => {
     expect(shotsBase).toContain("file.hasTag(\"ai-video/shot\")");
     expect(shotsBase).toContain("type: table");
     expect(shotsBase).toContain("type: cards");
+    expect(shotsBase).toContain("Shot Progress");
+
+    const workflowBase = await fs.readFile(path.join(outRoot, "Bases", "Workflow Files.base"), "utf8");
+    expect(workflowBase).toContain("Review Queue");
+    expect(workflowBase).toContain("Modified Generated Files");
+
+    const productionBase = await fs.readFile(path.join(outRoot, "Bases", "Production Status.base"), "utf8");
+    expect(productionBase).toContain("Execution Readiness");
   });
 
   test("exports valid JSON Canvas maps", async () => {
@@ -90,5 +144,159 @@ describe("exportObsidianVault", () => {
 
     const shotPipeline = await fs.readJson(path.join(outRoot, "Canvas", "Shot Pipeline.canvas"));
     expect(shotPipeline.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file" })]));
+
+    const reviewMap = await fs.readJson(path.join(outRoot, "Canvas", "Review Map.canvas"));
+    expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "00_Project_Home.md" })]));
+    expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "Bases/Workflow Files.base" })]));
+    expect(reviewMap.edges.length).toBeGreaterThan(0);
+  });
+
+  test("preserves user-authored notes during incremental export", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-incremental-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    const userNote = path.join(outRoot, "Notes", "manual-review.md");
+    await fs.writeFile(userNote, "# Manual Review\n\nKeep this note.\n", "utf8");
+    const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true });
+
+    await expect(fs.readFile(userNote, "utf8")).resolves.toContain("Keep this note.");
+    expect(result.operations).toEqual(expect.arrayContaining([expect.objectContaining({ status: "unchanged", vaultPath: "00_Project_Home.md" })]));
+  });
+
+  test("skips user-modified generated files by default", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-conflict-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    const generatedFile = path.join(outRoot, "Workflow", "Step 3 - Storyboard", "Shot 001 - Storyboard.md");
+    await fs.appendFile(generatedFile, "\nUser edit inside Obsidian.\n", "utf8");
+    const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true });
+
+    expect(result.operations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: "skipped-user-modified",
+          vaultPath: "Workflow/Step 3 - Storyboard/Shot 001 - Storyboard.md"
+        })
+      ])
+    );
+    await expect(fs.readFile(generatedFile, "utf8")).resolves.toContain("User edit inside Obsidian.");
+  });
+
+  test("updates generated files when source files change and generated files are untouched", async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-project-"));
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-update-"));
+    tempRoots.push(projectRoot, outRoot);
+    await fs.copy(officialExampleRoot(), projectRoot);
+
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    await fs.appendFile(path.join(projectRoot, "03_storyboard", "shot-001.md"), "\nUpdated source beat.\n", "utf8");
+    const result = await exportObsidianVault({ projectRoot, outRoot, force: false, includePluginRecipes: true });
+    const generatedFile = path.join(outRoot, "Workflow", "Step 3 - Storyboard", "Shot 001 - Storyboard.md");
+
+    expect(result.operations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: "updated",
+          vaultPath: "Workflow/Step 3 - Storyboard/Shot 001 - Storyboard.md"
+        })
+      ])
+    );
+    await expect(fs.readFile(generatedFile, "utf8")).resolves.toContain("Updated source beat.");
+  });
+
+  test("force export rebuilds the vault projection", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-force-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    const userNote = path.join(outRoot, "Notes", "manual-review.md");
+    await fs.writeFile(userNote, "# Manual Review\n", "utf8");
+    const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+
+    await expect(fs.pathExists(userNote)).resolves.toBe(false);
+    expect(result.operations.every((operation) => operation.status === "created")).toBe(true);
+  });
+
+  test("dry-run reports operations without writing files", async () => {
+    const parentRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-dry-run-"));
+    tempRoots.push(parentRoot);
+    const outRoot = path.join(parentRoot, "vault");
+
+    const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true, dryRun: true });
+
+    expect(result.operations).toEqual(expect.arrayContaining([expect.objectContaining({ status: "created", vaultPath: "00_Project_Home.md" })]));
+    await expect(fs.pathExists(outRoot)).resolves.toBe(false);
+  });
+
+  test("does not write Obsidian UI config by default", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-ui-default-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+
+    await expect(fs.pathExists(path.join(outRoot, ".obsidian"))).resolves.toBe(false);
+  });
+
+  test("writes opt-in Obsidian UI suggestion config", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-ui-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true, includeObsidianUi: true });
+
+    await expect(fs.pathExists(path.join(outRoot, ".obsidian", "bookmarks.json"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, ".obsidian", "workspace.json"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, ".obsidian", "core-plugins.json"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, ".obsidian", "appearance.json"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, ".obsidian", "ai-video-workflow-suggested", "bookmarks.json"))).resolves.toBe(true);
+
+    const bookmarks = await fs.readJson(path.join(outRoot, ".obsidian", "bookmarks.json"));
+    expect(JSON.stringify(bookmarks)).toContain("00_Project_Home.md");
+  });
+
+  test("does not overwrite existing Obsidian UI config", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-ui-existing-"));
+    tempRoots.push(outRoot);
+    const bookmarksPath = path.join(outRoot, ".obsidian", "bookmarks.json");
+    await fs.ensureDir(path.dirname(bookmarksPath));
+    await fs.writeFile(bookmarksPath, "{\"items\":[{\"title\":\"User Bookmark\"}]}\n", "utf8");
+
+    const result = await exportObsidianVault({
+      projectRoot: officialExampleRoot(),
+      outRoot,
+      force: false,
+      includePluginRecipes: true,
+      includeObsidianUi: true
+    });
+
+    await expect(fs.readFile(bookmarksPath, "utf8")).resolves.toContain("User Bookmark");
+    await expect(fs.pathExists(path.join(outRoot, ".obsidian", "ai-video-workflow-suggested", "bookmarks.json"))).resolves.toBe(true);
+    expect(result.operations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: "skipped-user-config-existing",
+          vaultPath: ".obsidian/bookmarks.json"
+        })
+      ])
+    );
+  });
+
+  test("dry-run with Obsidian UI suggestions writes nothing", async () => {
+    const parentRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-ui-dry-run-"));
+    tempRoots.push(parentRoot);
+    const outRoot = path.join(parentRoot, "vault");
+
+    const result = await exportObsidianVault({
+      projectRoot: officialExampleRoot(),
+      outRoot,
+      force: false,
+      includePluginRecipes: true,
+      includeObsidianUi: true,
+      dryRun: true
+    });
+
+    expect(result.operations).toEqual(expect.arrayContaining([expect.objectContaining({ status: "created", vaultPath: ".obsidian/bookmarks.json" })]));
+    await expect(fs.pathExists(outRoot)).resolves.toBe(false);
   });
 });

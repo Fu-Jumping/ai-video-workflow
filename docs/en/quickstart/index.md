@@ -34,8 +34,20 @@ pnpm example:obsidian
 You can also specify the project and output directory directly:
 
 ```powershell
-node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian --force
+node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian
 node apps/cli/dist/index.js verify-obsidian --project examples/official-mini-film --vault .tmp/official-mini-film-obsidian
 ```
 
-The projection is a one-way reading and review view. Do not treat projected files as source Step files. See [Obsidian vault projection](../contributors/obsidian-vault-projection.md) for the boundary.
+Default export is safe and incremental. When exporting to the same vault again, the CLI reads `Projection Manifest.json`, updates generated files that have not been user-edited, and preserves user notes created under `Notes/`.
+
+The generated vault includes a Project Home, Review Dashboard, Shot Index, Production Board, Review Queue, Shot Progress, Execution Readiness, Workflow Map, Shot Pipeline, and Review Map. These are generated views over the Step files, not a second source of truth.
+
+Common options:
+
+```powershell
+node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian --dry-run
+node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian --force
+node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian --include-obsidian-ui
+```
+
+`--dry-run` prints planned operations without writing files. `--force` clears and rebuilds the output directory. By default, export does not write `.obsidian/`; `--include-obsidian-ui` adds optional suggested Bookmarks, Workspace, core plugin, and appearance JSON without overwriting existing user config. The projection is a one-way reading and review view. Do not treat projected files as source Step files. See [Obsidian vault projection](../contributors/obsidian-vault-projection.md) for the boundary.

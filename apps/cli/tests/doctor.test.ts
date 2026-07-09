@@ -92,4 +92,40 @@ describe("diagnoseProject", () => {
     expect(output).toContain("Obsidian Projection");
     expect(output).toContain("export-obsidian");
   });
+
+  test("suggests Obsidian review dashboard and UI config fixes", async () => {
+    const output = await diagnoseProject({
+      issues: [
+        {
+          code: "missing-obsidian-base-view",
+          message: "Obsidian base is missing view: Review Queue",
+          path: "Bases/Workflow Files.base"
+        },
+        {
+          code: "invalid-obsidian-ui-config",
+          message: "Optional Obsidian UI config JSON is invalid",
+          path: ".obsidian/ai-video-workflow-suggested/bookmarks.json"
+        }
+      ]
+    });
+
+    expect(output).toContain("review dashboards and Bases views");
+    expect(output).toContain("optional UI suggestions");
+  });
+
+  test("suggests Obsidian manifest conflict fixes", async () => {
+    const output = await diagnoseProject({
+      issues: [
+        {
+          code: "obsidian-manifest-hash-mismatch",
+          message: "Manifest hash does not match generated file",
+          path: "Workflow/Step 3 - Storyboard/Shot 001 - Storyboard.md"
+        }
+      ]
+    });
+
+    expect(output).toContain("Obsidian Projection");
+    expect(output).toContain("Notes/");
+    expect(output).toContain("--force");
+  });
 });

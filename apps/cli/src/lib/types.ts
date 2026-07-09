@@ -14,12 +14,20 @@ export type IssueCode =
   | "missing-step3-step4-link"
   | "broken-step3-step4-link"
   | "missing-obsidian-dashboard"
+  | "invalid-obsidian-dashboard"
   | "missing-obsidian-base"
+  | "missing-obsidian-base-view"
   | "invalid-obsidian-base-yaml"
   | "invalid-obsidian-canvas-json"
+  | "invalid-obsidian-ui-config"
   | "missing-obsidian-source-path"
   | "broken-obsidian-source-path"
-  | "obsidian-absolute-link";
+  | "obsidian-absolute-link"
+  | "missing-obsidian-manifest"
+  | "invalid-obsidian-manifest"
+  | "missing-obsidian-manifest-file"
+  | "obsidian-manifest-hash-mismatch"
+  | "obsidian-manifest-source-mismatch";
 
 export interface ProjectConfig {
   pack: string;

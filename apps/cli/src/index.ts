@@ -8,6 +8,7 @@ import { diagnoseProject } from "./lib/doctor.js";
 import { createProject } from "./lib/init.js";
 import { createPackScaffold } from "./lib/new-pack.js";
 import { exportObsidianVault } from "./lib/obsidian/export.js";
+import type { ObsidianExportOperationStatus } from "./lib/obsidian/types.js";
 import { verifyObsidianVault } from "./lib/obsidian/verify.js";
 import { resolveRepoRoot } from "./lib/paths.js";
 import { syncProject } from "./lib/sync.js";
@@ -18,6 +19,15 @@ const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 const program = new Command();
 program.name("ai-video-workflow").description("AI video workflow CLI");
 
+const obsidianOperationStatuses: ObsidianExportOperationStatus[] = [
+  "created",
+  "updated",
+  "unchanged",
+  "skipped-user-modified",
+  "skipped-user-config-existing",
+  "orphaned-generated"
+];
+
 function parseChoice<T extends string>(value: string | undefined, allowed: readonly T[], label: string): T | undefined {
   if (value === undefined) {
     return undefined;
@@ -26,6 +36,21 @@ function parseChoice<T extends string>(value: string | undefined, allowed: reado
     return value as T;
   }
   throw new Error(`Invalid ${label}: ${value}. Expected one of: ${allowed.join(", ")}`);
+}
+
+function formatObsidianExportSummary(result: Awaited<ReturnType<typeof exportObsidianVault>>): string {
+  const lines = ["Obsidian export operations:"];
+  for (const status of obsidianOperationStatuses) {
+    const matching = result.operations.filter((operation) => operation.status === status);
+    lines.push(`- ${status}: ${matching.length}`);
+    for (const operation of matching.slice(0, 5)) {
+      lines.push(`  - ${operation.vaultPath}${operation.reason ? ` (${operation.reason})` : ""}`);
+    }
+    if (matching.length > 5) {
+      lines.push(`  - ... ${matching.length - 5} more`);
+    }
+  }
+  return lines.join("\n");
 }
 
 program
@@ -129,15 +154,24 @@ program
   .requiredOption("--project <path>")
   .requiredOption("--out <path>")
   .option("--force", "Overwrite the output directory if it already contains files", false)
+  .option("--dry-run", "Print planned Obsidian export operations without writing files", false)
+  .option("--include-obsidian-ui", "Include optional Obsidian UI suggestion files without overwriting existing user config", false)
   .option("--no-plugin-recipes", "Skip optional community plugin recipe notes")
   .action(async (options) => {
     const result = await exportObsidianVault({
       projectRoot: path.resolve(options.project),
       outRoot: path.resolve(options.out),
       force: options.force,
-      includePluginRecipes: options.pluginRecipes
+      includePluginRecipes: options.pluginRecipes,
+      includeObsidianUi: options.includeObsidianUi,
+      dryRun: options.dryRun
     });
-    console.log(`Exported Obsidian vault projection to ${result.vaultRoot}`);
+    console.log(formatObsidianExportSummary(result));
+    if (options.dryRun) {
+      console.log(`Dry run complete for Obsidian vault projection at ${result.vaultRoot}; no files were written.`);
+    } else {
+      console.log(`Exported Obsidian vault projection to ${result.vaultRoot}`);
+    }
   });
 
 program

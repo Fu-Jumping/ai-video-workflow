@@ -30,6 +30,15 @@ const stepTags: Record<number, string> = {
   6: "ai-video/step/06-execution"
 };
 
+const stageGroups: Record<number, string> = {
+  1: "foundation",
+  2: "foundation",
+  3: "shot-review",
+  4: "prompt-production",
+  5: "prompt-production",
+  6: "execution"
+};
+
 export function stepFolderName(step: number): string {
   return stepFolders[step] ?? `Step ${step}`;
 }
@@ -51,6 +60,31 @@ export function generatedFileName(sourceFile: ObsidianSourceFile): string {
 
 export function workflowVaultPath(sourceFile: ObsidianSourceFile): string {
   return toVaultPath(path.join("Workflow", stepFolderName(sourceFile.step), generatedFileName(sourceFile)));
+}
+
+function shotOrder(shotId: string | undefined): number | undefined {
+  const match = shotId?.match(/(\d+)$/);
+  return match ? Number.parseInt(match[1], 10) : undefined;
+}
+
+function reviewStatus(sourceFile: ObsidianSourceFile): string {
+  if (sourceFile.step === 6) {
+    return "execution-review";
+  }
+  if (sourceFile.step >= 3) {
+    return "shot-review";
+  }
+  return "reference";
+}
+
+function executionStatus(sourceFile: ObsidianSourceFile): string {
+  if (sourceFile.step === 6) {
+    return "ready-for-execution";
+  }
+  if (sourceFile.step >= 4) {
+    return "prompt-ready";
+  }
+  return "not-applicable";
 }
 
 function stripFrontmatter(content: string): string {
@@ -75,6 +109,7 @@ function renderTags(sourceFile: ObsidianSourceFile): string[] {
 }
 
 export function renderFrontmatter(sourceFile: ObsidianSourceFile, projectName: string): string {
+  const order = shotOrder(sourceFile.shotId);
   const lines = [
     "---",
     "projection_generated: true",
@@ -83,10 +118,17 @@ export function renderFrontmatter(sourceFile: ObsidianSourceFile, projectName: s
     `source_path: ${sourceFile.sourcePath}`,
     `source_kind: ${sourceFile.sourceKind}`,
     `step: ${sourceFile.step}`,
-    `step_name: ${stepNames[sourceFile.step] ?? sourceFile.sourceKind}`
+    `step_name: ${stepNames[sourceFile.step] ?? sourceFile.sourceKind}`,
+    `stage_group: ${stageGroups[sourceFile.step] ?? "other"}`,
+    `review_status: ${reviewStatus(sourceFile)}`,
+    `execution_status: ${executionStatus(sourceFile)}`,
+    "needs_attention: false"
   ];
   if (sourceFile.shotId) {
     lines.push(`shot_id: ${sourceFile.shotId}`);
+    if (order !== undefined) {
+      lines.push(`shot_order: ${order}`);
+    }
     lines.push(`shot_index: "[[${sourceFile.shotId}]]"`);
   }
   lines.push("status: ready", "tags:");
@@ -104,6 +146,10 @@ export function renderGeneratedWorkflowNote(sourceFile: ObsidianSourceFile, orig
     "## Obsidian Navigation",
     "",
     "- Project home: [[00_Project_Home]]",
+    "- Review dashboard: [[01_Review_Dashboard]]",
+    "- Production board: [[03_Production_Board]]",
+    "- Workflow map: [[Canvas/Workflow Map.canvas]]",
+    "- Review map: [[Canvas/Review Map.canvas]]",
     `- Source path: \`${sourceFile.sourcePath}\``
   ];
   if (sourceFile.shotId) {
