@@ -96,6 +96,11 @@ describe("exportObsidianVault", () => {
     await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const home = await fs.readFile(path.join(outRoot, "00_Project_Home.md"), "utf8");
+    expect(home).toContain("Open Vault Workflow");
+    expect(home).toContain("Inspect project");
+    expect(home).toContain("Inspect a shot");
+    expect(home).toContain("Hand off to agent");
+    expect(home).toContain("Verify after edits");
     expect(home).toContain("Review Command Center");
     expect(home).toContain("Immersive Shot Reviews");
     expect(home).toContain("[[04_Agent_Handoff|Agent Handoff]]");
@@ -114,6 +119,20 @@ describe("exportObsidianVault", () => {
     expect(reviewDashboard).toContain("Agent Handoff");
     expect(reviewDashboard).toContain("Shot Review Canvases");
     expect(reviewDashboard).toContain("![[Bases/Workflow Files.base#Modified Generated Files]]");
+  });
+
+  test("exports a generated README with an open-vault path", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-readme-path-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+
+    const readme = await fs.readFile(path.join(outRoot, "README.md"), "utf8");
+    expect(readme).toContain("[[00_Project_Home]]");
+    expect(readme).toContain("[[02_Shot_Index]]");
+    expect(readme).toContain("[[04_Agent_Handoff]]");
+    expect(readme).toContain("[[Canvas/Review Map.canvas|Review Map]]");
+    expect(readme).toContain("[[03_Production_Board]]");
   });
 
   test("exports project-level agent handoff guidance", async () => {
@@ -328,6 +347,18 @@ describe("exportObsidianVault", () => {
 
     const bookmarks = await fs.readJson(path.join(outRoot, ".obsidian", "bookmarks.json"));
     expect(JSON.stringify(bookmarks)).toContain("00_Project_Home.md");
+    expect(JSON.stringify(bookmarks)).toContain("04_Agent_Handoff.md");
+    expect(JSON.stringify(bookmarks)).toContain("02_Shot_Index.md");
+    expect(JSON.stringify(bookmarks)).toContain("Canvas/Review Map.canvas");
+    expect(JSON.stringify(bookmarks)).toContain("Canvas/Shot Pipeline.canvas");
+
+    const workspace = await fs.readJson(path.join(outRoot, ".obsidian", "workspace.json"));
+    expect(JSON.stringify(workspace)).toContain("00_Project_Home.md");
+    expect(JSON.stringify(workspace)).toContain("04_Agent_Handoff.md");
+    expect(JSON.stringify(workspace)).toContain("Canvas/Review Map.canvas");
+    expect(
+      JSON.stringify(workspace).includes(":\\") || JSON.stringify(workspace).includes("file://") || JSON.stringify(workspace).includes("vscode://")
+    ).toBe(false);
   });
 
   test("does not overwrite existing Obsidian UI config", async () => {

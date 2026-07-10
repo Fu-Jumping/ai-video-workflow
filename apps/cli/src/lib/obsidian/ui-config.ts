@@ -39,8 +39,14 @@ function suggestedFiles(): SuggestedUiFile[] {
           {
             type: "file",
             ctime: 0,
-            path: "01_Review_Dashboard.md",
-            title: "Review Dashboard"
+            path: "04_Agent_Handoff.md",
+            title: "Agent Handoff"
+          },
+          {
+            type: "file",
+            ctime: 0,
+            path: "02_Shot_Index.md",
+            title: "Shot Index"
           },
           {
             type: "file",
@@ -53,6 +59,12 @@ function suggestedFiles(): SuggestedUiFile[] {
             ctime: 0,
             path: "Canvas/Review Map.canvas",
             title: "Review Map"
+          },
+          {
+            type: "file",
+            ctime: 0,
+            path: "Canvas/Shot Pipeline.canvas",
+            title: "Shot Pipeline"
           },
           {
             type: "file",
@@ -81,9 +93,21 @@ function suggestedFiles(): SuggestedUiFile[] {
                   source: false
                 }
               }
+            },
+            {
+              id: "ai-video-workflow-handoff-leaf",
+              type: "leaf",
+              state: {
+                type: "markdown",
+                state: {
+                  file: "04_Agent_Handoff.md",
+                  mode: "preview",
+                  source: false
+                }
+              }
             }
           ],
-          direction: "vertical"
+          direction: "horizontal"
         },
         left: {
           id: "ai-video-workflow-left",
@@ -100,7 +124,7 @@ function suggestedFiles(): SuggestedUiFile[] {
           width: 300
         },
         active: "ai-video-workflow-home-leaf",
-        lastOpenFiles: ["00_Project_Home.md", "01_Review_Dashboard.md", "Canvas/Review Map.canvas"]
+        lastOpenFiles: ["00_Project_Home.md", "04_Agent_Handoff.md", "02_Shot_Index.md", "03_Production_Board.md", "Canvas/Review Map.canvas", "Canvas/Shot Pipeline.canvas"]
       })
     },
     {

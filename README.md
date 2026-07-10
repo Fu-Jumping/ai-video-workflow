@@ -41,7 +41,7 @@ This command exports the official example into an Obsidian vault projection and 
 
 Use `04_Agent_Handoff.md` and the `Agent Handoff` section in each shot page to copy source-file context into an agent conversation. The agent should edit source Step files, not generated Obsidian projection files.
 
-By default the exporter does not write `.obsidian/`. Use `--include-obsidian-ui` only when you want optional suggested Bookmarks, Workspace, core plugin, and appearance JSON. Existing user `.obsidian` files are not overwritten; suggested copies are written under `.obsidian/ai-video-workflow-suggested/`.
+By default the exporter does not write `.obsidian/`. Use `--include-obsidian-ui` only when you want optional suggested Bookmarks and Workspace for the open-vault path: Project Home, Agent Handoff, Shot Index, Review Map, and Shot Pipeline. Existing user `.obsidian` files are not overwritten; suggested copies are written under `.obsidian/ai-video-workflow-suggested/`.
 
 ## Quick Start
 

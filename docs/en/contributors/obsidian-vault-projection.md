@@ -40,6 +40,8 @@ Starting in v0.3.3, each generated `Shots/<shotId>.md` page is an immersive sing
 
 Starting in v0.3.4, `04_Agent_Handoff.md` and each shot page include copy-ready agent context. Users can inspect the project in Obsidian, then ask an agent to modify source Step files in chat. The generated handoff text tells agents to edit Step files only and never treat Obsidian projection files as the workflow source.
 
+Starting in v0.3.5, the generated Project Home includes an `Open Vault Workflow` path for first-time vault use. Optional `--include-obsidian-ui` suggestions bookmark Project Home, Agent Handoff, Shot Index, Review Map, Shot Pipeline, and Notes, and open Project Home next to Agent Handoff in the suggested workspace.
+
 By default, export does not write `.obsidian/`. Use `--include-obsidian-ui` only when you want optional suggested Bookmarks, Workspace, core plugin, and appearance JSON files. Existing user `.obsidian` files are not overwritten; the exporter reports `skipped-user-config-existing` and writes suggested copies under `.obsidian/ai-video-workflow-suggested/`.
 
 ## User Notes

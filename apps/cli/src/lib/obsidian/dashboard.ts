@@ -295,7 +295,7 @@ export function renderDashboardFiles(projectName: string, sourceFiles: ObsidianS
       vaultPath: "README.md",
       content: `# ${projectName} Obsidian Projection
 
-Start with [[00_Project_Home]] for the project overview, then use [[01_Review_Dashboard]], [[03_Production_Board]], and [[Canvas/Review Map.canvas|Review Map]] for review.
+Start with [[00_Project_Home]] for the open-vault workflow. Use [[02_Shot_Index]] to inspect shots, [[Canvas/Review Map.canvas|Review Map]] for spatial navigation, [[04_Agent_Handoff]] to copy source-file context into an agent chat, and [[03_Production_Board]] before execution.
 
 Do not treat generated projection files as the source of truth. Edit the original Step files for workflow changes, and use [[Notes/README]] for Obsidian-only notes.
 `
@@ -303,6 +303,15 @@ Do not treat generated projection files as the source of truth. Edit the origina
     {
       vaultPath: "00_Project_Home.md",
       content: `# Project Home
+
+## Open Vault Workflow
+
+1. Inspect project: use [[00_Project_Home|Project Home]] and [[Canvas/Review Map.canvas|Review Map]].
+2. Inspect a shot: open [[02_Shot_Index|Shot Index]], then choose a shot page and its Review Canvas.
+3. Hand off to agent: open [[04_Agent_Handoff|Agent Handoff]] and copy source-file context into an agent chat.
+4. Verify after edits: run project verification, refresh this vault projection, then run \`verify-obsidian\`.
+
+Generated Obsidian files are for viewing and handoff. Source Step files remain the workflow source of truth.
 
 ## Review Command Center
 
