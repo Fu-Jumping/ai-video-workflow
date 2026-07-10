@@ -144,4 +144,21 @@ describe("diagnoseProject", () => {
     expect(output).toContain("single-shot review format");
     expect(output).toContain("Canvas/Shot Reviews/");
   });
+
+  test("suggests Obsidian agent handoff fixes", async () => {
+    const output = await diagnoseProject({
+      issues: [
+        {
+          code: "invalid-obsidian-agent-handoff",
+          message: "Missing Obsidian agent handoff page: 04_Agent_Handoff.md",
+          path: "04_Agent_Handoff.md"
+        }
+      ]
+    });
+
+    expect(output).toContain("Obsidian Projection");
+    expect(output).toContain("04_Agent_Handoff.md");
+    expect(output).toContain("copy-ready agent context");
+    expect(output).toContain("source Step files");
+  });
 });

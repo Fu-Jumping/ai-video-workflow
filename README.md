@@ -35,9 +35,11 @@ pnpm build
 pnpm example:obsidian
 ```
 
-This command exports the official example into an Obsidian vault projection and verifies dashboards, Bases, Canvas, and source paths. The generated vault includes a project home, review queue, shot progress view, execution readiness view, Workflow Map, Shot Pipeline, Review Map, immersive `Shots/<shotId>.md` review pages, and per-shot `Canvas/Shot Reviews/<shotId>.canvas` canvases. See `docs/en/contributors/obsidian-vault-projection.md` for the adapter boundary.
+This command exports the official example into an Obsidian vault projection and verifies dashboards, Bases, Canvas, and source paths. The generated vault includes a project home, review queue, shot progress view, execution readiness view, Agent Handoff page, Workflow Map, Shot Pipeline, Review Map, immersive `Shots/<shotId>.md` review pages, and per-shot `Canvas/Shot Reviews/<shotId>.canvas` canvases. See `docs/en/contributors/obsidian-vault-projection.md` for the adapter boundary.
 
 `export-obsidian` uses safe incremental export by default: repeated exports to the same vault update generated projection files while preserving user-authored Obsidian notes. Use `--force` for a clean rebuild, or `--dry-run` to print create/update/skip/keep operations without writing files. The generated `Projection Manifest.json` tracks projection-owned files, `Shots/` remains projection-owned, and `Notes/` is reserved for user-authored Obsidian notes.
+
+Use `04_Agent_Handoff.md` and the `Agent Handoff` section in each shot page to copy source-file context into an agent conversation. The agent should edit source Step files, not generated Obsidian projection files.
 
 By default the exporter does not write `.obsidian/`. Use `--include-obsidian-ui` only when you want optional suggested Bookmarks, Workspace, core plugin, and appearance JSON. Existing user `.obsidian` files are not overwritten; suggested copies are written under `.obsidian/ai-video-workflow-suggested/`.
 

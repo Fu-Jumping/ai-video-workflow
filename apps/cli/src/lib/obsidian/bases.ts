@@ -83,6 +83,8 @@ properties:
     displayName: Review Canvas
   review_note:
     displayName: Review Note
+  agent_handoff:
+    displayName: Agent Handoff
   has_storyboard:
     displayName: Storyboard
   has_image_prompt:
@@ -138,6 +140,15 @@ views:
       - has_storyboard
       - has_image_prompt
       - has_video_prompt
+      - execution_status
+  - type: table
+    name: Agent Handoff
+    order:
+      - shot_order
+      - file.name
+      - agent_handoff
+      - review_canvas
+      - source_path
       - execution_status
 `
     },

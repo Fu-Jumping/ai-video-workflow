@@ -18,6 +18,7 @@ const groups: Record<string, string> = {
   "invalid-obsidian-base-yaml": "Obsidian Projection",
   "invalid-obsidian-canvas-json": "Obsidian Projection",
   "invalid-obsidian-shot-review": "Obsidian Projection",
+  "invalid-obsidian-agent-handoff": "Obsidian Projection",
   "invalid-obsidian-ui-config": "Obsidian Projection",
   "missing-obsidian-source-path": "Obsidian Projection",
   "broken-obsidian-source-path": "Obsidian Projection",
@@ -87,6 +88,9 @@ export async function diagnoseProject({
       }
       if (issue.code === "invalid-obsidian-shot-review") {
         lines.push("  Regenerate the Obsidian projection so each `Shots/` page and `Canvas/Shot Reviews/` canvas matches the current single-shot review format.");
+      }
+      if (issue.code === "invalid-obsidian-agent-handoff") {
+        lines.push("  Regenerate the Obsidian projection so `04_Agent_Handoff.md` and each `Shots/` page expose copy-ready agent context. Edit source Step files, not generated projection files.");
       }
       if (issue.code === "invalid-obsidian-ui-config") {
         lines.push("  Delete or regenerate `.obsidian/ai-video-workflow-suggested/`; these files are optional UI suggestions, not project truth.");

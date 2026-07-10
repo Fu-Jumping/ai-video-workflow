@@ -98,6 +98,7 @@ describe("exportObsidianVault", () => {
     const home = await fs.readFile(path.join(outRoot, "00_Project_Home.md"), "utf8");
     expect(home).toContain("Review Command Center");
     expect(home).toContain("Immersive Shot Reviews");
+    expect(home).toContain("[[04_Agent_Handoff|Agent Handoff]]");
     expect(home).toContain("Project Health");
     expect(home).toContain("Shot Progress");
     expect(home).toContain("Execution Readiness");
@@ -110,8 +111,26 @@ describe("exportObsidianVault", () => {
 
     const reviewDashboard = await fs.readFile(path.join(outRoot, "01_Review_Dashboard.md"), "utf8");
     expect(reviewDashboard).toContain("Generated File Conflicts");
+    expect(reviewDashboard).toContain("Agent Handoff");
     expect(reviewDashboard).toContain("Shot Review Canvases");
     expect(reviewDashboard).toContain("![[Bases/Workflow Files.base#Modified Generated Files]]");
+  });
+
+  test("exports project-level agent handoff guidance", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-agent-handoff-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+
+    const handoff = await fs.readFile(path.join(outRoot, "04_Agent_Handoff.md"), "utf8");
+    expect(handoff).toContain("# Agent Handoff");
+    expect(handoff).toContain("Copy-ready Prompts");
+    expect(handoff).toContain("Source Editing Boundary");
+    expect(handoff).toContain("Verification Commands");
+    expect(handoff).toContain("edit only the source Step files");
+    expect(handoff).toContain("Do not edit generated Obsidian projection files");
+    expect(handoff).toContain("node apps/cli/dist/index.js verify --project <project-path> --ide codex");
+    expect(handoff).toContain("[[Shots/shot-001|shot-001]]");
   });
 
   test("exports immersive single-shot review pages", async () => {
@@ -127,13 +146,20 @@ describe("exportObsidianVault", () => {
     expect(shotReview).toContain("has_storyboard: true");
     expect(shotReview).toContain("has_image_prompt: true");
     expect(shotReview).toContain("has_video_prompt: true");
+    expect(shotReview).toContain('agent_handoff: "[[04_Agent_Handoff#Single-Shot Handoff|Agent Handoff]]"');
     expect(shotReview).toContain("## Immersive Review");
     expect(shotReview).toContain("## Frame Continuity");
     expect(shotReview).toContain("## Prompt Handoff");
+    expect(shotReview).toContain("## Agent Handoff");
     expect(shotReview).toContain("## Review Canvas");
     expect(shotReview).toContain("![[Workflow/Step 3 - Storyboard/Shot 001 - Storyboard.md]]");
     expect(shotReview).toContain("![[Workflow/Step 4 - Image Prompts/Shot 001 Keyframe - Image Prompt.md]]");
     expect(shotReview).toContain("![[Workflow/Step 5 - Video Prompts/Shot 001 - Video Prompt.md]]");
+    expect(shotReview).toContain("Please inspect shot-001 across its Step 3 storyboard");
+    expect(shotReview).toContain("03_storyboard/shot-001.md");
+    expect(shotReview).toContain("04_image_prompts/shot-001-keyframe.md");
+    expect(shotReview).toContain("05_video_prompts/shot-001.md");
+    expect(shotReview).toContain("Do not edit generated Obsidian projection files");
   });
 
   test("exports Obsidian Bases for workflow files and shots", async () => {
@@ -148,6 +174,8 @@ describe("exportObsidianVault", () => {
     expect(shotsBase).toContain("type: cards");
     expect(shotsBase).toContain("Shot Progress");
     expect(shotsBase).toContain("Immersive Review");
+    expect(shotsBase).toContain("Agent Handoff");
+    expect(shotsBase).toContain("agent_handoff");
     expect(shotsBase).toContain("review_canvas");
     expect(shotsBase).toContain("review_note");
 
@@ -175,6 +203,7 @@ describe("exportObsidianVault", () => {
     const reviewMap = await fs.readJson(path.join(outRoot, "Canvas", "Review Map.canvas"));
     expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "00_Project_Home.md" })]));
     expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "Bases/Workflow Files.base" })]));
+    expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "04_Agent_Handoff.md" })]));
     expect(reviewMap.edges.length).toBeGreaterThan(0);
 
     const shotReview = await fs.readJson(path.join(outRoot, "Canvas", "Shot Reviews", "shot-001.canvas"));

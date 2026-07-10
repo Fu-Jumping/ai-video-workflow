@@ -365,6 +365,16 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
       color: "4"
     },
     {
+      id: "agent-handoff",
+      type: "file",
+      file: "04_Agent_Handoff.md",
+      x: 420,
+      y: 320,
+      width: 300,
+      height: 100,
+      color: "6"
+    },
+    {
       id: "notes",
       type: "file",
       file: "Notes/README.md",
@@ -461,6 +471,24 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
       toSide: "top",
       toEnd: "arrow",
       label: "manual notes"
+    },
+    {
+      id: "home-agent-handoff",
+      fromNode: "home",
+      toNode: "agent-handoff",
+      fromSide: "right",
+      toSide: "left",
+      toEnd: "arrow",
+      label: "agent handoff"
+    },
+    {
+      id: "shots-agent-handoff",
+      fromNode: "shot-index",
+      toNode: "agent-handoff",
+      fromSide: "bottom",
+      toSide: "top",
+      toEnd: "arrow",
+      label: "copy context"
     },
     {
       id: "review-base",

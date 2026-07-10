@@ -14,10 +14,12 @@ const requiredDashboardMarkers: Record<string, string[]> = {
 const requiredBaseFiles = ["Bases/Workflow Files.base", "Bases/Shots.base", "Bases/Production Status.base"];
 const requiredBaseViews: Record<string, string[]> = {
   "Bases/Workflow Files.base": ["Workflow Files", "Review Queue", "Modified Generated Files"],
-  "Bases/Shots.base": ["Shot Table", "Shot Cards", "Shot Progress", "Immersive Review"],
+  "Bases/Shots.base": ["Shot Table", "Shot Cards", "Shot Progress", "Immersive Review", "Agent Handoff"],
   "Bases/Production Status.base": ["Production Status", "Execution Readiness"]
 };
 const requiredCanvasFiles = ["Canvas/Workflow Map.canvas", "Canvas/Shot Pipeline.canvas", "Canvas/Review Map.canvas"];
+const agentHandoffPath = "04_Agent_Handoff.md";
+const requiredAgentHandoffMarkers = ["Agent Handoff", "Copy-ready Prompts", "Source Editing Boundary", "Verification Commands"];
 const requiredShotReviewMarkers = [
   "Immersive Review",
   "Review Route",
@@ -149,6 +151,27 @@ async function verifyRequiredFiles(vaultRoot: string, issues: VerificationIssue[
       if (!viewNames.has(viewName)) {
         pushIssue(issues, { code: "missing-obsidian-base-view", message: `Obsidian base is missing view: ${viewName}`, path: file });
       }
+    }
+  }
+}
+
+async function verifyAgentHandoff(vaultRoot: string, files: string[], issues: VerificationIssue[]): Promise<void> {
+  const fullPath = vaultFsPath(vaultRoot, agentHandoffPath);
+  if (!(await fs.pathExists(fullPath))) {
+    pushIssue(issues, { code: "invalid-obsidian-agent-handoff", message: `Missing Obsidian agent handoff page: ${agentHandoffPath}`, path: agentHandoffPath });
+  } else {
+    const content = await fs.readFile(fullPath, "utf8");
+    for (const marker of requiredAgentHandoffMarkers) {
+      if (!content.includes(marker)) {
+        pushIssue(issues, { code: "invalid-obsidian-agent-handoff", message: `Obsidian agent handoff page is missing marker: ${marker}`, path: agentHandoffPath });
+      }
+    }
+  }
+
+  for (const file of files.filter((filePath) => filePath.startsWith("Shots/") && filePath.endsWith(".md"))) {
+    const content = await fs.readFile(vaultFsPath(vaultRoot, file), "utf8");
+    if (!content.includes("## Agent Handoff")) {
+      pushIssue(issues, { code: "invalid-obsidian-agent-handoff", message: `Shot page is missing Agent Handoff section: ${file}`, path: file });
     }
   }
 }
@@ -319,6 +342,7 @@ export async function verifyObsidianVault({ projectRoot, vaultRoot }: VerifyObsi
   await verifyCanvasFiles(resolvedVaultRoot, issues);
   const manifest = await verifyManifest(resolvedProjectRoot, resolvedVaultRoot, issues);
   const files = await listVaultFiles(resolvedVaultRoot);
+  await verifyAgentHandoff(resolvedVaultRoot, files, issues);
   await verifyShotReviewPages(resolvedVaultRoot, files, issues);
   await verifyGeneratedMarkdown(resolvedProjectRoot, resolvedVaultRoot, files, manifest, issues);
   await verifyNoAbsoluteLinks(resolvedVaultRoot, files, issues);

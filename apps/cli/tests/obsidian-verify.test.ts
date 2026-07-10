@@ -122,4 +122,32 @@ describe("verifyObsidianVault", () => {
     expect(result.ok).toBe(false);
     expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "invalid-obsidian-shot-review" })]));
   });
+
+  test("fails when the project agent handoff page is missing", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-agent-handoff-missing-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    await fs.remove(path.join(outRoot, "04_Agent_Handoff.md"));
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "invalid-obsidian-agent-handoff" })]));
+  });
+
+  test("fails when a shot page is missing agent handoff guidance", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-agent-shot-marker-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    const shotReviewPath = path.join(outRoot, "Shots", "shot-001.md");
+    const content = await fs.readFile(shotReviewPath, "utf8");
+    await fs.writeFile(shotReviewPath, content.replace("## Agent Handoff", "## Agent Context"), "utf8");
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "invalid-obsidian-agent-handoff" })]));
+  });
 });

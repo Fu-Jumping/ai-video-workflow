@@ -20,6 +20,7 @@ export type IssueCode =
   | "invalid-obsidian-base-yaml"
   | "invalid-obsidian-canvas-json"
   | "invalid-obsidian-shot-review"
+  | "invalid-obsidian-agent-handoff"
   | "invalid-obsidian-ui-config"
   | "missing-obsidian-source-path"
   | "broken-obsidian-source-path"

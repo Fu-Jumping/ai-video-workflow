@@ -25,6 +25,10 @@ function embeddedFileForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSo
   return file ? `![[${workflowVaultPath(file)}]]` : `> ${missingLabel}: missing`;
 }
 
+function sourcePathForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSourceFile["sourceKind"]): string {
+  return fileForKind(sourceFiles, kind)?.sourcePath ?? "missing";
+}
+
 function shotNavigation(shotId: string, shotIds: string[]): string {
   const index = shotIds.indexOf(shotId);
   const previousShotId = index > 0 ? shotIds[index - 1] : undefined;
@@ -37,6 +41,54 @@ function shotNavigation(shotId: string, shotIds: string[]): string {
 
 function booleanProperty(value: boolean): string {
   return value ? "true" : "false";
+}
+
+function renderShotAgentHandoff(shotId: string, shotFiles: ObsidianSourceFile[], allSourceFiles: ObsidianSourceFile[]): string {
+  const storyboardSourcePath = sourcePathForKind(shotFiles, "storyboard");
+  const imagePromptSourcePath = sourcePathForKind(shotFiles, "image-prompt");
+  const videoPromptSourcePath = sourcePathForKind(shotFiles, "video-prompt");
+  const executionPlanSourcePath = sourcePathForKind(allSourceFiles, "execution-plan");
+  return `## Agent Handoff
+
+Use this section to copy context into an agent conversation. Give feedback in the agent chat; do not edit generated Obsidian projection files.
+
+### Source Files for Agent
+
+- Storyboard source: \`${storyboardSourcePath}\`
+- Step 4 image prompt source: \`${imagePromptSourcePath}\`
+- Step 5 video prompt source: \`${videoPromptSourcePath}\`
+- Execution plan source: \`${executionPlanSourcePath}\`
+- Project handoff hub: [[04_Agent_Handoff|Agent Handoff]]
+
+### Source Editing Boundary
+
+- Narrative frame or shot intent changes belong in Step 3: \`${storyboardSourcePath}\`
+- Image and frame consistency changes belong in Step 4: \`${imagePromptSourcePath}\`
+- Motion, timing, and camera behavior changes belong in Step 5: \`${videoPromptSourcePath}\`
+- Generated Obsidian files under \`Shots/\`, \`Workflow/\`, \`Bases/\`, and \`Canvas/\` are projection outputs.
+
+### Copy-ready Prompt
+
+\`\`\`text
+Please inspect ${shotId} across its Step 3 storyboard, Step 4 image prompt, and Step 5 video prompt.
+
+Source files:
+- Storyboard: ${storyboardSourcePath}
+- Step 4 image prompt: ${imagePromptSourcePath}
+- Step 5 video prompt: ${videoPromptSourcePath}
+- Execution plan: ${executionPlanSourcePath}
+
+Keep Step 3 and Step 4 frame-aligned. If changes are needed, edit only the source Step files. Do not edit generated Obsidian projection files.
+\`\`\`
+
+### Verification Commands
+
+\`\`\`powershell
+node apps/cli/dist/index.js verify --project <project-path> --ide codex
+node apps/cli/dist/index.js export-obsidian --project <project-path> --out <vault-path>
+node apps/cli/dist/index.js verify-obsidian --project <project-path> --vault <vault-path>
+\`\`\`
+`;
 }
 
 function renderShotHub(shotId: string, shotFiles: ObsidianSourceFile[], allSourceFiles: ObsidianSourceFile[], shotIds: string[]): ObsidianGeneratedFile {
@@ -61,6 +113,7 @@ needs_attention: false
 review_mode: immersive
 review_canvas: "[[${reviewCanvasPath}]]"
 review_note: "[[Notes/Shot Reviews/${shotId}]]"
+agent_handoff: "[[04_Agent_Handoff#Single-Shot Handoff|Agent Handoff]]"
 has_storyboard: ${booleanProperty(Boolean(storyboard))}
 has_image_prompt: ${booleanProperty(Boolean(imagePrompt))}
 has_video_prompt: ${booleanProperty(Boolean(videoPrompt))}
@@ -112,6 +165,8 @@ ${embeddedFileForKind(shotFiles, "video-prompt", "Video prompt")}
 - Confirm the storyboard, image prompt, and video prompt are aligned before execution.
 - Use [[03_Production_Board]] for project-level execution checks.
 
+${renderShotAgentHandoff(shotId, shotFiles, allSourceFiles)}
+
 ## Shot Records
 
 ![[Bases/Shots.base#Shot Table]]
@@ -127,6 +182,81 @@ Write durable review comments under [[Notes/Shot Reviews/${shotId}|Notes/Shot Re
 ## Review Canvas
 
 ![[${reviewCanvasPath}]]
+`
+  };
+}
+
+function renderAgentHandoffPage(shotIds: string[]): ObsidianGeneratedFile {
+  const shotLinks = shotIds.length > 0 ? shotIds.map((shotId) => `- [[Shots/${shotId}|${shotId}]] - [[Canvas/Shot Reviews/${shotId}.canvas|Review Canvas]]`).join("\n") : "- No shot files found yet.";
+  return {
+    vaultPath: "04_Agent_Handoff.md",
+    content: `# Agent Handoff
+
+Use this page when you have inspected the project in Obsidian and want an agent to modify source Step files. Obsidian is the viewing and location layer. The project Step files remain the source of truth.
+
+## Navigation
+
+- Project home: [[00_Project_Home]]
+- Review dashboard: [[01_Review_Dashboard]]
+- Shot index: [[02_Shot_Index]]
+- Production board: [[03_Production_Board]]
+- Workflow files: [[Bases/Workflow Files.base]]
+- Shots base: [[Bases/Shots.base]]
+- Production status: [[Bases/Production Status.base]]
+
+## Single-Shot Handoff
+
+${shotLinks}
+
+## Source Editing Boundary
+
+- Change story intent or shot framing in Step 3 storyboard files.
+- Change image composition, subject description, and frame continuity in Step 4 image prompt files.
+- Change motion, timing, camera movement, and video behavior in Step 5 video prompt files.
+- Do not edit generated Obsidian projection files as the workflow source.
+
+## Copy-ready Prompts
+
+### Single-shot check
+
+\`\`\`text
+Please inspect the selected shot across Step 3 storyboard, Step 4 image prompt, and Step 5 video prompt.
+Keep Step 3 and Step 4 frame-aligned.
+If changes are needed, edit only the source Step files and do not edit generated Obsidian projection files.
+\`\`\`
+
+### Step 4 image prompt edit
+
+\`\`\`text
+Please update the Step 4 image prompt for the selected shot so it stays frame-aligned with the Step 3 storyboard.
+Keep the Step 4 file contract intact and avoid context-dependent wording.
+Do not edit generated Obsidian projection files.
+\`\`\`
+
+### Step 5 video prompt edit
+
+\`\`\`text
+Please update the Step 5 video prompt for the selected shot.
+Preserve the Step 4 visual frame, and change only motion, timing, camera behavior, or video-specific details.
+Do not edit generated Obsidian projection files.
+\`\`\`
+
+### Full project verification
+
+\`\`\`text
+Please verify the project after the source Step file edits.
+Run the project verifier, refresh the Obsidian projection if needed, then run verify-obsidian.
+Report any remaining Step 3 to Step 4 alignment or projection issues with exact source paths.
+\`\`\`
+
+## Verification Commands
+
+\`\`\`powershell
+pnpm build
+node apps/cli/dist/index.js verify --project <project-path> --ide codex
+node apps/cli/dist/index.js export-obsidian --project <project-path> --out <vault-path>
+node apps/cli/dist/index.js verify-obsidian --project <project-path> --vault <vault-path>
+\`\`\`
 `
   };
 }
@@ -179,6 +309,7 @@ Do not treat generated projection files as the source of truth. Edit the origina
 - [[01_Review_Dashboard|Review Dashboard]]
 - [[02_Shot_Index|Shot Index]]
 - [[03_Production_Board|Production Board]]
+- [[04_Agent_Handoff|Agent Handoff]]
 - [[Notes/README|Obsidian Notes]]
 - [[Canvas/Review Map.canvas|Review Map]]
 - [[Canvas/Workflow Map.canvas|Workflow Map]]
@@ -271,6 +402,10 @@ tag:#ai-video/status/blocked OR tag:#ai-video/review/needs-source-link OR tag:#a
 
 Use \`verify-obsidian\` when this queue shows possible projection conflicts. Move durable review notes into [[Notes/README|Notes]] instead of editing generated files.
 
+## Agent Handoff
+
+[[04_Agent_Handoff|Agent Handoff]]
+
 ## Review Map
 
 ![[Canvas/Review Map.canvas]]
@@ -287,6 +422,10 @@ ${shotLinks}
 
 ${shotLinks}
 
+## Agent Handoff
+
+[[04_Agent_Handoff|Agent Handoff]]
+
 ## Shot Table
 
 ![[Bases/Shots.base#Shot Table]]
@@ -298,6 +437,10 @@ ${shotLinks}
 ## Immersive Review Table
 
 ![[Bases/Shots.base#Immersive Review]]
+
+## Agent Handoff Table
+
+![[Bases/Shots.base#Agent Handoff]]
 `
     },
     {
@@ -326,6 +469,7 @@ tag:#ai-video/status/ready
 
 - Review queue: [[01_Review_Dashboard]]
 - Shot index: [[02_Shot_Index]]
+- Agent handoff: [[04_Agent_Handoff]]
 - Workflow map: [[Canvas/Workflow Map.canvas]]
 - Review map: [[Canvas/Review Map.canvas]]
 - Shot reviews: [[02_Shot_Index]]
@@ -374,6 +518,7 @@ Files you create in this folder are not part of the generated projection manifes
 If you edit a generated file, the next incremental export will skip that file and report it as \`skipped-user-modified\`.
 `
     },
+    renderAgentHandoffPage(shotIds),
     ...shotIds.map((shotId) => renderShotHub(shotId, sourceFiles.filter((file) => file.shotId === shotId), sourceFiles, shotIds))
   ];
   if (includePluginRecipes) {
