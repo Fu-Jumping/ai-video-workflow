@@ -47,6 +47,19 @@ pnpm example:obsidian
 
 v0.3 Obsidian 发布说明见 `docs/zh/contributors/release-notes-v0.3.md`。
 
+## MCP 只读上下文
+
+```powershell
+pnpm build
+pnpm example:mcp-context
+```
+
+`mcp-context` 会为官方示例打印确定性的 JSON，包含 workflow steps、镜头源文件路径、修改边界和验证命令。它是只读命令，不会写项目文件。
+
+本地 MCP 客户端可以在构建 CLI 后使用 `ai-video-workflow mcp-server --project <project-path>`。该 server 只绑定一个项目，通过 stdio 运行，并暴露只读 resources、prompts 和 tools。不要把 `mcp-server` 放进必须退出的验证脚本；烟测使用 `mcp-context`。
+
+MCP adapter 边界见 `docs/zh/contributors/mcp-adapter.md`。
+
 ## 快速开始
 
 1. 运行 `pnpm install` 安装依赖。

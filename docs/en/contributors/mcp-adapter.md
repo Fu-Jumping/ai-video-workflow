@@ -125,6 +125,55 @@ ai-video-workflow mcp-server --project <path>
 
 `mcp-server` should be a long-running stdio server. Do not put it in scripts that must exit.
 
+## Local Setup
+
+Build the CLI first:
+
+```bash
+pnpm build
+```
+
+Use the smoke-test command when you need a command that exits:
+
+```bash
+pnpm example:mcp-context
+```
+
+Use the server command only from an MCP client configuration or an interactive terminal where a long-running stdio server is expected:
+
+```bash
+ai-video-workflow mcp-server --project <project-path>
+```
+
+Client configuration should point to the built CLI or package binary and pass:
+
+```text
+mcp-server --project <project-path>
+```
+
+The server is project-scoped. Start one server per project path.
+
+## Troubleshooting
+
+If the client does not show resources, prompts, or tools:
+
+- run `ai-video-workflow mcp-context --project <project-path>` first and confirm it exits successfully
+- check that the project has `project.config.yaml`
+- check that all Step 1 to Step 6 directories exist
+- run `ai-video-workflow verify --project <project-path> --ide codex`
+
+If a shot is missing from MCP resources:
+
+- confirm the shot has a Markdown file under `03_storyboard/`
+- confirm the Step 3 file links to the Step 4 image prompt and Step 5 video prompt
+- rerun `mcp-context` and inspect the `shots` array
+
+If verification reports issues:
+
+- edit the source Step files
+- do not edit MCP resources, generated Obsidian projection files, or IDE runtime mirrors
+- rerun verification after edits
+
 ## Future Write Tools
 
 Write tools are deliberately out of scope for v0.5. Before adding them, define:

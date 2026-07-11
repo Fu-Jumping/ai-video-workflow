@@ -47,6 +47,19 @@ For release QA of the optional opening experience, run `pnpm example:obsidian:ui
 
 See `docs/en/contributors/release-notes-v0.3.md` for the v0.3 Obsidian release notes.
 
+## MCP Read-Only Context
+
+```powershell
+pnpm build
+pnpm example:mcp-context
+```
+
+`mcp-context` prints deterministic JSON for the official example: workflow steps, shot source paths, edit boundaries, and verification commands. It is read-only and does not write project files.
+
+For a local MCP client, use the CLI command `ai-video-workflow mcp-server --project <project-path>` after building the CLI. The server is scoped to one project, runs over stdio, and exposes read-only resources, prompts, and tools. Do not use `mcp-server` in scripts that must exit; use `mcp-context` for smoke tests.
+
+See `docs/en/contributors/mcp-adapter.md` for the MCP adapter boundary.
+
 ## Quick Start
 
 1. Install dependencies with `pnpm install`.

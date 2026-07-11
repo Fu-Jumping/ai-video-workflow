@@ -125,6 +125,55 @@ ai-video-workflow mcp-server --project <path>
 
 `mcp-server` 应该是长时间运行的 stdio server。不要把它放进必须退出的验证脚本。
 
+## 本地设置
+
+先构建 CLI：
+
+```bash
+pnpm build
+```
+
+需要能自动退出的烟测命令时，使用：
+
+```bash
+pnpm example:mcp-context
+```
+
+只有在 MCP 客户端配置或明确需要长时间运行 stdio server 的终端里，才使用 server 命令：
+
+```bash
+ai-video-workflow mcp-server --project <project-path>
+```
+
+客户端配置应指向已构建的 CLI 或 package binary，并传入：
+
+```text
+mcp-server --project <project-path>
+```
+
+server 只绑定一个项目路径。每个项目单独启动一个 server。
+
+## 排障
+
+如果客户端没有显示 resources、prompts 或 tools：
+
+- 先运行 `ai-video-workflow mcp-context --project <project-path>`，确认它能成功退出
+- 检查项目是否有 `project.config.yaml`
+- 检查 Step 1 到 Step 6 目录是否都存在
+- 运行 `ai-video-workflow verify --project <project-path> --ide codex`
+
+如果某个镜头没有出现在 MCP resources 中：
+
+- 确认该镜头在 `03_storyboard/` 下有 Markdown 文件
+- 确认 Step 3 文件链接到 Step 4 image prompt 和 Step 5 video prompt
+- 重新运行 `mcp-context` 并检查 `shots` 数组
+
+如果 verification 报错：
+
+- 修改源 Step 文件
+- 不要修改 MCP resources、生成的 Obsidian 投影文件或 IDE runtime mirror
+- 修改后重新运行 verification
+
 ## 未来写入工具
 
 写入工具明确不属于 v0.5 范围。添加之前必须定义：
