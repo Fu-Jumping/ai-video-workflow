@@ -2,6 +2,8 @@
 
 Trae uses `.trae/skills/` as native skill bundles, `.trae/rules/` as runtime rule entries, `.trae/specs/ai-video-workflow/` as generated workflow specs, and `.trae/documents/ai-video-workflow/` as the readable runtime mirror. It does not default to `.agents/skills`.
 
+`AGENTS.md` is the shared cross-agent entry. Trae-specific guidance belongs in `.trae/rules/`.
+
 ## Generated outputs
 
 `sync --ide trae` writes:

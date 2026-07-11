@@ -12,6 +12,10 @@ interface AgentAdapterContract {
   syncDirection?: unknown;
   sourceOfTruth?: unknown;
   handoffSurfaces?: unknown;
+  sharedEntryPoints?: unknown;
+  generatedSurfaces?: unknown;
+  userOwnedSurfaces?: unknown;
+  privateRuntimeSurfaces?: unknown;
   verificationCommands?: unknown;
   forbiddenWrites?: unknown;
   failureBehavior?: unknown;
@@ -45,13 +49,19 @@ describe("agent adapter contract", () => {
       expect.arrayContaining(["adapterId", "displayName", "inputs", "outputs", "syncDirection", "sourceOfTruth", "failureBehavior"])
     );
     expect(schema.properties).toHaveProperty("handoffSurfaces");
+    expect(schema.properties).toHaveProperty("sharedEntryPoints");
+    expect(schema.properties).toHaveProperty("generatedSurfaces");
+    expect(schema.properties).toHaveProperty("userOwnedSurfaces");
+    expect(schema.properties).toHaveProperty("privateRuntimeSurfaces");
     expect(schema.properties).toHaveProperty("verificationCommands");
     expect(schema.properties).toHaveProperty("forbiddenWrites");
   });
 
   test("documents every adapter fixture without replacing Step files", async () => {
     const fixtureNames = (await fs.readdir(fixturesRoot())).filter((fileName) => fileName.endsWith(".contract.json"));
-    expect(fixtureNames).toEqual(expect.arrayContaining(["codex.contract.json", "claude-code.contract.json", "trae.contract.json", "mcp.contract.json"]));
+    expect(fixtureNames).toEqual(
+      expect.arrayContaining(["codex.contract.json", "claude-code.contract.json", "trae.contract.json", "mcp.contract.json", "cherry-studio.contract.json"])
+    );
 
     for (const fixtureName of fixtureNames) {
       const contract = await fs.readJson(fixturePath(fixtureName)) as AgentAdapterContract;
@@ -105,9 +115,10 @@ describe("agent adapter contract", () => {
     expect(contract.syncDirection).toBe("runtime-mirror");
     expect(contract.sourceOfTruth).toBe("project-step-files");
 
-    expect(contract.outputs).toEqual(
-      expect.arrayContaining(["AGENTS.md", ".trae/rules/", ".trae/specs/ai-video-workflow/", ".trae/documents/ai-video-workflow/", ".trae/skills/"])
-    );
+    expect(contract.outputs).toEqual(expect.arrayContaining([".trae/rules/", ".trae/specs/ai-video-workflow/", ".trae/documents/ai-video-workflow/", ".trae/skills/"]));
+    expect(contract.outputs).not.toContain("AGENTS.md");
+    expectStringArray(contract.sharedEntryPoints);
+    expect(contract.sharedEntryPoints).toEqual(expect.arrayContaining(["AGENTS.md", "docs/ai-workspace/README.md"]));
     expect(contract.handoffSurfaces).toEqual(expect.arrayContaining(["AGENTS.md", ".trae/rules/ai-video-workflow.md"]));
     expect(contract.verificationCommands).toEqual(expect.arrayContaining(["ai-video-workflow verify --project <path> --ide trae"]));
     expect(contract.forbiddenWrites).toEqual(expect.arrayContaining([".obsidian/", "CLAUDE.md", "absolute links"]));
@@ -139,6 +150,23 @@ describe("agent adapter contract", () => {
         ".trae/",
         "absolute links"
       ])
+    );
+  });
+
+  test("documents Cherry Studio as a read-only working-directory adapter", async () => {
+    const contract = await fs.readJson(fixturePath("cherry-studio.contract.json")) as AgentAdapterContract;
+
+    expect(contract.adapterId).toBe("cherry-studio");
+    expect(contract.syncDirection).toBe("read-only-context");
+    expect(contract.sourceOfTruth).toBe("project-step-files");
+    expect(contract.outputs).toEqual(expect.arrayContaining(["working directory context", "documentation guidance"]));
+    expectStringArray(contract.sharedEntryPoints);
+    expectStringArray(contract.userOwnedSurfaces);
+    expectStringArray(contract.privateRuntimeSurfaces);
+    expect(contract.sharedEntryPoints).toEqual(expect.arrayContaining(["AGENTS.md", "docs/ai-workspace/README.md"]));
+    expect(contract.userOwnedSurfaces).toEqual(expect.arrayContaining(["soul.md", "USER.md", "memory/", "MEMORY_FILE_PATH"]));
+    expect(contract.forbiddenWrites).toEqual(
+      expect.arrayContaining(["soul.md", "USER.md", "SOUL.md", "memory/", "MEMORY_FILE_PATH", "Cherry Studio global memory", "@cherry/memory", "absolute links"])
     );
   });
 });

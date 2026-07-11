@@ -44,6 +44,7 @@ Suggested order:
 2. v0.4 agent adapter contract for Codex, Cursor, Claude Code, Trae, MCP, and future adapters.
 3. v0.4.1 to v0.4.5 Codex, Cursor, Claude Code, and Trae adapter hardening with runtime verification.
 4. v0.5: MCP read-only context adapter. Start with resources, prompts, and read-only diagnostics. Write tools and LibTV execution remain postponed.
+5. v0.6: cross-agent workspace consistency. Use `AGENTS.md` and `docs/ai-workspace/` as shared project entrypoints across Codex, Cursor, Claude Code, Trae, Cherry Studio, Obsidian, and MCP surfaces.
 5. LibTV execution projection after the platform and CLI are stable enough to validate against real state.
 
 ## Completed Since v0.4
@@ -65,3 +66,12 @@ v0.5 should introduce MCP as a read-only context adapter:
 - add only read-only tools such as project summary, shot lookup, and verification diagnostics
 - keep Step files as the source of truth
 - avoid write tools, Obsidian mutation, IDE runtime sync, generation-platform calls, and LibTV execution
+
+## v0.6 Cross-Agent Workspace
+
+v0.6 should make repeated cross-platform access safer:
+
+- create `AGENTS.md` and `docs/ai-workspace/` during IDE sync
+- keep platform runtime mirrors aligned with the shared entry
+- document Cherry Studio as a working-directory adapter without writing host memory or persona files
+- verify missing shared docs and runtime entries that redefine project truth

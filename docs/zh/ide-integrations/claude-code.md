@@ -2,6 +2,8 @@
 
 Claude Code 使用 `CLAUDE.md` 作为根入口，使用 `.claude/skills/` 作为 adapter-ready 技能包，使用 `.claude/commands/` 作为命令式交接入口，使用 `.claude/ai-video-workflow/` 作为生成的运行镜像。
 
+`CLAUDE.md` 是 Claude 专属入口，应回指 `AGENTS.md` 和 `docs/ai-workspace/`，后者定义跨智能体共享边界。
+
 ## 生成输出
 
 `sync --ide claude-code` 会写入：

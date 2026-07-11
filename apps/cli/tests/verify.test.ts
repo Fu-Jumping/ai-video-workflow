@@ -80,6 +80,185 @@ describe("verifyProject", () => {
     );
   });
 
+  test("reports a missing shared agent entry", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-missing-shared-entry-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await fs.remove(path.join(projectRoot, "AGENTS.md"));
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "missing-shared-agent-entry",
+          path: "AGENTS.md"
+        })
+      ])
+    );
+  });
+
+  test("reports custom AGENTS as a merge task when Cherry host surfaces exist", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-agents-merge-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+
+    await fs.writeFile(path.join(projectRoot, "AGENTS.md"), "# Custom Agents\n\nRead SOUL.md first.\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "SOUL.md"), "# Soul\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "USER.md"), "# User\n", "utf8");
+    await fs.ensureDir(path.join(projectRoot, "memory"));
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "shared-agent-entry-needs-merge",
+          path: "AGENTS.md"
+        })
+      ])
+    );
+  });
+
+  test("accepts custom AGENTS after the ai-video-workflow merge block is added", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-agents-merged-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+
+    await fs.writeFile(
+      path.join(projectRoot, "AGENTS.md"),
+      [
+        "# Custom Agents",
+        "",
+        "Read `SOUL.md` and `USER.md` for Cherry Studio host context.",
+        "",
+        "## ai-video-workflow",
+        "",
+        "Marker: ai-video-workflow shared agent entry.",
+        "",
+        "- Read `docs/ai-workspace/README.md` before changing files.",
+        "- Treat `project-step-files` as the source of truth."
+      ].join("\n"),
+      "utf8"
+    );
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  test("reports a missing shared agent doc", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-missing-shared-doc-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "cursor");
+    await fs.remove(path.join(projectRoot, "docs", "ai-workspace", "BOUNDARIES.md"));
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "cursor",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "missing-shared-agent-doc",
+          path: "docs/ai-workspace/BOUNDARIES.md"
+        })
+      ])
+    );
+  });
+
+  test("reports a missing entrypoint reconciliation shared agent doc", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-missing-entrypoint-doc-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "cursor");
+    const docPath = "docs/ai-workspace/ENTRYPOINT_RECONCILIATION.md";
+    await fs.remove(path.join(projectRoot, docPath));
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "cursor",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "missing-shared-agent-doc",
+          path: docPath
+        })
+      ])
+    );
+  });
+
+  test("reports an invalid entrypoint reconciliation shared agent doc", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-invalid-entrypoint-doc-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "cursor");
+    const docPath = "docs/ai-workspace/ENTRYPOINT_RECONCILIATION.md";
+    await fs.writeFile(path.join(projectRoot, docPath), "# Entrypoint Reconciliation\n", "utf8");
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "cursor",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "invalid-shared-agent-doc",
+          path: docPath
+        })
+      ])
+    );
+  });
+
+  test("reports runtime entries that do not point to the shared workspace", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-runtime-conflict-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "trae");
+    await fs.writeFile(
+      path.join(projectRoot, ".trae", "rules", "ai-video-workflow.md"),
+      "# Trae Runtime\n\nThe .trae runtime mirror is the source of truth for this project.\n",
+      "utf8"
+    );
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "trae",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "agent-runtime-conflict",
+          path: ".trae/rules/ai-video-workflow.md"
+        })
+      ])
+    );
+  });
+
   test("finds missing Step 6 files, invalid Step 4 contracts, and absolute path links", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-verify-"));
     tempRoots.push(root);
@@ -181,6 +360,32 @@ describe("verifyProject", () => {
         expect.objectContaining({
           code: "absolute-path-link",
           path: path.join("01_concept", "story.md")
+        })
+      ])
+    );
+  });
+
+  test("ignores Cherry Studio host surfaces during project Markdown link checks", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cherry-host-surfaces-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+
+    await fs.writeFile(path.join(projectRoot, "SOUL.md"), "[local](G:\\private\\soul.md)\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "USER.md"), "[local](file:///C:/Users/example/user.md)\n", "utf8");
+    await fs.ensureDir(path.join(projectRoot, "memory"));
+    await fs.writeFile(path.join(projectRoot, "memory", "README.md"), "[local](G:\\private\\memory.md)\n", "utf8");
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.issues).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "absolute-path-link"
         })
       ])
     );

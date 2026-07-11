@@ -20,6 +20,18 @@
 
 后续 Obsidian、LibTV、MCP 和更多智能体平台都应作为 adapter 接入，不作为第二套工作流来源。
 
+## 跨智能体工作目录
+
+`sync --ide codex|cursor|claude-code|trae` 会为每个项目初始化共享智能体工作目录：
+
+- `AGENTS.md` 是跨智能体根入口。
+- `docs/ai-workspace/` 记录共享边界、交接、平台矩阵和安全规则。
+- 平台 runtime mirror 仍然只是 adapter 表面，不是项目事实源。
+- Cherry Studio 作为工作目录型 adapter 进入文档，不生成记忆或 persona 文件。
+- 如果项目已有自定义 `AGENTS.md`，`sync` 不会覆盖它；按 `docs/ai-workspace/ENTRYPOINT_RECONCILIATION.md` 或 `doctor` 输出合并 ai-video-workflow block。
+
+说明见 `docs/zh/contributors/cross-agent-workspace.md` 和 `docs/zh/ide-integrations/cherry-studio.md`。
+
 ## v0.2 验证
 
 ```powershell

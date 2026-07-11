@@ -12,7 +12,6 @@
     "06_execution_plan/"
   ],
   "outputs": [
-    "AGENTS.md",
     ".trae/skills/",
     ".trae/rules/",
     ".trae/specs/ai-video-workflow/",
@@ -25,6 +24,17 @@
     ".trae/rules/ai-video-workflow.md",
     ".trae/skills/film-workflow/SKILL.md",
     ".trae/documents/ai-video-workflow/WORKFLOW_OVERVIEW.md"
+  ],
+  "sharedEntryPoints": [
+    "AGENTS.md",
+    "docs/ai-workspace/README.md",
+    "docs/ai-workspace/BOUNDARIES.md"
+  ],
+  "generatedSurfaces": [
+    ".trae/skills/",
+    ".trae/rules/",
+    ".trae/specs/ai-video-workflow/",
+    ".trae/documents/ai-video-workflow/"
   ],
   "verificationCommands": [
     "ai-video-workflow verify --project <path> --ide trae"

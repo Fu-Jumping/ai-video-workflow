@@ -8,6 +8,8 @@
 
 Claude Code 推荐优先转化到项目根下的 `.claude/`。如果团队不使用目录化布局，则可使用仓库级 `CLAUDE.md` 单文件入口。
 
+跨平台读取时，先读项目根 `AGENTS.md` 和 `docs/ai-workspace/`。`CLAUDE.md` 是 Claude Code 专属入口，不替代共享入口。
+
 推荐落位：
 
 - `.claude/skills/`

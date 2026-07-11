@@ -17,6 +17,8 @@
 
 `.cursor/` 是 Cursor 在当前项目中的原生运行目录。若规则不落到 `.cursor/rules/` 等可识别位置，不能假设 Cursor 会稳定读取这些规则。
 
+跨平台读取时，先读项目根 `AGENTS.md` 和 `docs/ai-workspace/`，再进入 `.cursor/` runtime mirror。
+
 ## 3. 检测顺序
 
 开始前先检测以下入口是否存在：

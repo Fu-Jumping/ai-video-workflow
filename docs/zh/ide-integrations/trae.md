@@ -2,6 +2,8 @@
 
 Trae 使用 `.trae/skills/` 作为原生技能包，使用 `.trae/rules/` 作为运行规则入口，使用 `.trae/specs/ai-video-workflow/` 作为生成的工作流规范，使用 `.trae/documents/ai-video-workflow/` 作为可读运行镜像。默认不使用 `.agents/skills`。
 
+`AGENTS.md` 是跨智能体共享入口。Trae 专属说明应放在 `.trae/rules/`。
+
 ## 生成输出
 
 `sync --ide trae` 会写入：

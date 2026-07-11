@@ -1,6 +1,14 @@
 import fs from "fs-extra";
 import path from "node:path";
 
+import {
+  cherryHostSurfaceDirs,
+  cherryHostSurfaceFiles,
+  classifySharedAgentEntry,
+  sharedAgentDocMarkers,
+  sharedAgentDocPaths,
+  sharedAgentEntryPath
+} from "./agent-workspace.js";
 import { STEP6_FILES } from "./constants.js";
 import type { Ide, ProjectConfig, VerificationIssue, VerificationResult } from "./types.js";
 import { parseYaml } from "./yaml.js";
@@ -8,9 +16,14 @@ import { parseYaml } from "./yaml.js";
 const step4RequiredSections = ["快速导读", "中文完整版本", "English Version (Copy Ready)"];
 const step4ForbiddenText = ["参考前文", "同上", "模型应自行理解剧情", "same as previous"];
 const ignoredMarkdownDirs = new Set(["node_modules", ".git"]);
+const ignoredRootMarkdownDirs = new Set(cherryHostSurfaceDirs);
+const ignoredRootMarkdownFiles = new Set(cherryHostSurfaceFiles);
 const absoluteLinkPattern = /([A-Za-z]:\\|[A-Za-z]:\/|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
 const inlineCodePattern = /`[^`\r\n]*`/g;
 const step4LinkPattern = /\]\((?:\.\.\/)?04_image_prompts\/([^)#]+)(?:#[^)]+)?\)/g;
+const runtimeTruthConflictPattern =
+  /(runtime mirror|运行镜像).{0,40}(source of truth|事实源|project truth)|(source of truth|事实源|project truth).{0,40}(runtime mirror|运行镜像)/i;
+const runtimeTruthNegationPattern = /(not|不是|并非|only|只).{0,80}(source of truth|事实源|project truth)/i;
 
 interface IdeRuntimeRequirement {
   path: string;
@@ -44,6 +57,13 @@ const ideRuntimeRequirements: Record<Ide, IdeRuntimeRequirement[]> = {
   ]
 };
 
+const ideSharedRuntimeEntryPaths: Record<Ide, string[]> = {
+  codex: [".codex/agent-rules.md", ".codex/repo-context.md"],
+  cursor: [".cursor/rules/ai-video-workflow.mdc"],
+  "claude-code": ["CLAUDE.md", ".claude/commands/ai-video-workflow.md"],
+  trae: [".trae/rules/ai-video-workflow.md"]
+};
+
 async function loadConfig(projectRoot: string): Promise<ProjectConfig | null> {
   const configPath = path.join(projectRoot, "project.config.yaml");
   if (!(await fs.pathExists(configPath))) {
@@ -65,8 +85,14 @@ async function listMarkdownFiles(root: string, current = root): Promise<string[]
     }
     const fullPath = path.join(current, entry.name);
     if (entry.isDirectory()) {
+      if (current === root && ignoredRootMarkdownDirs.has(entry.name)) {
+        continue;
+      }
       files.push(...(await listMarkdownFiles(root, fullPath)));
     } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      if (current === root && ignoredRootMarkdownFiles.has(entry.name)) {
+        continue;
+      }
       files.push(path.relative(root, fullPath));
     }
   }
@@ -192,6 +218,79 @@ async function verifyIdeRuntime(projectRoot: string, ide: Ide, issues: Verificat
   }
 }
 
+function contentHasAllMarkers(content: string, markers: readonly string[]): boolean {
+  return markers.every((marker) => content.includes(marker));
+}
+
+function contentMentionsProjectTruth(content: string): boolean {
+  return content.includes("project-step-files") || content.includes("Step 1 to Step 6 files");
+}
+
+async function verifySharedAgentWorkspace(projectRoot: string, ide: Ide, issues: VerificationIssue[]): Promise<void> {
+  const agentEntryFullPath = path.join(projectRoot, sharedAgentEntryPath);
+  if (!(await fs.pathExists(agentEntryFullPath))) {
+    pushIssue(issues, {
+      code: "missing-shared-agent-entry",
+      message: "Missing shared agent entry: AGENTS.md",
+      path: sharedAgentEntryPath
+    });
+  } else {
+    const content = await fs.readFile(agentEntryFullPath, "utf8");
+    const classification = classifySharedAgentEntry(content);
+    if (classification === "custom-entry-needs-merge") {
+      pushIssue(issues, {
+        code: "shared-agent-entry-needs-merge",
+        message:
+          "Existing AGENTS.md must merge the ai-video-workflow shared entry block; keep user and Cherry Studio guidance intact.",
+        path: sharedAgentEntryPath
+      });
+    }
+  }
+
+  for (const relPath of sharedAgentDocPaths) {
+    const fullPath = path.join(projectRoot, relPath);
+    if (!(await fs.pathExists(fullPath))) {
+      pushIssue(issues, {
+        code: "missing-shared-agent-doc",
+        message: `Missing shared agent doc: ${relPath}`,
+        path: relPath
+      });
+      continue;
+    }
+    const content = await fs.readFile(fullPath, "utf8");
+    if (!contentHasAllMarkers(content, sharedAgentDocMarkers)) {
+      pushIssue(issues, {
+        code: "invalid-shared-agent-doc",
+        message: `Shared agent doc is missing required ai-video-workflow markers: ${relPath}`,
+        path: relPath
+      });
+    }
+  }
+
+  for (const relPath of ideSharedRuntimeEntryPaths[ide]) {
+    const fullPath = path.join(projectRoot, relPath);
+    if (!(await fs.pathExists(fullPath))) {
+      continue;
+    }
+    const content = await fs.readFile(fullPath, "utf8");
+    if (!content.includes("AGENTS.md") || !content.includes("docs/ai-workspace") || !contentMentionsProjectTruth(content)) {
+      pushIssue(issues, {
+        code: "agent-runtime-conflict",
+        message: `Runtime entry does not point to the shared agent workspace: ${relPath}`,
+        path: relPath
+      });
+      continue;
+    }
+    if (runtimeTruthConflictPattern.test(content) && !runtimeTruthNegationPattern.test(content)) {
+      pushIssue(issues, {
+        code: "agent-runtime-conflict",
+        message: `Runtime entry appears to redefine project truth: ${relPath}`,
+        path: relPath
+      });
+    }
+  }
+}
+
 export async function verifyProject({
   projectRoot,
   ide
@@ -225,5 +324,6 @@ export async function verifyProject({
   await verifyStep3Step4Traceability(projectRoot, issues);
   await verifyRelativeMarkdownLinks(projectRoot, issues);
   await verifyIdeRuntime(projectRoot, ide, issues);
+  await verifySharedAgentWorkspace(projectRoot, ide, issues);
   return { ok: issues.length === 0, issues };
 }

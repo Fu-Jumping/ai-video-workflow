@@ -31,6 +31,13 @@
 - `forbiddenWrites`：adapter 不得编辑的路径或文件类别。
 - `failureBehavior`：adapter 遇到冲突、缺失文件、过期生成文件和用户本地状态时的处理方式。
 
+跨智能体工作目录可选字段：
+
+- `sharedEntryPoints`：所有智能体都应读取的共享项目入口，例如 `AGENTS.md` 和 `docs/ai-workspace/`。
+- `generatedSurfaces`：adapter 拥有、可以重新生成的输出。
+- `userOwnedSurfaces`：用户或宿主平台拥有的文件。
+- `privateRuntimeSurfaces`：平台本地状态、缓存、记忆或凭据，不属于项目事实源。
+
 ## 同步方向分类
 
 `runtime-mirror`
@@ -118,6 +125,14 @@ adapter 不能：
 - 写入：Trae 可读的说明。
 - 方向：`runtime-mirror`。
 - 验证：adapter 专属同步加项目验证。
+
+### Cherry Studio
+
+- 读取：通过配置的工作目录读取共享项目入口和 Step 文件。
+- 写入：v0.6 不生成 runtime 文件。
+- 方向：`read-only-context`。
+- 验证：通过现有 IDE 目标验证项目。
+- 边界：Cherry Studio persona 文件、global memory、`@cherry/memory` 和 `MEMORY_FILE_PATH` 属于用户或宿主平台表面，不是项目事实源。
 
 ### Obsidian
 

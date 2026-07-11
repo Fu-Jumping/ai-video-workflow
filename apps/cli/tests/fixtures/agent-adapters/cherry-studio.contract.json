@@ -1,0 +1,77 @@
+{
+  "adapterId": "cherry-studio",
+  "displayName": "Cherry Studio",
+  "inputs": [
+    "AGENTS.md",
+    "docs/ai-workspace/",
+    "project.config.yaml",
+    "01_concept/",
+    "02_setting/",
+    "03_storyboard/",
+    "04_image_prompts/",
+    "05_video_prompts/",
+    "06_execution_plan/"
+  ],
+  "outputs": [
+    "working directory context",
+    "documentation guidance",
+    "optional MCP client configuration outside this project"
+  ],
+  "syncDirection": "read-only-context",
+  "sourceOfTruth": "project-step-files",
+  "sharedEntryPoints": [
+    "AGENTS.md",
+    "docs/ai-workspace/README.md",
+    "docs/ai-workspace/BOUNDARIES.md",
+    "docs/ai-workspace/HANDOFFS.md"
+  ],
+  "generatedSurfaces": [
+    "none in v0.6"
+  ],
+  "userOwnedSurfaces": [
+    "soul.md",
+    "user.md",
+    "USER.md",
+    "SOUL.md",
+    "memory/",
+    "Cherry Studio global memory",
+    "@cherry/memory",
+    "MEMORY_FILE_PATH"
+  ],
+  "privateRuntimeSurfaces": [
+    "Cherry Studio app data",
+    "Cherry Studio global memory",
+    "@cherry/memory",
+    "platform caches"
+  ],
+  "handoffSurfaces": [
+    "AGENTS.md",
+    "docs/ai-workspace/HANDOFFS.md",
+    "docs/ai-workspace/PLATFORM_MATRIX.md"
+  ],
+  "verificationCommands": [
+    "ai-video-workflow verify --project <path> --ide codex"
+  ],
+  "forbiddenWrites": [
+    "soul.md",
+    "user.md",
+    "USER.md",
+    "SOUL.md",
+    "memory/",
+    "MEMORY_FILE_PATH",
+    "Cherry Studio global memory",
+    "@cherry/memory",
+    "platform caches",
+    "Workflow/",
+    "Shots/",
+    "Canvas/",
+    "Bases/",
+    ".obsidian/",
+    ".codex/",
+    ".cursor/",
+    ".claude/",
+    ".trae/",
+    "absolute links"
+  ],
+  "failureBehavior": "Use the project working directory as read-only context guidance in this stage; do not generate or overwrite Cherry Studio persona, user profile, global memory, MCP memory, or platform cache files."
+}

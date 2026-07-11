@@ -1,4 +1,5 @@
 import type { VerificationIssue } from "./types.js";
+import { sharedAgentEntryMergeBlock } from "./agent-workspace.js";
 
 const groups: Record<string, string> = {
   "missing-step6-file": "Structure",
@@ -9,6 +10,12 @@ const groups: Record<string, string> = {
   "step4-forbidden-text": "Step 4 Contract",
   "absolute-path-link": "Links",
   "missing-ide-runtime": "IDE Runtime",
+  "missing-shared-agent-entry": "Shared Agent Workspace",
+  "invalid-shared-agent-entry": "Shared Agent Workspace",
+  "shared-agent-entry-needs-merge": "Shared Agent Workspace",
+  "missing-shared-agent-doc": "Shared Agent Workspace",
+  "invalid-shared-agent-doc": "Shared Agent Workspace",
+  "agent-runtime-conflict": "Shared Agent Workspace",
   "missing-step3-step4-link": "Traceability",
   "broken-step3-step4-link": "Traceability",
   "missing-obsidian-dashboard": "Obsidian Projection",
@@ -85,6 +92,25 @@ export async function diagnoseProject({
       if (issue.code === "missing-ide-runtime") {
         const ide = ideForRuntimeIssue(issue);
         lines.push(`  Run \`ai-video-workflow sync --project <path> --ide ${ide}\` to restore the IDE runtime files.`);
+      }
+      if (issue.code === "missing-shared-agent-entry" || issue.code === "missing-shared-agent-doc") {
+        lines.push("  Run `ai-video-workflow sync --project <path> --ide <id>` to create the shared agent workspace files.");
+      }
+      if (issue.code === "invalid-shared-agent-entry" || issue.code === "invalid-shared-agent-doc") {
+        lines.push("  Merge the shared ai-video-workflow markers into the existing user-owned file; do not overwrite local instructions blindly.");
+      }
+      if (issue.code === "shared-agent-entry-needs-merge") {
+        lines.push("  Keep the existing `AGENTS.md`; merge this ai-video-workflow block into it:");
+        lines.push("");
+        lines.push("  ```md");
+        for (const line of sharedAgentEntryMergeBlock().split("\n")) {
+          lines.push(`  ${line}`);
+        }
+        lines.push("  ```");
+        lines.push("  Do not copy Cherry Studio private memory, tokens, local paths, or platform caches into project truth.");
+      }
+      if (issue.code === "agent-runtime-conflict") {
+        lines.push("  Regenerate the platform runtime mirror with `ai-video-workflow sync --project <path> --ide <id>`, then keep platform-specific rules aligned with `AGENTS.md` and `docs/ai-workspace/`.");
       }
       if (issue.code === "missing-step3-step4-link") {
         lines.push("  Add a relative link from the storyboard card to the matching Step 4 image prompt.");

@@ -2,6 +2,8 @@
 
 Claude Code uses `CLAUDE.md` as the root entrypoint, `.claude/skills/` as adapter-ready skill bundles, `.claude/commands/` as command-style handoff entries, and `.claude/ai-video-workflow/` as the generated runtime mirror.
 
+`CLAUDE.md` is Claude-specific. It should point back to `AGENTS.md` and `docs/ai-workspace/`, which define the cross-agent shared boundary.
+
 ## Generated outputs
 
 `sync --ide claude-code` writes:

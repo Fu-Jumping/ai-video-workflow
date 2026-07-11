@@ -24,6 +24,7 @@ An adapter maps the same workflow into a platform-specific readable or executabl
 Examples:
 
 - Codex, Cursor, Claude Code, and Trae place rules and skills into native runtime locations.
+- Cherry Studio uses the project working directory and shared docs as context without generating host memory or persona files in v0.6.
 - Obsidian projects the files into a vault view for creation, review, and navigation.
 - LibTV projects Step 4, Step 5, and Step 6 execution information into canvases, nodes, groups, or batch execution flows.
 - MCP exposes the project as resources, prompts, and tools for agents; see [MCP adapter](./mcp-adapter.md) for the read-only starting boundary.
@@ -36,6 +37,7 @@ Examples:
 - Weaken the fixed Step 4 file contract.
 - Use absolute paths, drive-letter paths, `file://`, or IDE-specific URI links for documentation.
 - Treat execution state as upstream creative truth.
+- Copy host-level memory, persona files, platform caches, or credentials into shared project truth.
 
 ## Suggested Integration Order
 
@@ -46,7 +48,8 @@ Suggested later order:
 1. Obsidian vault projection.
 2. LibTV execution projection.
 3. MCP server.
-4. More AI IDE and agent platform adapters.
+4. Cross-agent workspace consistency.
+5. More AI IDE and agent platform adapters.
 
 Before an adapter enters the mainline, it must define inputs, outputs, sync direction, rollback behavior, and verification commands.
 

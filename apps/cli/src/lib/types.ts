@@ -1,5 +1,7 @@
 export type Ide = "codex" | "cursor" | "claude-code" | "trae";
 
+export type AdapterId = Ide | "obsidian" | "mcp" | "cherry-studio";
+
 export type Platform = "openai" | "veo" | "runway" | "luma" | "minimax";
 
 export type IssueCode =
@@ -11,6 +13,12 @@ export type IssueCode =
   | "absolute-path-link"
   | "step4-forbidden-text"
   | "missing-ide-runtime"
+  | "missing-shared-agent-entry"
+  | "shared-agent-entry-needs-merge"
+  | "invalid-shared-agent-entry"
+  | "missing-shared-agent-doc"
+  | "invalid-shared-agent-doc"
+  | "agent-runtime-conflict"
   | "missing-step3-step4-link"
   | "broken-step3-step4-link"
   | "missing-obsidian-dashboard"

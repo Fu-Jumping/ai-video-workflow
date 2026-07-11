@@ -20,6 +20,8 @@
 
 `.trae/` 是 Trae 在当前项目中的原生运行目录。Trae 若要稳定识别技能，核心内容必须进入 `.trae/skills/` 等原生位置。
 
+跨平台读取时，先读项目根 `AGENTS.md` 和 `docs/ai-workspace/`。Trae 专属说明放在 `.trae/rules/`。
+
 ## 3. 检测顺序
 
 开始前先检测以下入口是否已经存在：

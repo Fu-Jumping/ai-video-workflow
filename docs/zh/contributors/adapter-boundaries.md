@@ -24,6 +24,7 @@ Adapter 只负责把同一套工作流落到某个平台能读取或执行的位
 例如：
 
 - Codex、Cursor、Claude Code、Trae：把规则和 skills 放到各自原生运行目录。
+- Cherry Studio：通过项目工作目录和共享文档作为上下文，v0.6 不生成宿主记忆或 persona 文件。
 - Obsidian：把项目文件组织成适合浏览、创作和审阅的 vault 视图。
 - LibTV：把 Step 4、Step 5、Step 6 的执行信息投影到画布、节点、分组或批量执行流程。
 - MCP：把项目暴露成 resources、prompts 和 tools，供智能体读取和调用；只读起步边界见 [MCP adapter](./mcp-adapter.md)。
@@ -36,6 +37,7 @@ Adapter 只负责把同一套工作流落到某个平台能读取或执行的位
 - 不能破坏 Step 4 的固定文件合同。
 - 不能使用绝对路径、盘符路径、`file://` 或 IDE 专属 URI 作为文档链接。
 - 不能把执行状态伪装成上游创作事实。
+- 不能把宿主级记忆、persona 文件、平台缓存或凭据复制进共享项目事实源。
 
 ## 后续接入顺序
 
@@ -46,7 +48,8 @@ v0.2 优先完成主干可演示闭环。
 1. Obsidian vault 投影。
 2. LibTV 执行投影。
 3. MCP server。
-4. 更多 AI IDE 和 agent 平台适配。
+4. 跨智能体工作目录一致性。
+5. 更多 AI IDE 和 agent 平台适配。
 
 每个 adapter 在进入主线前，都必须说明输入、输出、同步方向、失败回滚方式和验证命令。
 

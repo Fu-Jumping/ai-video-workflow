@@ -88,6 +88,50 @@ describe("diagnoseProject", () => {
     expect(output).toContain("Step 4 link target");
   });
 
+  test("suggests shared agent workspace fixes", async () => {
+    const output = await diagnoseProject({
+      issues: [
+        {
+          code: "missing-shared-agent-entry",
+          message: "Missing shared agent entry: AGENTS.md",
+          path: "AGENTS.md"
+        },
+        {
+          code: "invalid-shared-agent-doc",
+          message: "Shared agent doc is missing required ai-video-workflow markers",
+          path: "docs/ai-workspace/README.md"
+        },
+        {
+          code: "agent-runtime-conflict",
+          message: "Runtime entry does not point to the shared agent workspace",
+          path: ".trae/rules/ai-video-workflow.md"
+        }
+      ]
+    });
+
+    expect(output).toContain("Shared Agent Workspace");
+    expect(output).toContain("ai-video-workflow sync --project <path> --ide <id>");
+    expect(output).toContain("Merge the shared ai-video-workflow markers");
+    expect(output).toContain("Regenerate the platform runtime mirror");
+  });
+
+  test("suggests a merge block for existing custom AGENTS entries", async () => {
+    const output = await diagnoseProject({
+      issues: [
+        {
+          code: "shared-agent-entry-needs-merge",
+          message: "Existing AGENTS.md must merge the ai-video-workflow shared entry block",
+          path: "AGENTS.md"
+        }
+      ]
+    });
+
+    expect(output).toContain("Keep the existing `AGENTS.md`");
+    expect(output).toContain("Marker: ai-video-workflow shared agent entry.");
+    expect(output).toContain("project-step-files");
+    expect(output).toContain("Cherry Studio");
+  });
+
   test("suggests configuration fixes for missing default platforms", async () => {
     const output = await diagnoseProject({
       issues: [

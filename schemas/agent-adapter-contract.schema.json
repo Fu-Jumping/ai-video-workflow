@@ -54,6 +54,34 @@
       },
       "default": []
     },
+    "sharedEntryPoints": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/adapterPath"
+      },
+      "default": []
+    },
+    "generatedSurfaces": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/adapterPath"
+      },
+      "default": []
+    },
+    "userOwnedSurfaces": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/adapterPath"
+      },
+      "default": []
+    },
+    "privateRuntimeSurfaces": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/adapterPath"
+      },
+      "default": []
+    },
     "verificationCommands": {
       "type": "array",
       "items": {

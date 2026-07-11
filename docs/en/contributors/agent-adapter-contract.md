@@ -31,6 +31,13 @@ Every adapter description should define these fields:
 - `forbiddenWrites`: paths or file classes the adapter must not edit.
 - `failureBehavior`: how the adapter handles conflicts, missing files, stale generated files, and user-owned state.
 
+Optional fields for cross-agent workspaces:
+
+- `sharedEntryPoints`: shared project files every agent should read, such as `AGENTS.md` and `docs/ai-workspace/`.
+- `generatedSurfaces`: adapter-owned outputs that may be regenerated.
+- `userOwnedSurfaces`: files owned by the user or host platform.
+- `privateRuntimeSurfaces`: local platform state, caches, memories, or credentials outside project truth.
+
 ## Sync Direction Taxonomy
 
 `runtime-mirror`
@@ -118,6 +125,14 @@ Adapters must not:
 - Writes: Trae-readable guidance.
 - Direction: `runtime-mirror`.
 - Verify: adapter-specific sync plus project verification.
+
+### Cherry Studio
+
+- Reads: shared project entrypoints and Step files through the configured working directory.
+- Writes: no generated runtime files in v0.6.
+- Direction: `read-only-context`.
+- Verify: project verification through an existing IDE target.
+- Boundary: Cherry Studio persona files, global memory, `@cherry/memory`, and `MEMORY_FILE_PATH` are user-owned or host-owned surfaces, not project truth.
 
 ### Obsidian
 

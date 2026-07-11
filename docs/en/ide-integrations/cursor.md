@@ -2,6 +2,8 @@
 
 Cursor uses `.cursor/rules/` as the native rule entry, `.cursor/skills/` as adapter-ready skill bundles, and `.cursor/ai-video-workflow/` as the runtime mirror.
 
+Read `AGENTS.md` and `docs/ai-workspace/` before using Cursor rules.
+
 ## Adapter Contract
 
 - Reads: `packs/official-ai-video/`, `project.config.yaml`, and project Step 1 to Step 6 files.

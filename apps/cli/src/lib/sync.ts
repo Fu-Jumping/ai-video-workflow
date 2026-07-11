@@ -1,8 +1,21 @@
 import fs from "fs-extra";
 import path from "node:path";
 
+import { sharedAgentEntryContent, sharedAiWorkspaceDocs } from "./agent-workspace.js";
 import { copyDirectory, writeFileIfMissing } from "./fs-utils.js";
 import type { Ide, SyncProjectOptions } from "./types.js";
+
+async function ensureSharedAgentWorkspace(projectRoot: string): Promise<void> {
+  await writeFileIfMissing(path.join(projectRoot, "AGENTS.md"), sharedAgentEntryContent());
+  for (const [fileName, content] of Object.entries(sharedAiWorkspaceDocs)) {
+    await writeFileIfMissing(path.join(projectRoot, "docs", "ai-workspace", fileName), content);
+  }
+}
+
+async function writeGeneratedRuntimeFile(filePath: string, content: string): Promise<void> {
+  await fs.ensureDir(path.dirname(filePath));
+  await fs.writeFile(filePath, content, "utf8");
+}
 
 async function syncCodex(repoRoot: string, projectRoot: string, packRoot: string): Promise<void> {
   const codexRoot = path.join(projectRoot, ".codex");
@@ -12,33 +25,45 @@ async function syncCodex(repoRoot: string, projectRoot: string, packRoot: string
   await copyDirectory(path.join(packRoot, "skills"), path.join(codexRoot, "ai-video-workflow", "skill-bundles"));
   await copyDirectory(path.join(packRoot, "templates"), path.join(codexRoot, "ai-video-workflow", "templates"));
   await copyDirectory(path.join(packRoot, "workflow", "indexes"), path.join(codexRoot, "ai-video-workflow", "indexes"));
-  await writeFileIfMissing(
+  await writeGeneratedRuntimeFile(
     path.join(codexRoot, "ai-video-workflow", "WORKFLOW_OVERVIEW.md"),
     await fs.readFile(path.join(repoRoot, "WORKFLOW_OVERVIEW.md"), "utf8")
   );
-  await writeFileIfMissing(
+  await writeGeneratedRuntimeFile(
     path.join(codexRoot, "README.md"),
-    "# Codex Runtime\n\nUse `.codex/agent-rules.md`, `.codex/repo-context.md`, and `.codex/skills/` as the primary Codex runtime entrypoints.\n"
+    [
+      "# Codex Runtime",
+      "",
+      "Read `AGENTS.md` and `docs/ai-workspace/` first. Use `.codex/agent-rules.md`, `.codex/repo-context.md`, and `.codex/skills/` as Codex runtime entrypoints.",
+      "",
+      "`project-step-files` are the source of truth; `.codex/` is a runtime mirror."
+    ].join("\n")
   );
-  await writeFileIfMissing(
+  await writeGeneratedRuntimeFile(
     path.join(codexRoot, "agent-rules.md"),
     [
       "# Codex Agent Rules",
       "",
       "Summary runtime rules:",
+      "- Read `AGENTS.md` and `docs/ai-workspace/` before changing project files.",
+      "- Treat `project-step-files` as the source of truth.",
       "- Keep Step 3 and Step 4 frame-aligned.",
       "- Enforce the Step 4 fixed file contract.",
       "- Use relative paths only.",
-      "- Keep `.codex/ai-video-workflow/` as the full runtime mirror and `.codex/skills/` as runtime skill entries."
+      "- Keep `.codex/ai-video-workflow/` as the full runtime mirror and `.codex/skills/` as runtime skill entries.",
+      "- Platform memory is not project truth."
     ].join("\n")
   );
-  await writeFileIfMissing(
+  await writeGeneratedRuntimeFile(
     path.join(codexRoot, "repo-context.md"),
     [
       "# Repo Context",
       "",
       "- Product repo: `ai-video-workflow`",
       "- Default pack: `official-ai-video`",
+      "- Shared entry: `AGENTS.md`",
+      "- Shared AI docs: `docs/ai-workspace/`",
+      "- Source of truth: `project-step-files`",
       "- Runtime mirror: `.codex/ai-video-workflow/`",
       "- Runtime skills: `.codex/skills/`"
     ].join("\n")
@@ -51,11 +76,11 @@ async function syncCursor(projectRoot: string, packRoot: string): Promise<void> 
   await copyDirectory(path.join(packRoot, "skills"), path.join(projectRoot, ".cursor", "ai-video-workflow", "skill-bundles"));
   await copyDirectory(path.join(packRoot, "templates"), path.join(projectRoot, ".cursor", "ai-video-workflow", "templates"));
   await copyDirectory(path.join(packRoot, "workflow", "indexes"), path.join(projectRoot, ".cursor", "ai-video-workflow", "indexes"));
-  await writeFileIfMissing(
+  await writeGeneratedRuntimeFile(
     path.join(projectRoot, ".cursor", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"),
     await fs.readFile(path.resolve(packRoot, "..", "..", "WORKFLOW_OVERVIEW.md"), "utf8")
   );
-  await writeFileIfMissing(
+  await writeGeneratedRuntimeFile(
     path.join(projectRoot, ".cursor", "rules", "ai-video-workflow.mdc"),
     [
       "---",
@@ -65,15 +90,17 @@ async function syncCursor(projectRoot: string, packRoot: string): Promise<void> 
       "",
       "# AI Video Workflow",
       "",
+      "- Read `AGENTS.md` and `docs/ai-workspace/` first.",
       "- Use project Step 1 to Step 6 files as the source of truth.",
+      "- Treat `project-step-files` as the shared cross-agent source of truth.",
       "- Use `.cursor/ai-video-workflow/` as the runtime mirror.",
       "- Use `.cursor/skills/` as adapter-ready skill bundles.",
       "- Keep Step 3 and Step 4 frame-aligned.",
       "- Keep Step 4 file contracts intact.",
-      "- Use relative links only."
+      "- Use relative links only.",
+      "- Platform memory is not project truth."
     ].join("\n")
   );
-  await writeFileIfMissing(path.join(projectRoot, "AGENTS.md"), "# Cursor Compatibility Entry\n");
 }
 
 async function syncClaudeCode(repoRoot: string, projectRoot: string, packRoot: string): Promise<void> {
@@ -83,7 +110,7 @@ async function syncClaudeCode(repoRoot: string, projectRoot: string, packRoot: s
   await copyDirectory(path.join(packRoot, "skills"), path.join(projectRoot, ".claude", "ai-video-workflow", "skill-bundles"));
   await copyDirectory(path.join(packRoot, "templates"), path.join(projectRoot, ".claude", "ai-video-workflow", "templates"));
   await copyDirectory(path.join(packRoot, "workflow", "indexes"), path.join(projectRoot, ".claude", "ai-video-workflow", "indexes"));
-  await writeFileIfMissing(
+  await writeGeneratedRuntimeFile(
     path.join(projectRoot, ".claude", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"),
     await fs.readFile(path.join(repoRoot, "WORKFLOW_OVERVIEW.md"), "utf8")
   );
@@ -92,15 +119,19 @@ async function syncClaudeCode(repoRoot: string, projectRoot: string, packRoot: s
     [
       "# Claude Code Runtime",
       "",
-      "Use project Step 1 to Step 6 files as the source of truth.",
+      "This is a Claude Code entrypoint. It does not replace `AGENTS.md`.",
+      "",
+      "Use project Step 1 to Step 6 files as the source of truth. Treat `project-step-files` as the shared source of truth.",
       "",
       "Read order:",
       "",
       "1. `project.config.yaml`",
-      "2. `CLAUDE.md`",
-      "3. `.claude/ai-video-workflow/WORKFLOW_OVERVIEW.md`",
-      "4. `.claude/skills/<skill>/SKILL.md`",
-      "5. Source Step files in the project",
+      "2. `AGENTS.md`",
+      "3. `docs/ai-workspace/README.md`",
+      "4. `CLAUDE.md`",
+      "5. `.claude/ai-video-workflow/WORKFLOW_OVERVIEW.md`",
+      "6. `.claude/skills/<skill>/SKILL.md`",
+      "7. Source Step files in the project",
       "",
       "Runtime boundaries:",
       "",
@@ -110,10 +141,11 @@ async function syncClaudeCode(repoRoot: string, projectRoot: string, packRoot: s
       "- Do not edit generated Obsidian projection files as the workflow source.",
       "- Keep Step 3 and Step 4 frame-aligned.",
       "- Keep Step 4 file contracts intact.",
-      "- Use relative links only."
+      "- Use relative links only.",
+      "- Platform memory is not project truth."
     ].join("\n")
   );
-  await writeFileIfMissing(
+  await writeGeneratedRuntimeFile(
     path.join(projectRoot, ".claude", "commands", "ai-video-workflow.md"),
     [
       "# AI Video Workflow Command Entry",
@@ -121,12 +153,14 @@ async function syncClaudeCode(repoRoot: string, projectRoot: string, packRoot: s
       "When working on this project:",
       "",
       "1. Read `project.config.yaml`.",
-      "2. Read `.claude/ai-video-workflow/WORKFLOW_OVERVIEW.md`.",
-      "3. Use `.claude/skills/film-workflow/SKILL.md` for workflow execution.",
-      "4. Edit source Step files only when changing project truth.",
-      "5. Run `ai-video-workflow verify --project <path> --ide claude-code` after changes.",
+      "2. Read `AGENTS.md`.",
+      "3. Read `docs/ai-workspace/README.md` and `docs/ai-workspace/BOUNDARIES.md`.",
+      "4. Read `.claude/ai-video-workflow/WORKFLOW_OVERVIEW.md`.",
+      "5. Use `.claude/skills/film-workflow/SKILL.md` for workflow execution.",
+      "6. Edit source Step files only when changing project truth.",
+      "7. Run `ai-video-workflow verify --project <path> --ide claude-code` after changes.",
       "",
-      "Do not treat `.claude/ai-video-workflow/` or generated Obsidian vault files as upstream creative truth."
+      "Do not treat `.claude/ai-video-workflow/`, generated Obsidian vault files, MCP resources, or platform memory as upstream creative truth. Source files are `project-step-files`."
     ].join("\n")
   );
 }
@@ -138,11 +172,11 @@ async function syncTrae(repoRoot: string, projectRoot: string, packRoot: string)
   await copyDirectory(path.join(packRoot, "skills"), path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "skill-bundles"));
   await copyDirectory(path.join(packRoot, "templates"), path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "templates"));
   await copyDirectory(path.join(packRoot, "workflow", "indexes"), path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "indexes"));
-  await writeFileIfMissing(
+  await writeGeneratedRuntimeFile(
     path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"),
     await fs.readFile(path.join(repoRoot, "WORKFLOW_OVERVIEW.md"), "utf8")
   );
-  await writeFileIfMissing(
+  await writeGeneratedRuntimeFile(
     path.join(projectRoot, ".trae", "rules", "ai-video-workflow.md"),
     [
       "# AI Video Workflow Trae Runtime",
@@ -152,25 +186,25 @@ async function syncTrae(repoRoot: string, projectRoot: string, packRoot: string)
       "Read order:",
       "",
       "1. `project.config.yaml`",
-      "2. `.trae/rules/ai-video-workflow.md`",
-      "3. `.trae/documents/ai-video-workflow/WORKFLOW_OVERVIEW.md`",
-      "4. `.trae/skills/<skill>/SKILL.md`",
-      "5. Source Step files in the project",
+      "2. `AGENTS.md`",
+      "3. `docs/ai-workspace/README.md`",
+      "4. `.trae/rules/ai-video-workflow.md`",
+      "5. `.trae/documents/ai-video-workflow/WORKFLOW_OVERVIEW.md`",
+      "6. `.trae/skills/<skill>/SKILL.md`",
+      "7. Source Step files in the project",
       "",
       "Runtime boundaries:",
       "",
+      "- `project-step-files` are the source of truth.",
       "- `.trae/skills/` contains adapter-ready skill bundles.",
       "- `.trae/specs/ai-video-workflow/` contains generated workflow specs.",
       "- `.trae/documents/ai-video-workflow/` is a generated runtime mirror.",
       "- Do not edit generated Obsidian projection files as the workflow source.",
       "- Keep Step 3 and Step 4 frame-aligned.",
       "- Keep Step 4 file contracts intact.",
-      "- Use relative links only."
+      "- Use relative links only.",
+      "- Platform memory is not project truth."
     ].join("\n")
-  );
-  await writeFileIfMissing(
-    path.join(projectRoot, "AGENTS.md"),
-    "# Trae Runtime\n\nUse `.trae/rules/ai-video-workflow.md`, `.trae/skills/`, `.trae/specs/ai-video-workflow/`, and `.trae/documents/ai-video-workflow/` as generated Trae runtime entrypoints.\n"
   );
 }
 
@@ -193,5 +227,6 @@ async function syncIde(repoRoot: string, projectRoot: string, packRoot: string, 
 
 export async function syncProject(options: SyncProjectOptions): Promise<void> {
   const packRoot = path.join(options.repoRoot, "packs", options.pack);
+  await ensureSharedAgentWorkspace(options.projectRoot);
   await syncIde(options.repoRoot, options.projectRoot, packRoot, options.ide);
 }

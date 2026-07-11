@@ -20,6 +20,18 @@ The current recommended focus is the mainline demo loop: non-interactive init, t
 
 Future Obsidian, LibTV, MCP, and agent-platform work should attach as adapters, not as second workflow sources.
 
+## Cross-Agent Workspace
+
+`sync --ide codex|cursor|claude-code|trae` initializes a shared agent workspace in each project:
+
+- `AGENTS.md` is the cross-agent root entry.
+- `docs/ai-workspace/` records shared boundaries, handoffs, platform matrix, and security rules.
+- Platform runtime mirrors remain adapter surfaces, not project truth.
+- Cherry Studio is documented as a working-directory adapter; it does not receive generated memory or persona files.
+- If a project already has a custom `AGENTS.md`, `sync` preserves it; merge the ai-video-workflow block from `docs/ai-workspace/ENTRYPOINT_RECONCILIATION.md` or `doctor` output.
+
+See `docs/en/contributors/cross-agent-workspace.md` and `docs/en/ide-integrations/cherry-studio.md`.
+
 ## v0.2 Verification
 
 ```powershell
