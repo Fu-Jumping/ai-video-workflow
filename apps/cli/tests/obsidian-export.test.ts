@@ -349,8 +349,19 @@ describe("exportObsidianVault", () => {
     expect(JSON.stringify(bookmarks)).toContain("00_Project_Home.md");
     expect(JSON.stringify(bookmarks)).toContain("04_Agent_Handoff.md");
     expect(JSON.stringify(bookmarks)).toContain("02_Shot_Index.md");
+    expect(JSON.stringify(bookmarks)).toContain("03_Production_Board.md");
     expect(JSON.stringify(bookmarks)).toContain("Canvas/Review Map.canvas");
     expect(JSON.stringify(bookmarks)).toContain("Canvas/Shot Pipeline.canvas");
+    expect(JSON.stringify(bookmarks)).toContain("Notes/README.md");
+
+    const suggestedBookmarks = await fs.readJson(path.join(outRoot, ".obsidian", "ai-video-workflow-suggested", "bookmarks.json"));
+    expect(JSON.stringify(suggestedBookmarks)).toContain("00_Project_Home.md");
+    expect(JSON.stringify(suggestedBookmarks)).toContain("04_Agent_Handoff.md");
+    expect(JSON.stringify(suggestedBookmarks)).toContain("02_Shot_Index.md");
+    expect(JSON.stringify(suggestedBookmarks)).toContain("03_Production_Board.md");
+    expect(JSON.stringify(suggestedBookmarks)).toContain("Canvas/Review Map.canvas");
+    expect(JSON.stringify(suggestedBookmarks)).toContain("Canvas/Shot Pipeline.canvas");
+    expect(JSON.stringify(suggestedBookmarks)).toContain("Notes/README.md");
 
     const workspace = await fs.readJson(path.join(outRoot, ".obsidian", "workspace.json"));
     expect(JSON.stringify(workspace)).toContain("00_Project_Home.md");

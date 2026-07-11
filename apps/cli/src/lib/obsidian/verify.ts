@@ -20,6 +20,18 @@ const requiredBaseViews: Record<string, string[]> = {
 const requiredCanvasFiles = ["Canvas/Workflow Map.canvas", "Canvas/Shot Pipeline.canvas", "Canvas/Review Map.canvas"];
 const agentHandoffPath = "04_Agent_Handoff.md";
 const requiredAgentHandoffMarkers = ["Agent Handoff", "Copy-ready Prompts", "Source Editing Boundary", "Verification Commands"];
+const suggestedUiDir = ".obsidian/ai-video-workflow-suggested";
+const requiredSuggestedUiFiles = ["bookmarks.json", "workspace.json", "core-plugins.json", "appearance.json"];
+const requiredBookmarkPaths = [
+  "00_Project_Home.md",
+  "04_Agent_Handoff.md",
+  "02_Shot_Index.md",
+  "03_Production_Board.md",
+  "Canvas/Review Map.canvas",
+  "Canvas/Shot Pipeline.canvas",
+  "Notes/README.md"
+];
+const requiredWorkspacePaths = ["00_Project_Home.md", "04_Agent_Handoff.md", "Canvas/Review Map.canvas"];
 const requiredShotReviewMarkers = [
   "Immersive Review",
   "Review Route",
@@ -62,6 +74,25 @@ function isRelativeVaultPath(value: string): boolean {
   return !path.isAbsolute(value) && !value.includes(":\\") && !value.includes(":/") && !value.startsWith("file://") && !value.startsWith("vscode://");
 }
 
+function collectJsonStrings(value: unknown, strings: string[] = []): string[] {
+  if (typeof value === "string") {
+    strings.push(value);
+  } else if (Array.isArray(value)) {
+    for (const item of value) {
+      collectJsonStrings(item, strings);
+    }
+  } else if (value && typeof value === "object") {
+    for (const item of Object.values(value)) {
+      collectJsonStrings(item, strings);
+    }
+  }
+  return strings;
+}
+
+function containsUnsafePathString(value: unknown): boolean {
+  return collectJsonStrings(value).some((item) => !isRelativeVaultPath(item) && /\.(md|canvas|base|json)$/i.test(item));
+}
+
 function sourceFsPath(projectRoot: string, sourcePath: string): string {
   return path.join(projectRoot, ...sourcePath.split("/"));
 }
@@ -98,6 +129,14 @@ async function listJsonFiles(root: string, current = root): Promise<string[]> {
     }
   }
   return files;
+}
+
+async function listDirectJsonFiles(root: string): Promise<string[]> {
+  if (!(await fs.pathExists(root))) {
+    return [];
+  }
+  const entries = await fs.readdir(root, { withFileTypes: true });
+  return entries.filter((entry) => entry.isFile() && entry.name.endsWith(".json")).map((entry) => entry.name);
 }
 
 function readFrontmatter(content: string): Record<string, string> | null {
@@ -315,14 +354,68 @@ async function verifyNoAbsoluteLinks(vaultRoot: string, files: string[], issues:
 }
 
 async function verifyOptionalUiConfig(vaultRoot: string, issues: VerificationIssue[]): Promise<void> {
-  const suggestedDir = vaultFsPath(vaultRoot, ".obsidian/ai-video-workflow-suggested");
-  const files = await listJsonFiles(suggestedDir);
-  for (const file of files) {
-    const vaultPath = `.obsidian/ai-video-workflow-suggested/${file}`;
+  async function readUiJson(vaultPath: string): Promise<unknown | null> {
     try {
-      await fs.readJson(vaultFsPath(vaultRoot, vaultPath));
+      const value = await fs.readJson(vaultFsPath(vaultRoot, vaultPath));
+      if (containsUnsafePathString(value)) {
+        pushIssue(issues, { code: "invalid-obsidian-ui-config", message: `Optional Obsidian UI config contains an absolute path: ${vaultPath}`, path: vaultPath });
+      }
+      return value;
     } catch {
       pushIssue(issues, { code: "invalid-obsidian-ui-config", message: `Optional Obsidian UI config JSON is invalid: ${vaultPath}`, path: vaultPath });
+      return null;
+    }
+  }
+
+  const directUiRoot = vaultFsPath(vaultRoot, ".obsidian");
+  for (const file of await listDirectJsonFiles(directUiRoot)) {
+    await readUiJson(`.obsidian/${file}`);
+  }
+
+  const suggestedDirPath = vaultFsPath(vaultRoot, suggestedUiDir);
+  if (!(await fs.pathExists(suggestedDirPath))) {
+    return;
+  }
+
+  const suggestedFiles = new Set(await listJsonFiles(suggestedDirPath));
+  for (const file of requiredSuggestedUiFiles) {
+    if (!suggestedFiles.has(file)) {
+      pushIssue(issues, { code: "invalid-obsidian-ui-config", message: `Optional Obsidian UI suggestion is missing: ${suggestedUiDir}/${file}`, path: `${suggestedUiDir}/${file}` });
+    }
+  }
+
+  const suggestedJson = new Map<string, unknown | null>();
+  for (const file of suggestedFiles) {
+    suggestedJson.set(file, await readUiJson(`${suggestedUiDir}/${file}`));
+  }
+
+  const bookmarksPath = `${suggestedUiDir}/bookmarks.json`;
+  const bookmarks = suggestedJson.get("bookmarks.json") ?? null;
+  if (bookmarks) {
+    const bookmarkStrings = new Set(collectJsonStrings(bookmarks));
+    for (const requiredPath of requiredBookmarkPaths) {
+      if (!bookmarkStrings.has(requiredPath)) {
+        pushIssue(issues, {
+          code: "invalid-obsidian-ui-config",
+          message: `Optional Obsidian UI bookmarks are missing route: ${requiredPath}`,
+          path: bookmarksPath
+        });
+      }
+    }
+  }
+
+  const workspacePath = `${suggestedUiDir}/workspace.json`;
+  const workspace = suggestedJson.get("workspace.json") ?? null;
+  if (workspace) {
+    const workspaceStrings = new Set(collectJsonStrings(workspace));
+    for (const requiredPath of requiredWorkspacePaths) {
+      if (!workspaceStrings.has(requiredPath)) {
+        pushIssue(issues, {
+          code: "invalid-obsidian-ui-config",
+          message: `Optional Obsidian UI workspace is missing route: ${requiredPath}`,
+          path: workspacePath
+        });
+      }
     }
   }
 }

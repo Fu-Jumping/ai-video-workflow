@@ -28,6 +28,16 @@ describe("verifyObsidianVault", () => {
     expect(result.ok).toBe(true);
   });
 
+  test("passes for exported official example with optional Obsidian UI suggestions", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-verify-ui-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, includeObsidianUi: true });
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+    expect(result.ok).toBe(true);
+  });
+
   test("fails when projection manifest is missing", async () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-missing-manifest-"));
     tempRoots.push(outRoot);
@@ -88,6 +98,42 @@ describe("verifyObsidianVault", () => {
     const projectRoot = officialExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, includeObsidianUi: true });
     await fs.writeFile(path.join(outRoot, ".obsidian", "ai-video-workflow-suggested", "bookmarks.json"), "{ invalid json", "utf8");
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "invalid-obsidian-ui-config" })]));
+  });
+
+  test("fails when optional Obsidian UI suggestions omit a required bookmark route", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-missing-ui-route-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, includeObsidianUi: true });
+    const bookmarksPath = path.join(outRoot, ".obsidian", "ai-video-workflow-suggested", "bookmarks.json");
+    const bookmarks = await fs.readJson(bookmarksPath) as { items: Array<{ path?: string }> };
+    bookmarks.items = bookmarks.items.filter((item) => item.path !== "04_Agent_Handoff.md");
+    await fs.writeJson(bookmarksPath, bookmarks, { spaces: 2 });
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "invalid-obsidian-ui-config",
+          message: expect.stringContaining("04_Agent_Handoff.md")
+        })
+      ])
+    );
+  });
+
+  test("fails when optional Obsidian UI suggestion workspace JSON is invalid", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-invalid-ui-workspace-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, includeObsidianUi: true });
+    await fs.writeFile(path.join(outRoot, ".obsidian", "ai-video-workflow-suggested", "workspace.json"), "{ invalid json", "utf8");
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
 

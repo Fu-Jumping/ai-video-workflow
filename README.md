@@ -43,6 +43,8 @@ Use `04_Agent_Handoff.md` and the `Agent Handoff` section in each shot page to c
 
 By default the exporter does not write `.obsidian/`. Use `--include-obsidian-ui` only when you want optional suggested Bookmarks and Workspace for the open-vault path: Project Home, Agent Handoff, Shot Index, Review Map, and Shot Pipeline. Existing user `.obsidian` files are not overwritten; suggested copies are written under `.obsidian/ai-video-workflow-suggested/`.
 
+For release QA of the optional opening experience, run `pnpm example:obsidian:ui` after `pnpm build`. This exports the official sample with `--include-obsidian-ui` and verifies the generated vault without launching Obsidian automatically.
+
 ## Quick Start
 
 1. Install dependencies with `pnpm install`.

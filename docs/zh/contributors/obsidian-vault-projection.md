@@ -42,6 +42,8 @@ v0.3.4 起，`04_Agent_Handoff.md` 和每个镜头页会提供可复制的智能
 
 v0.3.5 起，生成的 Project Home 会包含 `Open Vault Workflow` 路径，用于第一次打开 vault 后快速进入项目、镜头、Agent Handoff 和验证流程。可选的 `--include-obsidian-ui` 建议会把 Project Home、Agent Handoff、Shot Index、Review Map、Shot Pipeline 和 Notes 加入 Bookmarks，并在 Workspace 中并排打开 Project Home 与 Agent Handoff。
 
+v0.3.6 起，发版硬化会把真实 vault QA 作为显式门槛。如果存在可选 UI 建议，`verify-obsidian` 会校验建议 JSON，包括 Bookmarks 和 Workspace 是否包含必要入口。`pnpm example:obsidian:ui` 会用 `--include-obsidian-ui` 导出官方示例并验证生成的 vault。真正打开 Obsidian 检查仍然是人工 QA 步骤，不作为自动 CLI 行为。
+
 默认导出不会写入 `.obsidian/`。只有显式使用 `--include-obsidian-ui` 时，才会生成可选的 Bookmarks、Workspace、核心插件和 appearance 建议 JSON。已有用户 `.obsidian` 文件不会被覆盖；导出会报告 `skipped-user-config-existing`，并把建议副本写入 `.obsidian/ai-video-workflow-suggested/`。
 
 ## 用户笔记区
@@ -56,6 +58,16 @@ v0.3.5 起，生成的 Project Home 会包含 `Open Vault Workflow` 路径，用
 - Search query blocks：在 dashboard 中呈现待处理项。
 - Bases：用表格和卡片视图浏览 Review Queue、Shot Progress、Execution Readiness、Modified Generated Files、镜头、文件和生产状态。
 - Canvas：用 JSON Canvas 展示 Step 1 到 Step 6 关系、镜头流水线、项目级审阅路线、单镜头审阅路线和智能体交接入口。
+
+## Vault QA 清单
+
+- 使用 `pnpm build` 构建 CLI。
+- 使用 `pnpm example:obsidian` 导出并验证默认官方示例。
+- 使用 `pnpm example:obsidian:ui` 导出并验证带可选 UI 建议的官方示例。
+- 发版 QA 时人工打开生成的 vault。
+- 确认 Project Home、Agent Handoff、Shot Index、Review Map、Shot Pipeline 和 Notes 都容易进入。
+- 确认生成投影文件只用于阅读和定位；源内容修改仍然回到 Step 文件。
+- 确认增量导出会保留用户笔记，并且不会覆盖用户已有 `.obsidian` 文件。
 
 ## 不做什么
 
@@ -74,7 +86,7 @@ v0.3.5 起，生成的 Project Home 会包含 `Open Vault Workflow` 路径，用
 - Review Map、关键 dashboard 标记和关键 Bases 视图必须存在。
 - 单镜头审阅页和逐镜头 Review Canvas 必须存在，并且只使用 vault 相对路径。
 - Agent Handoff 页面和镜头页 Agent Handoff 区块必须存在。
-- 如果存在 `.obsidian/ai-video-workflow-suggested/*.json`，必须能解析为 JSON。
+- 如果存在 `.obsidian/ai-video-workflow-suggested/*.json`，必须能解析为 JSON，并且包含必要的打开路线。
 - 每个投影文件必须能追踪到源项目路径。
 - `Projection Manifest.json` 必须存在、可解析，并且记录的 hash 与生成文件一致。
 - Step 3 到 Step 4 的帧级对齐和 Step 4 固定合同不能被削弱。

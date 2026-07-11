@@ -9,6 +9,7 @@
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "example:obsidian": "node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian --force && node apps/cli/dist/index.js verify-obsidian --project examples/official-mini-film --vault .tmp/official-mini-film-obsidian",
+    "example:obsidian:ui": "node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian-ui --force --include-obsidian-ui && node apps/cli/dist/index.js verify-obsidian --project examples/official-mini-film --vault .tmp/official-mini-film-obsidian-ui",
     "example:verify": "node apps/cli/dist/index.js verify --project examples/official-mini-film --ide codex",
     "test": "pnpm --filter ./apps/cli test",
     "verify:v0.2": "pnpm build && pnpm test && pnpm example:verify"

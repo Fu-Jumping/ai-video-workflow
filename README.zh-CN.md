@@ -43,6 +43,8 @@ pnpm example:obsidian
 
 默认导出不会写入 `.obsidian/`。只有显式使用 `--include-obsidian-ui` 时，才会生成可选的 Bookmarks 和 Workspace 建议，用于预置 Project Home、Agent Handoff、Shot Index、Review Map 和 Shot Pipeline 打开路径。已有用户 `.obsidian` 文件不会被覆盖；建议副本会写入 `.obsidian/ai-video-workflow-suggested/`。
 
+如果要对可选打开体验做发版 QA，可以在 `pnpm build` 后运行 `pnpm example:obsidian:ui`。它会用 `--include-obsidian-ui` 导出官方示例并验证生成的 vault，但不会自动启动 Obsidian。
+
 ## 快速开始
 
 1. 运行 `pnpm install` 安装依赖。

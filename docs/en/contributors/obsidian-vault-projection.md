@@ -42,6 +42,8 @@ Starting in v0.3.4, `04_Agent_Handoff.md` and each shot page include copy-ready 
 
 Starting in v0.3.5, the generated Project Home includes an `Open Vault Workflow` path for first-time vault use. Optional `--include-obsidian-ui` suggestions bookmark Project Home, Agent Handoff, Shot Index, Review Map, Shot Pipeline, and Notes, and open Project Home next to Agent Handoff in the suggested workspace.
 
+Starting in v0.3.6, release hardening treats real-vault QA as an explicit gate. `verify-obsidian` validates optional suggested UI JSON when present, including required Bookmarks and Workspace routes. `pnpm example:obsidian:ui` exports the official sample with `--include-obsidian-ui` and verifies the generated vault. Opening the vault in Obsidian remains a human QA step, not an automated CLI action.
+
 By default, export does not write `.obsidian/`. Use `--include-obsidian-ui` only when you want optional suggested Bookmarks, Workspace, core plugin, and appearance JSON files. Existing user `.obsidian` files are not overwritten; the exporter reports `skipped-user-config-existing` and writes suggested copies under `.obsidian/ai-video-workflow-suggested/`.
 
 ## User Notes
@@ -56,6 +58,16 @@ By default, export does not write `.obsidian/`. Use `--include-obsidian-ui` only
 - Search query blocks: surface review items in dashboards.
 - Bases: browse Review Queue, Shot Progress, Execution Readiness, Modified Generated Files, shots, files, and production status as tables and cards.
 - Canvas: use JSON Canvas to show Step 1 to Step 6 relationships, shot pipelines, the project-level review route, each single-shot review route, and the agent handoff entry.
+
+## Vault QA Checklist
+
+- Build the CLI with `pnpm build`.
+- Export and verify the default official sample with `pnpm example:obsidian`.
+- Export and verify the optional UI sample with `pnpm example:obsidian:ui`.
+- Open the generated vault manually when doing release QA.
+- Confirm Project Home, Agent Handoff, Shot Index, Review Map, Shot Pipeline, and Notes are easy to reach.
+- Confirm generated projection files are used for reading and location only; source edits still happen in Step files.
+- Confirm incremental export preserves user notes and does not overwrite user-owned `.obsidian` files.
 
 ## Non-Goals
 
@@ -74,7 +86,7 @@ By default, export does not write `.obsidian/`. Use `--include-obsidian-ui` only
 - Review Map, key dashboard markers, and key Bases views exist.
 - Single-shot review pages and per-shot review canvases exist and use relative vault paths.
 - Agent Handoff page and shot-level Agent Handoff sections exist.
-- Optional `.obsidian/ai-video-workflow-suggested/*.json` files parse when present.
+- Optional `.obsidian/ai-video-workflow-suggested/*.json` files parse when present and include the required opening routes.
 - Every projected file remains traceable to a source project path.
 - `Projection Manifest.json` exists, parses, and records hashes that match generated files.
 - Step 3 to Step 4 frame alignment and Step 4 fixed contracts remain intact.
