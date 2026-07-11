@@ -34,6 +34,17 @@ function verificationMarkdown(context: McpProjectContext): string {
   return ["# Verification Commands", "", ...context.verificationCommands.map((command) => `- \`${command}\``)].join("\n");
 }
 
+function packOverviewMarkdown(context: McpProjectContext): string {
+  return [
+    "# Official AI Video Pack",
+    "",
+    `Pack: \`${context.project.pack}\``,
+    "",
+    "The pack defines the Step 1 to Step 6 workflow, templates, skills, and file contracts.",
+    "Project Step files remain the source of truth. MCP resources are read-only context."
+  ].join("\n");
+}
+
 export function buildMcpResources(context: McpProjectContext): McpResourceDefinition[] {
   const resources: McpResourceDefinition[] = [
     {
@@ -45,6 +56,18 @@ export function buildMcpResources(context: McpProjectContext): McpResourceDefini
         shotCount: context.shots.length,
         steps: context.steps
       })
+    },
+    {
+      uri: "ai-video-workflow://project/config",
+      name: "Project config",
+      mimeType: "application/json",
+      text: asJson(context.project)
+    },
+    {
+      uri: `ai-video-workflow://pack/${context.project.pack}/overview`,
+      name: "Pack overview",
+      mimeType: "text/markdown",
+      text: packOverviewMarkdown(context)
     },
     {
       uri: "ai-video-workflow://workflow/steps",
@@ -71,6 +94,15 @@ export function buildMcpResources(context: McpProjectContext): McpResourceDefini
       text: verificationMarkdown(context)
     }
   ];
+
+  for (const step of context.steps) {
+    resources.push({
+      uri: `ai-video-workflow://workflow/step/${step.step}`,
+      name: `Workflow step ${step.step}: ${step.label}`,
+      mimeType: "application/json",
+      text: asJson(step)
+    });
+  }
 
   for (const shot of context.shots) {
     resources.push({

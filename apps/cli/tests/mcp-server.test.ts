@@ -17,7 +17,11 @@ describe("MCP resources", () => {
     expect(resources.map((resource) => resource.uri)).toEqual(
       expect.arrayContaining([
         "ai-video-workflow://project/summary",
+        "ai-video-workflow://project/config",
+        "ai-video-workflow://pack/official-ai-video/overview",
         "ai-video-workflow://workflow/steps",
+        "ai-video-workflow://workflow/step/1",
+        "ai-video-workflow://workflow/step/6",
         "ai-video-workflow://shots/index",
         "ai-video-workflow://shots/shot-001",
         "ai-video-workflow://handoff/project",
