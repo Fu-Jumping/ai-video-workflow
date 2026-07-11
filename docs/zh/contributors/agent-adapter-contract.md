@@ -132,3 +132,5 @@ adapter 不能：
 - 写入：默认不写项目文件；暴露 resources、prompts 和 tools。
 - 方向：先从 `read-only-context` 开始。
 - 验证：server contract 测试和项目验证。
+
+参见 [MCP adapter](./mcp-adapter.md)。

@@ -11,5 +11,6 @@
 - [Quickstart](./quickstart/index.md)
 - [Adapter boundaries](./contributors/adapter-boundaries.md)
 - [Agent adapter contract](./contributors/agent-adapter-contract.md)
+- [MCP adapter](./contributors/mcp-adapter.md)
 - [Obsidian vault projection](./contributors/obsidian-vault-projection.md)
 - [v0.2 roadmap](./contributors/roadmap-v0.2.md)

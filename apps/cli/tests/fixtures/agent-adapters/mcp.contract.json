@@ -1,0 +1,53 @@
+{
+  "adapterId": "mcp",
+  "displayName": "Model Context Protocol",
+  "inputs": [
+    "packs/official-ai-video/",
+    "project.config.yaml",
+    "01_concept/",
+    "02_setting/",
+    "03_storyboard/",
+    "04_image_prompts/",
+    "05_video_prompts/",
+    "06_execution_plan/"
+  ],
+  "outputs": [
+    "MCP resources",
+    "MCP prompts",
+    "read-only MCP tools"
+  ],
+  "syncDirection": "read-only-context",
+  "sourceOfTruth": "project-step-files",
+  "handoffSurfaces": [
+    "ai-video-workflow://handoff/project",
+    "review_project",
+    "inspect_shot",
+    "revise_storyboard",
+    "revise_image_prompt",
+    "revise_video_prompt",
+    "verify_project"
+  ],
+  "verificationCommands": [
+    "ai-video-workflow mcp-context --project <path>",
+    "ai-video-workflow verify --project <path> --ide codex"
+  ],
+  "forbiddenWrites": [
+    "01_concept/",
+    "02_setting/",
+    "03_storyboard/",
+    "04_image_prompts/",
+    "05_video_prompts/",
+    "06_execution_plan/",
+    "Workflow/",
+    "Shots/",
+    "Canvas/",
+    "Bases/",
+    ".obsidian/",
+    ".codex/",
+    ".cursor/",
+    ".claude/",
+    ".trae/",
+    "absolute links"
+  ],
+  "failureBehavior": "Expose project context and verification issues without writing files; report missing or invalid source Step files and require the user or agent to edit project Step files through normal workspace tools."
+}

@@ -26,7 +26,7 @@ Adapter 只负责把同一套工作流落到某个平台能读取或执行的位
 - Codex、Cursor、Claude Code、Trae：把规则和 skills 放到各自原生运行目录。
 - Obsidian：把项目文件组织成适合浏览、创作和审阅的 vault 视图。
 - LibTV：把 Step 4、Step 5、Step 6 的执行信息投影到画布、节点、分组或批量执行流程。
-- MCP：把项目暴露成 resources、prompts 和 tools，供智能体读取和调用。
+- MCP：把项目暴露成 resources、prompts 和 tools，供智能体读取和调用；只读起步边界见 [MCP adapter](./mcp-adapter.md)。
 
 ## Adapter 不能做什么
 

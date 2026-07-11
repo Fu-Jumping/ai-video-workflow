@@ -26,7 +26,7 @@ Examples:
 - Codex, Cursor, Claude Code, and Trae place rules and skills into native runtime locations.
 - Obsidian projects the files into a vault view for creation, review, and navigation.
 - LibTV projects Step 4, Step 5, and Step 6 execution information into canvases, nodes, groups, or batch execution flows.
-- MCP exposes the project as resources, prompts, and tools for agents.
+- MCP exposes the project as resources, prompts, and tools for agents; see [MCP adapter](./mcp-adapter.md) for the read-only starting boundary.
 
 ## What an Adapter Must Not Do
 

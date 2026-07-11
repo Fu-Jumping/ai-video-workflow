@@ -49,9 +49,9 @@ describe("agent adapter contract", () => {
     expect(schema.properties).toHaveProperty("forbiddenWrites");
   });
 
-  test("documents every adapter fixture as a runtime mirror without replacing Step files", async () => {
+  test("documents every adapter fixture without replacing Step files", async () => {
     const fixtureNames = (await fs.readdir(fixturesRoot())).filter((fileName) => fileName.endsWith(".contract.json"));
-    expect(fixtureNames).toEqual(expect.arrayContaining(["codex.contract.json", "claude-code.contract.json", "trae.contract.json"]));
+    expect(fixtureNames).toEqual(expect.arrayContaining(["codex.contract.json", "claude-code.contract.json", "trae.contract.json", "mcp.contract.json"]));
 
     for (const fixtureName of fixtureNames) {
       const contract = await fs.readJson(fixturePath(fixtureName)) as AgentAdapterContract;
@@ -111,5 +111,34 @@ describe("agent adapter contract", () => {
     expect(contract.handoffSurfaces).toEqual(expect.arrayContaining(["AGENTS.md", ".trae/rules/ai-video-workflow.md"]));
     expect(contract.verificationCommands).toEqual(expect.arrayContaining(["ai-video-workflow verify --project <path> --ide trae"]));
     expect(contract.forbiddenWrites).toEqual(expect.arrayContaining([".obsidian/", "CLAUDE.md", "absolute links"]));
+  });
+
+  test("documents MCP adapter as read-only context", async () => {
+    const contract = await fs.readJson(fixturePath("mcp.contract.json")) as AgentAdapterContract;
+
+    expect(contract.adapterId).toBe("mcp");
+    expect(contract.syncDirection).toBe("read-only-context");
+    expect(contract.sourceOfTruth).toBe("project-step-files");
+    expect(contract.outputs).toEqual(expect.arrayContaining(["MCP resources", "MCP prompts", "read-only MCP tools"]));
+    expect(contract.forbiddenWrites).toEqual(
+      expect.arrayContaining([
+        "01_concept/",
+        "02_setting/",
+        "03_storyboard/",
+        "04_image_prompts/",
+        "05_video_prompts/",
+        "06_execution_plan/",
+        "Workflow/",
+        "Shots/",
+        "Canvas/",
+        "Bases/",
+        ".obsidian/",
+        ".codex/",
+        ".cursor/",
+        ".claude/",
+        ".trae/",
+        "absolute links"
+      ])
+    );
   });
 });

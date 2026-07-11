@@ -132,3 +132,5 @@ Adapters must not:
 - Writes: no project files by default; exposes resources, prompts, and tools.
 - Direction: `read-only-context` at first.
 - Verify: server contract tests and project verification.
+
+See [MCP adapter](./mcp-adapter.md).

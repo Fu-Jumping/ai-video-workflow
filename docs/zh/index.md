@@ -12,5 +12,6 @@
 - [工作流系统图](./contributors/workflow-system-map.md)
 - [Adapter 边界](./contributors/adapter-boundaries.md)
 - [智能体 Adapter Contract](./contributors/agent-adapter-contract.md)
+- [MCP adapter](./contributors/mcp-adapter.md)
 - [Obsidian Vault 投影](./contributors/obsidian-vault-projection.md)
 - [v0.2 路线图](./contributors/roadmap-v0.2.md)
