@@ -45,6 +45,8 @@ pnpm example:obsidian
 
 如果要对可选打开体验做发版 QA，可以在 `pnpm build` 后运行 `pnpm example:obsidian:ui`。它会用 `--include-obsidian-ui` 导出官方示例并验证生成的 vault，但不会自动启动 Obsidian。
 
+v0.3 Obsidian 发布说明见 `docs/zh/contributors/release-notes-v0.3.md`。
+
 ## 快速开始
 
 1. 运行 `pnpm install` 安装依赖。

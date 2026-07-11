@@ -45,6 +45,8 @@ By default the exporter does not write `.obsidian/`. Use `--include-obsidian-ui`
 
 For release QA of the optional opening experience, run `pnpm example:obsidian:ui` after `pnpm build`. This exports the official sample with `--include-obsidian-ui` and verifies the generated vault without launching Obsidian automatically.
 
+See `docs/en/contributors/release-notes-v0.3.md` for the v0.3 Obsidian release notes.
+
 ## Quick Start
 
 1. Install dependencies with `pnpm install`.

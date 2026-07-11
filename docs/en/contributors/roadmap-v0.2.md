@@ -21,13 +21,28 @@ v0.2 should let a new user clone the repo, initialize a project, inspect the off
 - No direct image or video platform calls.
 - No workflow marketplace.
 
-## Later Direction
+## Completed Since v0.2
 
-After v0.2 is stable:
+v0.3 delivered the Obsidian vault projection as a one-way adapter:
 
-1. v0.3 Obsidian vault projection: start with one-way generation for reading, review, Bases, and Canvas views without developing an Obsidian plugin.
-2. LibTV execution projection.
-3. MCP server.
-4. More agent platform adapters.
+- safe incremental export
+- generated dashboards, Bases, and Canvas maps
+- single-shot immersive review pages
+- Agent Handoff pages for source-file editing context
+- optional UI suggestions
+- real-vault QA through `pnpm example:obsidian:ui`
 
 See [Obsidian vault projection](./obsidian-vault-projection.md) for the adapter boundary.
+
+## Next Direction
+
+After v0.3, the next priority is not more Obsidian surface area. The next priority is a platform-neutral agent adapter contract.
+
+Suggested order:
+
+1. v0.3 release consolidation and release notes.
+2. v0.4 agent adapter contract for Codex, Cursor, Claude Code, Trae, MCP, and future adapters.
+3. v0.4.1 Codex adapter hardening as the first concrete platform implementation.
+4. Cursor, Claude Code, and Trae adapter rollout.
+5. MCP server planning.
+6. LibTV execution projection after the platform and CLI are stable enough to validate against real state.
