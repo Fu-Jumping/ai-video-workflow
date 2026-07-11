@@ -39,7 +39,7 @@
 - `.trae/skills/<step-skill>/SKILL.md` <- `packs/official-ai-video/skills/<step-skill>/SKILL.md`
 - `.trae/specs/ai-video-workflow/` <- `packs/official-ai-video/workflow/*`
 - `.trae/documents/ai-video-workflow/WORKFLOW_OVERVIEW.md` <- `WORKFLOW_OVERVIEW.md`
-- - `.trae/documents/ai-video-workflow/skills/` <- `packs/official-ai-video/skills-longform/*`
+- `.trae/documents/ai-video-workflow/skills/` <- `packs/official-ai-video/skills-longform/*`
 - `.trae/documents/ai-video-workflow/skill-bundles/` <- `packs/official-ai-video/skills/*`
 - `.trae/documents/ai-video-workflow/indexes/` <- `packs/official-ai-video/workflow/indexes/*`
 - `.trae/documents/ai-video-workflow/templates/` <- `packs/official-ai-video/templates/*`
@@ -76,8 +76,8 @@
 1. 若目标是正式启用 Trae 工作流，必须创建 `.trae/`，并把技能、规范、模板和索引按本页转化进去
 2. 在 `.trae/skills/` 未建立前，不应假设 Trae 能识别这些技能
 3. 若只复制了文档镜像，但没有 `.trae/skills/<skill>/SKILL.md`，视为技能尚未正式启用
-3. `ai-video-workflow/` 在这时只能作为分发包和初始化参考，不是 Trae 的完整运行替代
-4. 转化完成后，应改为从 `.trae/` 入口继续执行
+4. `ai-video-workflow/` 在这时只能作为分发包和初始化参考，不是 Trae 的完整运行替代
+5. 转化完成后，应改为从 `.trae/` 入口继续执行
 
 ## 7. 最小入口建议
 
@@ -86,3 +86,14 @@
 - `.trae/` 是当前项目的 Trae 运行入口
 - 当前项目的目录映射文件在哪里
 - 当前请求应先路由到哪个步骤
+
+## 8. Adapter Contract
+
+- 读取：`packs/official-ai-video/`、`project.config.yaml` 和项目 Step 1 到 Step 6 文件。
+- 写入：`AGENTS.md` 兼容入口、`.trae/skills/` 技能入口、`.trae/rules/ai-video-workflow.md` 规则入口、`.trae/specs/ai-video-workflow/` 规范镜像和 `.trae/documents/ai-video-workflow/` 文档镜像。
+- 文档镜像包括：`WORKFLOW_OVERVIEW.md`、`skills/`、`skill-bundles/`、`templates/` 和 `indexes/`。
+- 同步方向：`runtime-mirror`。
+- 事实源：`project-step-files`，而不是 `.trae/` 运行镜像。
+- `sync --ide trae` 不生成 `CLAUDE.md`；Claude Code 入口只属于 `sync --ide claude-code`。
+- 不能写入：源 Step 文件、生成的 Obsidian 投影文件、用户 `.obsidian/` 配置、`CLAUDE.md` 或绝对路径链接。
+- 验证：`ai-video-workflow verify --project <path> --ide trae`。

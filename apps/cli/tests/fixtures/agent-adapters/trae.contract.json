@@ -1,0 +1,42 @@
+{
+  "adapterId": "trae",
+  "displayName": "Trae",
+  "inputs": [
+    "packs/official-ai-video/",
+    "project.config.yaml",
+    "01_concept/",
+    "02_setting/",
+    "03_storyboard/",
+    "04_image_prompts/",
+    "05_video_prompts/",
+    "06_execution_plan/"
+  ],
+  "outputs": [
+    "AGENTS.md",
+    ".trae/skills/",
+    ".trae/rules/",
+    ".trae/specs/ai-video-workflow/",
+    ".trae/documents/ai-video-workflow/"
+  ],
+  "syncDirection": "runtime-mirror",
+  "sourceOfTruth": "project-step-files",
+  "handoffSurfaces": [
+    "AGENTS.md",
+    ".trae/rules/ai-video-workflow.md",
+    ".trae/skills/film-workflow/SKILL.md",
+    ".trae/documents/ai-video-workflow/WORKFLOW_OVERVIEW.md"
+  ],
+  "verificationCommands": [
+    "ai-video-workflow verify --project <path> --ide trae"
+  ],
+  "forbiddenWrites": [
+    "Workflow/",
+    "Shots/",
+    "Canvas/",
+    "Bases/",
+    ".obsidian/",
+    "CLAUDE.md",
+    "absolute links"
+  ],
+  "failureBehavior": "Regenerate adapter-owned .trae runtime mirrors and report missing outputs through verification without changing source Step files."
+}

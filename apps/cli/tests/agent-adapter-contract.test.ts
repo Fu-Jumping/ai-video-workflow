@@ -51,7 +51,7 @@ describe("agent adapter contract", () => {
 
   test("documents every adapter fixture as a runtime mirror without replacing Step files", async () => {
     const fixtureNames = (await fs.readdir(fixturesRoot())).filter((fileName) => fileName.endsWith(".contract.json"));
-    expect(fixtureNames).toEqual(expect.arrayContaining(["codex.contract.json", "claude-code.contract.json"]));
+    expect(fixtureNames).toEqual(expect.arrayContaining(["codex.contract.json", "claude-code.contract.json", "trae.contract.json"]));
 
     for (const fixtureName of fixtureNames) {
       const contract = await fs.readJson(fixturePath(fixtureName)) as AgentAdapterContract;
@@ -96,5 +96,20 @@ describe("agent adapter contract", () => {
     expect(contract.handoffSurfaces).toEqual(expect.arrayContaining(["CLAUDE.md", ".claude/commands/ai-video-workflow.md"]));
     expect(contract.verificationCommands).toEqual(expect.arrayContaining(["ai-video-workflow verify --project <path> --ide claude-code"]));
     expect(contract.forbiddenWrites).toEqual(expect.arrayContaining([".obsidian/", "absolute links"]));
+  });
+
+  test("documents Trae adapter output locations", async () => {
+    const contract = await fs.readJson(fixturePath("trae.contract.json")) as AgentAdapterContract;
+
+    expect(contract.adapterId).toBe("trae");
+    expect(contract.syncDirection).toBe("runtime-mirror");
+    expect(contract.sourceOfTruth).toBe("project-step-files");
+
+    expect(contract.outputs).toEqual(
+      expect.arrayContaining(["AGENTS.md", ".trae/rules/", ".trae/specs/ai-video-workflow/", ".trae/documents/ai-video-workflow/", ".trae/skills/"])
+    );
+    expect(contract.handoffSurfaces).toEqual(expect.arrayContaining(["AGENTS.md", ".trae/rules/ai-video-workflow.md"]));
+    expect(contract.verificationCommands).toEqual(expect.arrayContaining(["ai-video-workflow verify --project <path> --ide trae"]));
+    expect(contract.forbiddenWrites).toEqual(expect.arrayContaining([".obsidian/", "CLAUDE.md", "absolute links"]));
   });
 });

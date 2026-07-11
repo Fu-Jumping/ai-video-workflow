@@ -12,4 +12,7 @@ syncTargets:
     skillsDir: ".claude/skills"
     rootEntry: "CLAUDE.md"
   trae:
+    documentsDir: ".trae/documents/ai-video-workflow"
+    rulesDir: ".trae/rules"
     skillsDir: ".trae/skills"
+    specsDir: ".trae/specs/ai-video-workflow"

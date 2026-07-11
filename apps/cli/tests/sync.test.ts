@@ -161,4 +161,57 @@ describe("syncProject", () => {
     const searchableClaudeEntry = claudeEntry.replace(inlineCodePattern, "");
     expect(searchableClaudeEntry, "CLAUDE.md should not contain absolute local links").not.toMatch(absoluteLinkPattern);
   });
+
+  test("writes Trae skills, rules, specs, and documents from the official pack", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-trae-sync-"));
+    tempRoots.push(root);
+
+    await createProject({
+      targetRoot: root,
+      projectName: "trae-sync-project",
+      pack: "official-ai-video",
+      ide: "trae",
+      imagePlatform: "openai",
+      videoPlatform: "veo"
+    });
+
+    const projectRoot = path.join(root, "trae-sync-project");
+    await fs.remove(path.join(projectRoot, ".trae"));
+    await fs.remove(path.join(projectRoot, "AGENTS.md"));
+    await fs.remove(path.join(projectRoot, "CLAUDE.md"));
+
+    await syncProject({
+      repoRoot: path.resolve(__dirname, "../../.."),
+      projectRoot,
+      ide: "trae",
+      pack: "official-ai-video"
+    });
+
+    await expect(fs.pathExists(path.join(projectRoot, "AGENTS.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "CLAUDE.md"))).resolves.toBe(false);
+    await expect(fs.pathExists(path.join(projectRoot, ".trae", "skills", "film-workflow", "SKILL.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".trae", "rules", "ai-video-workflow.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".trae", "specs", "ai-video-workflow", "indexes", "capability-index.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "skills", "film-workflow.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "skill-bundles", "film-workflow", "SKILL.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "templates"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "indexes"))).resolves.toBe(true);
+
+    const rules = await fs.readFile(path.join(projectRoot, ".trae", "rules", "ai-video-workflow.md"), "utf8");
+    expect(rules).toContain("Step 1 to Step 6 files");
+    expect(rules).toContain(".trae/documents/ai-video-workflow/");
+
+    const traeRuntimeRoot = path.join(projectRoot, ".trae");
+    const runtimeFiles = await listTextRuntimeFiles(traeRuntimeRoot);
+    for (const file of runtimeFiles) {
+      const content = await fs.readFile(path.join(traeRuntimeRoot, file), "utf8");
+      const searchableContent = content.replace(inlineCodePattern, "");
+      expect(searchableContent, `${file} should not contain absolute local links`).not.toMatch(absoluteLinkPattern);
+    }
+
+    const agents = await fs.readFile(path.join(projectRoot, "AGENTS.md"), "utf8");
+    const searchableAgents = agents.replace(inlineCodePattern, "");
+    expect(searchableAgents, "AGENTS.md should not contain absolute local links").not.toMatch(absoluteLinkPattern);
+  });
 });

@@ -131,11 +131,47 @@ async function syncClaudeCode(repoRoot: string, projectRoot: string, packRoot: s
   );
 }
 
-async function syncTrae(projectRoot: string, packRoot: string): Promise<void> {
+async function syncTrae(repoRoot: string, projectRoot: string, packRoot: string): Promise<void> {
   await copyDirectory(path.join(packRoot, "skills"), path.join(projectRoot, ".trae", "skills"));
-  await fs.ensureDir(path.join(projectRoot, ".trae", "rules"));
-  await writeFileIfMissing(path.join(projectRoot, "AGENTS.md"), "# Trae Compatibility Entry\n");
-  await writeFileIfMissing(path.join(projectRoot, "CLAUDE.md"), "# Trae Compatibility Entry\n");
+  await copyDirectory(path.join(packRoot, "workflow"), path.join(projectRoot, ".trae", "specs", "ai-video-workflow"));
+  await copyDirectory(path.join(packRoot, "skills-longform"), path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "skills"));
+  await copyDirectory(path.join(packRoot, "skills"), path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "skill-bundles"));
+  await copyDirectory(path.join(packRoot, "templates"), path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "templates"));
+  await copyDirectory(path.join(packRoot, "workflow", "indexes"), path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "indexes"));
+  await writeFileIfMissing(
+    path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"),
+    await fs.readFile(path.join(repoRoot, "WORKFLOW_OVERVIEW.md"), "utf8")
+  );
+  await writeFileIfMissing(
+    path.join(projectRoot, ".trae", "rules", "ai-video-workflow.md"),
+    [
+      "# AI Video Workflow Trae Runtime",
+      "",
+      "Use project Step 1 to Step 6 files as the source of truth.",
+      "",
+      "Read order:",
+      "",
+      "1. `project.config.yaml`",
+      "2. `.trae/rules/ai-video-workflow.md`",
+      "3. `.trae/documents/ai-video-workflow/WORKFLOW_OVERVIEW.md`",
+      "4. `.trae/skills/<skill>/SKILL.md`",
+      "5. Source Step files in the project",
+      "",
+      "Runtime boundaries:",
+      "",
+      "- `.trae/skills/` contains adapter-ready skill bundles.",
+      "- `.trae/specs/ai-video-workflow/` contains generated workflow specs.",
+      "- `.trae/documents/ai-video-workflow/` is a generated runtime mirror.",
+      "- Do not edit generated Obsidian projection files as the workflow source.",
+      "- Keep Step 3 and Step 4 frame-aligned.",
+      "- Keep Step 4 file contracts intact.",
+      "- Use relative links only."
+    ].join("\n")
+  );
+  await writeFileIfMissing(
+    path.join(projectRoot, "AGENTS.md"),
+    "# Trae Runtime\n\nUse `.trae/rules/ai-video-workflow.md`, `.trae/skills/`, `.trae/specs/ai-video-workflow/`, and `.trae/documents/ai-video-workflow/` as generated Trae runtime entrypoints.\n"
+  );
 }
 
 async function syncIde(repoRoot: string, projectRoot: string, packRoot: string, ide: Ide): Promise<void> {
@@ -150,7 +186,7 @@ async function syncIde(repoRoot: string, projectRoot: string, packRoot: string, 
       await syncClaudeCode(repoRoot, projectRoot, packRoot);
       break;
     case "trae":
-      await syncTrae(projectRoot, packRoot);
+      await syncTrae(repoRoot, projectRoot, packRoot);
       break;
   }
 }
