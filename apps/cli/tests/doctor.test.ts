@@ -47,6 +47,32 @@ describe("diagnoseProject", () => {
     expect(output).toContain(".codex/skills");
   });
 
+  test("suggests the matching sync command for non-Codex adapter runtime issues", async () => {
+    const output = await diagnoseProject({
+      issues: [
+        {
+          code: "missing-ide-runtime",
+          message: "Missing Cursor rule entry: .cursor/rules/ai-video-workflow.mdc",
+          path: ".cursor/rules/ai-video-workflow.mdc"
+        },
+        {
+          code: "missing-ide-runtime",
+          message: "Missing Claude Code command entry: .claude/commands/ai-video-workflow.md",
+          path: ".claude/commands/ai-video-workflow.md"
+        },
+        {
+          code: "missing-ide-runtime",
+          message: "Missing Trae rule entry: .trae/rules/ai-video-workflow.md",
+          path: ".trae/rules/ai-video-workflow.md"
+        }
+      ]
+    });
+
+    expect(output).toContain("ai-video-workflow sync --project <path> --ide cursor");
+    expect(output).toContain("ai-video-workflow sync --project <path> --ide claude-code");
+    expect(output).toContain("ai-video-workflow sync --project <path> --ide trae");
+  });
+
   test("suggests Step 3 to Step 4 traceability fixes", async () => {
     const output = await diagnoseProject({
       issues: [

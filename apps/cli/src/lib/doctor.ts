@@ -30,6 +30,20 @@ const groups: Record<string, string> = {
   "obsidian-manifest-source-mismatch": "Obsidian Projection"
 };
 
+function ideForRuntimeIssue(issue: VerificationIssue): string {
+  const marker = `${issue.path ?? ""} ${issue.message}`;
+  if (marker.includes(".cursor/")) {
+    return "cursor";
+  }
+  if (marker.includes(".claude/") || marker.includes("CLAUDE.md") || marker.includes("Claude Code")) {
+    return "claude-code";
+  }
+  if (marker.includes(".trae/") || marker.includes("Trae")) {
+    return "trae";
+  }
+  return "codex";
+}
+
 export async function diagnoseProject({
   issues
 }: {
@@ -69,7 +83,8 @@ export async function diagnoseProject({
         lines.push("  Replace inherited or context-dependent wording with a self-contained visual prompt.");
       }
       if (issue.code === "missing-ide-runtime") {
-        lines.push("  Run `ai-video-workflow sync --project <path> --ide codex` to restore the IDE runtime files.");
+        const ide = ideForRuntimeIssue(issue);
+        lines.push(`  Run \`ai-video-workflow sync --project <path> --ide ${ide}\` to restore the IDE runtime files.`);
       }
       if (issue.code === "missing-step3-step4-link") {
         lines.push("  Add a relative link from the storyboard card to the matching Step 4 image prompt.");

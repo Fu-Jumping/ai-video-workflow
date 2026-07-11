@@ -3,15 +3,83 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 
+import { createProject } from "../src/lib/init.js";
+import { syncProject } from "../src/lib/sync.js";
+import type { Ide } from "../src/lib/types.js";
 import { verifyProject } from "../src/lib/verify.js";
 
 const tempRoots: string[] = [];
+const repoRoot = path.resolve(__dirname, "../../..");
+
+async function createSyncedProject(root: string, ide: Ide): Promise<string> {
+  await createProject({
+    targetRoot: root,
+    projectName: `${ide}-verify-project`,
+    pack: "official-ai-video",
+    ide,
+    imagePlatform: "openai",
+    videoPlatform: "veo"
+  });
+  const projectRoot = path.join(root, `${ide}-verify-project`);
+  await syncProject({
+    repoRoot,
+    projectRoot,
+    ide,
+    pack: "official-ai-video"
+  });
+  return projectRoot;
+}
+
+const requiredRuntimeFileByIde: Record<Ide, string> = {
+  codex: ".codex/agent-rules.md",
+  cursor: ".cursor/rules/ai-video-workflow.mdc",
+  "claude-code": ".claude/commands/ai-video-workflow.md",
+  trae: ".trae/rules/ai-video-workflow.md"
+};
 
 afterEach(async () => {
   await Promise.all(tempRoots.splice(0).map((dir) => fs.remove(dir)));
 });
 
 describe("verifyProject", () => {
+  test.each<Ide>(["codex", "cursor", "claude-code", "trae"])("passes IDE runtime verification for synced %s projects", async (ide) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-verify-runtime-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, ide);
+
+    const result = await verifyProject({
+      projectRoot,
+      ide,
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  test.each<Ide>(["codex", "cursor", "claude-code", "trae"])("reports missing IDE runtime files for %s", async (ide) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-missing-runtime-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, ide);
+    const missingPath = requiredRuntimeFileByIde[ide];
+    await fs.remove(path.join(projectRoot, missingPath));
+
+    const result = await verifyProject({
+      projectRoot,
+      ide,
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "missing-ide-runtime",
+          path: missingPath
+        })
+      ])
+    );
+  });
+
   test("finds missing Step 6 files, invalid Step 4 contracts, and absolute path links", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-verify-"));
     tempRoots.push(root);

@@ -2,7 +2,7 @@ import fs from "fs-extra";
 import path from "node:path";
 
 import { STEP6_FILES } from "./constants.js";
-import type { ProjectConfig, VerificationIssue, VerificationResult } from "./types.js";
+import type { Ide, ProjectConfig, VerificationIssue, VerificationResult } from "./types.js";
 import { parseYaml } from "./yaml.js";
 
 const step4RequiredSections = ["快速导读", "中文完整版本", "English Version (Copy Ready)"];
@@ -11,6 +11,38 @@ const ignoredMarkdownDirs = new Set(["node_modules", ".git"]);
 const absoluteLinkPattern = /([A-Za-z]:\\|[A-Za-z]:\/|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
 const inlineCodePattern = /`[^`\r\n]*`/g;
 const step4LinkPattern = /\]\((?:\.\.\/)?04_image_prompts\/([^)#]+)(?:#[^)]+)?\)/g;
+
+interface IdeRuntimeRequirement {
+  path: string;
+  label: string;
+}
+
+const ideRuntimeRequirements: Record<Ide, IdeRuntimeRequirement[]> = {
+  codex: [
+    { path: ".codex/ai-video-workflow/WORKFLOW_OVERVIEW.md", label: "Codex runtime overview" },
+    { path: ".codex/skills/film-workflow/SKILL.md", label: "Codex runtime skill bundle" },
+    { path: ".codex/agent-rules.md", label: "Codex agent rules" },
+    { path: ".codex/repo-context.md", label: "Codex repo context" }
+  ],
+  cursor: [
+    { path: ".cursor/rules/ai-video-workflow.mdc", label: "Cursor rule entry" },
+    { path: ".cursor/skills/film-workflow/SKILL.md", label: "Cursor runtime skill bundle" },
+    { path: ".cursor/ai-video-workflow/WORKFLOW_OVERVIEW.md", label: "Cursor runtime overview" }
+  ],
+  "claude-code": [
+    { path: "CLAUDE.md", label: "Claude Code root entry" },
+    { path: ".claude/commands/ai-video-workflow.md", label: "Claude Code command entry" },
+    { path: ".claude/skills/film-workflow/SKILL.md", label: "Claude Code runtime skill bundle" },
+    { path: ".claude/ai-video-workflow/WORKFLOW_OVERVIEW.md", label: "Claude Code runtime overview" }
+  ],
+  trae: [
+    { path: "AGENTS.md", label: "Trae compatibility entry" },
+    { path: ".trae/rules/ai-video-workflow.md", label: "Trae rule entry" },
+    { path: ".trae/skills/film-workflow/SKILL.md", label: "Trae runtime skill bundle" },
+    { path: ".trae/specs/ai-video-workflow/indexes/capability-index.md", label: "Trae workflow specs" },
+    { path: ".trae/documents/ai-video-workflow/WORKFLOW_OVERVIEW.md", label: "Trae runtime overview" }
+  ]
+};
 
 async function loadConfig(projectRoot: string): Promise<ProjectConfig | null> {
   const configPath = path.join(projectRoot, "project.config.yaml");
@@ -148,20 +180,13 @@ async function verifyStep3Step4Traceability(projectRoot: string, issues: Verific
   }
 }
 
-async function verifyIdeRuntime(projectRoot: string, ide: string, issues: VerificationIssue[]): Promise<void> {
-  if (ide === "codex") {
-    if (!(await fs.pathExists(path.join(projectRoot, ".codex", "ai-video-workflow", "WORKFLOW_OVERVIEW.md")))) {
+async function verifyIdeRuntime(projectRoot: string, ide: Ide, issues: VerificationIssue[]): Promise<void> {
+  for (const requirement of ideRuntimeRequirements[ide]) {
+    if (!(await fs.pathExists(path.join(projectRoot, requirement.path)))) {
       pushIssue(issues, {
         code: "missing-ide-runtime",
-        message: "Missing Codex runtime mirror",
-        path: ".codex/ai-video-workflow"
-      });
-    }
-    if (!(await fs.pathExists(path.join(projectRoot, ".codex", "skills")))) {
-      pushIssue(issues, {
-        code: "missing-ide-runtime",
-        message: "Missing Codex runtime skills",
-        path: ".codex/skills"
+        message: `Missing ${requirement.label}: ${requirement.path}`,
+        path: requirement.path
       });
     }
   }
@@ -172,7 +197,7 @@ export async function verifyProject({
   ide
 }: {
   projectRoot: string;
-  ide: string;
+  ide: Ide;
   pack: string;
 }): Promise<VerificationResult> {
   const issues: VerificationIssue[] = [];
