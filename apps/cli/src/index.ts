@@ -7,6 +7,7 @@ import { DEFAULT_PACK, SUPPORTED_IDES, SUPPORTED_PLATFORMS } from "./lib/constan
 import { diagnoseProject } from "./lib/doctor.js";
 import { createProject } from "./lib/init.js";
 import { buildMcpContext } from "./lib/mcp/context.js";
+import { startMcpServer } from "./lib/mcp/server.js";
 import { createPackScaffold } from "./lib/new-pack.js";
 import { exportObsidianVault } from "./lib/obsidian/export.js";
 import type { ObsidianExportOperationStatus } from "./lib/obsidian/types.js";
@@ -159,6 +160,18 @@ program
       pack: DEFAULT_PACK
     });
     console.log(JSON.stringify(context, null, 2));
+  });
+
+program
+  .command("mcp-server")
+  .description("Start a read-only MCP stdio server for a project")
+  .requiredOption("--project <path>")
+  .action(async (options) => {
+    await startMcpServer({
+      projectRoot: path.resolve(options.project),
+      pack: DEFAULT_PACK,
+      ide: "codex"
+    });
   });
 
 program

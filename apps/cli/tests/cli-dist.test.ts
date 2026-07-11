@@ -251,4 +251,14 @@ describe("built CLI", () => {
     expect(stdout).toContain("04_image_prompts/shot-001-keyframe.md");
     expect(stdout).not.toMatch(/[A-Z]:\\\\|[A-Z]:\\\/|file:\/\/|vscode:\/\//);
   });
+
+  test("help exposes the read-only MCP server command from the bundled ESM entry", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+
+    await buildCli(cliRoot);
+    const { stdout } = await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "--help"], cliRoot);
+
+    expect(stdout).toContain("mcp-context");
+    expect(stdout).toContain("mcp-server");
+  });
 });
