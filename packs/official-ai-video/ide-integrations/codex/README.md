@@ -57,6 +57,15 @@
 - `.codex/ai-video-workflow/` 是完整文档和镜像层
 - 当前项目绑定信息只从项目级配置读取，例如 `project.config.yaml`
 
+## 5.0 Adapter Contract
+
+- 读取：`packs/official-ai-video/`、`project.config.yaml` 和项目 Step 1 到 Step 6 文件。
+- 写入：`.codex/ai-video-workflow/` 完整运行镜像和 `.codex/skills/` 技能入口。
+- 同步方向：`runtime-mirror`。
+- 事实源：`project-step-files`，而不是 `.codex/` 运行镜像。
+- 不能写入：源 Step 文件、生成的 Obsidian 投影文件、用户 `.obsidian/` 配置或绝对路径链接。
+- 验证：`ai-video-workflow verify --project <path> --ide codex`。
+
 ## 5.1 职责分配
 
 - `.codex/README.md`
