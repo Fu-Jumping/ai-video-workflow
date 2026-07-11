@@ -49,3 +49,5 @@ Suggested later order:
 4. More AI IDE and agent platform adapters.
 
 Before an adapter enters the mainline, it must define inputs, outputs, sync direction, rollback behavior, and verification commands.
+
+Use the [Agent adapter contract](./agent-adapter-contract.md) as the required checklist before adding or expanding platform-specific integrations.

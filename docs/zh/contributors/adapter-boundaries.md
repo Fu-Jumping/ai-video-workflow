@@ -49,3 +49,5 @@ v0.2 优先完成主干可演示闭环。
 4. 更多 AI IDE 和 agent 平台适配。
 
 每个 adapter 在进入主线前，都必须说明输入、输出、同步方向、失败回滚方式和验证命令。
+
+新增或扩展平台专属适配前，必须先使用 [智能体 Adapter Contract](./agent-adapter-contract.md) 作为检查清单。
