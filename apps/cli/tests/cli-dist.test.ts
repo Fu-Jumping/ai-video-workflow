@@ -229,4 +229,26 @@ describe("built CLI", () => {
     await expect(fs.pathExists(path.join(outRoot, ".obsidian", "ai-video-workflow-suggested", "bookmarks.json"))).resolves.toBe(false);
     await expect(fs.readFile(bookmarksPath, "utf8")).resolves.toContain("User Bookmark");
   });
+
+  test("mcp-context prints read-only project context from the bundled ESM entry", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const repoRoot = path.resolve(cliRoot, "..", "..");
+
+    await buildCli(cliRoot);
+    const { stdout } = await run(
+      process.execPath,
+      [
+        path.join(cliRoot, "dist", "index.js"),
+        "mcp-context",
+        "--project",
+        path.join(repoRoot, "examples", "official-mini-film")
+      ],
+      repoRoot
+    );
+
+    expect(stdout).toContain("\"shots\"");
+    expect(stdout).toContain("\"verificationCommands\"");
+    expect(stdout).toContain("04_image_prompts/shot-001-keyframe.md");
+    expect(stdout).not.toMatch(/[A-Z]:\\\\|[A-Z]:\\\/|file:\/\/|vscode:\/\//);
+  });
 });

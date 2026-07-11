@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { DEFAULT_PACK, SUPPORTED_IDES, SUPPORTED_PLATFORMS } from "./lib/constants.js";
 import { diagnoseProject } from "./lib/doctor.js";
 import { createProject } from "./lib/init.js";
+import { buildMcpContext } from "./lib/mcp/context.js";
 import { createPackScaffold } from "./lib/new-pack.js";
 import { exportObsidianVault } from "./lib/obsidian/export.js";
 import type { ObsidianExportOperationStatus } from "./lib/obsidian/types.js";
@@ -146,6 +147,18 @@ program
     if (!result.ok) {
       process.exitCode = 1;
     }
+  });
+
+program
+  .command("mcp-context")
+  .description("Print read-only MCP project context as JSON")
+  .requiredOption("--project <path>")
+  .action(async (options) => {
+    const context = await buildMcpContext({
+      projectRoot: path.resolve(options.project),
+      pack: DEFAULT_PACK
+    });
+    console.log(JSON.stringify(context, null, 2));
   });
 
 program
