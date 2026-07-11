@@ -3,6 +3,8 @@ syncTargets:
     mirrorDir: ".codex/ai-video-workflow"
     skillsDir: ".codex/skills"
   cursor:
+    mirrorDir: ".cursor/ai-video-workflow"
+    rulesDir: ".cursor/rules"
     skillsDir: ".cursor/skills"
   claude-code:
     skillsDir: ".claude/skills"

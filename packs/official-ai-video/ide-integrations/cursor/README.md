@@ -53,6 +53,15 @@
 - 任何平台默认值与质量门槛都应从分发包母版生成并同步到 `.cursor/`
 - Cursor 虽然以 rules 为主入口，但也必须保留 skill bundle 镜像，不能只剩平铺 skill 名称
 
+## 5.0 Adapter Contract
+
+- 读取：`packs/official-ai-video/`、`project.config.yaml` 和项目 Step 1 到 Step 6 文件。
+- 写入：`.cursor/rules/` 规则入口、`.cursor/skills/` 技能入口和 `.cursor/ai-video-workflow/` 完整运行镜像。
+- 同步方向：`runtime-mirror`。
+- 事实源：`project-step-files`，而不是 `.cursor/` 运行镜像。
+- 不能写入：源 Step 文件、生成的 Obsidian 投影文件、用户 `.obsidian/` 配置或绝对路径链接。
+- 验证：`ai-video-workflow verify --project <path> --ide cursor`。
+
 ## 5.1 职责分配
 
 - `.cursor/rules/`

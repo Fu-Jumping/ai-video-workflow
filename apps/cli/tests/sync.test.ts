@@ -14,14 +14,14 @@ afterEach(async () => {
   await Promise.all(tempRoots.splice(0).map((dir) => fs.remove(dir)));
 });
 
-async function listMarkdownFiles(root: string, current = root): Promise<string[]> {
+async function listTextRuntimeFiles(root: string, current = root): Promise<string[]> {
   const entries = await fs.readdir(current, { withFileTypes: true });
   const files: string[] = [];
   for (const entry of entries) {
     const fullPath = path.join(current, entry.name);
     if (entry.isDirectory()) {
-      files.push(...(await listMarkdownFiles(root, fullPath)));
-    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      files.push(...(await listTextRuntimeFiles(root, fullPath)));
+    } else if (entry.isFile() && (entry.name.endsWith(".md") || entry.name.endsWith(".mdc"))) {
       files.push(path.relative(root, fullPath));
     }
   }
@@ -65,9 +65,48 @@ describe("syncProject", () => {
     expect(agentRules).toContain("Keep Step 3 and Step 4 frame-aligned.");
     expect(agentRules).toContain("Keep `.codex/ai-video-workflow/` as the full runtime mirror");
 
-    const runtimeFiles = await listMarkdownFiles(path.join(projectRoot, ".codex"));
+    const runtimeFiles = await listTextRuntimeFiles(path.join(projectRoot, ".codex"));
     for (const file of runtimeFiles) {
       const content = await fs.readFile(path.join(projectRoot, ".codex", file), "utf8");
+      const searchableContent = content.replace(inlineCodePattern, "");
+      expect(searchableContent, `${file} should not contain absolute local links`).not.toMatch(absoluteLinkPattern);
+    }
+  });
+
+  test("writes Cursor rules, skills, and runtime mirror from the official pack", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cursor-sync-"));
+    tempRoots.push(root);
+
+    await createProject({
+      targetRoot: root,
+      projectName: "cursor-sync-project",
+      pack: "official-ai-video",
+      ide: "cursor",
+      imagePlatform: "openai",
+      videoPlatform: "veo"
+    });
+
+    const projectRoot = path.join(root, "cursor-sync-project");
+    await fs.remove(path.join(projectRoot, ".cursor"));
+
+    await syncProject({
+      repoRoot: path.resolve(__dirname, "../../.."),
+      projectRoot,
+      ide: "cursor",
+      pack: "official-ai-video"
+    });
+
+    await expect(fs.pathExists(path.join(projectRoot, ".cursor", "skills", "film-workflow", "SKILL.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".cursor", "rules", "ai-video-workflow.mdc"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".cursor", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".cursor", "ai-video-workflow", "skills", "film-workflow.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".cursor", "ai-video-workflow", "skill-bundles", "film-workflow", "SKILL.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".cursor", "ai-video-workflow", "templates"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".cursor", "ai-video-workflow", "indexes"))).resolves.toBe(true);
+
+    const runtimeFiles = await listTextRuntimeFiles(path.join(projectRoot, ".cursor"));
+    for (const file of runtimeFiles) {
+      const content = await fs.readFile(path.join(projectRoot, ".cursor", file), "utf8");
       const searchableContent = content.replace(inlineCodePattern, "");
       expect(searchableContent, `${file} should not contain absolute local links`).not.toMatch(absoluteLinkPattern);
     }

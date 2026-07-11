@@ -47,6 +47,32 @@ async function syncCodex(repoRoot: string, projectRoot: string, packRoot: string
 
 async function syncCursor(projectRoot: string, packRoot: string): Promise<void> {
   await copyDirectory(path.join(packRoot, "skills"), path.join(projectRoot, ".cursor", "skills"));
+  await copyDirectory(path.join(packRoot, "skills-longform"), path.join(projectRoot, ".cursor", "ai-video-workflow", "skills"));
+  await copyDirectory(path.join(packRoot, "skills"), path.join(projectRoot, ".cursor", "ai-video-workflow", "skill-bundles"));
+  await copyDirectory(path.join(packRoot, "templates"), path.join(projectRoot, ".cursor", "ai-video-workflow", "templates"));
+  await copyDirectory(path.join(packRoot, "workflow", "indexes"), path.join(projectRoot, ".cursor", "ai-video-workflow", "indexes"));
+  await writeFileIfMissing(
+    path.join(projectRoot, ".cursor", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"),
+    await fs.readFile(path.resolve(packRoot, "..", "..", "WORKFLOW_OVERVIEW.md"), "utf8")
+  );
+  await writeFileIfMissing(
+    path.join(projectRoot, ".cursor", "rules", "ai-video-workflow.mdc"),
+    [
+      "---",
+      "description: AI video workflow runtime entry",
+      "alwaysApply: true",
+      "---",
+      "",
+      "# AI Video Workflow",
+      "",
+      "- Use project Step 1 to Step 6 files as the source of truth.",
+      "- Use `.cursor/ai-video-workflow/` as the runtime mirror.",
+      "- Use `.cursor/skills/` as adapter-ready skill bundles.",
+      "- Keep Step 3 and Step 4 frame-aligned.",
+      "- Keep Step 4 file contracts intact.",
+      "- Use relative links only."
+    ].join("\n")
+  );
   await writeFileIfMissing(path.join(projectRoot, "AGENTS.md"), "# Cursor Compatibility Entry\n");
 }
 

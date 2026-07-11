@@ -46,6 +46,19 @@ describe("built CLI", () => {
     await expect(fs.pathExists(path.join(projectRoot, ".codex", "skills", "film-workflow", "SKILL.md"))).resolves.toBe(true);
   });
 
+  test("sync writes Cursor rules, skills, and runtime mirror from the bundled ESM entry", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-cursor-sync-"));
+    tempRoots.push(projectRoot);
+
+    await buildCli(cliRoot);
+    await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "sync", "--project", projectRoot, "--ide", "cursor"], cliRoot);
+
+    await expect(fs.pathExists(path.join(projectRoot, ".cursor", "skills", "film-workflow", "SKILL.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".cursor", "rules", "ai-video-workflow.mdc"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".cursor", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"))).resolves.toBe(true);
+  });
+
   test("init accepts explicit options for scripted project creation", async () => {
     const cliRoot = path.resolve(__dirname, "..");
     const targetRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-init-"));
