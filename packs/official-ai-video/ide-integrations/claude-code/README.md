@@ -38,7 +38,7 @@ Claude Code 推荐优先转化到项目根下的 `.claude/`。如果团队不使
 - `CLAUDE.md` <- 总入口，只负责读取顺序和规则优先级
 - `.claude/skills/<skill>/SKILL.md` <- `packs/official-ai-video/skills/<skill>/SKILL.md`
 - `.claude/ai-video-workflow/WORKFLOW_OVERVIEW.md` <- `WORKFLOW_OVERVIEW.md`
-- - `.claude/ai-video-workflow/workflow/` <- `packs/official-ai-video/workflow/*`
+- `.claude/ai-video-workflow/workflow/` <- `packs/official-ai-video/workflow/*`
 - `.claude/ai-video-workflow/skills/` <- `packs/official-ai-video/skills-longform/*`
 - `.claude/ai-video-workflow/skill-bundles/` <- `packs/official-ai-video/skills/*`
 - `.claude/ai-video-workflow/templates/` <- `packs/official-ai-video/templates/*`
@@ -94,3 +94,13 @@ Claude Code 推荐优先转化到项目根下的 `.claude/`。如果团队不使
 - 当前项目映射文件
 - 当前 Claude 原生入口位置
 - adapter 只做落位说明
+
+## 8. Adapter Contract
+
+- 读取：`packs/official-ai-video/`、`project.config.yaml` 和项目 Step 1 到 Step 6 文件。
+- 写入：`CLAUDE.md` 根入口、`.claude/skills/` 技能入口、`.claude/commands/ai-video-workflow.md` 命令入口和 `.claude/ai-video-workflow/` 完整运行镜像。
+- 运行镜像包括：`WORKFLOW_OVERVIEW.md`、`workflow/`、`skills/`、`skill-bundles/`、`templates/` 和 `indexes/`。
+- 同步方向：`runtime-mirror`。
+- 事实源：`project-step-files`，而不是 `CLAUDE.md` 或 `.claude/`。
+- 不能写入：源 Step 文件、生成的 Obsidian 投影文件、用户 `.obsidian/` 配置、平台缓存目录或绝对路径链接。
+- 验证：`ai-video-workflow verify --project <path> --ide claude-code`。

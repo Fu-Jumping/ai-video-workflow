@@ -59,6 +59,20 @@ describe("built CLI", () => {
     await expect(fs.pathExists(path.join(projectRoot, ".cursor", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"))).resolves.toBe(true);
   });
 
+  test("sync writes Claude Code skills, command entry, and runtime mirror from the bundled ESM entry", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-claude-sync-"));
+    tempRoots.push(projectRoot);
+
+    await buildCli(cliRoot);
+    await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "sync", "--project", projectRoot, "--ide", "claude-code"], cliRoot);
+
+    await expect(fs.pathExists(path.join(projectRoot, "CLAUDE.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".claude", "skills", "film-workflow", "SKILL.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".claude", "commands", "ai-video-workflow.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".claude", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"))).resolves.toBe(true);
+  });
+
   test("init accepts explicit options for scripted project creation", async () => {
     const cliRoot = path.resolve(__dirname, "..");
     const targetRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-init-"));

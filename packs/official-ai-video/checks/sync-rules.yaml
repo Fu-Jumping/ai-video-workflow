@@ -7,6 +7,9 @@ syncTargets:
     rulesDir: ".cursor/rules"
     skillsDir: ".cursor/skills"
   claude-code:
+    mirrorDir: ".claude/ai-video-workflow"
+    commandsDir: ".claude/commands"
     skillsDir: ".claude/skills"
+    rootEntry: "CLAUDE.md"
   trae:
     skillsDir: ".trae/skills"

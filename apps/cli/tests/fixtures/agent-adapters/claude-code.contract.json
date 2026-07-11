@@ -1,0 +1,41 @@
+{
+  "adapterId": "claude-code",
+  "displayName": "Claude Code",
+  "inputs": [
+    "packs/official-ai-video/",
+    "project.config.yaml",
+    "01_concept/",
+    "02_setting/",
+    "03_storyboard/",
+    "04_image_prompts/",
+    "05_video_prompts/",
+    "06_execution_plan/"
+  ],
+  "outputs": [
+    "CLAUDE.md",
+    ".claude/skills/",
+    ".claude/commands/",
+    ".claude/ai-video-workflow/"
+  ],
+  "syncDirection": "runtime-mirror",
+  "sourceOfTruth": "project-step-files",
+  "handoffSurfaces": [
+    "CLAUDE.md",
+    ".claude/commands/ai-video-workflow.md",
+    ".claude/skills/film-workflow/SKILL.md",
+    ".claude/ai-video-workflow/WORKFLOW_OVERVIEW.md"
+  ],
+  "verificationCommands": [
+    "ai-video-workflow verify --project <path> --ide claude-code"
+  ],
+  "forbiddenWrites": [
+    "Workflow/",
+    "Shots/",
+    "Canvas/",
+    "Bases/",
+    ".obsidian/",
+    "platform cache directories",
+    "absolute links"
+  ],
+  "failureBehavior": "Preserve user-authored root guidance, regenerate adapter-owned runtime mirrors, and report missing runtime outputs through verification without changing source Step files."
+}

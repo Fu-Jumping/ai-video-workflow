@@ -111,4 +111,54 @@ describe("syncProject", () => {
       expect(searchableContent, `${file} should not contain absolute local links`).not.toMatch(absoluteLinkPattern);
     }
   });
+
+  test("writes Claude Code skills, command entry, and runtime mirror from the official pack", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-claude-sync-"));
+    tempRoots.push(root);
+
+    await createProject({
+      targetRoot: root,
+      projectName: "claude-sync-project",
+      pack: "official-ai-video",
+      ide: "claude-code",
+      imagePlatform: "openai",
+      videoPlatform: "veo"
+    });
+
+    const projectRoot = path.join(root, "claude-sync-project");
+    await fs.remove(path.join(projectRoot, ".claude"));
+    await fs.remove(path.join(projectRoot, "CLAUDE.md"));
+
+    await syncProject({
+      repoRoot: path.resolve(__dirname, "../../.."),
+      projectRoot,
+      ide: "claude-code",
+      pack: "official-ai-video"
+    });
+
+    await expect(fs.pathExists(path.join(projectRoot, "CLAUDE.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".claude", "skills", "film-workflow", "SKILL.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".claude", "commands", "ai-video-workflow.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".claude", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".claude", "ai-video-workflow", "workflow"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".claude", "ai-video-workflow", "skills", "film-workflow.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".claude", "ai-video-workflow", "skill-bundles", "film-workflow", "SKILL.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".claude", "ai-video-workflow", "templates"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".claude", "ai-video-workflow", "indexes"))).resolves.toBe(true);
+
+    const claudeEntry = await fs.readFile(path.join(projectRoot, "CLAUDE.md"), "utf8");
+    expect(claudeEntry).toContain("Step 1 to Step 6 files");
+    expect(claudeEntry).toContain(".claude/ai-video-workflow/");
+
+    const claudeRuntimeRoot = path.join(projectRoot, ".claude");
+    const runtimeFiles = await listTextRuntimeFiles(claudeRuntimeRoot);
+    for (const file of runtimeFiles) {
+      const content = await fs.readFile(path.join(claudeRuntimeRoot, file), "utf8");
+      const searchableContent = content.replace(inlineCodePattern, "");
+      expect(searchableContent, `${file} should not contain absolute local links`).not.toMatch(absoluteLinkPattern);
+    }
+
+    const searchableClaudeEntry = claudeEntry.replace(inlineCodePattern, "");
+    expect(searchableClaudeEntry, "CLAUDE.md should not contain absolute local links").not.toMatch(absoluteLinkPattern);
+  });
 });

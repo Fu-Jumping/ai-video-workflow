@@ -76,9 +76,59 @@ async function syncCursor(projectRoot: string, packRoot: string): Promise<void> 
   await writeFileIfMissing(path.join(projectRoot, "AGENTS.md"), "# Cursor Compatibility Entry\n");
 }
 
-async function syncClaudeCode(projectRoot: string, packRoot: string): Promise<void> {
+async function syncClaudeCode(repoRoot: string, projectRoot: string, packRoot: string): Promise<void> {
   await copyDirectory(path.join(packRoot, "skills"), path.join(projectRoot, ".claude", "skills"));
-  await writeFileIfMissing(path.join(projectRoot, "CLAUDE.md"), "# Claude Code Compatibility Entry\n");
+  await copyDirectory(path.join(packRoot, "workflow"), path.join(projectRoot, ".claude", "ai-video-workflow", "workflow"));
+  await copyDirectory(path.join(packRoot, "skills-longform"), path.join(projectRoot, ".claude", "ai-video-workflow", "skills"));
+  await copyDirectory(path.join(packRoot, "skills"), path.join(projectRoot, ".claude", "ai-video-workflow", "skill-bundles"));
+  await copyDirectory(path.join(packRoot, "templates"), path.join(projectRoot, ".claude", "ai-video-workflow", "templates"));
+  await copyDirectory(path.join(packRoot, "workflow", "indexes"), path.join(projectRoot, ".claude", "ai-video-workflow", "indexes"));
+  await writeFileIfMissing(
+    path.join(projectRoot, ".claude", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"),
+    await fs.readFile(path.join(repoRoot, "WORKFLOW_OVERVIEW.md"), "utf8")
+  );
+  await writeFileIfMissing(
+    path.join(projectRoot, "CLAUDE.md"),
+    [
+      "# Claude Code Runtime",
+      "",
+      "Use project Step 1 to Step 6 files as the source of truth.",
+      "",
+      "Read order:",
+      "",
+      "1. `project.config.yaml`",
+      "2. `CLAUDE.md`",
+      "3. `.claude/ai-video-workflow/WORKFLOW_OVERVIEW.md`",
+      "4. `.claude/skills/<skill>/SKILL.md`",
+      "5. Source Step files in the project",
+      "",
+      "Runtime boundaries:",
+      "",
+      "- `.claude/ai-video-workflow/` is a generated runtime mirror.",
+      "- `.claude/skills/` contains adapter-ready skill bundles.",
+      "- `.claude/commands/ai-video-workflow.md` is a command-style handoff entry.",
+      "- Do not edit generated Obsidian projection files as the workflow source.",
+      "- Keep Step 3 and Step 4 frame-aligned.",
+      "- Keep Step 4 file contracts intact.",
+      "- Use relative links only."
+    ].join("\n")
+  );
+  await writeFileIfMissing(
+    path.join(projectRoot, ".claude", "commands", "ai-video-workflow.md"),
+    [
+      "# AI Video Workflow Command Entry",
+      "",
+      "When working on this project:",
+      "",
+      "1. Read `project.config.yaml`.",
+      "2. Read `.claude/ai-video-workflow/WORKFLOW_OVERVIEW.md`.",
+      "3. Use `.claude/skills/film-workflow/SKILL.md` for workflow execution.",
+      "4. Edit source Step files only when changing project truth.",
+      "5. Run `ai-video-workflow verify --project <path> --ide claude-code` after changes.",
+      "",
+      "Do not treat `.claude/ai-video-workflow/` or generated Obsidian vault files as upstream creative truth."
+    ].join("\n")
+  );
 }
 
 async function syncTrae(projectRoot: string, packRoot: string): Promise<void> {
@@ -97,7 +147,7 @@ async function syncIde(repoRoot: string, projectRoot: string, packRoot: string, 
       await syncCursor(projectRoot, packRoot);
       break;
     case "claude-code":
-      await syncClaudeCode(projectRoot, packRoot);
+      await syncClaudeCode(repoRoot, projectRoot, packRoot);
       break;
     case "trae":
       await syncTrae(projectRoot, packRoot);
