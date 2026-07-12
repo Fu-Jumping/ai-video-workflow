@@ -19,6 +19,7 @@ export interface ObsidianGeneratedFile {
   vaultPath: string;
   content: string;
   sourcePath?: string;
+  sourceContent?: string;
 }
 
 export type ObsidianExportOperationStatus =
@@ -40,14 +41,17 @@ export interface ObsidianProjectionManifestEntry {
   vaultPath: string;
   contentHash: string;
   sourcePath?: string;
+  sourceContentHash?: string;
 }
 
 export interface ObsidianProjectionManifest {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   generator: "ai-video-workflow";
   generatedAt: string;
   projectName: string;
   projectRoot: string;
+  projectRootRelativePath?: string;
+  viewMode?: "external-vault" | "in-project-view";
   files: ObsidianProjectionManifestEntry[];
 }
 

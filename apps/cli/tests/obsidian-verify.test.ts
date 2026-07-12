@@ -4,8 +4,9 @@ import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { exportObsidianVault } from "../src/lib/obsidian/export.js";
-import { projectionManifestPath } from "../src/lib/obsidian/manifest.js";
+import { projectionManifestPath, readProjectionManifest, renderProjectionManifest } from "../src/lib/obsidian/manifest.js";
 import { verifyObsidianVault } from "../src/lib/obsidian/verify.js";
+import type { ObsidianProjectionManifest } from "../src/lib/obsidian/types.js";
 
 const tempRoots: string[] = [];
 
@@ -62,6 +63,69 @@ describe("verifyObsidianVault", () => {
 
     expect(result.ok).toBe(false);
     expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "obsidian-manifest-hash-mismatch" })]));
+  });
+
+  test("fails when source files changed after an in-project view export", async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-stale-project-"));
+    tempRoots.push(projectRoot);
+    await fs.copy(officialExampleRoot(), projectRoot);
+    const outRoot = path.join(projectRoot, "_views", "obsidian");
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    await fs.appendFile(path.join(projectRoot, "03_storyboard", "shot-001.md"), "\nSource changed after projection export.\n", "utf8");
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "obsidian-view-stale",
+          message: expect.stringContaining("03_storyboard/shot-001.md")
+        })
+      ])
+    );
+  });
+
+  test("accepts schema version 1 manifests without source content hashes", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-schema-v1-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    const manifest = (await readProjectionManifest(outRoot)) as ObsidianProjectionManifest;
+    const schemaV1Manifest: ObsidianProjectionManifest = {
+      ...manifest,
+      schemaVersion: 1,
+      projectRoot: ".",
+      projectRootRelativePath: undefined,
+      viewMode: undefined,
+      files: manifest.files.map(({ sourceContentHash: _sourceContentHash, ...entry }) => entry)
+    };
+    await fs.writeFile(path.join(outRoot, projectionManifestPath), renderProjectionManifest(schemaV1Manifest), "utf8");
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(true);
+  });
+
+  test("fails when projection manifest contains a local absolute path", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-absolute-manifest-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    const manifest = (await readProjectionManifest(outRoot)) as ObsidianProjectionManifest;
+    await fs.writeFile(
+      path.join(outRoot, projectionManifestPath),
+      renderProjectionManifest({
+        ...manifest,
+        projectRoot: "G:\\private\\project"
+      }),
+      "utf8"
+    );
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "invalid-obsidian-manifest" })]));
   });
 
   test("fails when Review Map canvas is missing", async () => {

@@ -14,7 +14,8 @@ export function manifestEntryForFile(file: ObsidianGeneratedFile): ObsidianProje
   return {
     vaultPath: file.vaultPath,
     contentHash: hashContent(file.content),
-    sourcePath: file.sourcePath
+    sourcePath: file.sourcePath,
+    sourceContentHash: file.sourceContent ? hashContent(file.sourceContent) : undefined
   };
 }
 

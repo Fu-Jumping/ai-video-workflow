@@ -37,7 +37,8 @@ export type IssueCode =
   | "invalid-obsidian-manifest"
   | "missing-obsidian-manifest-file"
   | "obsidian-manifest-hash-mismatch"
-  | "obsidian-manifest-source-mismatch";
+  | "obsidian-manifest-source-mismatch"
+  | "obsidian-view-stale";
 
 export interface ProjectConfig {
   pack: string;

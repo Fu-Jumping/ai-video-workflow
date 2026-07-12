@@ -70,6 +70,55 @@ describe("scanProjectForObsidian", () => {
 });
 
 describe("exportObsidianVault", () => {
+  test("writes a privacy-safe schema v2 manifest for in-project view exports", async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-in-project-manifest-"));
+    tempRoots.push(projectRoot);
+    await fs.copy(officialExampleRoot(), projectRoot);
+    const outRoot = path.join(projectRoot, "_views", "obsidian");
+
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+
+    const manifest = await readProjectionManifest(outRoot);
+    const manifestJson = JSON.stringify(manifest);
+    expect(manifest).toEqual(
+      expect.objectContaining({
+        schemaVersion: 2,
+        viewMode: "in-project-view",
+        projectRoot: ".",
+        projectRootRelativePath: "../.."
+      })
+    );
+    expect(manifest?.files).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          vaultPath: "Workflow/Step 3 - Storyboard/Shot 001 - Storyboard.md",
+          sourcePath: "03_storyboard/shot-001.md",
+          sourceContentHash: expect.any(String)
+        })
+      ])
+    );
+    expect(manifestJson).not.toMatch(/(^|[^A-Za-z])[A-Za-z]:[\\/]|file:\/\/|vscode:\/\//i);
+  });
+
+  test("writes a privacy-safe schema v2 manifest for external vault exports", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-external-manifest-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+
+    const manifest = await readProjectionManifest(outRoot);
+    const manifestJson = JSON.stringify(manifest);
+    expect(manifest).toEqual(
+      expect.objectContaining({
+        schemaVersion: 2,
+        viewMode: "external-vault",
+        projectRoot: "."
+      })
+    );
+    expect(manifest?.projectRootRelativePath).toBeUndefined();
+    expect(manifestJson).not.toMatch(/(^|[^A-Za-z])[A-Za-z]:[\\/]|file:\/\/|vscode:\/\//i);
+  });
+
   test("exports generated workflow notes with provenance frontmatter", async () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-"));
     tempRoots.push(outRoot);
@@ -311,6 +360,18 @@ describe("exportObsidianVault", () => {
 
     await expect(fs.pathExists(userNote)).resolves.toBe(false);
     expect(result.operations.every((operation) => operation.status === "created")).toBe(true);
+  });
+
+  test("force export refuses to remove an output directory containing .git", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-force-git-"));
+    tempRoots.push(outRoot);
+    await fs.ensureDir(path.join(outRoot, ".git"));
+    await fs.writeFile(path.join(outRoot, ".git", "config"), "[core]\n", "utf8");
+
+    await expect(
+      exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true })
+    ).rejects.toThrow("Refusing to force-remove an Obsidian output directory containing .git");
+    await expect(fs.pathExists(path.join(outRoot, ".git", "config"))).resolves.toBe(true);
   });
 
   test("dry-run reports operations without writing files", async () => {

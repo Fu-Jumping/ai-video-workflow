@@ -43,6 +43,7 @@ const requiredShotReviewMarkers = [
   "Review Canvas"
 ];
 const absoluteLinkPattern = /([A-Za-z]:\\|[A-Za-z]:\/|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
+const unsafeLocalPathStringPattern = /(^|[^A-Za-z])[A-Za-z]:[\\/]|file:\/\/|vscode:\/\//i;
 
 interface VerifyObsidianOptions {
   projectRoot: string;
@@ -71,7 +72,13 @@ function vaultFsPath(vaultRoot: string, vaultPath: string): string {
 }
 
 function isRelativeVaultPath(value: string): boolean {
-  return !path.isAbsolute(value) && !value.includes(":\\") && !value.includes(":/") && !value.startsWith("file://") && !value.startsWith("vscode://");
+  return (
+    !path.isAbsolute(value) &&
+    !unsafeLocalPathStringPattern.test(value) &&
+    !value.startsWith("../") &&
+    !value.includes("/../") &&
+    !value.includes("\\..\\")
+  );
 }
 
 function collectJsonStrings(value: unknown, strings: string[] = []): string[] {
@@ -91,6 +98,10 @@ function collectJsonStrings(value: unknown, strings: string[] = []): string[] {
 
 function containsUnsafePathString(value: unknown): boolean {
   return collectJsonStrings(value).some((item) => !isRelativeVaultPath(item) && /\.(md|canvas|base|json)$/i.test(item));
+}
+
+function containsUnsafeManifestString(value: unknown): boolean {
+  return collectJsonStrings(value).some((item) => unsafeLocalPathStringPattern.test(item));
 }
 
 function sourceFsPath(projectRoot: string, sourcePath: string): string {
@@ -272,7 +283,12 @@ function manifestEntryByVaultPath(manifest: ObsidianProjectionManifest | null): 
 }
 
 function isValidManifest(manifest: ObsidianProjectionManifest): boolean {
-  return manifest.schemaVersion === 1 && manifest.generator === "ai-video-workflow" && Array.isArray(manifest.files);
+  return (
+    (manifest.schemaVersion === 1 || manifest.schemaVersion === 2) &&
+    manifest.generator === "ai-video-workflow" &&
+    typeof manifest.projectRoot === "string" &&
+    Array.isArray(manifest.files)
+  );
 }
 
 async function verifyManifest(projectRoot: string, vaultRoot: string, issues: VerificationIssue[]): Promise<ObsidianProjectionManifest | null> {
@@ -293,6 +309,14 @@ async function verifyManifest(projectRoot: string, vaultRoot: string, issues: Ve
     pushIssue(issues, { code: "invalid-obsidian-manifest", message: "Obsidian projection manifest schema is invalid", path: projectionManifestPath });
     return null;
   }
+  if (
+    containsUnsafeManifestString(manifest) ||
+    path.isAbsolute(manifest.projectRoot) ||
+    (manifest.projectRootRelativePath && path.isAbsolute(manifest.projectRootRelativePath))
+  ) {
+    pushIssue(issues, { code: "invalid-obsidian-manifest", message: "Obsidian projection manifest contains an unsafe local path", path: projectionManifestPath });
+    return null;
+  }
 
   for (const entry of manifest.files) {
     if (!entry.vaultPath || !isRelativeVaultPath(entry.vaultPath) || !entry.contentHash) {
@@ -310,6 +334,16 @@ async function verifyManifest(projectRoot: string, vaultRoot: string, issues: Ve
     }
     if (entry.sourcePath && (!isRelativeVaultPath(entry.sourcePath) || !(await fs.pathExists(sourceFsPath(projectRoot, entry.sourcePath))))) {
       pushIssue(issues, { code: "obsidian-manifest-source-mismatch", message: `Manifest source path does not resolve: ${entry.sourcePath}`, path: entry.vaultPath });
+    }
+    if (manifest.schemaVersion === 2 && entry.sourcePath && entry.sourceContentHash) {
+      const sourcePath = sourceFsPath(projectRoot, entry.sourcePath);
+      if ((await fs.pathExists(sourcePath)) && hashContent(await fs.readFile(sourcePath, "utf8")) !== entry.sourceContentHash) {
+        pushIssue(issues, {
+          code: "obsidian-view-stale",
+          message: `Obsidian projection is stale for source file: ${entry.sourcePath}`,
+          path: entry.vaultPath
+        });
+      }
     }
   }
   return manifest;

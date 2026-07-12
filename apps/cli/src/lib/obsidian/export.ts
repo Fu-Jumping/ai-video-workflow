@@ -23,6 +23,7 @@ import type {
   ObsidianProjectionManifestEntry
 } from "./types.js";
 import { isDirectObsidianUiConfigPath, renderObsidianUiConfigFiles } from "./ui-config.js";
+import { resolveInProjectObsidianView } from "../view-layer.js";
 
 async function assertSafeOutput(projectRoot: string, outRoot: string): Promise<void> {
   const resolvedProject = path.resolve(projectRoot);
@@ -63,6 +64,15 @@ function manifestByVaultPath(manifest: ObsidianProjectionManifest | null): Map<s
     entries.set(entry.vaultPath, entry);
   }
   return entries;
+}
+
+function sameFsPath(left: string, right: string): boolean {
+  const resolvedLeft = path.resolve(left);
+  const resolvedRight = path.resolve(right);
+  if (process.platform === "win32") {
+    return resolvedLeft.toLowerCase() === resolvedRight.toLowerCase();
+  }
+  return resolvedLeft === resolvedRight;
 }
 
 async function planGeneratedFiles(
@@ -147,6 +157,7 @@ async function writeGeneratedFiles(outRoot: string, files: ObsidianGeneratedFile
 
 function createManifest(
   projectRoot: string,
+  outRoot: string,
   projectName: string,
   files: ObsidianGeneratedFile[],
   operations: ObsidianExportOperation[],
@@ -164,12 +175,15 @@ function createManifest(
       nextEntries.push(previousEntry);
     }
   }
+  const viewMode = sameFsPath(outRoot, resolveInProjectObsidianView(projectRoot)) ? "in-project-view" : "external-vault";
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     generator: "ai-video-workflow",
     generatedAt: new Date().toISOString(),
     projectName,
-    projectRoot,
+    projectRoot: ".",
+    ...(viewMode === "in-project-view" ? { projectRootRelativePath: "../.." } : {}),
+    viewMode,
     files: nextEntries.sort((left, right) => left.vaultPath.localeCompare(right.vaultPath))
   };
 }
@@ -179,6 +193,9 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
   const outRoot = path.resolve(options.outRoot);
   await assertSafeOutput(projectRoot, outRoot);
   if (options.force && !options.dryRun) {
+    if (await fs.pathExists(path.join(outRoot, ".git"))) {
+      throw new Error("Refusing to force-remove an Obsidian output directory containing .git");
+    }
     await fs.remove(outRoot);
   }
   if (!options.dryRun) {
@@ -193,7 +210,8 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
     workflowFiles.push({
       vaultPath: workflowVaultPath(sourceFile),
       content: renderGeneratedWorkflowNote(sourceFile, originalContent, projectName),
-      sourcePath: sourceFile.sourcePath
+      sourcePath: sourceFile.sourcePath,
+      sourceContent: originalContent
     });
   }
 
@@ -209,7 +227,7 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
   ];
   const previousManifest = options.force ? null : await readProjectionManifest(outRoot);
   const operations = await planGeneratedFiles(outRoot, files, previousManifest, Boolean(options.force));
-  const manifest = createManifest(projectRoot, projectName, files, operations, previousManifest);
+  const manifest = createManifest(projectRoot, outRoot, projectName, files, operations, previousManifest);
   if (!options.dryRun) {
     await writeGeneratedFiles(outRoot, files, operations);
     await fs.writeFile(vaultFsPath(outRoot, projectionManifestPath), renderProjectionManifest(manifest), "utf8");
