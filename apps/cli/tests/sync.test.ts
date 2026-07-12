@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 
+import { STEP_DIRS } from "../src/lib/constants.js";
 import { createProject } from "../src/lib/init.js";
 import { syncProject } from "../src/lib/sync.js";
 
@@ -14,6 +15,29 @@ const gitignoreBlockMarker = "ai-video-workflow generated and local surfaces";
 afterEach(async () => {
   await Promise.all(tempRoots.splice(0).map((dir) => fs.remove(dir)));
 });
+
+async function seedWorkflowProject(projectRoot: string, ide = "codex"): Promise<void> {
+  await fs.ensureDir(projectRoot);
+  await fs.writeFile(
+    path.join(projectRoot, "project.config.yaml"),
+    [
+      "pack: official-ai-video",
+      `ide: ${ide}`,
+      "platforms:",
+      "  image:",
+      "    default: openai",
+      "  video:",
+      "    default: runway",
+      "workflow:",
+      "  enhanced_flow:",
+      "    enabled: true"
+    ].join("\n"),
+    "utf8"
+  );
+  for (const stepDir of STEP_DIRS) {
+    await fs.ensureDir(path.join(projectRoot, stepDir));
+  }
+}
 
 async function listTextRuntimeFiles(root: string, current = root): Promise<string[]> {
   const entries = await fs.readdir(current, { withFileTypes: true });
@@ -57,6 +81,7 @@ describe("syncProject", () => {
   test("creates a project gitignore with generated and local surface protections", async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-sync-gitignore-"));
     tempRoots.push(projectRoot);
+    await seedWorkflowProject(projectRoot);
 
     await syncProject({
       repoRoot: path.resolve(__dirname, "../../.."),
@@ -77,6 +102,7 @@ describe("syncProject", () => {
   test("preserves existing project gitignore content and appends the generated surface block once", async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-sync-existing-gitignore-"));
     tempRoots.push(projectRoot);
+    await seedWorkflowProject(projectRoot);
     await fs.writeFile(path.join(projectRoot, ".gitignore"), "custom-build/\n", "utf8");
 
     await syncProject({
@@ -310,6 +336,7 @@ describe("syncProject", () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-shared-preserve-"));
     tempRoots.push(root);
     const projectRoot = path.join(root, "preserve-project");
+    await seedWorkflowProject(projectRoot, "claude-code");
     await fs.ensureDir(path.join(projectRoot, "docs", "ai-workspace"));
     await fs.ensureDir(path.join(projectRoot, ".claude", "commands"));
     await fs.writeFile(path.join(projectRoot, "AGENTS.md"), "# Custom Agents\n", "utf8");
@@ -347,7 +374,7 @@ describe("syncProject", () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-custom-agents-"));
     tempRoots.push(root);
     const projectRoot = path.join(root, "custom-agents-project");
-    await fs.ensureDir(projectRoot);
+    await seedWorkflowProject(projectRoot);
     await fs.writeFile(path.join(projectRoot, "AGENTS.md"), "# Custom Agents\n\nRead SOUL.md first.\n", "utf8");
     await fs.writeFile(path.join(projectRoot, "SOUL.md"), "# Cherry Soul\n", "utf8");
     await fs.writeFile(path.join(projectRoot, "USER.md"), "# Cherry User\n", "utf8");
@@ -367,6 +394,61 @@ describe("syncProject", () => {
     expect(reconciliation).toContain("SOUL.md");
     expect(reconciliation).toContain("USER.md");
     expect(reconciliation).toContain("memory/");
+  });
+
+  test("refuses to sync a missing project root", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-sync-missing-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "missing-project");
+
+    await expect(
+      syncProject({
+        repoRoot: path.resolve(__dirname, "../../.."),
+        projectRoot,
+        ide: "codex",
+        pack: "official-ai-video"
+      })
+    ).rejects.toThrow("does not exist");
+
+    await expect(fs.pathExists(projectRoot)).resolves.toBe(false);
+  });
+
+  test("refuses to sync a file path", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-sync-file-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "not-a-directory.md");
+    await fs.writeFile(projectRoot, "# Not a project\n", "utf8");
+
+    await expect(
+      syncProject({
+        repoRoot: path.resolve(__dirname, "../../.."),
+        projectRoot,
+        ide: "codex",
+        pack: "official-ai-video"
+      })
+    ).rejects.toThrow("must be a directory");
+  });
+
+  test("refuses to sync the tool repository root or source subtrees", async () => {
+    const repoRoot = path.resolve(__dirname, "../../..");
+
+    await expect(
+      syncProject({
+        repoRoot,
+        projectRoot: repoRoot,
+        ide: "codex",
+        pack: "official-ai-video"
+      })
+    ).rejects.toThrow("tool repository");
+
+    await expect(
+      syncProject({
+        repoRoot,
+        projectRoot: path.join(repoRoot, "apps", "cli"),
+        ide: "codex",
+        pack: "official-ai-video"
+      })
+    ).rejects.toThrow("source tree");
   });
 
   test("keeps shared workspace stable when syncing all IDE runtimes into one project", async () => {

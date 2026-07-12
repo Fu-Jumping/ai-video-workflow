@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { generatedLocalSurfaceIgnoreBlock, sharedAgentEntryContent, sharedAiWorkspaceDocs } from "./agent-workspace.js";
 import { copyDirectory, writeFileIfMissing } from "./fs-utils.js";
+import { assertCanSyncProject } from "./project-root.js";
 import type { Ide, SyncProjectOptions } from "./types.js";
 
 async function ensureSharedAgentWorkspace(projectRoot: string): Promise<void> {
@@ -244,6 +245,7 @@ async function syncIde(repoRoot: string, projectRoot: string, packRoot: string, 
 
 export async function syncProject(options: SyncProjectOptions): Promise<void> {
   const packRoot = path.join(options.repoRoot, "packs", options.pack);
+  await assertCanSyncProject(options.projectRoot, options.repoRoot);
   await ensureSharedAgentWorkspace(options.projectRoot);
   await ensureProjectGitignore(options.projectRoot);
   await syncIde(options.repoRoot, options.projectRoot, packRoot, options.ide);

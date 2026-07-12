@@ -6,6 +6,7 @@ import { STEP6_FILES, STEP_DIRS } from "./constants.js";
 import { copyDirectory } from "./fs-utils.js";
 import { validateSafeDirectoryName } from "./name-validation.js";
 import { resolveRepoRoot } from "./paths.js";
+import { assertCanInitializeProject } from "./project-root.js";
 import { syncProject } from "./sync.js";
 import type { CreateProjectOptions, ProjectConfig } from "./types.js";
 import { stringifyYaml } from "./yaml.js";
@@ -45,7 +46,7 @@ async function seedStarterFiles(repoRoot: string, projectRoot: string): Promise<
 
 export async function createProject(options: CreateProjectOptions): Promise<void> {
   const projectName = validateSafeDirectoryName(options.projectName, "Project name");
-  const projectRoot = path.join(options.targetRoot, projectName);
+  const projectRoot = await assertCanInitializeProject(options.targetRoot, projectName);
   const repoRoot = resolveRepoRoot(moduleDir);
   await fs.ensureDir(projectRoot);
   await seedStarterFiles(repoRoot, projectRoot);

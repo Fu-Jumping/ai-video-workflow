@@ -2,8 +2,14 @@ import type { VerificationIssue } from "./types.js";
 import { sharedAgentEntryMergeBlock } from "./agent-workspace.js";
 
 const groups: Record<string, string> = {
+  "missing-project-root": "Project Root",
+  "project-root-not-directory": "Project Root",
+  "invalid-sync-target": "Project Root",
+  "nested-project": "Project Root",
   "missing-step6-file": "Structure",
   "missing-config": "Structure",
+  "invalid-project-config": "Configuration",
+  "invalid-project-config-yaml": "Configuration",
   "missing-image-default-platform": "Configuration",
   "missing-video-default-platform": "Configuration",
   "missing-step4-section": "Step 4 Contract",
@@ -70,8 +76,23 @@ export async function diagnoseProject({
     lines.push(`## ${group}`, "");
     for (const issue of bucket) {
       lines.push(`- ${issue.message}${issue.path ? ` (${issue.path})` : ""}`);
+      if (issue.code === "missing-project-root") {
+        lines.push("  Choose an existing creative project directory, or create one first with `ai-video-workflow init` from a clean parent directory.");
+      }
+      if (issue.code === "project-root-not-directory") {
+        lines.push("  Pass the project directory path, not a file path.");
+      }
+      if (issue.code === "invalid-sync-target") {
+        lines.push("  Run `sync` only on an existing ai-video-workflow creative project, not the tool repository or source tree.");
+      }
+      if (issue.code === "nested-project") {
+        lines.push("  Move the nested project out to its own parent directory. Do not keep one ai-video-workflow project inside another.");
+      }
       if (issue.code === "missing-config") {
-        lines.push("  Create `project.config.yaml` or rerun `ai-video-workflow init`.");
+        lines.push("  If this is a new project, create it in a clean parent directory with `ai-video-workflow init`. If files already exist here, inspect them before initializing.");
+      }
+      if (issue.code === "invalid-project-config" || issue.code === "invalid-project-config-yaml") {
+        lines.push("  Fix `project.config.yaml` so it uses the official pack, a supported IDE, supported default platforms, and `workflow.enhanced_flow.enabled: true` or `false`.");
       }
       if (issue.code === "missing-image-default-platform") {
         lines.push("  Add `platforms.image.default` to `project.config.yaml`.");

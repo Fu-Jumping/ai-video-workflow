@@ -5,6 +5,12 @@ export type AdapterId = Ide | "obsidian" | "mcp" | "cherry-studio";
 export type Platform = "openai" | "veo" | "runway" | "luma" | "minimax";
 
 export type IssueCode =
+  | "missing-project-root"
+  | "project-root-not-directory"
+  | "invalid-project-config"
+  | "invalid-project-config-yaml"
+  | "nested-project"
+  | "invalid-sync-target"
   | "missing-config"
   | "missing-image-default-platform"
   | "missing-video-default-platform"
