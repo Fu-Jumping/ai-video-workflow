@@ -26,9 +26,10 @@
     "docs/ai-workspace/HANDOFFS.md"
   ],
   "generatedSurfaces": [
-    "none in v0.6"
+    "_views/obsidian/"
   ],
   "userOwnedSurfaces": [
+    "_views/obsidian/Notes/",
     "soul.md",
     "user.md",
     "USER.md",
@@ -39,6 +40,8 @@
     "MEMORY_FILE_PATH"
   ],
   "privateRuntimeSurfaces": [
+    ".obsidian/",
+    "_views/obsidian/.obsidian/",
     "Cherry Studio app data",
     "Cherry Studio global memory",
     "@cherry/memory",
@@ -62,6 +65,12 @@
     "Cherry Studio global memory",
     "@cherry/memory",
     "platform caches",
+    "_views/obsidian/Workflow/",
+    "_views/obsidian/Shots/",
+    "_views/obsidian/Bases/",
+    "_views/obsidian/Canvas/",
+    "_views/obsidian/Projection Manifest.json",
+    "_views/obsidian/.obsidian/",
     "Workflow/",
     "Shots/",
     "Canvas/",

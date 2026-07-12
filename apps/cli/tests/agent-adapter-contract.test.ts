@@ -60,7 +60,15 @@ describe("agent adapter contract", () => {
   test("documents every adapter fixture without replacing Step files", async () => {
     const fixtureNames = (await fs.readdir(fixturesRoot())).filter((fileName) => fileName.endsWith(".contract.json"));
     expect(fixtureNames).toEqual(
-      expect.arrayContaining(["codex.contract.json", "claude-code.contract.json", "trae.contract.json", "mcp.contract.json", "cherry-studio.contract.json"])
+      expect.arrayContaining([
+        "codex.contract.json",
+        "cursor.contract.json",
+        "claude-code.contract.json",
+        "trae.contract.json",
+        "obsidian.contract.json",
+        "mcp.contract.json",
+        "cherry-studio.contract.json"
+      ])
     );
 
     for (const fixtureName of fixtureNames) {
@@ -76,10 +84,24 @@ describe("agent adapter contract", () => {
       expectStringArray(contract.inputs);
       expectStringArray(contract.outputs);
       expectStringArray(contract.handoffSurfaces);
+      expectStringArray(contract.generatedSurfaces);
+      expectStringArray(contract.userOwnedSurfaces);
+      expectStringArray(contract.privateRuntimeSurfaces);
       expectStringArray(contract.verificationCommands);
       expectStringArray(contract.forbiddenWrites);
 
       expect(contract.forbiddenWrites, `${fixtureName} forbiddenWrites`).toEqual(expect.arrayContaining([".obsidian/", "absolute links"]));
+      expect(contract.generatedSurfaces, `${fixtureName} generatedSurfaces`).toEqual(expect.arrayContaining(["_views/obsidian/"]));
+      expect(contract.forbiddenWrites, `${fixtureName} generated Obsidian forbiddenWrites`).toEqual(
+        expect.arrayContaining([
+          "_views/obsidian/Workflow/",
+          "_views/obsidian/Shots/",
+          "_views/obsidian/Bases/",
+          "_views/obsidian/Canvas/",
+          "_views/obsidian/Projection Manifest.json",
+          "_views/obsidian/.obsidian/"
+        ])
+      );
     }
   });
 
@@ -93,6 +115,19 @@ describe("agent adapter contract", () => {
     expect(contract.outputs).toEqual(expect.arrayContaining([".codex/ai-video-workflow/", ".codex/skills/"]));
     expect(contract.verificationCommands).toEqual(expect.arrayContaining(["ai-video-workflow verify --project <path> --ide codex"]));
     expect(contract.forbiddenWrites).toEqual(expect.arrayContaining([".obsidian/", "absolute links"]));
+  });
+
+  test("documents Cursor adapter output locations", async () => {
+    const contract = await fs.readJson(fixturePath("cursor.contract.json")) as AgentAdapterContract;
+
+    expect(contract.adapterId).toBe("cursor");
+    expect(contract.syncDirection).toBe("runtime-mirror");
+    expect(contract.sourceOfTruth).toBe("project-step-files");
+
+    expect(contract.outputs).toEqual(expect.arrayContaining([".cursor/rules/", ".cursor/ai-video-workflow/", ".cursor/skills/"]));
+    expect(contract.generatedSurfaces).toEqual(expect.arrayContaining([".cursor/", "_views/obsidian/"]));
+    expect(contract.userOwnedSurfaces).toEqual(expect.arrayContaining(["_views/obsidian/Notes/"]));
+    expect(contract.forbiddenWrites).toEqual(expect.arrayContaining(["_views/obsidian/Workflow/", ".obsidian/", "absolute links"]));
   });
 
   test("documents Claude Code adapter output locations", async () => {
@@ -139,6 +174,12 @@ describe("agent adapter contract", () => {
         "04_image_prompts/",
         "05_video_prompts/",
         "06_execution_plan/",
+        "_views/obsidian/Workflow/",
+        "_views/obsidian/Shots/",
+        "_views/obsidian/Bases/",
+        "_views/obsidian/Canvas/",
+        "_views/obsidian/Projection Manifest.json",
+        "_views/obsidian/.obsidian/",
         "Workflow/",
         "Shots/",
         "Canvas/",
@@ -149,6 +190,23 @@ describe("agent adapter contract", () => {
         ".claude/",
         ".trae/",
         "absolute links"
+      ])
+    );
+  });
+
+  test("documents Obsidian as a generated view adapter", async () => {
+    const contract = await fs.readJson(fixturePath("obsidian.contract.json")) as AgentAdapterContract;
+
+    expect(contract.adapterId).toBe("obsidian");
+    expect(contract.syncDirection).toBe("one-way-project-to-adapter");
+    expect(contract.sourceOfTruth).toBe("project-step-files");
+    expect(contract.outputs).toEqual(expect.arrayContaining(["_views/obsidian/Workflow/", "_views/obsidian/Projection Manifest.json"]));
+    expect(contract.userOwnedSurfaces).toEqual(expect.arrayContaining(["_views/obsidian/Notes/"]));
+    expect(contract.privateRuntimeSurfaces).toEqual(expect.arrayContaining(["_views/obsidian/.obsidian/", ".obsidian/"]));
+    expect(contract.verificationCommands).toEqual(
+      expect.arrayContaining([
+        "ai-video-workflow export-obsidian --project <path> --in-project-view",
+        "ai-video-workflow verify-obsidian --project <path> --in-project-view"
       ])
     );
   });

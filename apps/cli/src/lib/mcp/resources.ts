@@ -22,7 +22,13 @@ function projectHandoffMarkdown(context: McpProjectContext): string {
     "- Visual prompt and consistency changes: Step 4 image prompt files.",
     "- Motion and camera behavior changes: Step 5 video prompt files.",
     "- Execution logistics: Step 6 execution plan files.",
+    "- `_views/obsidian/` is a generated Obsidian viewing layer. Refresh it after source edits.",
+    "- `_views/obsidian/Notes/` may contain user observations, but it does not replace Step files.",
     "- Do not edit Obsidian projections, IDE runtime mirrors, or MCP resources as source files.",
+    "",
+    "Refresh command:",
+    "",
+    `- \`${context.viewLayers.obsidian.refreshCommand}\``,
     "",
     "## Shots",
     "",
@@ -41,7 +47,8 @@ function packOverviewMarkdown(context: McpProjectContext): string {
     `Pack: \`${context.project.pack}\``,
     "",
     "The pack defines the Step 1 to Step 6 workflow, templates, skills, and file contracts.",
-    "Project Step files remain the source of truth. MCP resources are read-only context."
+    "Project Step files remain the source of truth. MCP resources are read-only context.",
+    "`_views/obsidian/` is a generated viewing layer and should not be fed back as source files."
   ].join("\n");
 }
 
@@ -54,7 +61,8 @@ export function buildMcpResources(context: McpProjectContext): McpResourceDefini
       text: asJson({
         project: context.project,
         shotCount: context.shots.length,
-        steps: context.steps
+        steps: context.steps,
+        viewLayers: context.viewLayers
       })
     },
     {

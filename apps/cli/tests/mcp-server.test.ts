@@ -29,6 +29,8 @@ describe("MCP resources", () => {
       ])
     );
     expect(JSON.stringify(resources)).not.toMatch(/[A-Z]:\\\\|[A-Z]:\\\/|file:\/\/|vscode:\/\//);
+    expect(JSON.stringify(resources)).toContain("_views/obsidian");
+    expect(JSON.stringify(resources)).toContain("viewing layer");
   });
 });
 
@@ -47,6 +49,8 @@ describe("MCP prompts", () => {
       ])
     );
     expect(JSON.stringify(prompts)).toContain("Do not edit Obsidian projections");
+    expect(JSON.stringify(prompts)).toContain("_views/obsidian");
+    expect(JSON.stringify(prompts)).toContain("does not replace Step files");
     expect(JSON.stringify(prompts)).toContain("Step 4");
   });
 });
@@ -63,7 +67,7 @@ describe("MCP tools", () => {
       expect.arrayContaining(["get_project_summary", "list_shots", "get_shot_context", "run_project_verify"])
     );
     expect(tools.map((tool) => tool.name)).not.toEqual(
-      expect.arrayContaining(["write_file", "sync_project", "export_obsidian", "run_libtv"])
+      expect.arrayContaining(["write_file", "sync_project", "export_obsidian", "write_obsidian_view", "run_libtv"])
     );
   });
 

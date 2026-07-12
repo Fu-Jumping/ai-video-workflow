@@ -34,12 +34,27 @@
     ".trae/skills/",
     ".trae/rules/",
     ".trae/specs/ai-video-workflow/",
-    ".trae/documents/ai-video-workflow/"
+    ".trae/documents/ai-video-workflow/",
+    "_views/obsidian/"
+  ],
+  "userOwnedSurfaces": [
+    "_views/obsidian/Notes/"
+  ],
+  "privateRuntimeSurfaces": [
+    ".trae/",
+    ".obsidian/",
+    "_views/obsidian/.obsidian/"
   ],
   "verificationCommands": [
     "ai-video-workflow verify --project <path> --ide trae"
   ],
   "forbiddenWrites": [
+    "_views/obsidian/Workflow/",
+    "_views/obsidian/Shots/",
+    "_views/obsidian/Bases/",
+    "_views/obsidian/Canvas/",
+    "_views/obsidian/Projection Manifest.json",
+    "_views/obsidian/.obsidian/",
     "Workflow/",
     "Shots/",
     "Canvas/",

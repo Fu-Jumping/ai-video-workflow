@@ -17,6 +17,20 @@
     ".claude/commands/",
     ".claude/ai-video-workflow/"
   ],
+  "generatedSurfaces": [
+    ".claude/skills/",
+    ".claude/commands/",
+    ".claude/ai-video-workflow/",
+    "_views/obsidian/"
+  ],
+  "userOwnedSurfaces": [
+    "_views/obsidian/Notes/"
+  ],
+  "privateRuntimeSurfaces": [
+    ".claude/",
+    ".obsidian/",
+    "_views/obsidian/.obsidian/"
+  ],
   "syncDirection": "runtime-mirror",
   "sourceOfTruth": "project-step-files",
   "handoffSurfaces": [
@@ -29,6 +43,12 @@
     "ai-video-workflow verify --project <path> --ide claude-code"
   ],
   "forbiddenWrites": [
+    "_views/obsidian/Workflow/",
+    "_views/obsidian/Shots/",
+    "_views/obsidian/Bases/",
+    "_views/obsidian/Canvas/",
+    "_views/obsidian/Projection Manifest.json",
+    "_views/obsidian/.obsidian/",
     "Workflow/",
     "Shots/",
     "Canvas/",

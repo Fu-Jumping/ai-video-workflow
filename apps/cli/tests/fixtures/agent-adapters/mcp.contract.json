@@ -18,6 +18,16 @@
   ],
   "syncDirection": "read-only-context",
   "sourceOfTruth": "project-step-files",
+  "generatedSurfaces": [
+    "_views/obsidian/"
+  ],
+  "userOwnedSurfaces": [
+    "_views/obsidian/Notes/"
+  ],
+  "privateRuntimeSurfaces": [
+    ".obsidian/",
+    "_views/obsidian/.obsidian/"
+  ],
   "handoffSurfaces": [
     "ai-video-workflow://handoff/project",
     "review_project",
@@ -38,6 +48,12 @@
     "04_image_prompts/",
     "05_video_prompts/",
     "06_execution_plan/",
+    "_views/obsidian/Workflow/",
+    "_views/obsidian/Shots/",
+    "_views/obsidian/Bases/",
+    "_views/obsidian/Canvas/",
+    "_views/obsidian/Projection Manifest.json",
+    "_views/obsidian/.obsidian/",
     "Workflow/",
     "Shots/",
     "Canvas/",

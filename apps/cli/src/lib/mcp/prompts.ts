@@ -14,7 +14,9 @@ export interface McpPromptDefinition {
 const boundaryText = [
   "Read the source Step files first.",
   "Edit only source Step files when changes are needed.",
-  "Do not edit Obsidian projections, IDE runtime mirrors, or MCP resources as source files.",
+  "Treat _views/obsidian as a generated viewing layer.",
+  "Notes/ may contain user observations, but it does not replace Step files.",
+  "Do not edit Obsidian projections under _views/obsidian, IDE runtime mirrors, or MCP resources as source files.",
   "Run verification after edits."
 ].join(" ");
 

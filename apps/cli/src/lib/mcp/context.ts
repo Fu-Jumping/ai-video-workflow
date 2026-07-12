@@ -34,6 +34,13 @@ export interface McpProjectContext {
   shots: McpShotContext[];
   verificationCommands: string[];
   editBoundaries: Record<string, string>;
+  viewLayers: {
+    obsidian: {
+      defaultVaultPath: "_views/obsidian";
+      sourceOfTruth: false;
+      refreshCommand: "ai-video-workflow export-obsidian --project <path> --in-project-view";
+    };
+  };
 }
 
 const workflowSteps: McpWorkflowStepContext[] = [
@@ -132,6 +139,8 @@ export async function buildMcpContext(options: BuildMcpContextOptions): Promise<
     shots,
     verificationCommands: [
       "ai-video-workflow verify --project <path> --ide codex",
+      "ai-video-workflow export-obsidian --project <path> --in-project-view",
+      "ai-video-workflow verify-obsidian --project <path> --in-project-view",
       "ai-video-workflow mcp-context --project <path>"
     ],
     editBoundaries: {
@@ -139,7 +148,14 @@ export async function buildMcpContext(options: BuildMcpContextOptions): Promise<
       image: "Edit Step 4 image prompt files.",
       motion: "Edit Step 5 video prompt files.",
       execution: "Edit Step 6 execution plan files.",
-      generated: "Do not edit Obsidian projections, IDE runtime mirrors, or MCP resources as source files."
+      generated: "Do not edit Obsidian projections under _views/obsidian, IDE runtime mirrors, Cherry Studio SOUL/USER/memory host surfaces, or MCP resources as source files."
+    },
+    viewLayers: {
+      obsidian: {
+        defaultVaultPath: "_views/obsidian",
+        sourceOfTruth: false,
+        refreshCommand: "ai-video-workflow export-obsidian --project <path> --in-project-view"
+      }
     }
   };
 }

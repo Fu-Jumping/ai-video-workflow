@@ -1,6 +1,6 @@
 {
-  "adapterId": "codex",
-  "displayName": "Codex",
+  "adapterId": "cursor",
+  "displayName": "Cursor",
   "inputs": [
     "packs/official-ai-video/",
     "project.config.yaml",
@@ -12,30 +12,38 @@
     "06_execution_plan/"
   ],
   "outputs": [
-    ".codex/ai-video-workflow/",
-    ".codex/skills/"
-  ],
-  "generatedSurfaces": [
-    ".codex/ai-video-workflow/",
-    ".codex/skills/",
-    "_views/obsidian/"
-  ],
-  "userOwnedSurfaces": [
-    "_views/obsidian/Notes/"
-  ],
-  "privateRuntimeSurfaces": [
-    ".codex/",
-    ".obsidian/",
-    "_views/obsidian/.obsidian/"
+    ".cursor/skills/",
+    ".cursor/rules/",
+    ".cursor/ai-video-workflow/"
   ],
   "syncDirection": "runtime-mirror",
   "sourceOfTruth": "project-step-files",
+  "sharedEntryPoints": [
+    "AGENTS.md",
+    "docs/ai-workspace/"
+  ],
+  "generatedSurfaces": [
+    ".cursor/",
+    "_views/obsidian/"
+  ],
+  "userOwnedSurfaces": [
+    "_views/obsidian/Notes/",
+    "SOUL.md",
+    "USER.md",
+    "memory/"
+  ],
+  "privateRuntimeSurfaces": [
+    ".cursor/",
+    ".obsidian/",
+    "_views/obsidian/.obsidian/"
+  ],
   "handoffSurfaces": [
-    ".codex/skills/film-workflow/SKILL.md",
-    ".codex/ai-video-workflow/WORKFLOW_OVERVIEW.md"
+    "AGENTS.md",
+    ".cursor/rules/ai-video-workflow.mdc",
+    ".cursor/skills/film-workflow/SKILL.md"
   ],
   "verificationCommands": [
-    "ai-video-workflow verify --project <path> --ide codex"
+    "ai-video-workflow verify --project <path> --ide cursor"
   ],
   "forbiddenWrites": [
     "_views/obsidian/Workflow/",
@@ -44,12 +52,8 @@
     "_views/obsidian/Canvas/",
     "_views/obsidian/Projection Manifest.json",
     "_views/obsidian/.obsidian/",
-    "Workflow/",
-    "Shots/",
-    "Canvas/",
-    "Bases/",
     ".obsidian/",
     "absolute links"
   ],
-  "failureBehavior": "Report missing or stale runtime files through verification; rerun sync to rebuild Codex runtime mirrors without changing source Step files."
+  "failureBehavior": "Regenerate adapter-owned .cursor runtime mirrors and report missing outputs through verification without changing source Step files or Obsidian projection files."
 }

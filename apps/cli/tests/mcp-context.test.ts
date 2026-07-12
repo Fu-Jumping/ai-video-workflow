@@ -25,9 +25,17 @@ describe("MCP read-only context", () => {
     expect(context.verificationCommands).toEqual(
       expect.arrayContaining([
         "ai-video-workflow verify --project <path> --ide codex",
+        "ai-video-workflow export-obsidian --project <path> --in-project-view",
+        "ai-video-workflow verify-obsidian --project <path> --in-project-view",
         "ai-video-workflow mcp-context --project <path>"
       ])
     );
+    expect(context.viewLayers.obsidian).toEqual({
+      defaultVaultPath: "_views/obsidian",
+      sourceOfTruth: false,
+      refreshCommand: "ai-video-workflow export-obsidian --project <path> --in-project-view"
+    });
+    expect(context.editBoundaries.generated).toContain("_views/obsidian");
     expect(JSON.stringify(context)).not.toMatch(/[A-Z]:\\\\|[A-Z]:\\\/|file:\/\/|vscode:\/\//);
   });
 
@@ -47,6 +55,7 @@ describe("MCP read-only context", () => {
         "06_execution_plan/01_image_execution_plan.md",
         "06_execution_plan/02_video_execution_plan.md"
       ]);
+      expect(JSON.stringify(shot.sourcePaths)).not.toContain("_views");
     }
   });
 
