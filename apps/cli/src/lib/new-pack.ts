@@ -1,6 +1,7 @@
 import fs from "fs-extra";
 import path from "node:path";
 
+import { CliUserError } from "./cli-errors.js";
 import { validateSafeDirectoryName } from "./name-validation.js";
 
 const step6Files = [
@@ -18,6 +19,16 @@ export async function createPackScaffold({
 }): Promise<void> {
   const safePackName = validateSafeDirectoryName(packName, "Pack name");
   const packRoot = path.join(targetRoot, safePackName);
+  if (await fs.pathExists(packRoot)) {
+    const stat = await fs.stat(packRoot);
+    if (!stat.isDirectory()) {
+      throw new CliUserError(`Pack target already exists but is not a directory: ${packRoot}`);
+    }
+    const entries = await fs.readdir(packRoot);
+    if (entries.length > 0) {
+      throw new CliUserError(`Pack target is not empty. Choose an empty directory or a new pack name: ${packRoot}`);
+    }
+  }
   await fs.ensureDir(path.join(packRoot, "checks"));
   await fs.ensureDir(path.join(packRoot, "templates", "06_execution_plan"));
   await fs.writeFile(
