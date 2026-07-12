@@ -199,6 +199,22 @@ describe("diagnoseProject", () => {
     expect(output).toContain("--force");
   });
 
+  test("suggests in-project Obsidian refresh for stale views", async () => {
+    const output = await diagnoseProject({
+      issues: [
+        {
+          code: "obsidian-view-stale",
+          message: "Obsidian projection is stale for source file: 03_storyboard/shot-001.md",
+          path: "Workflow/Step 3 - Storyboard/Shot 001 - Storyboard.md"
+        }
+      ]
+    });
+
+    expect(output).toContain("Obsidian Projection");
+    expect(output).toContain("--in-project-view");
+    expect(output).toContain("external vault");
+  });
+
   test("suggests Obsidian single-shot review fixes", async () => {
     const output = await diagnoseProject({
       issues: [

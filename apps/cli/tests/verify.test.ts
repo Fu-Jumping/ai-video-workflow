@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { createProject } from "../src/lib/init.js";
+import { exportObsidianVault } from "../src/lib/obsidian/export.js";
 import { syncProject } from "../src/lib/sync.js";
 import type { Ide } from "../src/lib/types.js";
 import { verifyProject } from "../src/lib/verify.js";
@@ -374,6 +375,56 @@ describe("verifyProject", () => {
     await fs.writeFile(path.join(projectRoot, "USER.md"), "[local](file:///C:/Users/example/user.md)\n", "utf8");
     await fs.ensureDir(path.join(projectRoot, "memory"));
     await fs.writeFile(path.join(projectRoot, "memory", "README.md"), "[local](G:\\private\\memory.md)\n", "utf8");
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.issues).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "absolute-path-link"
+        })
+      ])
+    );
+  });
+
+  test("ignores generated Obsidian view layers during project Markdown link checks", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-views-link-checks-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    const outRoot = path.join(projectRoot, "_views", "obsidian");
+
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    await fs.writeFile(path.join(outRoot, "Notes", "manual.md"), "[local](G:\\private\\note.md)\n", "utf8");
+    await fs.writeFile(path.join(outRoot, "Workflow", "manual-generated.md"), "[local](file:///C:/private/generated.md)\n", "utf8");
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.issues).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "absolute-path-link"
+        })
+      ])
+    );
+  });
+
+  test("ignores root Obsidian UI state during project Markdown link checks", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-root-obsidian-link-checks-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+
+    await fs.ensureDir(path.join(projectRoot, ".obsidian", "plugins", "example"));
+    await fs.writeFile(path.join(projectRoot, ".obsidian", "plugins", "example", "README.md"), "[local](C:\\private\\config.md)\n", "utf8");
 
     const result = await verifyProject({
       projectRoot,

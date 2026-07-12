@@ -34,7 +34,8 @@ const groups: Record<string, string> = {
   "invalid-obsidian-manifest": "Obsidian Projection",
   "missing-obsidian-manifest-file": "Obsidian Projection",
   "obsidian-manifest-hash-mismatch": "Obsidian Projection",
-  "obsidian-manifest-source-mismatch": "Obsidian Projection"
+  "obsidian-manifest-source-mismatch": "Obsidian Projection",
+  "obsidian-view-stale": "Obsidian Projection"
 };
 
 function ideForRuntimeIssue(issue: VerificationIssue): string {
@@ -153,6 +154,9 @@ export async function diagnoseProject({
       }
       if (issue.code === "obsidian-manifest-source-mismatch") {
         lines.push("  Regenerate the projection and confirm each manifest `sourcePath` points to a project-relative Step file.");
+      }
+      if (issue.code === "obsidian-view-stale") {
+        lines.push("  Rerun `ai-video-workflow export-obsidian --project <path> --in-project-view` or export again to the external vault path.");
       }
     }
     lines.push("");
