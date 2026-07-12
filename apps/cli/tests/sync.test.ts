@@ -9,6 +9,7 @@ import { syncProject } from "../src/lib/sync.js";
 const tempRoots: string[] = [];
 const absoluteLinkPattern = /([A-Za-z]:\\|[A-Za-z]:\/|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
 const inlineCodePattern = /`[^`\r\n]*`/g;
+const gitignoreBlockMarker = "ai-video-workflow generated and local surfaces";
 
 afterEach(async () => {
   await Promise.all(tempRoots.splice(0).map((dir) => fs.remove(dir)));
@@ -44,9 +45,63 @@ async function expectSharedAgentWorkspace(projectRoot: string): Promise<void> {
   const sharedReadme = await fs.readFile(path.join(projectRoot, "docs", "ai-workspace", "README.md"), "utf8");
   expect(sharedReadme).toContain("ai-video-workflow shared agent workspace");
   expect(sharedReadme).toContain("Platform memory is not project truth");
+  expect(sharedReadme).toContain("_views/obsidian");
+  expect(sharedReadme).toContain("project-step-files");
+}
+
+function countOccurrences(content: string, value: string): number {
+  return content.split(value).length - 1;
 }
 
 describe("syncProject", () => {
+  test("creates a project gitignore with generated and local surface protections", async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-sync-gitignore-"));
+    tempRoots.push(projectRoot);
+
+    await syncProject({
+      repoRoot: path.resolve(__dirname, "../../.."),
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    const gitignore = await fs.readFile(path.join(projectRoot, ".gitignore"), "utf8");
+    expect(gitignore).toContain(gitignoreBlockMarker);
+    expect(gitignore).toContain("_views/");
+    expect(gitignore).toContain(".obsidian/");
+    expect(gitignore).toContain("SOUL.md");
+    expect(gitignore).toContain("USER.md");
+    expect(gitignore).toContain("memory/");
+  });
+
+  test("preserves existing project gitignore content and appends the generated surface block once", async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-sync-existing-gitignore-"));
+    tempRoots.push(projectRoot);
+    await fs.writeFile(path.join(projectRoot, ".gitignore"), "custom-build/\n", "utf8");
+
+    await syncProject({
+      repoRoot: path.resolve(__dirname, "../../.."),
+      projectRoot,
+      ide: "cursor",
+      pack: "official-ai-video"
+    });
+
+    const gitignore = await fs.readFile(path.join(projectRoot, ".gitignore"), "utf8");
+    expect(gitignore).toMatch(/^custom-build\/\n\n# ai-video-workflow generated and local surfaces/m);
+    expect(countOccurrences(gitignore, gitignoreBlockMarker)).toBe(1);
+
+    await syncProject({
+      repoRoot: path.resolve(__dirname, "../../.."),
+      projectRoot,
+      ide: "cursor",
+      pack: "official-ai-video"
+    });
+
+    const gitignoreAfterSecondSync = await fs.readFile(path.join(projectRoot, ".gitignore"), "utf8");
+    expect(countOccurrences(gitignoreAfterSecondSync, gitignoreBlockMarker)).toBe(1);
+    expect(gitignoreAfterSecondSync).toBe(gitignore);
+  });
+
   test("writes Codex summary files and runtime skills from the official pack", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-sync-"));
     tempRoots.push(root);

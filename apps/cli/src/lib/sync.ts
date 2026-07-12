@@ -1,7 +1,7 @@
 import fs from "fs-extra";
 import path from "node:path";
 
-import { sharedAgentEntryContent, sharedAiWorkspaceDocs } from "./agent-workspace.js";
+import { generatedLocalSurfaceIgnoreBlock, sharedAgentEntryContent, sharedAiWorkspaceDocs } from "./agent-workspace.js";
 import { copyDirectory, writeFileIfMissing } from "./fs-utils.js";
 import type { Ide, SyncProjectOptions } from "./types.js";
 
@@ -10,6 +10,23 @@ async function ensureSharedAgentWorkspace(projectRoot: string): Promise<void> {
   for (const [fileName, content] of Object.entries(sharedAiWorkspaceDocs)) {
     await writeFileIfMissing(path.join(projectRoot, "docs", "ai-workspace", fileName), content);
   }
+}
+
+export async function ensureProjectGitignore(projectRoot: string): Promise<void> {
+  const gitignorePath = path.join(projectRoot, ".gitignore");
+  const marker = "ai-video-workflow generated and local surfaces";
+  if (!(await fs.pathExists(gitignorePath))) {
+    await fs.writeFile(gitignorePath, `${generatedLocalSurfaceIgnoreBlock}\n`, "utf8");
+    return;
+  }
+
+  const content = await fs.readFile(gitignorePath, "utf8");
+  if (content.includes(marker)) {
+    return;
+  }
+
+  const separator = content.length === 0 ? "" : content.endsWith("\n\n") ? "" : content.endsWith("\n") ? "\n" : "\n\n";
+  await fs.writeFile(gitignorePath, `${content}${separator}${generatedLocalSurfaceIgnoreBlock}\n`, "utf8");
 }
 
 async function writeGeneratedRuntimeFile(filePath: string, content: string): Promise<void> {
@@ -228,5 +245,6 @@ async function syncIde(repoRoot: string, projectRoot: string, packRoot: string, 
 export async function syncProject(options: SyncProjectOptions): Promise<void> {
   const packRoot = path.join(options.repoRoot, "packs", options.pack);
   await ensureSharedAgentWorkspace(options.projectRoot);
+  await ensureProjectGitignore(options.projectRoot);
   await syncIde(options.repoRoot, options.projectRoot, packRoot, options.ide);
 }

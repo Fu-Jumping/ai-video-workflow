@@ -14,3 +14,12 @@ temp/
 .vscode/
 .idea/
 OPEN_SOURCE_PRODUCT_BUILD_PLAN.md
+
+# ai-video-workflow generated and local surfaces
+_views/
+.obsidian/
+SOUL.md
+USER.md
+soul.md
+user.md
+memory/

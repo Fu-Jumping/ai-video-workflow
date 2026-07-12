@@ -24,6 +24,21 @@ export const sharedAgentDocPaths = [
 export const cherryHostSurfaceFiles = ["SOUL.md", "USER.md", "soul.md", "user.md"] as const;
 export const cherryHostSurfaceDirs = ["memory"] as const;
 
+export const generatedLocalSurfaceIgnoreBlock = [
+  "# ai-video-workflow generated and local surfaces",
+  "_views/",
+  ".obsidian/",
+  ".codex/",
+  ".cursor/",
+  ".claude/",
+  ".trae/",
+  "SOUL.md",
+  "USER.md",
+  "soul.md",
+  "user.md",
+  "memory/"
+].join("\n");
+
 export type SharedAgentEntryClassification =
   | "missing"
   | "valid-ai-video-entry"
@@ -37,7 +52,7 @@ export function sharedAgentEntryMergeBlock(): string {
     "",
     "- Read `docs/ai-workspace/README.md` and `docs/ai-workspace/BOUNDARIES.md` before changing workflow files.",
     "- Treat `project-step-files` as the source of truth for Step 1 to Step 6.",
-    "- Keep `.codex/`, `.cursor/`, `.claude/`, `.trae/`, Obsidian projections, MCP resources, and platform memory outside project truth.",
+    "- Keep `.codex/`, `.cursor/`, `.claude/`, `.trae/`, `_views/obsidian/`, MCP resources, and platform memory outside project truth.",
     "- Keep Cherry Studio `SOUL.md`, `USER.md`, and `memory/` compatible, but do not treat them as project truth unless this project explicitly says so.",
     "- Use relative links only."
   ].join("\n");
@@ -58,11 +73,13 @@ export const sharedAiWorkspaceDocs: Record<string, string> = {
     "3. `docs/ai-workspace/HANDOFFS.md`",
     "4. `docs/ai-workspace/PLATFORM_MATRIX.md`",
     "5. Source Step files in `01_concept/` through `06_execution_plan/`",
+    "6. `_views/obsidian/` only as a generated viewing layer, not a source layer",
     "",
     "Source of truth:",
     "",
     "- `project-step-files` means the project Step 1 to Step 6 Markdown files are the creative source of truth.",
     "- Runtime mirror files are adapter surfaces, not project truth.",
+    "- `_views/obsidian/` is a generated Obsidian vault view layer, not project truth.",
     "- Obsidian projections, MCP resources, and platform memory are not project truth.",
     "- Platform memory is not project truth.",
     "",
@@ -95,7 +112,9 @@ export const sharedAiWorkspaceDocs: Record<string, string> = {
     "- `.claude/` runtime mirror",
     "- `.trae/` runtime mirror",
     "- `SOUL.md`, `USER.md`, `soul.md`, `user.md`, and root `memory/` when created by Cherry Studio",
-    "- Obsidian projection directories such as `Workflow/`, `Shots/`, `Canvas/`, and `Bases/`",
+    "- `_views/obsidian/` generated Obsidian vault view layer",
+    "- `_views/obsidian/Notes/` user-authored Obsidian notes, preserved by incremental export but not project truth",
+    "- `_views/obsidian/.obsidian/` local Obsidian UI state",
     "- MCP resources and prompts",
     "",
     "Do not treat runtime mirror files, Obsidian projections, MCP resources, Cherry Studio host memory/persona files, or platform memory as project truth. Platform memory is not project truth."
@@ -120,7 +139,15 @@ export const sharedAiWorkspaceDocs: Record<string, string> = {
     "- Motion and camera behavior changes go to Step 5 video prompt files.",
     "- Execution organization changes go to Step 6 execution plan files.",
     "",
-    "After edits, run `ai-video-workflow verify --project <path> --ide <id>`. Platform memory is not project truth. Cherry Studio `SOUL.md`, `USER.md`, and `memory/` are host/user surfaces unless the user explicitly asks to maintain them."
+    "After edits, run:",
+    "",
+    "```text",
+    "ai-video-workflow verify --project <path> --ide <id>",
+    "ai-video-workflow export-obsidian --project <path> --in-project-view",
+    "ai-video-workflow verify-obsidian --project <path> --in-project-view",
+    "```",
+    "",
+    "Platform memory is not project truth. Cherry Studio `SOUL.md`, `USER.md`, and `memory/` are host/user surfaces unless the user explicitly asks to maintain them."
   ].join("\n"),
   "SECURITY.md": [
     "# Security",
@@ -133,6 +160,7 @@ export const sharedAiWorkspaceDocs: Record<string, string> = {
     "",
     "- Keep links relative.",
     "- Do not write drive-letter paths, `file://` links, or IDE-specific URIs.",
+    "- `_views/` and `.obsidian/` must not collect secrets, provider keys, platform caches, or private memory exports.",
     "- Do not copy Cherry Studio global memory, root `SOUL.md`, root `USER.md`, root `memory/`, `@cherry/memory`, `MEMORY_FILE_PATH`, Claude auto memory, Codex local memory, or Trae local cache into project truth.",
     "- Treat `project-step-files` as the only creative source of truth.",
     "- Platform memory is not project truth."
@@ -149,7 +177,7 @@ export const sharedAiWorkspaceDocs: Record<string, string> = {
     "| Claude Code | `AGENTS.md`, `CLAUDE.md` | `.claude/` | `CLAUDE.md` is Claude-specific and does not replace `AGENTS.md` |",
     "| Trae | `AGENTS.md` | `.trae/` | Trae rules live under `.trae/rules/` |",
     "| Cherry Studio | `AGENTS.md` | Working directory context plus possible root `SOUL.md`, `USER.md`, `memory/` | Host/user memory and persona surfaces; sync does not generate or overwrite them |",
-    "| Obsidian | Generated vault pages | `Workflow/`, `Shots/`, `Canvas/`, `Bases/` | Projection only |",
+    "| Obsidian | Generated vault pages | `_views/obsidian/` | Projection only |",
     "| MCP | Resources and prompts | MCP server context | Read-only context |",
     "",
     "`project-step-files` are the source of truth across every platform. Runtime mirror files and platform memory are not project truth. Platform memory is not project truth."
@@ -167,11 +195,13 @@ export const sharedAiWorkspaceDocs: Record<string, string> = {
     "- `docs/ai-workspace/` is the shared AI documentation layer.",
     "- `project-step-files` are the Step 1 to Step 6 creative source of truth.",
     "",
-    "Cherry Studio host surfaces:",
+    "Local and adapter surfaces:",
     "",
     "- `SOUL.md` may describe Cherry Studio persona or project-specific agent identity.",
     "- `USER.md` may describe user preferences or profile.",
     "- `memory/` may contain host or user memory.",
+    "- `_views/obsidian/` is a generated Obsidian view layer.",
+    "- Cherry Studio host surfaces and Obsidian view layers are both local/adapter surfaces unless a project explicitly says otherwise.",
     "",
     "If `AGENTS.md` already exists without ai-video-workflow markers, keep the user's file and merge this block into it:",
     "",
@@ -205,7 +235,7 @@ export function sharedAgentEntryContent(): string {
     "",
     "- `project-step-files` means Step 1 to Step 6 Markdown files are the creative source of truth.",
     "- `.codex/`, `.cursor/`, `.claude/`, and `.trae/` are runtime mirror surfaces.",
-    "- Obsidian vault files, MCP resources, platform cache, and platform memory are not project truth.",
+    "- `_views/obsidian/` is the generated Obsidian vault view layer; Obsidian vault files, MCP resources, platform cache, and platform memory are not project truth.",
     "- Cherry Studio may create `SOUL.md`, `USER.md`, and `memory/`; keep them compatible but do not treat them as project truth by default.",
     "",
     "Global rules:",

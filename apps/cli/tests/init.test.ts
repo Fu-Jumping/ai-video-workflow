@@ -38,5 +38,9 @@ describe("createProject", () => {
     expect(config).toContain("default: openai");
     expect(config).toContain("default: runway");
     expect(config).toContain("enabled: true");
+
+    const gitignore = await fs.readFile(path.join(projectRoot, ".gitignore"), "utf8");
+    expect(gitignore).toContain("ai-video-workflow generated and local surfaces");
+    expect(gitignore).toContain("_views/");
   });
 });
