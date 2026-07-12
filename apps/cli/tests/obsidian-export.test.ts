@@ -70,13 +70,75 @@ describe("scanProjectForObsidian", () => {
 });
 
 describe("exportObsidianVault", () => {
+  test("rejects missing, file, and incomplete projects before writing a vault", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-bad-projects-"));
+    tempRoots.push(root);
+    const missingProject = path.join(root, "missing");
+    const fileProject = path.join(root, "project.md");
+    const incompleteProject = path.join(root, "incomplete");
+    const outRoot = path.join(root, "vault");
+    await fs.writeFile(fileProject, "# Not a project\n", "utf8");
+    await fs.ensureDir(incompleteProject);
+    await fs.writeFile(path.join(incompleteProject, "project.config.yaml"), "pack: official-ai-video\n", "utf8");
+
+    await expect(exportObsidianVault({ projectRoot: missingProject, outRoot, force: false, includePluginRecipes: true })).rejects.toThrow("does not exist");
+    await expect(exportObsidianVault({ projectRoot: fileProject, outRoot, force: false, includePluginRecipes: true })).rejects.toThrow("must be a directory");
+    await expect(exportObsidianVault({ projectRoot: incompleteProject, outRoot, force: false, includePluginRecipes: true })).rejects.toThrow("project.config.yaml");
+    await expect(fs.pathExists(outRoot)).resolves.toBe(false);
+  });
+
+  test("rejects empty Step projects before writing a vault", async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-empty-source-"));
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-empty-vault-"));
+    tempRoots.push(projectRoot, outRoot);
+    await fs.copy(officialExampleRoot(), projectRoot);
+    for (const stepDir of ["01_concept", "02_setting", "03_storyboard", "04_image_prompts", "05_video_prompts", "06_execution_plan"]) {
+      await fs.emptyDir(path.join(projectRoot, stepDir));
+    }
+
+    await expect(exportObsidianVault({ projectRoot, outRoot, force: false, includePluginRecipes: true })).rejects.toThrow("Project must pass verify");
+  });
+
+  test("rejects output paths that are files or ordinary project-internal directories", async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-output-safety-"));
+    tempRoots.push(projectRoot);
+    await fs.copy(officialExampleRoot(), projectRoot);
+    const fileOut = path.join(path.dirname(projectRoot), "vault.md");
+    const internalOut = path.join(projectRoot, "notes-vault");
+    const inProjectPathAsOut = path.join(projectRoot, "_views", "obsidian");
+    await fs.writeFile(fileOut, "# Not a vault\n", "utf8");
+    tempRoots.push(fileOut);
+
+    await expect(exportObsidianVault({ projectRoot, outRoot: fileOut, force: false, includePluginRecipes: true })).rejects.toThrow("must be a directory");
+    await expect(exportObsidianVault({ projectRoot, outRoot: internalOut, force: false, includePluginRecipes: true })).rejects.toThrow("--in-project-view");
+    await expect(exportObsidianVault({ projectRoot, outRoot: inProjectPathAsOut, force: false, includePluginRecipes: true })).rejects.toThrow("--in-project-view");
+  });
+
+  test("force dry-run reports nested Git risk and force rejects non-manifest directories", async () => {
+    const gitVault = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-force-git-dry-"));
+    const plainVault = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-force-plain-"));
+    tempRoots.push(gitVault, plainVault);
+    await fs.ensureDir(path.join(gitVault, ".git"));
+    await fs.writeFile(path.join(gitVault, ".git", "config"), "[core]\n", "utf8");
+    await fs.writeFile(path.join(plainVault, "manual.md"), "# Manual\n", "utf8");
+
+    await expect(
+      exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot: gitVault, force: true, includePluginRecipes: true, dryRun: true })
+    ).rejects.toThrow("containing .git");
+    await expect(
+      exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot: plainVault, force: true, includePluginRecipes: true })
+    ).rejects.toThrow("without Projection Manifest.json");
+    await expect(fs.pathExists(path.join(gitVault, ".git", "config"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(plainVault, "manual.md"))).resolves.toBe(true);
+  });
+
   test("writes a privacy-safe schema v2 manifest for in-project view exports", async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-in-project-manifest-"));
     tempRoots.push(projectRoot);
     await fs.copy(officialExampleRoot(), projectRoot);
     const outRoot = path.join(projectRoot, "_views", "obsidian");
 
-    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, inProjectView: true });
 
     const manifest = await readProjectionManifest(outRoot);
     const manifestJson = JSON.stringify(manifest);

@@ -9,6 +9,7 @@ export type IssueCode =
   | "project-root-not-directory"
   | "invalid-project-config"
   | "invalid-project-config-yaml"
+  | "invalid-export-project"
   | "nested-project"
   | "invalid-sync-target"
   | "missing-config"
@@ -45,6 +46,7 @@ export type IssueCode =
   | "obsidian-manifest-hash-mismatch"
   | "obsidian-manifest-source-mismatch"
   | "obsidian-view-stale"
+  | "obsidian-vault-not-directory"
   | "unsafe-obsidian-force-target";
 
 export interface ProjectConfig {

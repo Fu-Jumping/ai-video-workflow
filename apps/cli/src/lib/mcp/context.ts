@@ -1,7 +1,8 @@
 import fs from "fs-extra";
 import path from "node:path";
 
-import { STEP6_FILES, STEP_DIRS } from "../constants.js";
+import { STEP6_FILES } from "../constants.js";
+import { readWorkflowProjectConfig } from "../project-root.js";
 
 export interface BuildMcpContextOptions {
   projectRoot: string;
@@ -107,14 +108,7 @@ async function buildShotContext(projectRoot: string, storyboardFileName: string)
 }
 
 async function assertValidProjectShape(projectRoot: string): Promise<void> {
-  if (!(await fs.pathExists(path.join(projectRoot, "project.config.yaml")))) {
-    throw new Error("Missing project.config.yaml");
-  }
-  for (const stepDir of STEP_DIRS) {
-    if (!(await fs.pathExists(path.join(projectRoot, stepDir)))) {
-      throw new Error(`Missing Step directory: ${stepDir}`);
-    }
-  }
+  await readWorkflowProjectConfig(projectRoot);
 }
 
 export async function buildMcpContext(options: BuildMcpContextOptions): Promise<McpProjectContext> {

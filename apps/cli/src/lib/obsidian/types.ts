@@ -62,6 +62,7 @@ export interface ObsidianExportOptions {
   includePluginRecipes: boolean;
   includeObsidianUi?: boolean;
   dryRun?: boolean;
+  inProjectView?: boolean;
 }
 
 export interface ObsidianExportResult {

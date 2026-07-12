@@ -19,7 +19,7 @@ describe("official example Obsidian projection", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-official-obsidian-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, inProjectView: true });
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
 
     expect(result.ok).toBe(true);
@@ -39,7 +39,7 @@ describe("official example Obsidian projection", () => {
     const outRoot = path.join(projectRoot, "_views", "obsidian");
     await fs.copy(sourceProjectRoot, projectRoot);
 
-    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, inProjectView: true });
     const obsidianResult = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
     const projectResult = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
 

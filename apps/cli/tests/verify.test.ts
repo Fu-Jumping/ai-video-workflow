@@ -519,7 +519,7 @@ describe("verifyProject", () => {
     const projectRoot = await createSyncedProject(root, "codex");
     const outRoot = path.join(projectRoot, "_views", "obsidian");
 
-    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, inProjectView: true });
     await fs.writeFile(path.join(outRoot, "Notes", "manual.md"), "[local](G:\\private\\note.md)\n", "utf8");
     await fs.writeFile(path.join(outRoot, "Workflow", "manual-generated.md"), "[local](file:///C:/private/generated.md)\n", "utf8");
 

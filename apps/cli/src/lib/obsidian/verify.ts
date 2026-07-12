@@ -1,7 +1,10 @@
 import fs from "fs-extra";
 import path from "node:path";
 
+import { STEP_DIRS } from "../constants.js";
+import { readProjectConfig } from "../project-config.js";
 import type { VerificationIssue, VerificationResult } from "../types.js";
+import { projectRootIssues } from "../project-root.js";
 import { parseYaml } from "../yaml.js";
 import { hashContent, projectionManifestPath, readProjectionManifest } from "./manifest.js";
 import type { ObsidianProjectionManifest, ObsidianProjectionManifestEntry } from "./types.js";
@@ -458,10 +461,34 @@ export async function verifyObsidianVault({ projectRoot, vaultRoot }: VerifyObsi
   const issues: VerificationIssue[] = [];
   const resolvedProjectRoot = path.resolve(projectRoot);
   const resolvedVaultRoot = path.resolve(vaultRoot);
+  const sourceRootIssues = await projectRootIssues(resolvedProjectRoot);
+  if (sourceRootIssues.length > 0) {
+    return { ok: false, issues: sourceRootIssues };
+  }
+  const { config, issues: configIssues } = await readProjectConfig(resolvedProjectRoot);
+  if (!config) {
+    return { ok: false, issues: configIssues };
+  }
+  for (const stepDir of STEP_DIRS) {
+    const stepPath = path.join(resolvedProjectRoot, stepDir);
+    if (!(await fs.pathExists(stepPath)) || !(await fs.stat(stepPath)).isDirectory()) {
+      return {
+        ok: false,
+        issues: [{ code: "invalid-export-project", message: `Source project is missing Step directory: ${stepDir}`, path: stepDir }]
+      };
+    }
+  }
   if (!(await fs.pathExists(resolvedVaultRoot))) {
     return {
       ok: false,
       issues: [{ code: "missing-obsidian-dashboard", message: "Obsidian vault projection directory does not exist", path: resolvedVaultRoot }]
+    };
+  }
+  const vaultStat = await fs.stat(resolvedVaultRoot);
+  if (!vaultStat.isDirectory()) {
+    return {
+      ok: false,
+      issues: [{ code: "obsidian-vault-not-directory", message: "Obsidian vault projection path must be a directory", path: resolvedVaultRoot }]
     };
   }
 

@@ -204,7 +204,8 @@ program
       force: options.force,
       includePluginRecipes: options.pluginRecipes,
       includeObsidianUi: options.includeObsidianUi,
-      dryRun: options.dryRun
+      dryRun: options.dryRun,
+      inProjectView: options.inProjectView
     });
     console.log(formatObsidianExportSummary(result));
     if (options.dryRun) {

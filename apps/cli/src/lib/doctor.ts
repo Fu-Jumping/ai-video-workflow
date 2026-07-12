@@ -10,6 +10,7 @@ const groups: Record<string, string> = {
   "missing-config": "Structure",
   "invalid-project-config": "Configuration",
   "invalid-project-config-yaml": "Configuration",
+  "invalid-export-project": "Obsidian Projection",
   "missing-image-default-platform": "Configuration",
   "missing-video-default-platform": "Configuration",
   "missing-step4-section": "Step 4 Contract",
@@ -93,6 +94,9 @@ export async function diagnoseProject({
       }
       if (issue.code === "invalid-project-config" || issue.code === "invalid-project-config-yaml") {
         lines.push("  Fix `project.config.yaml` so it uses the official pack, a supported IDE, supported default platforms, and `workflow.enhanced_flow.enabled: true` or `false`.");
+      }
+      if (issue.code === "invalid-export-project") {
+        lines.push("  Restore the missing project Step directories, then run `verify` before exporting or verifying the Obsidian projection.");
       }
       if (issue.code === "missing-image-default-platform") {
         lines.push("  Add `platforms.image.default` to `project.config.yaml`.");

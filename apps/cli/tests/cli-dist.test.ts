@@ -8,6 +8,7 @@ import { afterEach, describe, expect, test } from "vitest";
 
 const execFileAsync = promisify(execFile);
 const tempRoots: string[] = [];
+const stepDirs = ["01_concept", "02_setting", "03_storyboard", "04_image_prompts", "05_video_prompts", "06_execution_plan"];
 
 async function run(command: string, args: string[], cwd: string): Promise<{ stdout: string; stderr: string }> {
   return await execFileAsync(command, args, {
@@ -47,11 +48,35 @@ async function buildCli(cliRoot: string): Promise<void> {
   });
 }
 
+async function seedWorkflowProject(projectRoot: string, ide = "codex"): Promise<void> {
+  await fs.ensureDir(projectRoot);
+  await fs.writeFile(
+    path.join(projectRoot, "project.config.yaml"),
+    [
+      "pack: official-ai-video",
+      `ide: ${ide}`,
+      "platforms:",
+      "  image:",
+      "    default: openai",
+      "  video:",
+      "    default: runway",
+      "workflow:",
+      "  enhanced_flow:",
+      "    enabled: true"
+    ].join("\n"),
+    "utf8"
+  );
+  for (const stepDir of stepDirs) {
+    await fs.ensureDir(path.join(projectRoot, stepDir));
+  }
+}
+
 describe("built CLI", () => {
   test("sync resolves the official pack from the bundled ESM entry", async () => {
     const cliRoot = path.resolve(__dirname, "..");
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-sync-"));
     tempRoots.push(projectRoot);
+    await seedWorkflowProject(projectRoot);
 
     await buildCli(cliRoot);
     await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "sync", "--project", projectRoot, "--ide", "codex"], cliRoot);
@@ -64,6 +89,7 @@ describe("built CLI", () => {
     const cliRoot = path.resolve(__dirname, "..");
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-cursor-sync-"));
     tempRoots.push(projectRoot);
+    await seedWorkflowProject(projectRoot, "cursor");
 
     await buildCli(cliRoot);
     await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "sync", "--project", projectRoot, "--ide", "cursor"], cliRoot);
@@ -77,6 +103,7 @@ describe("built CLI", () => {
     const cliRoot = path.resolve(__dirname, "..");
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-claude-sync-"));
     tempRoots.push(projectRoot);
+    await seedWorkflowProject(projectRoot, "claude-code");
 
     await buildCli(cliRoot);
     await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "sync", "--project", projectRoot, "--ide", "claude-code"], cliRoot);
@@ -91,6 +118,7 @@ describe("built CLI", () => {
     const cliRoot = path.resolve(__dirname, "..");
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-trae-sync-"));
     tempRoots.push(projectRoot);
+    await seedWorkflowProject(projectRoot, "trae");
 
     await buildCli(cliRoot);
     await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "sync", "--project", projectRoot, "--ide", "trae"], cliRoot);
@@ -250,6 +278,76 @@ describe("built CLI", () => {
       repoRoot
     );
     expect(`${missingVaultTarget.stdout}\n${missingVaultTarget.stderr}`).toContain("Missing --vault");
+  });
+
+  test("export-obsidian rejects missing projects without creating a vault or printing stack traces", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const repoRoot = path.resolve(cliRoot, "..", "..");
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-obsidian-missing-project-"));
+    tempRoots.push(tempRoot);
+    const missingProject = path.join(tempRoot, "missing-project");
+    const outRoot = path.join(tempRoot, "vault");
+
+    await buildCli(cliRoot);
+    const result = await runExpectFailure(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "export-obsidian", "--project", missingProject, "--out", outRoot],
+      repoRoot
+    );
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(output).toContain("Project root does not exist");
+    expect(output).not.toContain("node:internal");
+    expect(output).not.toContain("at Command");
+    await expect(fs.pathExists(outRoot)).resolves.toBe(false);
+  });
+
+  test("verify-obsidian rejects file vault targets with readable errors", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const repoRoot = path.resolve(cliRoot, "..", "..");
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-obsidian-file-vault-"));
+    tempRoots.push(tempRoot);
+    const vaultPath = path.join(tempRoot, "vault.md");
+    await fs.writeFile(vaultPath, "# Not a vault\n", "utf8");
+
+    await buildCli(cliRoot);
+    const result = await runExpectFailure(
+      process.execPath,
+      [
+        path.join(cliRoot, "dist", "index.js"),
+        "verify-obsidian",
+        "--project",
+        path.join(repoRoot, "examples", "official-mini-film"),
+        "--vault",
+        vaultPath
+      ],
+      repoRoot
+    );
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(output).toContain("obsidian-vault-not-directory");
+    expect(output).not.toContain("node:internal");
+    expect(output).not.toContain("at Command");
+  });
+
+  test("mcp-context rejects file project roots without printing stack traces", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-mcp-file-root-"));
+    tempRoots.push(tempRoot);
+    const projectPath = path.join(tempRoot, "project.md");
+    await fs.writeFile(projectPath, "# Not a project\n", "utf8");
+
+    await buildCli(cliRoot);
+    const result = await runExpectFailure(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "mcp-context", "--project", projectPath],
+      cliRoot
+    );
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(output).toContain("Project root must be a directory");
+    expect(output).not.toContain("node:internal");
+    expect(output).not.toContain("at Command");
   });
 
   test("export-obsidian dry-run reports operations without writing files", async () => {

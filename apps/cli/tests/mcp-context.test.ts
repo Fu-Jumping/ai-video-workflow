@@ -72,6 +72,20 @@ describe("MCP read-only context", () => {
     ).rejects.toThrow("Missing project.config.yaml");
   });
 
+  test("requires a directory project root before building context", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-mcp-file-root-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "project.md");
+    await fs.writeFile(projectRoot, "# Not a project\n", "utf8");
+
+    await expect(
+      buildMcpContext({
+        projectRoot,
+        pack: "official-ai-video"
+      })
+    ).rejects.toThrow("must be a directory");
+  });
+
   test("requires all Step directories before building context", async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-mcp-missing-step-"));
     tempRoots.push(projectRoot);
@@ -82,6 +96,6 @@ describe("MCP read-only context", () => {
         projectRoot,
         pack: "official-ai-video"
       })
-    ).rejects.toThrow("Missing Step directory: 01_concept");
+    ).rejects.toThrow("missing Step directory: 01_concept");
   });
 });
