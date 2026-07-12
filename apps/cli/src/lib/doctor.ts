@@ -35,7 +35,8 @@ const groups: Record<string, string> = {
   "missing-obsidian-manifest-file": "Obsidian Projection",
   "obsidian-manifest-hash-mismatch": "Obsidian Projection",
   "obsidian-manifest-source-mismatch": "Obsidian Projection",
-  "obsidian-view-stale": "Obsidian Projection"
+  "obsidian-view-stale": "Obsidian Projection",
+  "unsafe-obsidian-force-target": "Obsidian Projection"
 };
 
 function ideForRuntimeIssue(issue: VerificationIssue): string {
@@ -120,43 +121,46 @@ export async function diagnoseProject({
         lines.push("  Fix the Step 4 link target or create the referenced image prompt file.");
       }
       if (issue.code === "missing-obsidian-dashboard" || issue.code === "missing-obsidian-base") {
-        lines.push("  Rerun `ai-video-workflow export-obsidian --project <path> --out <vault> --force`.");
+        lines.push("  Rerun `ai-video-workflow export-obsidian --project <path> --in-project-view --force`, or export again to the external vault with `--out <vault>`.");
       }
       if (issue.code === "invalid-obsidian-dashboard" || issue.code === "missing-obsidian-base-view") {
-        lines.push("  Regenerate the Obsidian projection so the review dashboards and Bases views match the current exporter.");
+        lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so the review dashboards and Bases views match the current exporter.");
       }
       if (issue.code === "invalid-obsidian-canvas-json") {
-        lines.push("  Regenerate the Obsidian projection with `export-obsidian`; do not hand-edit generated Canvas JSON.");
+        lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view`; do not hand-edit generated Canvas JSON.");
       }
       if (issue.code === "invalid-obsidian-shot-review") {
-        lines.push("  Regenerate the Obsidian projection so each `Shots/` page and `Canvas/Shot Reviews/` canvas matches the current single-shot review format.");
+        lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so each `Shots/` page and `Canvas/Shot Reviews/` canvas matches the current single-shot review format.");
       }
       if (issue.code === "invalid-obsidian-agent-handoff") {
-        lines.push("  Regenerate the Obsidian projection so `04_Agent_Handoff.md` and each `Shots/` page expose copy-ready agent context. Edit source Step files, not generated projection files.");
+        lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so `04_Agent_Handoff.md` and each `Shots/` page expose copy-ready agent context. Edit source Step files, not generated projection files.");
       }
       if (issue.code === "invalid-obsidian-ui-config") {
         lines.push("  Delete or regenerate `.obsidian/ai-video-workflow-suggested/`; these files are optional UI suggestions, not project truth.");
       }
       if (issue.code === "invalid-obsidian-base-yaml") {
-        lines.push("  Regenerate the Obsidian projection with `export-obsidian`; do not hand-edit generated `.base` YAML.");
+        lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view`; do not hand-edit generated `.base` YAML.");
       }
       if (issue.code === "missing-obsidian-source-path" || issue.code === "broken-obsidian-source-path") {
-        lines.push("  Regenerate the projection so each generated note records a valid relative `source_path`.");
+        lines.push("  Regenerate the projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so each generated note records a valid relative `source_path`.");
       }
       if (issue.code === "obsidian-absolute-link") {
-        lines.push("  Replace the Obsidian projection link with a vault-relative path or regenerate the projection.");
+        lines.push("  Replace the Obsidian projection link with a vault-relative path or regenerate the projection with `ai-video-workflow export-obsidian --project <path> --in-project-view`.");
       }
       if (issue.code === "missing-obsidian-manifest" || issue.code === "invalid-obsidian-manifest" || issue.code === "missing-obsidian-manifest-file") {
-        lines.push("  Rerun `ai-video-workflow export-obsidian --project <path> --out <vault>` to refresh the projection manifest.");
+        lines.push("  Rerun `ai-video-workflow export-obsidian --project <path> --in-project-view` to refresh the projection manifest, or use `--out <vault>` for an external vault.");
       }
       if (issue.code === "obsidian-manifest-hash-mismatch") {
-        lines.push("  Review the modified generated file, move user notes into `Notes/`, then rerun `export-obsidian` or use `--force` for a clean rebuild.");
+        lines.push("  Review the modified generated file, move user notes into `Notes/`, then rerun `ai-video-workflow export-obsidian --project <path> --in-project-view` or use `--force` for a clean rebuild.");
       }
       if (issue.code === "obsidian-manifest-source-mismatch") {
-        lines.push("  Regenerate the projection and confirm each manifest `sourcePath` points to a project-relative Step file.");
+        lines.push("  Regenerate the projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` and confirm each manifest `sourcePath` points to a project-relative Step file.");
       }
       if (issue.code === "obsidian-view-stale") {
         lines.push("  Rerun `ai-video-workflow export-obsidian --project <path> --in-project-view` or export again to the external vault path.");
+      }
+      if (issue.code === "unsafe-obsidian-force-target") {
+        lines.push("  Do not use `--force` on an Obsidian output directory that contains `.git`. Use incremental export, or remove the nested repository manually only if that repository is intentional and backed up.");
       }
     }
     lines.push("");

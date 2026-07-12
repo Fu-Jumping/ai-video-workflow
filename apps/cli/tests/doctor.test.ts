@@ -161,6 +161,7 @@ describe("diagnoseProject", () => {
 
     expect(output).toContain("Obsidian Projection");
     expect(output).toContain("export-obsidian");
+    expect(output).toContain("--in-project-view");
   });
 
   test("suggests Obsidian review dashboard and UI config fixes", async () => {
@@ -197,6 +198,7 @@ describe("diagnoseProject", () => {
     expect(output).toContain("Obsidian Projection");
     expect(output).toContain("Notes/");
     expect(output).toContain("--force");
+    expect(output).toContain("--in-project-view");
   });
 
   test("suggests in-project Obsidian refresh for stale views", async () => {
@@ -245,6 +247,24 @@ describe("diagnoseProject", () => {
     expect(output).toContain("Obsidian Projection");
     expect(output).toContain("04_Agent_Handoff.md");
     expect(output).toContain("copy-ready agent context");
+    expect(output).toContain("--in-project-view");
     expect(output).toContain("source Step files");
+  });
+
+  test("suggests safe recovery when force target contains nested Git metadata", async () => {
+    const output = await diagnoseProject({
+      issues: [
+        {
+          code: "unsafe-obsidian-force-target",
+          message: "Refusing to force-remove an Obsidian output directory containing .git",
+          path: "_views/obsidian"
+        }
+      ]
+    });
+
+    expect(output).toContain("Obsidian Projection");
+    expect(output).toContain("Do not use `--force`");
+    expect(output).toContain(".git");
+    expect(output).toContain("incremental export");
   });
 });

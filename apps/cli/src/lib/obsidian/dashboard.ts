@@ -85,8 +85,8 @@ Keep Step 3 and Step 4 frame-aligned. If changes are needed, edit only the sourc
 
 \`\`\`powershell
 node apps/cli/dist/index.js verify --project <project-path> --ide codex
-node apps/cli/dist/index.js export-obsidian --project <project-path> --out <vault-path>
-node apps/cli/dist/index.js verify-obsidian --project <project-path> --vault <vault-path>
+node apps/cli/dist/index.js export-obsidian --project <project-path> --in-project-view
+node apps/cli/dist/index.js verify-obsidian --project <project-path> --in-project-view
 \`\`\`
 `;
 }
@@ -254,8 +254,8 @@ Report any remaining Step 3 to Step 4 alignment or projection issues with exact 
 \`\`\`powershell
 pnpm build
 node apps/cli/dist/index.js verify --project <project-path> --ide codex
-node apps/cli/dist/index.js export-obsidian --project <project-path> --out <vault-path>
-node apps/cli/dist/index.js verify-obsidian --project <project-path> --vault <vault-path>
+node apps/cli/dist/index.js export-obsidian --project <project-path> --in-project-view
+node apps/cli/dist/index.js verify-obsidian --project <project-path> --in-project-view
 \`\`\`
 `
   };
