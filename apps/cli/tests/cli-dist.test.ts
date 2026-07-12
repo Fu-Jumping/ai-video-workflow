@@ -137,7 +137,7 @@ describe("built CLI", () => {
     tempRoots.push(targetRoot);
 
     await buildCli(cliRoot);
-    await run(
+    const result = await run(
       process.execPath,
       [
         path.join(cliRoot, "dist", "index.js"),
@@ -162,6 +162,10 @@ describe("built CLI", () => {
     expect(config).toContain("ide: codex");
     expect(config).toContain("default: openai");
     expect(config).toContain("default: runway");
+    expect(result.stdout).toContain("Project path:");
+    expect(result.stdout).toContain("Open this directory in your AI agent");
+    expect(result.stdout).toContain("01_concept/story-kernel.md");
+    expect(result.stdout).toContain("verify --project");
   });
 
   test("invalid CLI choices use readable errors without default stack traces", async () => {

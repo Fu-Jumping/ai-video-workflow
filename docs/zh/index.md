@@ -9,6 +9,8 @@
 ## 继续阅读
 
 - [快速开始](./quickstart/index.md)
+- [新手：让智能体代跑 CLI](./quickstart/beginner-agent-init.md)
+- [新手启动与初始化体验记录](./contributors/onboarding-initialization-notes.md)
 - [工作流系统图](./contributors/workflow-system-map.md)
 - [Adapter 边界](./contributors/adapter-boundaries.md)
 - [智能体 Adapter Contract](./contributors/agent-adapter-contract.md)

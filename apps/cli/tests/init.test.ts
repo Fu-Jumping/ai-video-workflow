@@ -220,6 +220,16 @@ describe("createProject", () => {
     await expect(fs.pathExists(path.join(projectRoot, ".codex", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, ".codex", "skills", "film-workflow", "SKILL.md"))).resolves.toBe(true);
 
+    const readme = await fs.readFile(path.join(projectRoot, "README.md"), "utf8");
+    expect(readme).toContain("This is an AI video creative project");
+    expect(readme).toContain("01_concept/story-kernel.md");
+    expect(readme).toContain("_views/obsidian/");
+
+    const storyKernel = await fs.readFile(path.join(projectRoot, "01_concept", "story-kernel.md"), "utf8");
+    expect(storyKernel).toContain("故事内核模板");
+    const executionPlan = await fs.readFile(path.join(projectRoot, "06_execution_plan", "00_execution_plan.md"), "utf8");
+    expect(executionPlan.length).toBeGreaterThan(20);
+
     const config = await fs.readFile(path.join(projectRoot, "project.config.yaml"), "utf8");
     expect(config).toContain("pack: official-ai-video");
     expect(config).toContain("ide: codex");

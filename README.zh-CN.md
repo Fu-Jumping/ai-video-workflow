@@ -14,6 +14,12 @@
 
 这个仓库是从旧的内部母包重构出来的第一阶段产品仓库，当前默认官方 pack 是 `official-ai-video`。
 
+## 新手启动
+
+如果你只是想开始一个 AI 视频创作项目，不要直接在这个工具仓库里写剧本。推荐做法是：先下载或克隆本仓库，再让智能体代跑 CLI 创建一个单独的创作项目目录。
+
+正式入口见 [新手：让智能体代跑 CLI](docs/zh/quickstart/beginner-agent-init.md)。关于“工具仓库和创作项目的区别”“目标目录已有文件时会发生什么”“重复初始化和 `sync` 的区别”的审计背景，见 [新手启动与初始化体验记录](docs/zh/contributors/onboarding-initialization-notes.md)。
+
 ## v0.2 主线
 
 当前建议优先关注主干可演示闭环：非交互初始化、官方示例项目、校验诊断、adapter 边界和快速开始文档。
@@ -82,10 +88,10 @@ MCP adapter 边界见 `docs/zh/contributors/mcp-adapter.md`。
 
 ## 快速开始
 
-1. 运行 `pnpm install` 安装依赖。
-2. 运行 `pnpm build` 构建 CLI 与文档站。
-3. 运行 `pnpm --filter ai-video-workflow test` 执行 CLI 测试。
-4. 使用 `ai-video-workflow init` 生成新项目骨架。
+1. 新手优先看 [新手：让智能体代跑 CLI](docs/zh/quickstart/beginner-agent-init.md)。
+2. 手动使用时，运行 `pnpm install` 安装依赖。
+3. 运行 `pnpm build` 构建 CLI 与文档站。
+4. 使用 `node apps/cli/dist/index.js init` 或 [快速开始](docs/zh/quickstart/index.md) 中的脚本化命令生成项目。
 
 ## 仓库结构
 

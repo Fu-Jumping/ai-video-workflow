@@ -1,12 +1,16 @@
 # Quickstart
 
+If you are new to local CLI tools, start with [Beginner start with an agent](./beginner-agent-init.md). The recommended beginner path is to let an agent ask for choices and run the CLI for you.
+
+Manual setup remains available for advanced and scripted use:
+
 1. Run `pnpm install`.
 2. Run `pnpm build`.
 3. Choose either interactive or scripted initialization.
 4. Run `node apps/cli/dist/index.js verify --project <project-path> --ide <ide>`.
 5. If verification fails, run `node apps/cli/dist/index.js doctor --project <project-path> --ide <ide>`.
 6. If IDE runtime files are missing, run `node apps/cli/dist/index.js sync --project <project-path> --ide <ide>`.
-7. Start working from `01_concept/`.
+7. Start working from `01_concept/story-kernel.md`.
 
 Interactive initialization:
 

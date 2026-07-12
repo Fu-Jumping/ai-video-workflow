@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { DEFAULT_PACK, SUPPORTED_IDES, SUPPORTED_PLATFORMS } from "./lib/constants.js";
 import { diagnoseProject } from "./lib/doctor.js";
-import { createProject } from "./lib/init.js";
+import { createProject, renderInitNextSteps } from "./lib/init.js";
 import { runCliAction } from "./lib/cli-errors.js";
 import { parseIde, parsePlatform } from "./lib/cli-options.js";
 import { buildMcpContext } from "./lib/mcp/context.js";
@@ -80,7 +80,7 @@ program
         message: "Choose the default video platform",
         choices: SUPPORTED_PLATFORMS.map((value) => ({ name: value, value }))
       }));
-    await createProject({
+    const projectRoot = await createProject({
       targetRoot: process.cwd(),
       projectName,
       pack: DEFAULT_PACK,
@@ -88,7 +88,7 @@ program
       imagePlatform,
       videoPlatform
     });
-    console.log(`Created ${projectName}`);
+    console.log(renderInitNextSteps({ projectName, projectRoot, ide }));
   }, () => program.opts<{ debug?: boolean }>().debug === true));
 
 program

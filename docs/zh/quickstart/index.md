@@ -1,12 +1,16 @@
 # 快速开始
 
+如果你不熟悉本地 CLI，先看 [新手：让智能体代跑 CLI](./beginner-agent-init.md)。新手默认路径是让智能体询问选项并代你运行 CLI。
+
+手动流程仍保留给熟练用户和脚本化场景：
+
 1. 运行 `pnpm install`。
 2. 运行 `pnpm build`。
 3. 选择交互式或脚本化初始化。
 4. 运行 `node apps/cli/dist/index.js verify --project <project-path> --ide <ide>`。
 5. 如果校验失败，运行 `node apps/cli/dist/index.js doctor --project <project-path> --ide <ide>`。
 6. 如果缺少 IDE 运行文件，运行 `node apps/cli/dist/index.js sync --project <project-path> --ide <ide>`。
-7. 从 `01_concept/` 开始推进项目。
+7. 从 `01_concept/story-kernel.md` 开始推进项目。
 
 交互式初始化：
 
