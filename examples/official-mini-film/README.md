@@ -19,7 +19,10 @@ From the repo root:
 ```powershell
 pnpm build
 pnpm example:verify
+pnpm example:obsidian:in-project
 ```
+
+`pnpm example:obsidian:in-project` writes the generated Obsidian view layer to `_views/obsidian/`. `_views/` is ignored and generated. Open `_views/obsidian/` in Obsidian, not this project root. Source files remain Step 1 to Step 6.
 
 ## What This Example Does Not Demonstrate Yet
 

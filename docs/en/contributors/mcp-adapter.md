@@ -14,6 +14,7 @@ The adapter helps an agent understand the project without guessing the repositor
 - which Step 3, Step 4, Step 5, and Step 6 files belong to each shot
 - which source file should be edited for story, image prompt, motion, or execution-plan changes
 - which verification commands should run after edits
+- where the generated `_views/obsidian/` viewing layer can be opened
 
 The Step files remain the source of truth.
 
@@ -28,6 +29,7 @@ Initial MCP work should use `syncDirection: "read-only-context"` in the adapter 
 - expose only read-only diagnostics tools
 - report invalid or missing files instead of repairing them
 - leave all edits to normal workspace tools and source Step files
+- point users to `_views/obsidian/` only as a generated viewing layer
 
 ## Resources
 
@@ -49,6 +51,8 @@ Resources should expose stable, project-relative context. Suggested resources in
 
 Resource bodies should use project-relative paths. Do not expose drive-letter paths, `file://` links, IDE URIs, or machine-local absolute paths.
 
+MCP context may mention `_views/obsidian/` so users know where to inspect the generated view, but generated Obsidian files must not be fed back as source files.
+
 ## Prompts
 
 Prompts should be copy-ready handoff templates for common agent tasks:
@@ -65,6 +69,7 @@ Prompt text must tell the agent:
 - read source Step files first
 - edit only source Step files when changes are needed
 - do not edit Obsidian projections, IDE runtime mirrors, or MCP resources as source files
+- treat `_views/obsidian/Notes/` as user observations only; it does not replace Step files
 - run verification after edits
 
 For content changes:
@@ -95,7 +100,7 @@ The MCP adapter must not write:
 - `04_image_prompts/`
 - `05_video_prompts/`
 - `06_execution_plan/`
-- generated Obsidian projection folders such as `Workflow/`, `Shots/`, `Canvas/`, and `Bases/`
+- generated Obsidian projection folders under `_views/obsidian/`, including `Workflow/`, `Shots/`, `Canvas/`, `Bases/`, and `Projection Manifest.json`
 - `.obsidian/`
 - `.codex/`
 - `.cursor/`

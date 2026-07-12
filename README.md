@@ -44,12 +44,20 @@ This command builds the CLI and docs site, runs tests, and verifies the official
 
 ```powershell
 pnpm build
-pnpm example:obsidian
+pnpm example:obsidian:in-project
 ```
 
-This command exports the official example into an Obsidian vault projection and verifies dashboards, Bases, Canvas, and source paths. The generated vault includes a project home, review queue, shot progress view, execution readiness view, Agent Handoff page, Workflow Map, Shot Pipeline, Review Map, immersive `Shots/<shotId>.md` review pages, and per-shot `Canvas/Shot Reviews/<shotId>.canvas` canvases. See `docs/en/contributors/obsidian-vault-projection.md` for the adapter boundary.
+The recommended production layout keeps the AI agent working directory at the project root and opens only the generated Obsidian view layer as the vault:
 
-`export-obsidian` uses safe incremental export by default: repeated exports to the same vault update generated projection files while preserving user-authored Obsidian notes. Use `--force` for a clean rebuild, or `--dry-run` to print create/update/skip/keep operations without writing files. The generated `Projection Manifest.json` tracks projection-owned files, `Shots/` remains projection-owned, and `Notes/` is reserved for user-authored Obsidian notes.
+```text
+project/_views/obsidian/
+```
+
+Do not open the project root itself as the Obsidian vault for this workflow. `project/_views/obsidian/` contains generated viewing surfaces: `Workflow/`, `Shots/`, `Bases/`, `Canvas/`, dashboards, and `Projection Manifest.json`. `Notes/` is user-authored and preserved by incremental export, but it is not the Step source of truth. Step 1 to Step 6 files remain the only creative source.
+
+This command exports the official example into the in-project Obsidian view layer and verifies dashboards, Bases, Canvas, manifest hashes, and source paths. External vault mode remains supported with `export-obsidian --project <path> --out <vault-path>` and `verify-obsidian --project <path> --vault <vault-path>`.
+
+`export-obsidian` uses safe incremental export by default: repeated exports to the same vault update generated projection files while preserving user-authored Obsidian notes. Use `--force` for a clean rebuild, or `--dry-run` to print create/update/skip/keep operations without writing files. `--force` deletes the output vault before rebuilding and is blocked if that vault contains `.git`.
 
 Use `04_Agent_Handoff.md` and the `Agent Handoff` section in each shot page to copy source-file context into an agent conversation. The agent should edit source Step files, not generated Obsidian projection files.
 

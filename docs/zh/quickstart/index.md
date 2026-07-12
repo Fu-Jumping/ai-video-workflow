@@ -24,14 +24,31 @@ node apps/cli/dist/index.js init --name my-ai-video-project --ide codex --image 
 
 ## 导出 Obsidian vault 投影
 
-构建后，可以把官方示例导出为 Obsidian 可浏览的 vault 投影：
+构建后，可以把官方示例导出到推荐的项目内 Obsidian 观看层：
 
 ```powershell
 pnpm build
-pnpm example:obsidian
+pnpm example:obsidian:in-project
 ```
 
-也可以直接指定项目和输出目录：
+实际项目中，AI 智能体工作目录仍是项目根目录；Obsidian 只打开 `project/_views/obsidian/` 作为 vault。不要把 `project/` 本身作为这个工作流的 Obsidian vault。
+
+也可以直接运行 CLI：
+
+```powershell
+node apps/cli/dist/index.js export-obsidian --project <project-path> --in-project-view
+node apps/cli/dist/index.js verify-obsidian --project <project-path> --in-project-view
+```
+
+智能体修改 Step 文件后，按顺序运行：
+
+```powershell
+ai-video-workflow verify --project <path> --ide <id>
+ai-video-workflow export-obsidian --project <path> --in-project-view
+ai-video-workflow verify-obsidian --project <path> --in-project-view
+```
+
+如果你更想把生成 vault 放在项目外，外部 vault 模式仍然可用：
 
 ```powershell
 node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian
@@ -45,9 +62,9 @@ node apps/cli/dist/index.js verify-obsidian --project examples/official-mini-fil
 常用选项：
 
 ```powershell
-node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian --dry-run
-node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian --force
-node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian --include-obsidian-ui
+node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --in-project-view --dry-run
+node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --in-project-view --force
+node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --in-project-view --include-obsidian-ui
 ```
 
-`--dry-run` 只打印计划操作，不写入文件。`--force` 会清空并重建输出目录。默认导出不会写入 `.obsidian/`；`--include-obsidian-ui` 会额外生成可选的 Bookmarks 和 Workspace 建议，用于预置 Project Home、Agent Handoff、Shot Index、Review Map 和 Shot Pipeline，且不会覆盖已有用户配置。该投影是单向生成的阅读和审阅视图，不要把投影文件当作源 Step 文件。更多边界见 [Obsidian Vault 投影](../contributors/obsidian-vault-projection.md)。
+`--dry-run` 只打印计划操作，不写入文件。`--force` 会清空并重建输出 vault；如果该 vault 包含 `.git`，命令会拒绝删除。默认导出不会写入 `.obsidian/`；`--include-obsidian-ui` 会额外生成可选的 Bookmarks 和 Workspace 建议，用于预置 Project Home、Agent Handoff、Shot Index、Review Map 和 Shot Pipeline，且不会覆盖已有用户配置。该投影是单向生成的阅读和审阅视图，不要把投影文件当作源 Step 文件。更多边界见 [Obsidian Vault 投影](../contributors/obsidian-vault-projection.md)。

@@ -24,14 +24,31 @@ The default pack is `official-ai-video`, and enhanced flow is enabled unless the
 
 ## Export an Obsidian Vault Projection
 
-After building, export the official example into an Obsidian-readable vault projection:
+After building, export the official example into the recommended in-project Obsidian viewing layer:
 
 ```powershell
 pnpm build
-pnpm example:obsidian
+pnpm example:obsidian:in-project
 ```
 
-You can also specify the project and output directory directly:
+For project work, keep the AI agent working directory at the project root and open only `project/_views/obsidian/` as the Obsidian vault. Do not open `project/` itself as the vault for this workflow.
+
+Use the CLI directly:
+
+```powershell
+node apps/cli/dist/index.js export-obsidian --project <project-path> --in-project-view
+node apps/cli/dist/index.js verify-obsidian --project <project-path> --in-project-view
+```
+
+After an agent changes Step files, run:
+
+```powershell
+ai-video-workflow verify --project <path> --ide <id>
+ai-video-workflow export-obsidian --project <path> --in-project-view
+ai-video-workflow verify-obsidian --project <path> --in-project-view
+```
+
+External vault mode remains available when you want the generated vault outside the project:
 
 ```powershell
 node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian
@@ -45,9 +62,9 @@ The generated vault includes a Project Home, Review Dashboard, Shot Index, Produ
 Common options:
 
 ```powershell
-node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian --dry-run
-node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian --force
-node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian --include-obsidian-ui
+node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --in-project-view --dry-run
+node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --in-project-view --force
+node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --in-project-view --include-obsidian-ui
 ```
 
-`--dry-run` prints planned operations without writing files. `--force` clears and rebuilds the output directory. By default, export does not write `.obsidian/`; `--include-obsidian-ui` adds optional suggested Bookmarks and Workspace for Project Home, Agent Handoff, Shot Index, Review Map, and Shot Pipeline without overwriting existing user config. The projection is a one-way reading and review view. Do not treat projected files as source Step files. See [Obsidian vault projection](../contributors/obsidian-vault-projection.md) for the boundary.
+`--dry-run` prints planned operations without writing files. `--force` clears and rebuilds the output vault, and refuses to delete a vault containing `.git`. By default, export does not write `.obsidian/`; `--include-obsidian-ui` adds optional suggested Bookmarks and Workspace for Project Home, Agent Handoff, Shot Index, Review Map, and Shot Pipeline without overwriting existing user config. The projection is a one-way reading and review view. Do not treat projected files as source Step files. See [Obsidian vault projection](../contributors/obsidian-vault-projection.md) for the boundary.

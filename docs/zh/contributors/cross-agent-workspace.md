@@ -26,7 +26,8 @@
 - `.cursor/`
 - `.claude/`
 - `.trae/`
-- Obsidian 投影文件
+- `_views/obsidian/` 生成 Obsidian 观看层
+- `_views/obsidian/Notes/` 用户手写 Obsidian 笔记，增量导出会保留，但不是项目事实源
 - MCP resources 和 prompts
 
 平台记忆不是项目事实源。
@@ -55,7 +56,9 @@
 
 Codex、Cursor、Claude Code 和 Trae 可以接收生成的 runtime mirror。Cherry Studio 在 v0.6 中只作为工作目录型 adapter 写入文档与 contract，不作为 `sync --ide` 目标。
 
-Cherry Studio persona 文件、全局记忆、`@cherry/memory` 和 `MEMORY_FILE_PATH` 都属于用户或宿主平台表面。`ai-video-workflow` 不生成也不覆盖这些文件。项目校验会跳过根目录的 `SOUL.md`、`USER.md`、大小写变体和 `memory/`，避免平台记忆里的本机路径污染项目级校验。
+Cherry Studio persona 文件、全局记忆、`@cherry/memory` 和 `MEMORY_FILE_PATH` 都属于用户或宿主平台表面。如果用户误把项目根目录作为 Obsidian vault 打开，根 `.obsidian/` 也属于本地 UI/config 状态。`ai-video-workflow` 默认不生成也不覆盖这些宿主表面。项目校验会跳过根 `_views/`、根 `.obsidian/`、根 `SOUL.md`、`USER.md`、大小写变体和 `memory/`，避免平台记忆和生成观看层污染项目级校验。
+
+`sync` 会写入项目 `.gitignore` 保护块，覆盖 `_views/`、`.obsidian/`、`.codex/`、`.cursor/`、`.claude/`、`.trae/`、`SOUL.md`、`USER.md`、大小写变体和 `memory/`。Codex、Cursor、Claude Code、Trae、Cherry Studio、MCP 和 Obsidian 都应读取 `AGENTS.md` 与 `docs/ai-workspace/`，但只有 Step 文件是项目事实源。
 
 ## 验证
 

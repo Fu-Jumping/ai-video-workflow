@@ -44,12 +44,20 @@ pnpm verify:v0.2
 
 ```powershell
 pnpm build
-pnpm example:obsidian
+pnpm example:obsidian:in-project
 ```
 
-该命令会把官方示例导出为 Obsidian vault 投影，并校验 dashboard、Bases、Canvas 和来源路径。生成的 vault 包含项目首页、审阅队列、镜头进度、执行就绪视图、Agent Handoff 页面、Workflow Map、Shot Pipeline、Review Map、沉浸式 `Shots/<shotId>.md` 单镜头审阅页，以及逐镜头 `Canvas/Shot Reviews/<shotId>.canvas`。设计边界见 `docs/zh/contributors/obsidian-vault-projection.md`。
+推荐的生产布局是：AI 智能体仍以项目根目录为工作目录，Obsidian 只打开生成的观看层：
 
-`export-obsidian` 默认使用安全增量导出：再次导出到同一个 vault 时，只更新投影层生成文件，保留用户在 Obsidian 中新增的笔记。`--force` 会清空并重建输出目录，`--dry-run` 会只打印将创建、更新、跳过或保留的文件，不写入磁盘。导出的 `Projection Manifest.json` 用于追踪生成文件；`Shots/` 仍属于投影生成区，`Notes/` 目录用于用户自己的 Obsidian 笔记。
+```text
+project/_views/obsidian/
+```
+
+不要把项目根目录本身作为 Obsidian vault 打开。`project/_views/obsidian/` 内的 `Workflow/`、`Shots/`、`Bases/`、`Canvas/`、dashboard 和 `Projection Manifest.json` 都是生成观看表面。`Notes/` 是用户手写笔记区，增量导出会保留它，但它不是 Step 事实源。Step 1 到 Step 6 文件仍是唯一创作事实源。
+
+该命令会把官方示例导出到项目内 Obsidian 观看层，并校验 dashboard、Bases、Canvas、manifest hash 和来源路径。外部 vault 旧模式仍可用：`export-obsidian --project <path> --out <vault-path>` 与 `verify-obsidian --project <path> --vault <vault-path>`。
+
+`export-obsidian` 默认使用安全增量导出：再次导出到同一个 vault 时，只更新投影层生成文件，保留用户在 Obsidian 中新增的笔记。`--force` 会在重建前删除输出 vault；如果该 vault 包含 `.git`，命令会拒绝删除。`--dry-run` 会只打印将创建、更新、跳过或保留的文件，不写入磁盘。
 
 使用 `04_Agent_Handoff.md` 和每个镜头页里的 `Agent Handoff` 区块，可以把源文件上下文复制到智能体对话中。智能体应修改源 Step 文件，而不是修改生成的 Obsidian 投影文件。
 

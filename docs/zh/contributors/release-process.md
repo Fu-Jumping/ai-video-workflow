@@ -16,8 +16,10 @@ pnpm test
 pnpm example:verify
 pnpm example:obsidian
 pnpm example:obsidian:ui
+pnpm example:obsidian:in-project
+pnpm example:mcp-context
 pnpm verify:v0.2
 git diff --check
 ```
 
-Obsidian 相关发版还需要运行 v0.3 发布说明中记录的绝对链接扫描。
+Obsidian 相关发版还需要运行 v0.3 发布说明中记录的绝对链接扫描。人工 QA 应在 Obsidian 中打开 `examples/official-mini-film/_views/obsidian/`，不要打开 `examples/official-mini-film/`。
