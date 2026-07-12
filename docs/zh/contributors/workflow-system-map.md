@@ -109,6 +109,8 @@ IDE 运行目录只是落位方式，不是第二套规则。Codex 使用 `.code
 
 ## 相关阅读
 
+- [Adapter 边界](./adapter-boundaries.md)
+- [v0.2 路线图](./roadmap-v0.2.md)
 - [工作流总览](../workflow/overview.md)
 - [Step 3 分镜](../workflow/step-03-storyboard.md)
 - [Step 4 图片提示词](../workflow/step-04-image-prompts.md)

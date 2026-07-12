@@ -24,6 +24,8 @@
 
 `.codex/` 是 Codex 在当前项目中的原生运行目录。若规则不落到 `.codex/` 下的有效入口，不能假设 Codex 会稳定按项目规则运行。
 
+跨平台读取时，先读项目根 `AGENTS.md` 和 `docs/ai-workspace/`，再进入 `.codex/` runtime mirror。
+
 ## 3. 检测顺序
 
 开始前先检测以下入口是否存在：
@@ -56,6 +58,15 @@
 - `.codex/skills/` 是 skill 的运行时入口
 - `.codex/ai-video-workflow/` 是完整文档和镜像层
 - 当前项目绑定信息只从项目级配置读取，例如 `project.config.yaml`
+
+## 5.0 Adapter Contract
+
+- 读取：`packs/official-ai-video/`、`project.config.yaml` 和项目 Step 1 到 Step 6 文件。
+- 写入：`.codex/ai-video-workflow/` 完整运行镜像和 `.codex/skills/` 技能入口。
+- 同步方向：`runtime-mirror`。
+- 事实源：`project-step-files`，而不是 `.codex/` 运行镜像。
+- 不能写入：源 Step 文件、生成的 Obsidian 投影文件、用户 `.obsidian/` 配置或绝对路径链接。
+- 验证：`ai-video-workflow verify --project <path> --ide codex`。
 
 ## 5.1 职责分配
 

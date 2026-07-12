@@ -9,7 +9,18 @@ coverage/
 Thumbs.db
 .turbo/
 tmp/
+.tmp/
 temp/
 .vscode/
 .idea/
 OPEN_SOURCE_PRODUCT_BUILD_PLAN.md
+docs/plans/*.md
+
+# ai-video-workflow generated and local surfaces
+_views/
+.obsidian/
+SOUL.md
+USER.md
+soul.md
+user.md
+memory/

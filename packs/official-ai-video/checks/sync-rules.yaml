@@ -1,10 +1,28 @@
+sharedWorkspace:
+  rootEntry: "AGENTS.md"
+  docsDir: "docs/ai-workspace"
+  requiredDocs:
+    - "README.md"
+    - "BOUNDARIES.md"
+    - "HANDOFFS.md"
+    - "SECURITY.md"
+    - "PLATFORM_MATRIX.md"
+    - "ENTRYPOINT_RECONCILIATION.md"
 syncTargets:
   codex:
     mirrorDir: ".codex/ai-video-workflow"
     skillsDir: ".codex/skills"
   cursor:
+    mirrorDir: ".cursor/ai-video-workflow"
+    rulesDir: ".cursor/rules"
     skillsDir: ".cursor/skills"
   claude-code:
+    mirrorDir: ".claude/ai-video-workflow"
+    commandsDir: ".claude/commands"
     skillsDir: ".claude/skills"
+    rootEntry: "CLAUDE.md"
   trae:
+    documentsDir: ".trae/documents/ai-video-workflow"
+    rulesDir: ".trae/rules"
     skillsDir: ".trae/skills"
+    specsDir: ".trae/specs/ai-video-workflow"

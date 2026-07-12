@@ -11,9 +11,11 @@
   },
   "dependencies": {
     "@inquirer/prompts": "^7.8.4",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "commander": "^14.0.1",
     "fs-extra": "^11.3.2",
-    "yaml": "^2.8.1"
+    "yaml": "^2.8.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",

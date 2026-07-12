@@ -1,0 +1,57 @@
+{
+  "adapterId": "obsidian",
+  "displayName": "Obsidian",
+  "inputs": [
+    "project.config.yaml",
+    "01_concept/",
+    "02_setting/",
+    "03_storyboard/",
+    "04_image_prompts/",
+    "05_video_prompts/",
+    "06_execution_plan/"
+  ],
+  "outputs": [
+    "_views/obsidian/Workflow/",
+    "_views/obsidian/Shots/",
+    "_views/obsidian/Bases/",
+    "_views/obsidian/Canvas/",
+    "_views/obsidian/Projection Manifest.json"
+  ],
+  "syncDirection": "one-way-project-to-adapter",
+  "sourceOfTruth": "project-step-files",
+  "sharedEntryPoints": [
+    "AGENTS.md",
+    "docs/ai-workspace/README.md",
+    "docs/ai-workspace/BOUNDARIES.md"
+  ],
+  "generatedSurfaces": [
+    "_views/obsidian/"
+  ],
+  "userOwnedSurfaces": [
+    "_views/obsidian/Notes/"
+  ],
+  "privateRuntimeSurfaces": [
+    ".obsidian/",
+    "_views/obsidian/.obsidian/"
+  ],
+  "handoffSurfaces": [
+    "_views/obsidian/04_Agent_Handoff.md",
+    "_views/obsidian/Shots/",
+    "_views/obsidian/Canvas/"
+  ],
+  "verificationCommands": [
+    "ai-video-workflow export-obsidian --project <path> --in-project-view",
+    "ai-video-workflow verify-obsidian --project <path> --in-project-view"
+  ],
+  "forbiddenWrites": [
+    "_views/obsidian/Workflow/",
+    "_views/obsidian/Shots/",
+    "_views/obsidian/Bases/",
+    "_views/obsidian/Canvas/",
+    "_views/obsidian/Projection Manifest.json",
+    "_views/obsidian/.obsidian/",
+    ".obsidian/",
+    "absolute links"
+  ],
+  "failureBehavior": "Refresh the generated view from Step source files; preserve user notes under _views/obsidian/Notes/ and never reverse-sync generated projection files into project truth."
+}

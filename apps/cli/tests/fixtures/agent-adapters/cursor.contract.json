@@ -1,0 +1,59 @@
+{
+  "adapterId": "cursor",
+  "displayName": "Cursor",
+  "inputs": [
+    "packs/official-ai-video/",
+    "project.config.yaml",
+    "01_concept/",
+    "02_setting/",
+    "03_storyboard/",
+    "04_image_prompts/",
+    "05_video_prompts/",
+    "06_execution_plan/"
+  ],
+  "outputs": [
+    ".cursor/skills/",
+    ".cursor/rules/",
+    ".cursor/ai-video-workflow/"
+  ],
+  "syncDirection": "runtime-mirror",
+  "sourceOfTruth": "project-step-files",
+  "sharedEntryPoints": [
+    "AGENTS.md",
+    "docs/ai-workspace/"
+  ],
+  "generatedSurfaces": [
+    ".cursor/",
+    "_views/obsidian/"
+  ],
+  "userOwnedSurfaces": [
+    "_views/obsidian/Notes/",
+    "SOUL.md",
+    "USER.md",
+    "memory/"
+  ],
+  "privateRuntimeSurfaces": [
+    ".cursor/",
+    ".obsidian/",
+    "_views/obsidian/.obsidian/"
+  ],
+  "handoffSurfaces": [
+    "AGENTS.md",
+    ".cursor/rules/ai-video-workflow.mdc",
+    ".cursor/skills/film-workflow/SKILL.md"
+  ],
+  "verificationCommands": [
+    "ai-video-workflow verify --project <path> --ide cursor"
+  ],
+  "forbiddenWrites": [
+    "_views/obsidian/Workflow/",
+    "_views/obsidian/Shots/",
+    "_views/obsidian/Bases/",
+    "_views/obsidian/Canvas/",
+    "_views/obsidian/Projection Manifest.json",
+    "_views/obsidian/.obsidian/",
+    ".obsidian/",
+    "absolute links"
+  ],
+  "failureBehavior": "Regenerate adapter-owned .cursor runtime mirrors and report missing outputs through verification without changing source Step files or Obsidian projection files."
+}

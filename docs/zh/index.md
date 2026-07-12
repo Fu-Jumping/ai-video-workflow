@@ -5,3 +5,14 @@
 - 用 `official-ai-video` 作为默认官方教学 pack。
 - 用 CLI 做初始化、同步、校验、诊断和脚手架生成。
 - 用文档站理解工作流、平台接入和扩展方式。
+
+## 继续阅读
+
+- [快速开始](./quickstart/index.md)
+- [工作流系统图](./contributors/workflow-system-map.md)
+- [Adapter 边界](./contributors/adapter-boundaries.md)
+- [智能体 Adapter Contract](./contributors/agent-adapter-contract.md)
+- [跨智能体工作目录](./contributors/cross-agent-workspace.md)
+- [MCP adapter](./contributors/mcp-adapter.md)
+- [Obsidian Vault 投影](./contributors/obsidian-vault-projection.md)
+- [v0.2 路线图](./contributors/roadmap-v0.2.md)

@@ -1,5 +1,7 @@
 export type Ide = "codex" | "cursor" | "claude-code" | "trae";
 
+export type AdapterId = Ide | "obsidian" | "mcp" | "cherry-studio";
+
 export type Platform = "openai" | "veo" | "runway" | "luma" | "minimax";
 
 export type IssueCode =
@@ -10,7 +12,34 @@ export type IssueCode =
   | "missing-step4-section"
   | "absolute-path-link"
   | "step4-forbidden-text"
-  | "missing-ide-runtime";
+  | "missing-ide-runtime"
+  | "missing-shared-agent-entry"
+  | "shared-agent-entry-needs-merge"
+  | "invalid-shared-agent-entry"
+  | "missing-shared-agent-doc"
+  | "invalid-shared-agent-doc"
+  | "agent-runtime-conflict"
+  | "missing-step3-step4-link"
+  | "broken-step3-step4-link"
+  | "missing-obsidian-dashboard"
+  | "invalid-obsidian-dashboard"
+  | "missing-obsidian-base"
+  | "missing-obsidian-base-view"
+  | "invalid-obsidian-base-yaml"
+  | "invalid-obsidian-canvas-json"
+  | "invalid-obsidian-shot-review"
+  | "invalid-obsidian-agent-handoff"
+  | "invalid-obsidian-ui-config"
+  | "missing-obsidian-source-path"
+  | "broken-obsidian-source-path"
+  | "obsidian-absolute-link"
+  | "missing-obsidian-manifest"
+  | "invalid-obsidian-manifest"
+  | "missing-obsidian-manifest-file"
+  | "obsidian-manifest-hash-mismatch"
+  | "obsidian-manifest-source-mismatch"
+  | "obsidian-view-stale"
+  | "unsafe-obsidian-force-target";
 
 export interface ProjectConfig {
   pack: string;

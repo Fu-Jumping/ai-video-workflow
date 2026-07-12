@@ -14,6 +14,72 @@ It combines:
 
 This repository is the first-stage refactor from the former internal mother package. The current default pack is `official-ai-video`.
 
+## v0.2 Mainline
+
+The current recommended focus is the mainline demo loop: non-interactive init, the official example project, verification and doctor guidance, adapter boundaries, and quickstart docs.
+
+Future Obsidian, LibTV, MCP, and agent-platform work should attach as adapters, not as second workflow sources.
+
+## Cross-Agent Workspace
+
+`sync --ide codex|cursor|claude-code|trae` initializes a shared agent workspace in each project:
+
+- `AGENTS.md` is the cross-agent root entry.
+- `docs/ai-workspace/` records shared boundaries, handoffs, platform matrix, and security rules.
+- Platform runtime mirrors remain adapter surfaces, not project truth.
+- Cherry Studio is documented as a working-directory adapter; it does not receive generated memory or persona files.
+- If a project already has a custom `AGENTS.md`, `sync` preserves it; merge the ai-video-workflow block from `docs/ai-workspace/ENTRYPOINT_RECONCILIATION.md` or `doctor` output.
+
+See `docs/en/contributors/cross-agent-workspace.md` and `docs/en/ide-integrations/cherry-studio.md`.
+
+## v0.2 Verification
+
+```powershell
+pnpm verify:v0.2
+```
+
+This command builds the CLI and docs site, runs tests, and verifies the official example project.
+
+## Obsidian Vault Projection
+
+```powershell
+pnpm build
+pnpm example:obsidian:in-project
+```
+
+The recommended production layout keeps the AI agent working directory at the project root and opens only the generated Obsidian view layer as the vault:
+
+```text
+project/_views/obsidian/
+```
+
+Do not open the project root itself as the Obsidian vault for this workflow. `project/_views/obsidian/` contains generated viewing surfaces: `Workflow/`, `Shots/`, `Bases/`, `Canvas/`, dashboards, and `Projection Manifest.json`. `Notes/` is user-authored and preserved by incremental export, but it is not the Step source of truth. Step 1 to Step 6 files remain the only creative source.
+
+This command exports the official example into the in-project Obsidian view layer and verifies dashboards, Bases, Canvas, manifest hashes, and source paths. External vault mode remains supported with `export-obsidian --project <path> --out <vault-path>` and `verify-obsidian --project <path> --vault <vault-path>`.
+
+`export-obsidian` uses safe incremental export by default: repeated exports to the same vault update generated projection files while preserving user-authored Obsidian notes. Use `--force` for a clean rebuild, or `--dry-run` to print create/update/skip/keep operations without writing files. `--force` deletes the output vault before rebuilding and is blocked if that vault contains `.git`.
+
+Use `04_Agent_Handoff.md` and the `Agent Handoff` section in each shot page to copy source-file context into an agent conversation. The agent should edit source Step files, not generated Obsidian projection files.
+
+By default the exporter does not write `.obsidian/`. Use `--include-obsidian-ui` only when you want optional suggested Bookmarks and Workspace for the open-vault path: Project Home, Agent Handoff, Shot Index, Review Map, and Shot Pipeline. Existing user `.obsidian` files are not overwritten; suggested copies are written under `.obsidian/ai-video-workflow-suggested/`.
+
+For release QA of the optional opening experience, run `pnpm example:obsidian:ui` after `pnpm build`. This exports the official sample with `--include-obsidian-ui` and verifies the generated vault without launching Obsidian automatically.
+
+See `docs/en/contributors/release-notes-v0.3.md` for the v0.3 Obsidian release notes.
+
+## MCP Read-Only Context
+
+```powershell
+pnpm build
+pnpm example:mcp-context
+```
+
+`mcp-context` prints deterministic JSON for the official example: workflow steps, shot source paths, edit boundaries, and verification commands. It is read-only and does not write project files.
+
+For a local MCP client, use the CLI command `ai-video-workflow mcp-server --project <project-path>` after building the CLI. The server is scoped to one project, runs over stdio, and exposes read-only resources, prompts, and tools. Do not use `mcp-server` in scripts that must exit; use `mcp-context` for smoke tests.
+
+See `docs/en/contributors/mcp-adapter.md` for the MCP adapter boundary.
+
 ## Quick Start
 
 1. Install dependencies with `pnpm install`.
