@@ -49,7 +49,7 @@ describe("official example Obsidian projection", () => {
 
     const manualNote = path.join(outRoot, "Notes", "manual.md");
     await fs.writeFile(manualNote, "# Manual Note\n\nKeep this review observation.\n", "utf8");
-    await exportObsidianVault({ projectRoot, outRoot, force: false, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot, outRoot, force: false, includePluginRecipes: true, inProjectView: true });
 
     await expect(fs.readFile(manualNote, "utf8")).resolves.toContain("Keep this review observation.");
   });
