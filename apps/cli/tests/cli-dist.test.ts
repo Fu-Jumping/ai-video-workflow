@@ -136,6 +136,47 @@ describe("built CLI", () => {
     expect(config).toContain("default: runway");
   });
 
+  test("invalid CLI choices use readable errors without default stack traces", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const targetRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-invalid-choice-"));
+    tempRoots.push(targetRoot);
+
+    await buildCli(cliRoot);
+    const result = await runExpectFailure(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "init", "--name", "demo", "--ide", "codx", "--image", "openai", "--video", "runway"],
+      targetRoot
+    );
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(output).toContain("Invalid AI IDE: codx");
+    expect(output).toContain("Expected one of: codex, cursor, claude-code, trae");
+    expect(output).toContain("Did you mean codex?");
+    expect(output).not.toContain("TypeError");
+    expect(output).not.toContain("node:internal");
+    expect(output).not.toContain("at Command");
+  });
+
+  test("verify validates IDE choices before project verification", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const targetRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-invalid-verify-"));
+    tempRoots.push(targetRoot);
+
+    await buildCli(cliRoot);
+    const result = await runExpectFailure(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "verify", "--project", targetRoot, "--ide", "codx"],
+      targetRoot
+    );
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(output).toContain("Invalid AI IDE: codx");
+    expect(output).toContain("Did you mean codex?");
+    expect(output).not.toContain("TypeError");
+    expect(output).not.toContain("node:internal");
+    expect(output).not.toContain("at Command");
+  });
+
   test("export-obsidian creates a vault projection from the official example", async () => {
     const cliRoot = path.resolve(__dirname, "..");
     const repoRoot = path.resolve(cliRoot, "..", "..");

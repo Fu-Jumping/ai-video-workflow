@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import { DEFAULT_PACK, SUPPORTED_IDES, SUPPORTED_PLATFORMS } from "./lib/constants.js";
 import { diagnoseProject } from "./lib/doctor.js";
 import { createProject } from "./lib/init.js";
+import { runCliAction } from "./lib/cli-errors.js";
+import { parseIde, parsePlatform } from "./lib/cli-options.js";
 import { buildMcpContext } from "./lib/mcp/context.js";
 import { startMcpServer } from "./lib/mcp/server.js";
 import { createPackScaffold } from "./lib/new-pack.js";
@@ -21,6 +23,7 @@ const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
 const program = new Command();
 program.name("ai-video-workflow").description("AI video workflow CLI");
+program.option("--debug", "Print internal stack traces for CLI errors", false);
 
 const obsidianOperationStatuses: ObsidianExportOperationStatus[] = [
   "created",
@@ -30,16 +33,6 @@ const obsidianOperationStatuses: ObsidianExportOperationStatus[] = [
   "skipped-user-config-existing",
   "orphaned-generated"
 ];
-
-function parseChoice<T extends string>(value: string | undefined, allowed: readonly T[], label: string): T | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  if ((allowed as readonly string[]).includes(value)) {
-    return value as T;
-  }
-  throw new Error(`Invalid ${label}: ${value}. Expected one of: ${allowed.join(", ")}`);
-}
 
 function formatObsidianExportSummary(result: Awaited<ReturnType<typeof exportObsidianVault>>): string {
   const lines = ["Obsidian export operations:"];
@@ -63,10 +56,10 @@ program
   .option("--ide <ide>", "AI IDE target")
   .option("--image <platform>", "Default image platform")
   .option("--video <platform>", "Default video platform")
-  .action(async (options) => {
-    const parsedIde = parseChoice(options.ide, SUPPORTED_IDES, "AI IDE");
-    const parsedImagePlatform = parseChoice(options.image, SUPPORTED_PLATFORMS, "image platform");
-    const parsedVideoPlatform = parseChoice(options.video, SUPPORTED_PLATFORMS, "video platform");
+  .action((options) => runCliAction(async () => {
+    const parsedIde = parseIde(options.ide);
+    const parsedImagePlatform = parsePlatform(options.image, "image platform");
+    const parsedVideoPlatform = parsePlatform(options.video, "video platform");
 
     const projectName = options.name ?? (await input({ message: "Project directory name", default: "my-ai-video-project" }));
     const ide =
@@ -96,32 +89,40 @@ program
       videoPlatform
     });
     console.log(`Created ${projectName}`);
-  });
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
 
 program
   .command("sync")
   .description("Sync pack runtime files into a project")
   .requiredOption("--project <path>")
   .requiredOption("--ide <ide>")
-  .action(async (options) => {
+  .action((options) => runCliAction(async () => {
+    const ide = parseIde(options.ide);
+    if (!ide) {
+      throw new Error("Missing --ide");
+    }
     await syncProject({
       repoRoot: resolveRepoRoot(moduleDir),
       projectRoot: path.resolve(options.project),
       pack: DEFAULT_PACK,
-      ide: options.ide
+      ide
     });
     console.log("Sync complete");
-  });
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
 
 program
   .command("verify")
   .description("Verify project structure and workflow contracts")
   .requiredOption("--project <path>")
   .requiredOption("--ide <ide>")
-  .action(async (options) => {
+  .action((options) => runCliAction(async () => {
+    const ide = parseIde(options.ide);
+    if (!ide) {
+      throw new Error("Missing --ide");
+    }
     const result = await verifyProject({
       projectRoot: path.resolve(options.project),
-      ide: options.ide,
+      ide,
       pack: DEFAULT_PACK
     });
     if (!result.ok) {
@@ -132,48 +133,52 @@ program
       return;
     }
     console.log("Verification passed");
-  });
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
 
 program
   .command("doctor")
   .description("Diagnose project verification failures")
   .requiredOption("--project <path>")
   .requiredOption("--ide <ide>")
-  .action(async (options) => {
+  .action((options) => runCliAction(async () => {
+    const ide = parseIde(options.ide);
+    if (!ide) {
+      throw new Error("Missing --ide");
+    }
     const result = await verifyProject({
       projectRoot: path.resolve(options.project),
-      ide: options.ide,
+      ide,
       pack: DEFAULT_PACK
     });
     console.log(await diagnoseProject({ issues: result.issues }));
     if (!result.ok) {
       process.exitCode = 1;
     }
-  });
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
 
 program
   .command("mcp-context")
   .description("Print read-only MCP project context as JSON")
   .requiredOption("--project <path>")
-  .action(async (options) => {
+  .action((options) => runCliAction(async () => {
     const context = await buildMcpContext({
       projectRoot: path.resolve(options.project),
       pack: DEFAULT_PACK
     });
     console.log(JSON.stringify(context, null, 2));
-  });
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
 
 program
   .command("mcp-server")
   .description("Start a read-only MCP stdio server for a project")
   .requiredOption("--project <path>")
-  .action(async (options) => {
+  .action((options) => runCliAction(async () => {
     await startMcpServer({
       projectRoot: path.resolve(options.project),
       pack: DEFAULT_PACK,
       ide: "codex"
     });
-  });
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
 
 program
   .command("export-obsidian")
@@ -185,7 +190,7 @@ program
   .option("--dry-run", "Print planned Obsidian export operations without writing files", false)
   .option("--include-obsidian-ui", "Include optional Obsidian UI suggestion files without overwriting existing user config", false)
   .option("--no-plugin-recipes", "Skip optional community plugin recipe notes")
-  .action(async (options) => {
+  .action((options) => runCliAction(async () => {
     assertSingleObsidianTarget({
       outRoot: options.out,
       inProjectView: options.inProjectView,
@@ -207,7 +212,7 @@ program
     } else {
       console.log(`Exported Obsidian vault projection to ${result.vaultRoot}`);
     }
-  });
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
 
 program
   .command("verify-obsidian")
@@ -215,7 +220,7 @@ program
   .requiredOption("--project <path>")
   .option("--vault <path>")
   .option("--in-project-view", "Use <project>/_views/obsidian as the Obsidian vault projection", false)
-  .action(async (options) => {
+  .action((options) => runCliAction(async () => {
     assertSingleObsidianTarget({
       outRoot: options.vault,
       inProjectView: options.inProjectView,
@@ -235,18 +240,18 @@ program
       return;
     }
     console.log("Obsidian projection verification passed");
-  });
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
 
 program
   .command("new-pack")
   .description("Create a workflow pack scaffold")
   .requiredOption("--name <name>")
-  .action(async (options) => {
+  .action((options) => runCliAction(async () => {
     await createPackScaffold({
       targetRoot: process.cwd(),
       packName: options.name
     });
     console.log(`Created pack scaffold ${options.name}`);
-  });
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
 
 await program.parseAsync(process.argv);

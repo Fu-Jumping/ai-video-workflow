@@ -12,6 +12,38 @@ afterEach(async () => {
 });
 
 describe("createPackScaffold", () => {
+  test.each([
+    "",
+    "   ",
+    ".",
+    "..",
+    "../escaped-pack",
+    "..\\escaped-pack",
+    "nested/pack",
+    "nested\\pack",
+    "C:\\pack",
+    "\\\\server\\share",
+    "CON",
+    "trailing-dot.",
+    "trailing-space "
+  ])("rejects unsafe pack directory name %j", async (packName) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-pack-name-"));
+    tempRoots.push(root);
+    const possibleTarget = path.resolve(root, packName);
+    if (possibleTarget !== root && possibleTarget.startsWith(`${root}${path.sep}`)) {
+      tempRoots.push(possibleTarget);
+    }
+
+    await expect(
+      createPackScaffold({
+        targetRoot: root,
+        packName
+      })
+    ).rejects.toThrow();
+
+    await expect(fs.pathExists(path.join(root, "pack.yaml"))).resolves.toBe(false);
+  });
+
   test("creates a new workflow pack scaffold with checks and Step 6 templates", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-pack-"));
     tempRoots.push(root);

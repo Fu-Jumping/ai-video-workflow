@@ -12,6 +12,59 @@ afterEach(async () => {
 });
 
 describe("createProject", () => {
+  test.each([
+    "",
+    "   ",
+    ".",
+    "..",
+    "../escape",
+    "..\\escape",
+    "nested/demo",
+    "nested\\demo",
+    "C:\\escape",
+    "\\\\server\\share",
+    "CON",
+    "con.txt",
+    "trailing-dot.",
+    "trailing-space "
+  ])("rejects unsafe project directory name %j", async (projectName) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-init-name-"));
+    tempRoots.push(root);
+    const possibleTarget = path.resolve(root, projectName);
+    if (possibleTarget !== root && possibleTarget.startsWith(`${root}${path.sep}`)) {
+      tempRoots.push(possibleTarget);
+    }
+
+    await expect(
+      createProject({
+        targetRoot: root,
+        projectName,
+        pack: "official-ai-video",
+        ide: "codex",
+        imagePlatform: "openai",
+        videoPlatform: "runway"
+      })
+    ).rejects.toThrow();
+
+    await expect(fs.pathExists(path.join(root, "project.config.yaml"))).resolves.toBe(false);
+  });
+
+  test("accepts readable Chinese names with internal spaces", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-init-readable-name-"));
+    tempRoots.push(root);
+
+    await createProject({
+      targetRoot: root,
+      projectName: "中文 项目",
+      pack: "official-ai-video",
+      ide: "codex",
+      imagePlatform: "openai",
+      videoPlatform: "runway"
+    });
+
+    await expect(fs.pathExists(path.join(root, "中文 项目", "project.config.yaml"))).resolves.toBe(true);
+  });
+
   test("creates the default project skeleton, config, and codex runtime layers", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-init-"));
     tempRoots.push(root);
