@@ -15,6 +15,7 @@ import { verifyObsidianVault } from "./lib/obsidian/verify.js";
 import { resolveRepoRoot } from "./lib/paths.js";
 import { syncProject } from "./lib/sync.js";
 import { verifyProject } from "./lib/verify.js";
+import { assertSingleObsidianTarget, resolveInProjectObsidianView } from "./lib/view-layer.js";
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -178,15 +179,23 @@ program
   .command("export-obsidian")
   .description("Export a project into an Obsidian vault projection")
   .requiredOption("--project <path>")
-  .requiredOption("--out <path>")
+  .option("--out <path>")
+  .option("--in-project-view", "Use <project>/_views/obsidian as the Obsidian vault projection", false)
   .option("--force", "Overwrite the output directory if it already contains files", false)
   .option("--dry-run", "Print planned Obsidian export operations without writing files", false)
   .option("--include-obsidian-ui", "Include optional Obsidian UI suggestion files without overwriting existing user config", false)
   .option("--no-plugin-recipes", "Skip optional community plugin recipe notes")
   .action(async (options) => {
+    assertSingleObsidianTarget({
+      outRoot: options.out,
+      inProjectView: options.inProjectView,
+      targetLabel: "--out"
+    });
+    const projectRoot = path.resolve(options.project);
+    const outRoot = options.inProjectView ? resolveInProjectObsidianView(projectRoot) : path.resolve(options.out);
     const result = await exportObsidianVault({
-      projectRoot: path.resolve(options.project),
-      outRoot: path.resolve(options.out),
+      projectRoot,
+      outRoot,
       force: options.force,
       includePluginRecipes: options.pluginRecipes,
       includeObsidianUi: options.includeObsidianUi,
@@ -204,11 +213,19 @@ program
   .command("verify-obsidian")
   .description("Verify an Obsidian vault projection")
   .requiredOption("--project <path>")
-  .requiredOption("--vault <path>")
+  .option("--vault <path>")
+  .option("--in-project-view", "Use <project>/_views/obsidian as the Obsidian vault projection", false)
   .action(async (options) => {
+    assertSingleObsidianTarget({
+      outRoot: options.vault,
+      inProjectView: options.inProjectView,
+      targetLabel: "--vault"
+    });
+    const projectRoot = path.resolve(options.project);
+    const vaultRoot = options.inProjectView ? resolveInProjectObsidianView(projectRoot) : path.resolve(options.vault);
     const result = await verifyObsidianVault({
-      projectRoot: path.resolve(options.project),
-      vaultRoot: path.resolve(options.vault)
+      projectRoot,
+      vaultRoot
     });
     if (!result.ok) {
       for (const issue of result.issues) {

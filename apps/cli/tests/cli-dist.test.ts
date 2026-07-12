@@ -15,6 +15,20 @@ async function run(command: string, args: string[], cwd: string): Promise<{ stdo
   });
 }
 
+async function runExpectFailure(command: string, args: string[], cwd: string): Promise<{ stdout: string; stderr: string }> {
+  try {
+    await run(command, args, cwd);
+  } catch (error) {
+    const failed = error as { code?: number | null; stdout?: string; stderr?: string };
+    expect(failed.code).not.toBe(0);
+    return {
+      stdout: failed.stdout ?? "",
+      stderr: failed.stderr ?? ""
+    };
+  }
+  throw new Error("Expected command to fail");
+}
+
 afterEach(async () => {
   await Promise.all(tempRoots.splice(0).map((dir) => fs.remove(dir)));
 });
@@ -146,6 +160,55 @@ describe("built CLI", () => {
     await expect(fs.pathExists(path.join(outRoot, "00_Project_Home.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(outRoot, "Canvas", "Workflow Map.canvas"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(outRoot, "Bases", "Shots.base"))).resolves.toBe(true);
+  });
+
+  test("export-obsidian and verify-obsidian support in-project view targets", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const repoRoot = path.resolve(cliRoot, "..", "..");
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-obsidian-in-project-"));
+    tempRoots.push(tempRoot);
+    const projectRoot = path.join(tempRoot, "official-mini-film");
+    const otherVaultRoot = path.join(tempRoot, "external-vault");
+    await fs.copy(path.join(repoRoot, "examples", "official-mini-film"), projectRoot);
+
+    await buildCli(cliRoot);
+    const exportResult = await run(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "export-obsidian", "--project", projectRoot, "--in-project-view"],
+      repoRoot
+    );
+    const verifyResult = await run(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "verify-obsidian", "--project", projectRoot, "--in-project-view"],
+      repoRoot
+    );
+
+    expect(exportResult.stdout).toContain("_views");
+    expect(exportResult.stdout).toContain("obsidian");
+    expect(verifyResult.stdout).toContain("Obsidian projection verification passed");
+    await expect(fs.pathExists(path.join(projectRoot, "_views", "obsidian", "00_Project_Home.md"))).resolves.toBe(true);
+
+    const conflictingTarget = await runExpectFailure(
+      process.execPath,
+      [
+        path.join(cliRoot, "dist", "index.js"),
+        "export-obsidian",
+        "--project",
+        projectRoot,
+        "--out",
+        otherVaultRoot,
+        "--in-project-view"
+      ],
+      repoRoot
+    );
+    expect(`${conflictingTarget.stdout}\n${conflictingTarget.stderr}`).toContain("Use either --out or --in-project-view");
+
+    const missingVaultTarget = await runExpectFailure(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "verify-obsidian", "--project", projectRoot],
+      repoRoot
+    );
+    expect(`${missingVaultTarget.stdout}\n${missingVaultTarget.stderr}`).toContain("Missing --vault");
   });
 
   test("export-obsidian dry-run reports operations without writing files", async () => {
