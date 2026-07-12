@@ -14,6 +14,7 @@ temp/
 .vscode/
 .idea/
 OPEN_SOURCE_PRODUCT_BUILD_PLAN.md
+docs/plans/*.md
 
 # ai-video-workflow generated and local surfaces
 _views/
