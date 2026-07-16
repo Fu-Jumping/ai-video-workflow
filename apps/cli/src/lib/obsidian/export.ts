@@ -24,15 +24,67 @@ import type {
 } from "./types.js";
 import { isDirectObsidianUiConfigPath, renderObsidianUiConfigFiles } from "./ui-config.js";
 import { resolveInProjectObsidianView } from "../view-layer.js";
+import { CliUserError } from "../cli-errors.js";
+import { readProjectConfig } from "../project-config.js";
+import { assertExistingDirectory } from "../project-root.js";
+import { verifyProject } from "../verify.js";
 
-async function assertSafeOutput(projectRoot: string, outRoot: string): Promise<void> {
+function isInsidePath(child: string, parent: string): boolean {
+  const relative = path.relative(path.resolve(parent), path.resolve(child));
+  return relative.length > 0 && !relative.startsWith("..") && !path.isAbsolute(relative);
+}
+
+async function assertExportableProject(projectRoot: string): Promise<void> {
+  await assertExistingDirectory(projectRoot, "Project root");
+  const { config, issues } = await readProjectConfig(projectRoot);
+  if (!config) {
+    throw new CliUserError(issues[0]?.message ?? "Project root is missing valid project.config.yaml");
+  }
+  const verification = await verifyProject({
+    projectRoot,
+    ide: config.ide,
+    pack: config.pack
+  });
+  if (!verification.ok) {
+    const firstIssue = verification.issues[0];
+    throw new CliUserError(`Project must pass verify before exporting Obsidian projection: ${firstIssue.code}: ${firstIssue.message}`);
+  }
+}
+
+async function assertSafeOutput(projectRoot: string, outRoot: string, inProjectView: boolean): Promise<void> {
   const resolvedProject = path.resolve(projectRoot);
   const resolvedOut = path.resolve(outRoot);
   if (resolvedOut === resolvedProject) {
-    throw new Error("Obsidian export output cannot be the project root");
+    throw new CliUserError("Obsidian export output cannot be the project root");
   }
   if (path.parse(resolvedOut).root === resolvedOut || resolvedProject.startsWith(`${resolvedOut}${path.sep}`)) {
-    throw new Error("Obsidian export output must be a dedicated directory, not a filesystem root or project parent");
+    throw new CliUserError("Obsidian export output must be a dedicated directory, not a filesystem root or project parent");
+  }
+  const expectedInProjectView = resolveInProjectObsidianView(resolvedProject);
+  if (isInsidePath(resolvedOut, resolvedProject)) {
+    if (!inProjectView || !sameFsPath(resolvedOut, expectedInProjectView)) {
+      throw new CliUserError("Obsidian export output inside a project must use --in-project-view for _views/obsidian.");
+    }
+  }
+  if (await fs.pathExists(resolvedOut)) {
+    const stat = await fs.stat(resolvedOut);
+    if (!stat.isDirectory()) {
+      throw new CliUserError(`Obsidian export output must be a directory: ${resolvedOut}`);
+    }
+  }
+}
+
+async function assertSafeForceOutput(outRoot: string): Promise<void> {
+  if (!(await fs.pathExists(outRoot))) {
+    return;
+  }
+  if (await fs.pathExists(path.join(outRoot, ".git"))) {
+    throw new CliUserError("Refusing to force-remove an Obsidian output directory containing .git");
+  }
+  const entries = await fs.readdir(outRoot);
+  const hasManifest = await fs.pathExists(vaultFsPath(outRoot, projectionManifestPath));
+  if (entries.length > 0 && !hasManifest) {
+    throw new CliUserError("Refusing to force-remove a non-empty Obsidian output directory without Projection Manifest.json");
   }
 }
 
@@ -191,11 +243,12 @@ function createManifest(
 export async function exportObsidianVault(options: ObsidianExportOptions): Promise<ObsidianExportResult> {
   const projectRoot = path.resolve(options.projectRoot);
   const outRoot = path.resolve(options.outRoot);
-  await assertSafeOutput(projectRoot, outRoot);
+  await assertExportableProject(projectRoot);
+  await assertSafeOutput(projectRoot, outRoot, options.inProjectView === true);
+  if (options.force) {
+    await assertSafeForceOutput(outRoot);
+  }
   if (options.force && !options.dryRun) {
-    if (await fs.pathExists(path.join(outRoot, ".git"))) {
-      throw new Error("Refusing to force-remove an Obsidian output directory containing .git");
-    }
     await fs.remove(outRoot);
   }
   if (!options.dryRun) {
@@ -204,6 +257,9 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
 
   const projectName = path.basename(projectRoot);
   const sourceFiles = await scanProjectForObsidian(projectRoot);
+  if (sourceFiles.length === 0) {
+    throw new CliUserError("Project has no Step markdown source files to export to Obsidian.");
+  }
   const workflowFiles: ObsidianGeneratedFile[] = [];
   for (const sourceFile of sourceFiles) {
     const originalContent = await fs.readFile(sourcePathToFsPath(projectRoot, sourceFile.sourcePath), "utf8");

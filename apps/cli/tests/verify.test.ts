@@ -43,6 +43,127 @@ afterEach(async () => {
 });
 
 describe("verifyProject", () => {
+  test("reports a missing project root as a direct issue", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-missing-project-root-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "missing");
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual([
+      expect.objectContaining({
+        code: "missing-project-root",
+        path: projectRoot
+      })
+    ]);
+  });
+
+  test("reports a file project root as a direct issue", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-file-project-root-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "project.md");
+    await fs.writeFile(projectRoot, "# Not a directory\n", "utf8");
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual([
+      expect.objectContaining({
+        code: "project-root-not-directory",
+        path: projectRoot
+      })
+    ]);
+  });
+
+  test("reports invalid project config YAML without throwing", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-invalid-yaml-"));
+    tempRoots.push(root);
+    await fs.writeFile(path.join(root, "project.config.yaml"), "pack: [unterminated\n", "utf8");
+
+    const result = await verifyProject({
+      projectRoot: root,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "invalid-project-config-yaml",
+          path: "project.config.yaml"
+        })
+      ])
+    );
+  });
+
+  test("reports invalid project config enum and type values", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-invalid-config-values-"));
+    tempRoots.push(root);
+    await fs.writeFile(
+      path.join(root, "project.config.yaml"),
+      [
+        "pack: unofficial-pack",
+        "ide: not-an-ide",
+        "platforms:",
+        "  image:",
+        "    default: open-ai",
+        "  video:",
+        "    default: not-video",
+        "workflow:",
+        "  enhanced_flow:",
+        "    enabled: yes"
+      ].join("\n"),
+      "utf8"
+    );
+
+    const result = await verifyProject({
+      projectRoot: root,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "invalid-project-config", path: "project.config.yaml" })
+      ])
+    );
+  });
+
+  test("reports nested ai-video-workflow projects", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-nested-project-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await fs.ensureDir(path.join(projectRoot, "01_concept", "child"));
+    await fs.writeFile(path.join(projectRoot, "01_concept", "child", "project.config.yaml"), "pack: official-ai-video\n", "utf8");
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "nested-project",
+          path: path.join("01_concept", "child", "project.config.yaml")
+        })
+      ])
+    );
+  });
+
   test.each<Ide>(["codex", "cursor", "claude-code", "trae"])("passes IDE runtime verification for synced %s projects", async (ide) => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-verify-runtime-"));
     tempRoots.push(root);
@@ -312,7 +433,7 @@ describe("verifyProject", () => {
         "missing-step4-section",
         "absolute-path-link",
         "step4-forbidden-text",
-        "missing-video-default-platform"
+        "invalid-project-config"
       ])
     );
   });
@@ -398,7 +519,7 @@ describe("verifyProject", () => {
     const projectRoot = await createSyncedProject(root, "codex");
     const outRoot = path.join(projectRoot, "_views", "obsidian");
 
-    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, inProjectView: true });
     await fs.writeFile(path.join(outRoot, "Notes", "manual.md"), "[local](G:\\private\\note.md)\n", "utf8");
     await fs.writeFile(path.join(outRoot, "Workflow", "manual-generated.md"), "[local](file:///C:/private/generated.md)\n", "utf8");
 

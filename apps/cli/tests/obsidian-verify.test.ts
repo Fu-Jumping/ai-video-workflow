@@ -19,11 +19,48 @@ function officialExampleRoot(): string {
 }
 
 describe("verifyObsidianVault", () => {
+  test("fails when the source project is missing, a file, or incomplete", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-bad-source-"));
+    tempRoots.push(root);
+    const validProjectRoot = officialExampleRoot();
+    const outRoot = path.join(root, "vault");
+    await exportObsidianVault({ projectRoot: validProjectRoot, outRoot, force: true, includePluginRecipes: true });
+
+    const missingResult = await verifyObsidianVault({ projectRoot: path.join(root, "missing"), vaultRoot: outRoot });
+    expect(missingResult.ok).toBe(false);
+    expect(missingResult.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "missing-project-root" })]));
+
+    const fileProject = path.join(root, "project.md");
+    await fs.writeFile(fileProject, "# Not a project\n", "utf8");
+    const fileResult = await verifyObsidianVault({ projectRoot: fileProject, vaultRoot: outRoot });
+    expect(fileResult.ok).toBe(false);
+    expect(fileResult.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "project-root-not-directory" })]));
+
+    const incompleteProject = path.join(root, "incomplete");
+    await fs.ensureDir(incompleteProject);
+    await fs.copy(path.join(validProjectRoot, "project.config.yaml"), path.join(incompleteProject, "project.config.yaml"));
+    const incompleteResult = await verifyObsidianVault({ projectRoot: incompleteProject, vaultRoot: outRoot });
+    expect(incompleteResult.ok).toBe(false);
+    expect(incompleteResult.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "invalid-export-project" })]));
+  });
+
+  test("fails when the vault path is a file", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-file-vault-"));
+    tempRoots.push(root);
+    const vaultRoot = path.join(root, "vault.md");
+    await fs.writeFile(vaultRoot, "# Not a vault\n", "utf8");
+
+    const result = await verifyObsidianVault({ projectRoot: officialExampleRoot(), vaultRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "obsidian-vault-not-directory" })]));
+  });
+
   test("passes for exported official example", async () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-verify-"));
     tempRoots.push(outRoot);
     const projectRoot = officialExampleRoot();
-    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, inProjectView: true });
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
     expect(result.ok).toBe(true);
@@ -43,7 +80,7 @@ describe("verifyObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-missing-manifest-"));
     tempRoots.push(outRoot);
     const projectRoot = officialExampleRoot();
-    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, inProjectView: true });
     await fs.remove(path.join(outRoot, projectionManifestPath));
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
@@ -56,7 +93,7 @@ describe("verifyObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-hash-mismatch-"));
     tempRoots.push(outRoot);
     const projectRoot = officialExampleRoot();
-    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, inProjectView: true });
     await fs.appendFile(path.join(outRoot, "Workflow", "Step 3 - Storyboard", "Shot 001 - Storyboard.md"), "\nManual generated-file edit.\n", "utf8");
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
@@ -70,7 +107,7 @@ describe("verifyObsidianVault", () => {
     tempRoots.push(projectRoot);
     await fs.copy(officialExampleRoot(), projectRoot);
     const outRoot = path.join(projectRoot, "_views", "obsidian");
-    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, inProjectView: true });
     await fs.appendFile(path.join(projectRoot, "03_storyboard", "shot-001.md"), "\nSource changed after projection export.\n", "utf8");
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });

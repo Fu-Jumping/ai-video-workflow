@@ -2,6 +2,8 @@
 
 `ai-video-workflow` is an open-source product repo for AI video creation workflows.
 
+Simplified Chinese: [README.zh-CN.md](README.zh-CN.md)
+
 It combines:
 
 - an official workflow pack
@@ -13,6 +15,12 @@ It combines:
 ## Current Status
 
 This repository is the first-stage refactor from the former internal mother package. The current default pack is `official-ai-video`.
+
+## Beginner Start
+
+If you want to start a creative project, do not write scripts inside this tool repository. Download or clone this repository, then let an agent run the CLI to create a separate creative project directory.
+
+Start here: [Beginner start with an agent](docs/en/quickstart/beginner-agent-init.md).
 
 ## v0.2 Mainline
 
@@ -82,10 +90,10 @@ See `docs/en/contributors/mcp-adapter.md` for the MCP adapter boundary.
 
 ## Quick Start
 
-1. Install dependencies with `pnpm install`.
-2. Build the CLI and docs with `pnpm build`.
-3. Run `pnpm --filter ai-video-workflow test`.
-4. Use `pnpm --filter ai-video-workflow build` to build the CLI.
+1. For a beginner-friendly path, use [Beginner start with an agent](docs/en/quickstart/beginner-agent-init.md).
+2. For manual setup, install dependencies with `pnpm install`.
+3. Build the CLI and docs with `pnpm build`.
+4. Run `node apps/cli/dist/index.js init` or the scripted CLI form from [Quickstart](docs/en/quickstart/index.md).
 
 ## Product Shape
 

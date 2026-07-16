@@ -9,6 +9,7 @@
 ## Continue Reading
 
 - [Quickstart](./quickstart/index.md)
+- [Beginner start with an agent](./quickstart/beginner-agent-init.md)
 - [Adapter boundaries](./contributors/adapter-boundaries.md)
 - [Agent adapter contract](./contributors/agent-adapter-contract.md)
 - [Cross-agent workspace](./contributors/cross-agent-workspace.md)

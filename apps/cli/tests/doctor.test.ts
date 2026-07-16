@@ -3,6 +3,44 @@ import { describe, expect, test } from "vitest";
 import { diagnoseProject } from "../src/lib/doctor.js";
 
 describe("diagnoseProject", () => {
+  test("suggests safe next steps for project root and config issues", async () => {
+    const output = await diagnoseProject({
+      issues: [
+        {
+          code: "missing-project-root",
+          message: "Project root does not exist",
+          path: "missing-project"
+        },
+        {
+          code: "project-root-not-directory",
+          message: "Project root must be a directory",
+          path: "project.md"
+        },
+        {
+          code: "invalid-project-config",
+          message: "Invalid project.config.yaml: ide is invalid",
+          path: "project.config.yaml"
+        },
+        {
+          code: "invalid-project-config-yaml",
+          message: "project.config.yaml is not valid YAML",
+          path: "project.config.yaml"
+        },
+        {
+          code: "nested-project",
+          message: "Found nested ai-video-workflow project",
+          path: "01_concept/child/project.config.yaml"
+        }
+      ]
+    });
+
+    expect(output).toContain("Project Root");
+    expect(output).toContain("existing creative project directory");
+    expect(output).toContain("not a file path");
+    expect(output).toContain("supported IDE");
+    expect(output).toContain("Move the nested project out");
+  });
+
   test("formats verification issues into grouped remediation guidance", async () => {
     const output = await diagnoseProject({
       issues: [

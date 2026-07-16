@@ -10,8 +10,9 @@ import {
   sharedAgentEntryPath
 } from "./agent-workspace.js";
 import { STEP6_FILES } from "./constants.js";
-import type { Ide, ProjectConfig, VerificationIssue, VerificationResult } from "./types.js";
-import { parseYaml } from "./yaml.js";
+import { readProjectConfig } from "./project-config.js";
+import { projectRootIssues } from "./project-root.js";
+import type { Ide, VerificationIssue, VerificationResult } from "./types.js";
 
 const step4RequiredSections = ["快速导读", "中文完整版本", "English Version (Copy Ready)"];
 const step4ForbiddenText = ["参考前文", "同上", "模型应自行理解剧情", "same as previous"];
@@ -64,14 +65,6 @@ const ideSharedRuntimeEntryPaths: Record<Ide, string[]> = {
   "claude-code": ["CLAUDE.md", ".claude/commands/ai-video-workflow.md"],
   trae: [".trae/rules/ai-video-workflow.md"]
 };
-
-async function loadConfig(projectRoot: string): Promise<ProjectConfig | null> {
-  const configPath = path.join(projectRoot, "project.config.yaml");
-  if (!(await fs.pathExists(configPath))) {
-    return null;
-  }
-  return parseYaml<ProjectConfig>(await fs.readFile(configPath, "utf8"));
-}
 
 function pushIssue(issues: VerificationIssue[], issue: VerificationIssue): void {
   issues.push(issue);
@@ -292,6 +285,31 @@ async function verifySharedAgentWorkspace(projectRoot: string, ide: Ide, issues:
   }
 }
 
+async function verifyNestedProjects(projectRoot: string, issues: VerificationIssue[], current = projectRoot): Promise<void> {
+  const entries = await fs.readdir(current, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.name === ".git" || entry.name === "node_modules" || entry.name === "_views" || entry.name === ".obsidian") {
+      continue;
+    }
+    if (current === projectRoot && [".codex", ".cursor", ".claude", ".trae"].includes(entry.name)) {
+      continue;
+    }
+    const fullPath = path.join(current, entry.name);
+    if (entry.isDirectory()) {
+      const nestedConfig = path.join(fullPath, "project.config.yaml");
+      if (await fs.pathExists(nestedConfig)) {
+        pushIssue(issues, {
+          code: "nested-project",
+          message: "Found nested ai-video-workflow project inside this project",
+          path: path.relative(projectRoot, nestedConfig)
+        });
+        continue;
+      }
+      await verifyNestedProjects(projectRoot, issues, fullPath);
+    }
+  }
+}
+
 export async function verifyProject({
   projectRoot,
   ide
@@ -301,10 +319,16 @@ export async function verifyProject({
   pack: string;
 }): Promise<VerificationResult> {
   const issues: VerificationIssue[] = [];
-  const config = await loadConfig(projectRoot);
-  if (!config) {
-    pushIssue(issues, { code: "missing-config", message: "Missing project.config.yaml", path: projectRoot });
-  } else {
+  const rootIssues = await projectRootIssues(projectRoot);
+  if (rootIssues.length > 0) {
+    return { ok: false, issues: rootIssues };
+  }
+
+  const { config, issues: configIssues } = await readProjectConfig(projectRoot);
+  for (const issue of configIssues) {
+    pushIssue(issues, issue);
+  }
+  if (config) {
     if (!config.platforms?.image?.default) {
       pushIssue(issues, {
         code: "missing-image-default-platform",
@@ -320,6 +344,7 @@ export async function verifyProject({
       });
     }
   }
+  await verifyNestedProjects(projectRoot, issues);
   await verifyStep6(projectRoot, issues);
   await verifyStep4(projectRoot, issues);
   await verifyStep3Step4Traceability(projectRoot, issues);
