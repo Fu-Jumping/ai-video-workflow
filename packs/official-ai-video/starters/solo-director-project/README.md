@@ -1,3 +1,3 @@
-# solo-director-project
+# 单人导演项目模板
 
-Starter project for a solo director-style AI video workflow.
+这是 `official-ai-video` 工作流的单人导演项目模板。

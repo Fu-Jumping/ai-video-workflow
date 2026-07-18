@@ -12,18 +12,18 @@ Obsidian vault 投影是 `ai-video-workflow` 的阅读、创作辅助和审阅�
 
 ```text
 project/
-├─ 01_concept/ ... 06_execution_plan/
+├─ 01_概念策划/ ... 06_执行计划/
 └─ _views/
    └─ obsidian/
-      ├─ Workflow/
-      ├─ Shots/
-      ├─ Bases/
-      ├─ Canvas/
-      ├─ Notes/
-      └─ Projection Manifest.json
+      ├─ 流程/
+      ├─ 镜头/
+      ├─ 数据表/
+      ├─ 画布/
+      ├─ 笔记/
+      └─ 投影清单.json
 ```
 
-`project/` 仍是 AI 智能体工作目录和源文件根目录。`_views/obsidian/` 是 Obsidian vault 根目录。该 vault 内的 `Workflow/` 是生成 Markdown，用于阅读和回链 Step 文件。用户应在 Obsidian 中打开 `_views/obsidian/`，不要打开 `project/` 本身。
+`project/` 仍是 AI 智能体工作目录和源文件根目录。`_views/obsidian/` 是 Obsidian vault 根目录。该 vault 内的 `流程/` 是生成 Markdown，用于阅读和回链 Step 文件。用户应在 Obsidian 中打开 `_views/obsidian/`，不要打开 `project/` 本身。
 
 运行：
 
@@ -46,29 +46,29 @@ ai-video-workflow verify-obsidian --project <path> --in-project-view
 - 生成的 Obsidian vault 目录，推荐位置为 `_views/obsidian/`
 - 带 properties 和 tags 的投影 Markdown
 - 项目首页、审阅页、镜头索引和生产看板
-- 用于把源文件上下文复制到智能体对话的项目级 `04_Agent_Handoff.md` 页面
-- 沉浸式 `Shots/<shotId>.md` 单镜头审阅页
+- 用于把源文件上下文复制到智能体对话的项目级 `04_智能体交接.md` 页面
+- 沉浸式 `镜头/<shotId>.md` 单镜头审阅页
 - 带 Review Queue、Shot Progress、Execution Readiness、Modified Generated Files 视图的 Bases `.base` 文件
-- Workflow Map、Shot Pipeline、Review Map 和逐镜头 `Canvas/Shot Reviews/<shotId>.canvas` 审阅 Canvas 文件
-- `Projection Manifest.json` 生成清单
-- `Notes/` 用户笔记入口
+- 流程图、镜头流水线、审阅地图和逐镜头 `画布/镜头审阅/<shotId>.canvas` 审阅 Canvas 文件
+- `投影清单.json` 生成清单
+- `笔记/` 用户笔记入口
 - 可选社区插件用法说明
 
 ## 同步方向
 
 v0.3 只支持从项目到 Obsidian 的单向生成。投影文件必须标记来源路径，便于回到源文件修改。不要在 Obsidian 投影中修改源文件合同，也不要把投影文件当作 Step 文件的替代源。
 
-v0.3.1 起，`export-obsidian` 默认是安全增量导出。再次导出到同一个 vault 时，CLI 会读取 `Projection Manifest.json`，只更新自己生成且未被用户改动的文件。用户新增的笔记不在 manifest 中，会被保留；用户手动修改过的生成文件会被跳过并报告为 `skipped-user-modified`。
+v0.3.1 起，`export-obsidian` 默认是安全增量导出。再次导出到同一个 vault 时，CLI 会读取 `投影清单.json`，只更新自己生成且未被用户改动的文件。用户新增的笔记不在 manifest 中，会被保留；用户手动修改过的生成文件会被跳过并报告为 `skipped-user-modified`。
 
 `--force` 会清空并重建输出目录，适合需要完全刷新投影时使用。`--dry-run` 只打印计划操作，不写入任何文件。
 
-v0.3.2 起，生成的项目首页会变成审阅总览入口，集中链接审阅队列、镜头进度、执行就绪、Graph/Canvas 路线、Bases 和用户笔记区。新增的 Review Map canvas 会把 Project Home、Review Dashboard、Shot Index、Production Board、Bases、Notes、Workflow Map 和 Shot Pipeline 组织成一条空间化审阅路线。
+v0.3.2 起，生成的项目首页会变成审阅总览入口，集中链接审阅队列、镜头进度、执行就绪、Graph/Canvas 路线、数据表和用户笔记区。新增的审阅地图 canvas 会把项目首页、审阅总览、镜头索引、制作看板、数据表、笔记、流程图和镜头流水线组织成一条空间化审阅路线。
 
-v0.3.3 起，每个生成的 `Shots/<shotId>.md` 都是沉浸式单镜头审阅页。它会链接和嵌入 storyboard、Step 4 图像提示词、Step 5 视频提示词、执行就绪入口、用户审阅笔记目标和逐镜头 `Canvas/Shot Reviews/<shotId>.canvas`。镜头页仍然是生成投影内容；长期保留的人类评审记录应写在 `Notes/` 下。
+v0.3.3 起，每个生成的 `镜头/<shotId>.md` 都是沉浸式单镜头审阅页。它会链接和嵌入分镜、Step 4 图像提示词、Step 5 视频提示词、执行就绪入口、用户审阅笔记目标和逐镜头 `画布/镜头审阅/<shotId>.canvas`。镜头页仍然是生成投影内容；长期保留的人类评审记录应写在 `笔记/` 下。
 
-v0.3.4 起，`04_Agent_Handoff.md` 和每个镜头页会提供可复制的智能体上下文。用户可以先在 Obsidian 中观看和定位问题，再在智能体对话里要求修改源 Step 文件。生成的交接文本会明确要求智能体只编辑 Step 文件，不要把 Obsidian 投影文件当作工作流事实源。
+v0.3.4 起，`04_智能体交接.md` 和每个镜头页会提供可复制的智能体上下文。用户可以先在 Obsidian 中观看和定位问题，再在智能体对话里要求修改源 Step 文件。生成的交接文本会明确要求智能体只编辑 Step 文件，不要把 Obsidian 投影文件当作工作流事实源。
 
-v0.3.5 起，生成的 Project Home 会包含 `Open Vault Workflow` 路径，用于第一次打开 vault 后快速进入项目、镜头、Agent Handoff 和验证流程。可选的 `--include-obsidian-ui` 建议会把 Project Home、Agent Handoff、Shot Index、Review Map、Shot Pipeline 和 Notes 加入 Bookmarks，并在 Workspace 中并排打开 Project Home 与 Agent Handoff。
+v0.3.5 起，生成的项目首页会包含观看路线，用于第一次打开 vault 后快速进入项目、镜头、智能体交接和验证流程。可选的 `--include-obsidian-ui` 建议会把项目首页、智能体交接、镜头索引、审阅地图、镜头流水线和笔记加入书签，并在工作区中并排打开项目首页与智能体交接。
 
 v0.3.6 起，发版硬化会把真实 vault QA 作为显式门槛。如果存在可选 UI 建议，`verify-obsidian` 会校验建议 JSON，包括 Bookmarks 和 Workspace 是否包含必要入口。`pnpm example:obsidian:ui` 会用 `--include-obsidian-ui` 导出官方示例并验证生成的 vault。真正打开 Obsidian 检查仍然是人工 QA 步骤，不作为自动 CLI 行为。
 
@@ -78,7 +78,7 @@ v0.7 起，推荐命令路径是 `--in-project-view`。导出器写入 schema ve
 
 ## 用户笔记区
 
-`Notes/` 是 Obsidian 内的用户补充空间，适合放评审记录、会议记录、研究笔记和临时想法。增量导出不会覆盖用户在 `Notes/` 下新增的文件。源 Step 文件仍然是工作流事实源，Obsidian 笔记是辅助材料。
+`笔记/` 是 Obsidian 内的用户补充空间，适合放评审记录、会议记录、研究笔记和临时想法。增量导出不会覆盖用户在 `笔记/` 下新增的文件。源 Step 文件仍然是工作流事实源，Obsidian 笔记是辅助材料。
 
 ## 使用的 Obsidian 能力
 
@@ -97,8 +97,8 @@ v0.7 起，推荐命令路径是 `--in-project-view`。导出器写入 schema ve
 - 使用 `pnpm example:obsidian` 导出并验证默认官方示例。
 - 使用 `pnpm example:obsidian:ui` 导出并验证带可选 UI 建议的官方示例。
 - 使用 `pnpm example:obsidian:in-project` 导出并验证项目内示例。
-- 发版 QA 时人工打开 `examples/official-mini-film/_views/obsidian/`，不要打开 `examples/official-mini-film/`。
-- 确认 Project Home、Agent Handoff、Shot Index、Review Map、Shot Pipeline 和 Notes 都容易进入。
+- 发版 QA 时人工打开 `examples/官方示例-云上早市/_views/obsidian/`，不要打开 `examples/官方示例-云上早市/`。
+- 确认项目首页、智能体交接、镜头索引、审阅地图、镜头流水线和笔记都容易进入。
 - 确认生成投影文件只用于阅读和定位；源内容修改仍然回到 Step 文件。
 - 确认增量导出会保留用户笔记，并且不会覆盖用户已有 `.obsidian` 文件。
 
@@ -118,8 +118,8 @@ v0.7 起，推荐命令路径是 `--in-project-view`。导出器写入 schema ve
 - `.base` 文件必须是有效 YAML。
 - Review Map、关键 dashboard 标记和关键 Bases 视图必须存在。
 - 单镜头审阅页和逐镜头 Review Canvas 必须存在，并且只使用 vault 相对路径。
-- Agent Handoff 页面和镜头页 Agent Handoff 区块必须存在。
+- 智能体交接页面和镜头页智能体交接区块必须存在。
 - 如果存在 `.obsidian/ai-video-workflow-suggested/*.json`，必须能解析为 JSON，并且包含必要的打开路线。
 - 每个投影文件必须能追踪到源项目路径。
-- `Projection Manifest.json` 必须存在、可解析，记录的 hash 与生成文件一致，不包含本机绝对路径，并能通过源文件 hash 诊断视图过期。
+- `投影清单.json` 必须存在、可解析，记录的 hash 与生成文件一致，不包含本机绝对路径，并能通过源文件 hash 诊断视图过期。
 - Step 3 到 Step 4 的帧级对齐和 Step 4 固定合同不能被削弱。

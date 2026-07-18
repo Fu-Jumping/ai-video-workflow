@@ -66,8 +66,8 @@
 
 - Step 3 服务给人理解，允许简短叙事作用，但主描述必须立足可见事实。
 - Step 4 服务给模型看，默认平台为 项目默认图片平台，默认模型为 项目默认模型配置。
-- Step 4 正式文件固定包含 `快速导读`、`中文完整版本`、`English Version (Copy Ready)`。
-- Step 5 默认消费 Step 4 的 `English Version (Copy Ready)`。
+- Step 4 正式文件固定包含 `快速导读`、`中文完整版本`、`可复制提示词`。
+- Step 5 默认消费 Step 4 的 `可复制提示词`，必要时回读 `中文完整版本`。
 - Step 3、Step 4、Step 5 默认分别按一镜头卡、一关键帧文件、一动作链文件组织。
 - 若维护的是官方 pack，修改 `packs/official-ai-video/` 后必须同步 `.codex/ai-video-workflow/`；修改 `packs/official-ai-video/skills/` 后还必须同步 `.codex/skills/`。
 

@@ -69,7 +69,7 @@ Prompt text must tell the agent:
 - read source Step files first
 - edit only source Step files when changes are needed
 - do not edit Obsidian projections, IDE runtime mirrors, or MCP resources as source files
-- treat `_views/obsidian/Notes/` as user observations only; it does not replace Step files
+- treat `_views/obsidian/笔记/` as user observations only; it does not replace Step files
 - run verification after edits
 
 For content changes:
@@ -94,13 +94,13 @@ v0.5 tools should be read-only:
 
 The MCP adapter must not write:
 
-- `01_concept/`
-- `02_setting/`
-- `03_storyboard/`
-- `04_image_prompts/`
-- `05_video_prompts/`
-- `06_execution_plan/`
-- generated Obsidian projection folders under `_views/obsidian/`, including `Workflow/`, `Shots/`, `Canvas/`, `Bases/`, and `Projection Manifest.json`
+- `01_概念策划/`
+- `02_世界设定/`
+- `03_分镜脚本/`
+- `04_图片提示词/`
+- `05_视频提示词/`
+- `06_执行计划/`
+- generated Obsidian projection folders under `_views/obsidian/`, including `流程/`, `镜头/`, `画布/`, `数据表/`, and `投影清单.json`
 - `.obsidian/`
 - `.codex/`
 - `.cursor/`
@@ -169,7 +169,7 @@ If the client does not show resources, prompts, or tools:
 
 If a shot is missing from MCP resources:
 
-- confirm the shot has a Markdown file under `03_storyboard/`
+- confirm the shot has a Markdown file under `03_分镜脚本/`
 - confirm the Step 3 file links to the Step 4 image prompt and Step 5 video prompt
 - rerun `mcp-context` and inspect the `shots` array
 

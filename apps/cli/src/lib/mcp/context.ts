@@ -1,7 +1,7 @@
 import fs from "fs-extra";
 import path from "node:path";
 
-import { STEP6_FILES } from "../constants.js";
+import { STEP6_FILES, STEP_DIR_BY_NUMBER, WORKFLOW_STEPS } from "../constants.js";
 import { readWorkflowProjectConfig } from "../project-root.js";
 
 export interface BuildMcpContextOptions {
@@ -44,14 +44,16 @@ export interface McpProjectContext {
   };
 }
 
-const workflowSteps: McpWorkflowStepContext[] = [
-  { step: 1, label: "Concept", directory: "01_concept" },
-  { step: 2, label: "Setting", directory: "02_setting" },
-  { step: 3, label: "Storyboard", directory: "03_storyboard" },
-  { step: 4, label: "Image prompts", directory: "04_image_prompts" },
-  { step: 5, label: "Video prompts", directory: "05_video_prompts" },
-  { step: 6, label: "Execution plan", directory: "06_execution_plan" }
-];
+const step3Dir = STEP_DIR_BY_NUMBER[3];
+const step4Dir = STEP_DIR_BY_NUMBER[4];
+const step5Dir = STEP_DIR_BY_NUMBER[5];
+const step6Dir = STEP_DIR_BY_NUMBER[6];
+
+const workflowSteps: McpWorkflowStepContext[] = WORKFLOW_STEPS.map((step) => ({
+  step: step.step,
+  label: step.label,
+  directory: step.directory
+}));
 
 const downstreamLinkPattern = /\]\(([^)]+)\)/g;
 
@@ -78,11 +80,29 @@ function findDownstreamLink(content: string, sourceRelPath: string, targetDir: s
   return undefined;
 }
 
-async function findByPrefix(projectRoot: string, dir: string, shotId: string): Promise<string> {
+function shotNumberFromId(shotId: string): string | undefined {
+  return shotId.match(/(?:shot|镜头)[-_ ]?(\d+)/i)?.[1];
+}
+
+function canonicalShotId(fileName: string): string {
+  const raw = path.basename(fileName, ".md");
+  const number = shotNumberFromId(raw);
+  return number ? `shot-${number}` : raw;
+}
+
+async function findByShotId(projectRoot: string, dir: string, shotId: string): Promise<string> {
   const fullDir = path.join(projectRoot, dir);
   const entries = (await fs.pathExists(fullDir)) ? await fs.readdir(fullDir) : [];
-  const match = entries.filter((entry) => entry.endsWith(".md") && entry.startsWith(shotId)).sort()[0];
-  return match ? `${dir}/${match}` : `${dir}/${shotId}.md`;
+  const number = shotNumberFromId(shotId);
+  const prefixes = number ? [shotId, `镜头-${number}`, `镜头_${number}`, `镜头${number}`] : [shotId];
+  const match = entries
+    .filter((entry) => entry.endsWith(".md") && prefixes.some((prefix) => entry.startsWith(prefix)))
+    .sort()[0];
+  if (match) {
+    return `${dir}/${match}`;
+  }
+  const fallbackFile = dir === step4Dir && number ? `镜头-${number}-关键帧.md` : number ? `镜头-${number}.md` : `${shotId}.md`;
+  return `${dir}/${fallbackFile}`;
 }
 
 function titleFromMarkdown(content: string, fallback: string): string {
@@ -91,8 +111,8 @@ function titleFromMarkdown(content: string, fallback: string): string {
 }
 
 async function buildShotContext(projectRoot: string, storyboardFileName: string): Promise<McpShotContext> {
-  const shotId = path.basename(storyboardFileName, ".md");
-  const storyboardPath = `03_storyboard/${storyboardFileName}`;
+  const shotId = canonicalShotId(storyboardFileName);
+  const storyboardPath = `${step3Dir}/${storyboardFileName}`;
   const storyboardContent = await fs.readFile(path.join(projectRoot, storyboardPath), "utf8");
 
   return {
@@ -100,9 +120,9 @@ async function buildShotContext(projectRoot: string, storyboardFileName: string)
     title: titleFromMarkdown(storyboardContent, shotId),
     sourcePaths: {
       storyboard: storyboardPath,
-      imagePrompt: findDownstreamLink(storyboardContent, storyboardPath, "04_image_prompts") ?? (await findByPrefix(projectRoot, "04_image_prompts", shotId)),
-      videoPrompt: findDownstreamLink(storyboardContent, storyboardPath, "05_video_prompts") ?? (await findByPrefix(projectRoot, "05_video_prompts", shotId)),
-      executionPlan: STEP6_FILES.map((file) => `06_execution_plan/${file}`)
+      imagePrompt: findDownstreamLink(storyboardContent, storyboardPath, step4Dir) ?? (await findByShotId(projectRoot, step4Dir, shotId)),
+      videoPrompt: findDownstreamLink(storyboardContent, storyboardPath, step5Dir) ?? (await findByShotId(projectRoot, step5Dir, shotId)),
+      executionPlan: STEP6_FILES.map((file) => `${step6Dir}/${file}`)
     }
   };
 }
@@ -114,7 +134,7 @@ async function assertValidProjectShape(projectRoot: string): Promise<void> {
 export async function buildMcpContext(options: BuildMcpContextOptions): Promise<McpProjectContext> {
   await assertValidProjectShape(options.projectRoot);
 
-  const storyboardDir = path.join(options.projectRoot, "03_storyboard");
+  const storyboardDir = path.join(options.projectRoot, step3Dir);
   const storyboardFiles = (await fs.pathExists(storyboardDir))
     ? (await fs.readdir(storyboardDir)).filter((entry) => entry.endsWith(".md")).sort()
     : [];
@@ -138,11 +158,11 @@ export async function buildMcpContext(options: BuildMcpContextOptions): Promise<
       "ai-video-workflow mcp-context --project <path>"
     ],
     editBoundaries: {
-      story: "Edit Step 3 storyboard files.",
-      image: "Edit Step 4 image prompt files.",
-      motion: "Edit Step 5 video prompt files.",
-      execution: "Edit Step 6 execution plan files.",
-      generated: "Do not edit Obsidian projections under _views/obsidian, IDE runtime mirrors, Cherry Studio SOUL/USER/memory host surfaces, or MCP resources as source files."
+      story: "故事和画面叙事修改写入步骤三分镜脚本文件。",
+      image: "视觉一致性和图片提示词修改写入步骤四图片提示词文件。",
+      motion: "运动和镜头行为修改写入步骤五视频提示词文件。",
+      execution: "执行组织和生产排期修改写入步骤六执行计划文件。",
+      generated: "不要把 _views/obsidian 下的 Obsidian 投影、IDE 运行镜像、Cherry Studio 的 SOUL/USER/memory 宿主表面或 MCP 资源当作源文件编辑。"
     },
     viewLayers: {
       obsidian: {

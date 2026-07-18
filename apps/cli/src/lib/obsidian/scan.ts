@@ -1,20 +1,18 @@
 import fs from "fs-extra";
 import path from "node:path";
 
+import { WORKFLOW_STEPS } from "../constants.js";
 import { toVaultPath } from "./paths.js";
 import type { ObsidianSourceFile, ObsidianSourceKind } from "./types.js";
 
-const stepDirs: Array<{ dir: string; step: number; sourceKind: ObsidianSourceKind }> = [
-  { dir: "01_concept", step: 1, sourceKind: "concept" },
-  { dir: "02_setting", step: 2, sourceKind: "setting" },
-  { dir: "03_storyboard", step: 3, sourceKind: "storyboard" },
-  { dir: "04_image_prompts", step: 4, sourceKind: "image-prompt" },
-  { dir: "05_video_prompts", step: 5, sourceKind: "video-prompt" },
-  { dir: "06_execution_plan", step: 6, sourceKind: "execution-plan" }
-];
+const stepDirs: Array<{ dir: string; step: number; sourceKind: ObsidianSourceKind }> = WORKFLOW_STEPS.map((step) => ({
+  dir: step.directory,
+  step: step.step,
+  sourceKind: step.sourceKind
+}));
 
 function inferShotId(fileName: string): string | undefined {
-  const match = fileName.match(/shot[-_ ]?(\d+)/i);
+  const match = fileName.match(/(?:shot|镜头)[-_ ]?(\d+)/i);
   return match ? `shot-${match[1].padStart(3, "0")}` : undefined;
 }
 

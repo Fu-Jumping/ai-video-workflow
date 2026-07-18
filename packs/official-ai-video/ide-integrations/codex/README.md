@@ -24,7 +24,7 @@
 
 `.codex/` 是 Codex 在当前项目中的原生运行目录。若规则不落到 `.codex/` 下的有效入口，不能假设 Codex 会稳定按项目规则运行。
 
-跨平台读取时，先读项目根 `AGENTS.md` 和 `docs/ai-workspace/`，再进入 `.codex/` runtime mirror。
+跨平台读取时，先读项目根 `AGENTS.md` 和 `文档/智能体工作区/`，再进入 `.codex/` runtime mirror。
 
 ## 3. 检测顺序
 

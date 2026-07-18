@@ -110,7 +110,7 @@ function addSourceOrMissingNode({
 }
 
 export function shotReviewCanvasPath(shotId: string): string {
-  return `Canvas/Shot Reviews/${shotId}.canvas`;
+  return `画布/镜头审阅/${shotId}.canvas`;
 }
 
 export function renderWorkflowCanvas(sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedFile {
@@ -122,7 +122,7 @@ export function renderWorkflowCanvas(sourceFiles: ObsidianSourceFile[]): Obsidia
     nodes.push({
       id: `step-${step}-group`,
       type: "group",
-      label: `Step ${step}`,
+      label: `步骤 ${step}`,
       x: (step - 1) * 420,
       y: 0,
       width: 360,
@@ -149,7 +149,7 @@ export function renderWorkflowCanvas(sourceFiles: ObsidianSourceFile[]): Obsidia
     }
   });
 
-  const labels = ["sets context", "frames", "generates image prompt", "feeds video prompt", "tracks execution"];
+  const labels = ["设定上下文", "拆成镜头", "生成图片提示词", "供给视频提示词", "跟踪执行"];
   for (let step = 1; step < 6; step += 1) {
     const fromNode = firstNodeByStep.get(step);
     const toNode = firstNodeByStep.get(step + 1);
@@ -166,7 +166,7 @@ export function renderWorkflowCanvas(sourceFiles: ObsidianSourceFile[]): Obsidia
     }
   }
 
-  return { vaultPath: "Canvas/Workflow Map.canvas", content: canvasJson({ nodes, edges }) };
+  return { vaultPath: "画布/流程图.canvas", content: canvasJson({ nodes, edges }) };
 }
 
 export function renderShotPipelineCanvas(sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedFile {
@@ -208,7 +208,7 @@ export function renderShotPipelineCanvas(sourceFiles: ObsidianSourceFile[]): Obs
           fromSide: "right",
           toSide: "left",
           toEnd: "arrow",
-          label: "next"
+          label: "下一步"
         });
         nodeIndex += 1;
       }
@@ -216,7 +216,7 @@ export function renderShotPipelineCanvas(sourceFiles: ObsidianSourceFile[]): Obs
     });
   });
 
-  return { vaultPath: "Canvas/Shot Pipeline.canvas", content: canvasJson({ nodes, edges }) };
+  return { vaultPath: "画布/镜头流水线.canvas", content: canvasJson({ nodes, edges }) };
 }
 
 export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedFile[] {
@@ -225,7 +225,7 @@ export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): Obs
       {
         id: "shot-review",
         type: "file",
-        file: `Shots/${shotId}.md`,
+        file: `镜头/${shotId}.md`,
         x: 0,
         y: 0,
         width: 320,
@@ -244,11 +244,11 @@ export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): Obs
       nodeId: "storyboard",
       previousNodeId: "shot-review",
       sourceFile: storyboard,
-      missingText: `Missing storyboard for ${shotId}`,
+      missingText: `${shotId} 缺少分镜脚本`,
       x: 420,
       y: -150,
       color: "3",
-      edgeLabel: "review start / frame"
+      edgeLabel: "审阅起点 / 画面"
     });
     previousNodeId = addSourceOrMissingNode({
       nodes,
@@ -256,11 +256,11 @@ export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): Obs
       nodeId: "image-prompt",
       previousNodeId,
       sourceFile: imagePrompt,
-      missingText: `Missing image prompt for ${shotId}`,
+      missingText: `${shotId} 缺少图片提示词`,
       x: 840,
       y: -150,
       color: "4",
-      edgeLabel: "image prompt"
+      edgeLabel: "图片提示词"
     });
     previousNodeId = addSourceOrMissingNode({
       nodes,
@@ -268,18 +268,18 @@ export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): Obs
       nodeId: "video-prompt",
       previousNodeId,
       sourceFile: videoPrompt,
-      missingText: `Missing video prompt for ${shotId}`,
+      missingText: `${shotId} 缺少视频提示词`,
       x: 1260,
       y: -150,
       color: "5",
-      edgeLabel: "video prompt"
+      edgeLabel: "视频提示词"
     });
 
     nodes.push(
       {
         id: "production-board",
         type: "file",
-        file: "03_Production_Board.md",
+        file: "03_制作看板.md",
         x: 1680,
         y: -150,
         width: 320,
@@ -289,7 +289,7 @@ export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): Obs
       {
         id: "notes",
         type: "file",
-        file: "Notes/README.md",
+        file: "笔记/README.md",
         x: 420,
         y: 120,
         width: 320,
@@ -305,7 +305,7 @@ export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): Obs
         fromSide: "right",
         toSide: "left",
         toEnd: "arrow",
-        label: "execute"
+        label: "执行"
       },
       {
         id: "shot-notes",
@@ -314,7 +314,7 @@ export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): Obs
         fromSide: "bottom",
         toSide: "left",
         toEnd: "arrow",
-        label: "notes"
+        label: "笔记"
       }
     );
 
@@ -327,7 +327,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "home",
       type: "file",
-      file: "00_Project_Home.md",
+      file: "00_项目首页.md",
       x: 0,
       y: 0,
       width: 300,
@@ -337,7 +337,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "review-dashboard",
       type: "file",
-      file: "01_Review_Dashboard.md",
+      file: "01_审阅总览.md",
       x: 420,
       y: -160,
       width: 300,
@@ -347,7 +347,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "shot-index",
       type: "file",
-      file: "02_Shot_Index.md",
+      file: "02_镜头索引.md",
       x: 420,
       y: 0,
       width: 300,
@@ -357,7 +357,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "production-board",
       type: "file",
-      file: "03_Production_Board.md",
+      file: "03_制作看板.md",
       x: 420,
       y: 160,
       width: 300,
@@ -367,7 +367,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "agent-handoff",
       type: "file",
-      file: "04_Agent_Handoff.md",
+      file: "04_智能体交接.md",
       x: 420,
       y: 320,
       width: 300,
@@ -377,7 +377,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "notes",
       type: "file",
-      file: "Notes/README.md",
+      file: "笔记/README.md",
       x: 0,
       y: 240,
       width: 300,
@@ -387,7 +387,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "workflow-base",
       type: "file",
-      file: "Bases/Workflow Files.base",
+      file: "数据表/流程文件.base",
       x: 840,
       y: -220,
       width: 320,
@@ -397,7 +397,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "shots-base",
       type: "file",
-      file: "Bases/Shots.base",
+      file: "数据表/镜头.base",
       x: 840,
       y: 0,
       width: 320,
@@ -407,7 +407,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "production-base",
       type: "file",
-      file: "Bases/Production Status.base",
+      file: "数据表/制作状态.base",
       x: 840,
       y: 220,
       width: 320,
@@ -417,7 +417,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "workflow-map",
       type: "file",
-      file: "Canvas/Workflow Map.canvas",
+      file: "画布/流程图.canvas",
       x: 1240,
       y: -120,
       width: 320,
@@ -427,7 +427,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "shot-pipeline",
       type: "file",
-      file: "Canvas/Shot Pipeline.canvas",
+      file: "画布/镜头流水线.canvas",
       x: 1240,
       y: 100,
       width: 320,
@@ -443,7 +443,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
       fromSide: "right",
       toSide: "left",
       toEnd: "arrow",
-      label: "review queue"
+      label: "审阅队列"
     },
     {
       id: "home-shots",
@@ -452,7 +452,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
       fromSide: "right",
       toSide: "left",
       toEnd: "arrow",
-      label: "shot progress"
+      label: "镜头进度"
     },
     {
       id: "home-production",
@@ -461,7 +461,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
       fromSide: "right",
       toSide: "left",
       toEnd: "arrow",
-      label: "execution readiness"
+      label: "执行就绪"
     },
     {
       id: "home-notes",
@@ -470,7 +470,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
       fromSide: "bottom",
       toSide: "top",
       toEnd: "arrow",
-      label: "manual notes"
+      label: "手写笔记"
     },
     {
       id: "home-agent-handoff",
@@ -479,7 +479,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
       fromSide: "right",
       toSide: "left",
       toEnd: "arrow",
-      label: "agent handoff"
+      label: "智能体交接"
     },
     {
       id: "shots-agent-handoff",
@@ -488,7 +488,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
       fromSide: "bottom",
       toSide: "top",
       toEnd: "arrow",
-      label: "copy context"
+      label: "复制上下文"
     },
     {
       id: "review-base",
@@ -497,7 +497,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
       fromSide: "right",
       toSide: "left",
       toEnd: "arrow",
-      label: "query"
+      label: "查询"
     },
     {
       id: "shots-base",
@@ -506,7 +506,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
       fromSide: "right",
       toSide: "left",
       toEnd: "arrow",
-      label: "query"
+      label: "查询"
     },
     {
       id: "production-base",
@@ -515,7 +515,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
       fromSide: "right",
       toSide: "left",
       toEnd: "arrow",
-      label: "query"
+      label: "查询"
     },
     {
       id: "workflow-map",
@@ -524,7 +524,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
       fromSide: "right",
       toSide: "left",
       toEnd: "arrow",
-      label: "step graph"
+      label: "步骤图"
     },
     {
       id: "shot-pipeline",
@@ -533,9 +533,9 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
       fromSide: "right",
       toSide: "left",
       toEnd: "arrow",
-      label: "shot graph"
+      label: "镜头图"
     }
   ];
 
-  return { vaultPath: "Canvas/Review Map.canvas", content: canvasJson({ nodes, edges }) };
+  return { vaultPath: "画布/审阅地图.canvas", content: canvasJson({ nodes, edges }) };
 }

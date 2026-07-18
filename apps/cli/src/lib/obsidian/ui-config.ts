@@ -33,44 +33,44 @@ function suggestedFiles(): SuggestedUiFile[] {
           {
             type: "file",
             ctime: 0,
-            path: "00_Project_Home.md",
-            title: "Project Home"
+            path: "00_项目首页.md",
+            title: "项目首页"
           },
           {
             type: "file",
             ctime: 0,
-            path: "04_Agent_Handoff.md",
-            title: "Agent Handoff"
+            path: "04_智能体交接.md",
+            title: "智能体交接"
           },
           {
             type: "file",
             ctime: 0,
-            path: "02_Shot_Index.md",
-            title: "Shot Index"
+            path: "02_镜头索引.md",
+            title: "镜头索引"
           },
           {
             type: "file",
             ctime: 0,
-            path: "03_Production_Board.md",
-            title: "Production Board"
+            path: "03_制作看板.md",
+            title: "制作看板"
           },
           {
             type: "file",
             ctime: 0,
-            path: "Canvas/Review Map.canvas",
-            title: "Review Map"
+            path: "画布/审阅地图.canvas",
+            title: "审阅地图"
           },
           {
             type: "file",
             ctime: 0,
-            path: "Canvas/Shot Pipeline.canvas",
-            title: "Shot Pipeline"
+            path: "画布/镜头流水线.canvas",
+            title: "镜头流水线"
           },
           {
             type: "file",
             ctime: 0,
-            path: "Notes/README.md",
-            title: "Notes"
+            path: "笔记/README.md",
+            title: "笔记"
           }
         ]
       })
@@ -88,7 +88,7 @@ function suggestedFiles(): SuggestedUiFile[] {
               state: {
                 type: "markdown",
                 state: {
-                  file: "00_Project_Home.md",
+                  file: "00_项目首页.md",
                   mode: "preview",
                   source: false
                 }
@@ -100,7 +100,7 @@ function suggestedFiles(): SuggestedUiFile[] {
               state: {
                 type: "markdown",
                 state: {
-                  file: "04_Agent_Handoff.md",
+                  file: "04_智能体交接.md",
                   mode: "preview",
                   source: false
                 }
@@ -124,7 +124,7 @@ function suggestedFiles(): SuggestedUiFile[] {
           width: 300
         },
         active: "ai-video-workflow-home-leaf",
-        lastOpenFiles: ["00_Project_Home.md", "04_Agent_Handoff.md", "02_Shot_Index.md", "03_Production_Board.md", "Canvas/Review Map.canvas", "Canvas/Shot Pipeline.canvas"]
+        lastOpenFiles: ["00_项目首页.md", "04_智能体交接.md", "02_镜头索引.md", "03_制作看板.md", "画布/审阅地图.canvas", "画布/镜头流水线.canvas"]
       })
     },
     {

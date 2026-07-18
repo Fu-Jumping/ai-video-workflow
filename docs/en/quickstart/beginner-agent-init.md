@@ -12,9 +12,9 @@ Use my answers to run the initialization command. After the project is created, 
 I do not have programming experience. Do not ask me to assemble complex commands myself; ask me only for the choices you need.
 ```
 
-The agent should run the CLI for you. The CLI remains the authoritative initializer because it creates `AGENTS.md`, `docs/ai-workspace/`, Step folders, templates, config, and IDE runtime files consistently.
+The agent should run the CLI for you. The CLI remains the authoritative initializer because it creates `AGENTS.md`, `文档/智能体工作区/`, Step folders, templates, config, and IDE runtime files consistently.
 
-After initialization, open the generated creative project directory, not this tool repository. Start from `01_concept/story-kernel.md`.
+After initialization, open the generated creative project directory, not this tool repository. Start from `01_概念策划/故事内核.md`.
 
 For Obsidian, open only `_views/obsidian/` as the vault. Do not open the project root itself as an Obsidian vault. External vault mode is still available for advanced use with `--out <path>`.
 

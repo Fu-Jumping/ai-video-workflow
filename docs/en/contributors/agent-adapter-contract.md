@@ -33,7 +33,7 @@ Every adapter description should define these fields:
 
 Optional fields for cross-agent workspaces:
 
-- `sharedEntryPoints`: shared project files every agent should read, such as `AGENTS.md` and `docs/ai-workspace/`.
+- `sharedEntryPoints`: shared project files every agent should read, such as `AGENTS.md` and `文档/智能体工作区/`.
 - `generatedSurfaces`: adapter-owned outputs that may be regenerated.
 - `userOwnedSurfaces`: files owned by the user or host platform.
 - `privateRuntimeSurfaces`: local platform state, caches, memories, or credentials outside project truth.

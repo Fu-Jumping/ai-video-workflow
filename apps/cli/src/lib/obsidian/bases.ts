@@ -3,32 +3,32 @@ import type { ObsidianGeneratedFile } from "./types.js";
 export function renderBaseFiles(): ObsidianGeneratedFile[] {
   return [
     {
-      vaultPath: "Bases/Workflow Files.base",
+      vaultPath: "数据表/流程文件.base",
       content: `filters:
   and:
     - file.hasTag("ai-video/project")
 properties:
   stage_group:
-    displayName: Stage
+    displayName: 阶段
   review_status:
-    displayName: Review
+    displayName: 审阅
   execution_status:
-    displayName: Execution
+    displayName: 执行
   needs_attention:
-    displayName: Attention
+    displayName: 关注
   projection_generated:
-    displayName: Generated
+    displayName: 生成文件
   step:
-    displayName: Step
+    displayName: 步骤
   source_kind:
-    displayName: Type
+    displayName: 类型
   status:
-    displayName: Status
+    displayName: 状态
   source_path:
-    displayName: Source
+    displayName: 源路径
 views:
   - type: table
-    name: Workflow Files
+    name: 流程文件
     order:
       - file.name
       - step
@@ -39,12 +39,12 @@ views:
       - status
       - source_path
   - type: list
-    name: Review List
+    name: 审阅列表
     order:
       - file.name
       - status
   - type: table
-    name: Review Queue
+    name: 审阅队列
     groupBy:
       property: review_status
       direction: ASC
@@ -56,7 +56,7 @@ views:
       - source_kind
       - source_path
   - type: table
-    name: Modified Generated Files
+    name: 已改动生成文件
     filters:
       and:
         - 'projection_generated == true'
@@ -68,42 +68,42 @@ views:
 `
     },
     {
-      vaultPath: "Bases/Shots.base",
+      vaultPath: "数据表/镜头.base",
       content: `filters:
   and:
     - file.hasTag("ai-video/shot")
 properties:
   shot_id:
-    displayName: Shot
+    displayName: 镜头
   shot_order:
-    displayName: Order
+    displayName: 顺序
   review_mode:
-    displayName: Review Mode
+    displayName: 审阅模式
   review_canvas:
-    displayName: Review Canvas
+    displayName: 审阅画布
   review_note:
-    displayName: Review Note
+    displayName: 审阅笔记
   agent_handoff:
-    displayName: Agent Handoff
+    displayName: 智能体交接
   has_storyboard:
-    displayName: Storyboard
+    displayName: 分镜脚本
   has_image_prompt:
-    displayName: Image Prompt
+    displayName: 图片提示词
   has_video_prompt:
-    displayName: Video Prompt
+    displayName: 视频提示词
   review_status:
-    displayName: Review
+    displayName: 审阅
   execution_status:
-    displayName: Execution
+    displayName: 执行
   needs_attention:
-    displayName: Attention
+    displayName: 关注
   status:
-    displayName: Status
+    displayName: 状态
   source_path:
-    displayName: Source
+    displayName: 源路径
 views:
   - type: table
-    name: Shot Table
+    name: 镜头表
     order:
       - file.name
       - shot_order
@@ -113,12 +113,12 @@ views:
       - status
       - source_path
   - type: cards
-    name: Shot Cards
+    name: 镜头卡片
     order:
       - file.name
       - status
   - type: table
-    name: Shot Progress
+    name: 镜头进度
     groupBy:
       property: shot_id
       direction: ASC
@@ -130,7 +130,7 @@ views:
       - needs_attention
       - source_path
   - type: table
-    name: Immersive Review
+    name: 沉浸式审阅
     order:
       - shot_order
       - file.name
@@ -142,7 +142,7 @@ views:
       - has_video_prompt
       - execution_status
   - type: table
-    name: Agent Handoff
+    name: 智能体交接
     order:
       - shot_order
       - file.name
@@ -153,28 +153,28 @@ views:
 `
     },
     {
-      vaultPath: "Bases/Production Status.base",
+      vaultPath: "数据表/制作状态.base",
       content: `filters:
   and:
     - file.hasTag("ai-video/status")
 properties:
   status:
-    displayName: Status
+    displayName: 状态
   step:
-    displayName: Step
+    displayName: 步骤
   stage_group:
-    displayName: Stage
+    displayName: 阶段
   review_status:
-    displayName: Review
+    displayName: 审阅
   execution_status:
-    displayName: Execution
+    displayName: 执行
   shot_id:
-    displayName: Shot
+    displayName: 镜头
   source_path:
-    displayName: Source
+    displayName: 源路径
 views:
   - type: table
-    name: Production Status
+    name: 制作状态
     groupBy:
       property: status
       direction: ASC
@@ -185,7 +185,7 @@ views:
       - shot_id
       - source_path
   - type: table
-    name: Execution Readiness
+    name: 执行就绪
     groupBy:
       property: execution_status
       direction: ASC

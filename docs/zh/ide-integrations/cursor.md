@@ -2,7 +2,7 @@
 
 Cursor 使用 `.cursor/rules/` 作为原生规则入口，使用 `.cursor/skills/` 作为 adapter-ready 技能包，使用 `.cursor/ai-video-workflow/` 作为运行镜像。
 
-使用 Cursor rules 前，先读 `AGENTS.md` 和 `docs/ai-workspace/`。
+使用 Cursor rules 前，先读 `AGENTS.md` 和 `文档/智能体工作区/`。
 
 ## Adapter Contract
 

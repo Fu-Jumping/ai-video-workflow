@@ -14,41 +14,41 @@ function asJson(value: unknown): string {
 function projectHandoffMarkdown(context: McpProjectContext): string {
   const shotLines = context.shots.map((shot) => `- ${shot.id}: ${shot.sourcePaths.storyboard}, ${shot.sourcePaths.imagePrompt}, ${shot.sourcePaths.videoPrompt}`);
   return [
-    "# AI Video Workflow Agent Handoff",
+    "# AI 视频工作流智能体交接",
     "",
-    "Use source Step files as the editable truth.",
+    "使用步骤源文件作为可编辑事实源。",
     "",
-    "- Story and frame changes: Step 3 storyboard files.",
-    "- Visual prompt and consistency changes: Step 4 image prompt files.",
-    "- Motion and camera behavior changes: Step 5 video prompt files.",
-    "- Execution logistics: Step 6 execution plan files.",
-    "- `_views/obsidian/` is a generated Obsidian viewing layer. Refresh it after source edits.",
-    "- `_views/obsidian/Notes/` may contain user observations, but it does not replace Step files.",
-    "- Do not edit Obsidian projections, IDE runtime mirrors, or MCP resources as source files.",
+    "- 故事和画面修改：步骤三分镜脚本文件。",
+    "- 视觉提示词和一致性修改：步骤四图片提示词文件。",
+    "- 运动和镜头行为修改：步骤五视频提示词文件。",
+    "- 执行组织：步骤六执行计划文件。",
+    "- `_views/obsidian/` 是生成的 Obsidian 观看层；修改源文件后要刷新它。",
+    "- `_views/obsidian/笔记/` 可以存放用户观察，但不能替代步骤文件。",
+    "- 不要把 Obsidian 投影、IDE 运行镜像或 MCP 资源当作源文件编辑。",
     "",
-    "Refresh command:",
+    "刷新命令：",
     "",
     `- \`${context.viewLayers.obsidian.refreshCommand}\``,
     "",
-    "## Shots",
+    "## 镜头",
     "",
     ...shotLines
   ].join("\n");
 }
 
 function verificationMarkdown(context: McpProjectContext): string {
-  return ["# Verification Commands", "", ...context.verificationCommands.map((command) => `- \`${command}\``)].join("\n");
+  return ["# 验证命令", "", ...context.verificationCommands.map((command) => `- \`${command}\``)].join("\n");
 }
 
 function packOverviewMarkdown(context: McpProjectContext): string {
   return [
-    "# Official AI Video Pack",
+    "# 官方 AI 视频工作流包",
     "",
     `Pack: \`${context.project.pack}\``,
     "",
-    "The pack defines the Step 1 to Step 6 workflow, templates, skills, and file contracts.",
-    "Project Step files remain the source of truth. MCP resources are read-only context.",
-    "`_views/obsidian/` is a generated viewing layer and should not be fed back as source files."
+    "这个工作流包定义步骤一到步骤六的流程、模板、技能和文件合同。",
+    "项目步骤文件仍是事实源。MCP 资源只是只读上下文。",
+    "`_views/obsidian/` 是生成的观看层，不应反向作为源文件。"
   ].join("\n");
 }
 
@@ -56,7 +56,7 @@ export function buildMcpResources(context: McpProjectContext): McpResourceDefini
   const resources: McpResourceDefinition[] = [
     {
       uri: "ai-video-workflow://project/summary",
-      name: "Project summary",
+      name: "项目摘要",
       mimeType: "application/json",
       text: asJson({
         project: context.project,
@@ -67,37 +67,37 @@ export function buildMcpResources(context: McpProjectContext): McpResourceDefini
     },
     {
       uri: "ai-video-workflow://project/config",
-      name: "Project config",
+      name: "项目配置",
       mimeType: "application/json",
       text: asJson(context.project)
     },
     {
       uri: `ai-video-workflow://pack/${context.project.pack}/overview`,
-      name: "Pack overview",
+      name: "工作流包概览",
       mimeType: "text/markdown",
       text: packOverviewMarkdown(context)
     },
     {
       uri: "ai-video-workflow://workflow/steps",
-      name: "Workflow steps",
+      name: "工作流步骤",
       mimeType: "application/json",
       text: asJson(context.steps)
     },
     {
       uri: "ai-video-workflow://shots/index",
-      name: "Shots index",
+      name: "镜头索引",
       mimeType: "application/json",
       text: asJson(context.shots.map((shot) => ({ id: shot.id, title: shot.title, sourcePaths: shot.sourcePaths })))
     },
     {
       uri: "ai-video-workflow://handoff/project",
-      name: "Project agent handoff",
+      name: "项目智能体交接",
       mimeType: "text/markdown",
       text: projectHandoffMarkdown(context)
     },
     {
       uri: "ai-video-workflow://verification/commands",
-      name: "Verification commands",
+      name: "验证命令",
       mimeType: "text/markdown",
       text: verificationMarkdown(context)
     }
@@ -106,7 +106,7 @@ export function buildMcpResources(context: McpProjectContext): McpResourceDefini
   for (const step of context.steps) {
     resources.push({
       uri: `ai-video-workflow://workflow/step/${step.step}`,
-      name: `Workflow step ${step.step}: ${step.label}`,
+      name: `工作流步骤 ${step.step}: ${step.label}`,
       mimeType: "application/json",
       text: asJson(step)
     });
@@ -115,7 +115,7 @@ export function buildMcpResources(context: McpProjectContext): McpResourceDefini
   for (const shot of context.shots) {
     resources.push({
       uri: `ai-video-workflow://shots/${shot.id}`,
-      name: `Shot context: ${shot.id}`,
+      name: `镜头上下文: ${shot.id}`,
       mimeType: "application/json",
       text: asJson(shot)
     });

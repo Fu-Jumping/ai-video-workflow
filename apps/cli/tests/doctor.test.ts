@@ -29,7 +29,7 @@ describe("diagnoseProject", () => {
         {
           code: "nested-project",
           message: "Found nested ai-video-workflow project",
-          path: "01_concept/child/project.config.yaml"
+          path: "01_概念策划/child/project.config.yaml"
         }
       ]
     });
@@ -46,20 +46,20 @@ describe("diagnoseProject", () => {
       issues: [
         {
           code: "missing-step6-file",
-          message: "Missing 00_execution_plan.md",
-          path: "06_execution_plan"
+          message: "Missing 00_执行计划.md",
+          path: "06_执行计划"
         },
         {
           code: "absolute-path-link",
           message: "Found absolute path link",
-          path: "04_image_prompts/shot-01.md"
+          path: "04_图片提示词/shot-01.md"
         }
       ]
     });
 
     expect(output).toContain("Structure");
     expect(output).toContain("Links");
-    expect(output).toContain("00_execution_plan.md");
+    expect(output).toContain("00_执行计划.md");
     expect(output).toContain("relative path");
   });
 
@@ -117,7 +117,7 @@ describe("diagnoseProject", () => {
         {
           code: "broken-step3-step4-link",
           message: "Storyboard file links to missing Step 4 target: missing.md",
-          path: "03_storyboard/shot-001.md"
+          path: "03_分镜脚本/镜头-001.md"
         }
       ]
     });
@@ -137,7 +137,7 @@ describe("diagnoseProject", () => {
         {
           code: "invalid-shared-agent-doc",
           message: "Shared agent doc is missing required ai-video-workflow markers",
-          path: "docs/ai-workspace/README.md"
+          path: "文档/智能体工作区/入口说明.md"
         },
         {
           code: "agent-runtime-conflict",
@@ -151,6 +151,7 @@ describe("diagnoseProject", () => {
     expect(output).toContain("ai-video-workflow sync --project <path> --ide <id>");
     expect(output).toContain("Merge the shared ai-video-workflow markers");
     expect(output).toContain("Regenerate the platform runtime mirror");
+    expect(output).toContain("文档/智能体工作区");
   });
 
   test("suggests a merge block for existing custom AGENTS entries", async () => {
@@ -165,7 +166,7 @@ describe("diagnoseProject", () => {
     });
 
     expect(output).toContain("Keep the existing `AGENTS.md`");
-    expect(output).toContain("Marker: ai-video-workflow shared agent entry.");
+    expect(output).toContain("标记：ai-video-workflow 共享智能体入口。");
     expect(output).toContain("project-step-files");
     expect(output).toContain("Cherry Studio");
   });
@@ -192,7 +193,7 @@ describe("diagnoseProject", () => {
         {
           code: "invalid-obsidian-canvas-json",
           message: "Canvas JSON is invalid",
-          path: "Canvas/Workflow Map.canvas"
+          path: "画布/流程图.canvas"
         }
       ]
     });
@@ -207,8 +208,8 @@ describe("diagnoseProject", () => {
       issues: [
         {
           code: "missing-obsidian-base-view",
-          message: "Obsidian base is missing view: Review Queue",
-          path: "Bases/Workflow Files.base"
+          message: "Obsidian base is missing view: 审阅队列",
+          path: "数据表/流程文件.base"
         },
         {
           code: "invalid-obsidian-ui-config",
@@ -228,13 +229,13 @@ describe("diagnoseProject", () => {
         {
           code: "obsidian-manifest-hash-mismatch",
           message: "Manifest hash does not match generated file",
-          path: "Workflow/Step 3 - Storyboard/Shot 001 - Storyboard.md"
+          path: "流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md"
         }
       ]
     });
 
     expect(output).toContain("Obsidian Projection");
-    expect(output).toContain("Notes/");
+    expect(output).toContain("笔记/");
     expect(output).toContain("--force");
     expect(output).toContain("--in-project-view");
   });
@@ -244,8 +245,8 @@ describe("diagnoseProject", () => {
       issues: [
         {
           code: "obsidian-view-stale",
-          message: "Obsidian projection is stale for source file: 03_storyboard/shot-001.md",
-          path: "Workflow/Step 3 - Storyboard/Shot 001 - Storyboard.md"
+          message: "Obsidian projection is stale for source file: 03_分镜脚本/镜头-001.md",
+          path: "流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md"
         }
       ]
     });
@@ -260,15 +261,15 @@ describe("diagnoseProject", () => {
       issues: [
         {
           code: "invalid-obsidian-shot-review",
-          message: "Shot review canvas is missing or not linked: Canvas/Shot Reviews/shot-001.canvas",
-          path: "Shots/shot-001.md"
+          message: "Shot review canvas is missing or not linked: 画布/镜头审阅/shot-001.canvas",
+          path: "镜头/shot-001.md"
         }
       ]
     });
 
     expect(output).toContain("Obsidian Projection");
     expect(output).toContain("single-shot review format");
-    expect(output).toContain("Canvas/Shot Reviews/");
+    expect(output).toContain("画布/镜头审阅/");
   });
 
   test("suggests Obsidian agent handoff fixes", async () => {
@@ -276,14 +277,14 @@ describe("diagnoseProject", () => {
       issues: [
         {
           code: "invalid-obsidian-agent-handoff",
-          message: "Missing Obsidian agent handoff page: 04_Agent_Handoff.md",
-          path: "04_Agent_Handoff.md"
+          message: "Missing Obsidian agent handoff page: 04_智能体交接.md",
+          path: "04_智能体交接.md"
         }
       ]
     });
 
     expect(output).toContain("Obsidian Projection");
-    expect(output).toContain("04_Agent_Handoff.md");
+    expect(output).toContain("04_智能体交接.md");
     expect(output).toContain("copy-ready agent context");
     expect(output).toContain("--in-project-view");
     expect(output).toContain("source Step files");

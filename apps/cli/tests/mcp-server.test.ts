@@ -1,5 +1,7 @@
+import fs from "fs-extra";
+import os from "node:os";
 import path from "node:path";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 
 import { buildMcpContext } from "../src/lib/mcp/context.js";
 import { buildMcpPrompts } from "../src/lib/mcp/prompts.js";
@@ -7,11 +9,53 @@ import { buildMcpResources } from "../src/lib/mcp/resources.js";
 import { createAiVideoMcpServer } from "../src/lib/mcp/server.js";
 import { buildMcpTools } from "../src/lib/mcp/tools.js";
 
-const exampleRoot = path.resolve(__dirname, "..", "..", "..", "examples", "official-mini-film");
+const tempRoots: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(tempRoots.splice(0).map((dir) => fs.remove(dir)));
+});
+
+async function createChineseMcpProject(): Promise<string> {
+  const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-mcp-server-cn-"));
+  tempRoots.push(projectRoot);
+  await fs.writeFile(
+    path.join(projectRoot, "project.config.yaml"),
+    [
+      "pack: official-ai-video",
+      "ide: codex",
+      "platforms:",
+      "  image:",
+      "    default: openai",
+      "  video:",
+      "    default: runway",
+      "workflow:",
+      "  enhanced_flow:",
+      "    enabled: true"
+    ].join("\n"),
+    "utf8"
+  );
+  for (const dir of ["01_概念策划", "02_世界设定", "03_分镜脚本", "04_图片提示词", "05_视频提示词", "06_执行计划"]) {
+    await fs.ensureDir(path.join(projectRoot, dir));
+  }
+  await fs.writeFile(
+    path.join(projectRoot, "03_分镜脚本", "镜头-001.md"),
+    [
+      "# 镜头 001",
+      "",
+      "- 图片提示词：[镜头-001-关键帧](../04_图片提示词/镜头-001-关键帧.md)",
+      "- 视频提示词：[镜头-001](../05_视频提示词/镜头-001.md)"
+    ].join("\n"),
+    "utf8"
+  );
+  await fs.writeFile(path.join(projectRoot, "04_图片提示词", "镜头-001-关键帧.md"), "# 镜头 001 关键帧\n", "utf8");
+  await fs.writeFile(path.join(projectRoot, "05_视频提示词", "镜头-001.md"), "# 镜头 001 视频\n", "utf8");
+  return projectRoot;
+}
 
 describe("MCP resources", () => {
   test("exposes stable project and shot resource URIs", async () => {
-    const context = await buildMcpContext({ projectRoot: exampleRoot, pack: "official-ai-video" });
+    const projectRoot = await createChineseMcpProject();
+    const context = await buildMcpContext({ projectRoot, pack: "official-ai-video" });
     const resources = buildMcpResources(context);
 
     expect(resources.map((resource) => resource.uri)).toEqual(
@@ -28,9 +72,9 @@ describe("MCP resources", () => {
         "ai-video-workflow://verification/commands"
       ])
     );
-    expect(JSON.stringify(resources)).not.toMatch(/[A-Z]:\\\\|[A-Z]:\\\/|file:\/\/|vscode:\/\//);
+    expect(JSON.stringify(resources)).not.toMatch(/[A-Z]:\\|[A-Z]:\/|file:\/\/|vscode:\/\//);
     expect(JSON.stringify(resources)).toContain("_views/obsidian");
-    expect(JSON.stringify(resources)).toContain("viewing layer");
+    expect(JSON.stringify(resources)).toContain("观看层");
   });
 });
 
@@ -48,17 +92,18 @@ describe("MCP prompts", () => {
         "verify_project"
       ])
     );
-    expect(JSON.stringify(prompts)).toContain("Do not edit Obsidian projections");
+    expect(JSON.stringify(prompts)).toContain("不要把 _views/obsidian 下的 Obsidian 投影");
     expect(JSON.stringify(prompts)).toContain("_views/obsidian");
-    expect(JSON.stringify(prompts)).toContain("does not replace Step files");
-    expect(JSON.stringify(prompts)).toContain("Step 4");
+    expect(JSON.stringify(prompts)).toContain("不能替代步骤文件");
+    expect(JSON.stringify(prompts)).toContain("步骤四");
   });
 });
 
 describe("MCP tools", () => {
-  test("exposes only read-only MCP tools", () => {
+  test("exposes only read-only MCP tools", async () => {
+    const projectRoot = await createChineseMcpProject();
     const tools = buildMcpTools({
-      projectRoot: exampleRoot,
+      projectRoot,
       pack: "official-ai-video",
       ide: "codex"
     });
@@ -72,8 +117,9 @@ describe("MCP tools", () => {
   });
 
   test("returns shot context by shot id without writing files", async () => {
+    const projectRoot = await createChineseMcpProject();
     const tools = buildMcpTools({
-      projectRoot: exampleRoot,
+      projectRoot,
       pack: "official-ai-video",
       ide: "codex"
     });
@@ -83,7 +129,7 @@ describe("MCP tools", () => {
       expect.objectContaining({
         id: "shot-001",
         sourcePaths: expect.objectContaining({
-          imagePrompt: "04_image_prompts/shot-001-keyframe.md"
+          imagePrompt: "04_图片提示词/镜头-001-关键帧.md"
         })
       })
     );
@@ -93,8 +139,9 @@ describe("MCP tools", () => {
 
 describe("MCP server", () => {
   test("creates a read-only MCP server from the project context", async () => {
+    const projectRoot = await createChineseMcpProject();
     const server = await createAiVideoMcpServer({
-      projectRoot: exampleRoot,
+      projectRoot,
       pack: "official-ai-video",
       ide: "codex"
     });

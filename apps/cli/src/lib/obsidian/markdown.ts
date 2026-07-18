@@ -4,21 +4,21 @@ import { sanitizeVaultFileName, toVaultPath } from "./paths.js";
 import type { ObsidianSourceFile } from "./types.js";
 
 const stepNames: Record<number, string> = {
-  1: "concept",
-  2: "setting",
-  3: "storyboard",
-  4: "image-prompt",
-  5: "video-prompt",
-  6: "execution"
+  1: "概念策划",
+  2: "世界设定",
+  3: "分镜脚本",
+  4: "图片提示词",
+  5: "视频提示词",
+  6: "执行计划"
 };
 
 const stepFolders: Record<number, string> = {
-  1: "Step 1 - Concept",
-  2: "Step 2 - Setting",
-  3: "Step 3 - Storyboard",
-  4: "Step 4 - Image Prompts",
-  5: "Step 5 - Video Prompts",
-  6: "Step 6 - Execution Plan"
+  1: "步骤一 - 概念策划",
+  2: "步骤二 - 世界设定",
+  3: "步骤三 - 分镜脚本",
+  4: "步骤四 - 图片提示词",
+  5: "步骤五 - 视频提示词",
+  6: "步骤六 - 执行计划"
 };
 
 const stepTags: Record<number, string> = {
@@ -40,15 +40,15 @@ const stageGroups: Record<number, string> = {
 };
 
 export function stepFolderName(step: number): string {
-  return stepFolders[step] ?? `Step ${step}`;
+  return stepFolders[step] ?? `步骤${step}`;
 }
 
 export function generatedFileName(sourceFile: ObsidianSourceFile): string {
   if (sourceFile.shotId) {
     const suffixByKind: Partial<Record<typeof sourceFile.sourceKind, string>> = {
-      storyboard: "Storyboard",
-      "image-prompt": "Image Prompt",
-      "video-prompt": "Video Prompt"
+      storyboard: "分镜脚本",
+      "image-prompt": "图片提示词",
+      "video-prompt": "视频提示词"
     };
     const suffix = suffixByKind[sourceFile.sourceKind];
     if (suffix) {
@@ -59,7 +59,7 @@ export function generatedFileName(sourceFile: ObsidianSourceFile): string {
 }
 
 export function workflowVaultPath(sourceFile: ObsidianSourceFile): string {
-  return toVaultPath(path.join("Workflow", stepFolderName(sourceFile.step), generatedFileName(sourceFile)));
+  return toVaultPath(path.join("流程", stepFolderName(sourceFile.step), generatedFileName(sourceFile)));
 }
 
 function shotOrder(shotId: string | undefined): number | undefined {
@@ -141,19 +141,19 @@ export function renderFrontmatter(sourceFile: ObsidianSourceFile, projectName: s
 
 export function renderGeneratedWorkflowNote(sourceFile: ObsidianSourceFile, originalContent: string, projectName: string): string {
   const navigation = [
-    `> Generated Obsidian projection. Edit the source file instead: \`${sourceFile.sourcePath}\`.`,
+    `> 这是生成的 Obsidian 观看层文件。需要修改项目事实时，请编辑源文件：\`${sourceFile.sourcePath}\`。`,
     "",
-    "## Obsidian Navigation",
+    "## Obsidian 导航",
     "",
-    "- Project home: [[00_Project_Home]]",
-    "- Review dashboard: [[01_Review_Dashboard]]",
-    "- Production board: [[03_Production_Board]]",
-    "- Workflow map: [[Canvas/Workflow Map.canvas]]",
-    "- Review map: [[Canvas/Review Map.canvas]]",
-    `- Source path: \`${sourceFile.sourcePath}\``
+    "- 项目首页：[[00_项目首页]]",
+    "- 审阅总览：[[01_审阅总览]]",
+    "- 制作看板：[[03_制作看板]]",
+    "- 流程图：[[画布/流程图.canvas]]",
+    "- 审阅地图：[[画布/审阅地图.canvas]]",
+    `- 源路径：\`${sourceFile.sourcePath}\``
   ];
   if (sourceFile.shotId) {
-    navigation.splice(5, 0, `- Shot index: [[${sourceFile.shotId}]]`);
+    navigation.splice(5, 0, `- 镜头索引：[[${sourceFile.shotId}]]`);
   }
 
   return [renderFrontmatter(sourceFile, projectName), "", ...navigation, "", stripFrontmatter(originalContent).trim(), ""].join("\n");

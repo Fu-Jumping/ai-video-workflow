@@ -57,7 +57,7 @@ async function assertSafeOutput(projectRoot: string, outRoot: string, inProjectV
   if (resolvedOut === resolvedProject) {
     throw new CliUserError("Obsidian export output cannot be the project root");
   }
-  if (path.parse(resolvedOut).root === resolvedOut || resolvedProject.startsWith(`${resolvedOut}${path.sep}`)) {
+  if (path.parse(resolvedOut).root === resolvedOut || isInsidePath(resolvedProject, resolvedOut)) {
     throw new CliUserError("Obsidian export output must be a dedicated directory, not a filesystem root or project parent");
   }
   const expectedInProjectView = resolveInProjectObsidianView(resolvedProject);
@@ -84,7 +84,7 @@ async function assertSafeForceOutput(outRoot: string): Promise<void> {
   const entries = await fs.readdir(outRoot);
   const hasManifest = await fs.pathExists(vaultFsPath(outRoot, projectionManifestPath));
   if (entries.length > 0 && !hasManifest) {
-    throw new CliUserError("Refusing to force-remove a non-empty Obsidian output directory without Projection Manifest.json");
+    throw new CliUserError(`Refusing to force-remove a non-empty Obsidian output directory without ${projectionManifestPath}`);
   }
 }
 

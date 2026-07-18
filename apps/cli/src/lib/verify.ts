@@ -7,14 +7,18 @@ import {
   classifySharedAgentEntry,
   sharedAgentDocMarkers,
   sharedAgentDocPaths,
+  sharedAgentDocsDir,
   sharedAgentEntryPath
 } from "./agent-workspace.js";
-import { STEP6_FILES } from "./constants.js";
+import { STEP6_FILES, STEP_DIR_BY_NUMBER } from "./constants.js";
 import { readProjectConfig } from "./project-config.js";
 import { projectRootIssues } from "./project-root.js";
 import type { Ide, VerificationIssue, VerificationResult } from "./types.js";
 
-const step4RequiredSections = ["快速导读", "中文完整版本", "English Version (Copy Ready)"];
+const step3Dir = STEP_DIR_BY_NUMBER[3];
+const step4Dir = STEP_DIR_BY_NUMBER[4];
+const step6Dir = STEP_DIR_BY_NUMBER[6];
+const step4RequiredSections = ["快速导读", "中文完整版本", "可复制提示词"];
 const step4ForbiddenText = ["参考前文", "同上", "模型应自行理解剧情", "same as previous"];
 const ignoredMarkdownDirs = new Set(["node_modules", ".git"]);
 const ignoredGeneratedViewRootDirs = ["_views", ".obsidian"] as const;
@@ -22,7 +26,7 @@ const ignoredRootMarkdownDirs = new Set([...cherryHostSurfaceDirs, ...ignoredGen
 const ignoredRootMarkdownFiles = new Set(cherryHostSurfaceFiles);
 const absoluteLinkPattern = /([A-Za-z]:\\|[A-Za-z]:\/|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
 const inlineCodePattern = /`[^`\r\n]*`/g;
-const step4LinkPattern = /\]\((?:\.\.\/)?04_image_prompts\/([^)#]+)(?:#[^)]+)?\)/g;
+const step4LinkPattern = /\]\((?:\.\.\/)?04_图片提示词\/([^)#]+)(?:#[^)]+)?\)/g;
 const runtimeTruthConflictPattern =
   /(runtime mirror|运行镜像).{0,40}(source of truth|事实源|project truth)|(source of truth|事实源|project truth).{0,40}(runtime mirror|运行镜像)/i;
 const runtimeTruthNegationPattern = /(not|不是|并非|only|只).{0,80}(source of truth|事实源|project truth)/i;
@@ -113,25 +117,25 @@ async function verifyRelativeMarkdownLinks(projectRoot: string, issues: Verifica
 
 async function verifyStep6(projectRoot: string, issues: VerificationIssue[]): Promise<void> {
   for (const file of STEP6_FILES) {
-    const fullPath = path.join(projectRoot, "06_execution_plan", file);
+    const fullPath = path.join(projectRoot, step6Dir, file);
     if (!(await fs.pathExists(fullPath))) {
       pushIssue(issues, {
         code: "missing-step6-file",
         message: `Missing ${file}`,
-        path: "06_execution_plan"
+        path: step6Dir
       });
     }
   }
 }
 
 async function verifyStep4(projectRoot: string, issues: VerificationIssue[]): Promise<void> {
-  const dir = path.join(projectRoot, "04_image_prompts");
+  const dir = path.join(projectRoot, step4Dir);
   if (!(await fs.pathExists(dir))) {
     return;
   }
   const files = (await fs.readdir(dir)).filter((name) => name.endsWith(".md"));
   for (const file of files) {
-    const relPath = path.join("04_image_prompts", file);
+    const relPath = path.join(step4Dir, file);
     const content = await fs.readFile(path.join(dir, file), "utf8");
     for (const section of step4RequiredSections) {
       if (!content.includes(section)) {
@@ -142,10 +146,10 @@ async function verifyStep4(projectRoot: string, issues: VerificationIssue[]): Pr
         });
       }
     }
-    if (!content.includes("避免:") || !content.includes("Avoid:")) {
+    if (!content.includes("避免：") && !content.includes("避免:")) {
       pushIssue(issues, {
         code: "missing-step4-section",
-        message: "Missing `避免:` or `Avoid:` in Step 4 contract",
+        message: "Missing `避免：` in Step 4 contract",
         path: relPath
       });
     }
@@ -162,13 +166,13 @@ async function verifyStep4(projectRoot: string, issues: VerificationIssue[]): Pr
 }
 
 async function verifyStep3Step4Traceability(projectRoot: string, issues: VerificationIssue[]): Promise<void> {
-  const storyboardDir = path.join(projectRoot, "03_storyboard");
+  const storyboardDir = path.join(projectRoot, step3Dir);
   if (!(await fs.pathExists(storyboardDir))) {
     return;
   }
   const files = (await fs.readdir(storyboardDir)).filter((name) => name.endsWith(".md"));
   for (const file of files) {
-    const relPath = path.join("03_storyboard", file);
+    const relPath = path.join(step3Dir, file);
     const content = await fs.readFile(path.join(storyboardDir, file), "utf8");
     const matches = [...content.matchAll(step4LinkPattern)];
     if (matches.length === 0) {
@@ -189,7 +193,7 @@ async function verifyStep3Step4Traceability(projectRoot: string, issues: Verific
         });
         continue;
       }
-      if (!(await fs.pathExists(path.join(projectRoot, "04_image_prompts", target)))) {
+      if (!(await fs.pathExists(path.join(projectRoot, step4Dir, target)))) {
         pushIssue(issues, {
           code: "broken-step3-step4-link",
           message: `Storyboard file links to missing Step 4 target: ${target}`,
@@ -217,7 +221,7 @@ function contentHasAllMarkers(content: string, markers: readonly string[]): bool
 }
 
 function contentMentionsProjectTruth(content: string): boolean {
-  return content.includes("project-step-files") || content.includes("Step 1 to Step 6 files");
+  return content.includes("project-step-files") || content.includes("Step 1 to Step 6 files") || content.includes("步骤一到步骤六文件");
 }
 
 async function verifySharedAgentWorkspace(projectRoot: string, ide: Ide, issues: VerificationIssue[]): Promise<void> {
@@ -267,7 +271,7 @@ async function verifySharedAgentWorkspace(projectRoot: string, ide: Ide, issues:
       continue;
     }
     const content = await fs.readFile(fullPath, "utf8");
-    if (!content.includes("AGENTS.md") || !content.includes("docs/ai-workspace") || !contentMentionsProjectTruth(content)) {
+    if (!content.includes("AGENTS.md") || !content.includes(sharedAgentDocsDir) || !contentMentionsProjectTruth(content)) {
       pushIssue(issues, {
         code: "agent-runtime-conflict",
         message: `Runtime entry does not point to the shared agent workspace: ${relPath}`,

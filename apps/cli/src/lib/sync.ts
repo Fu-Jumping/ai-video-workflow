@@ -1,7 +1,14 @@
 import fs from "fs-extra";
 import path from "node:path";
 
-import { generatedLocalSurfaceIgnoreBlock, sharedAgentEntryContent, sharedAiWorkspaceDocs } from "./agent-workspace.js";
+import {
+  generatedLocalSurfaceIgnoreBlock,
+  sharedAgentDocsBoundaryPath,
+  sharedAgentDocsDir,
+  sharedAgentDocsReadmePath,
+  sharedAgentEntryContent,
+  sharedAiWorkspaceDocs
+} from "./agent-workspace.js";
 import { copyDirectory, writeFileIfMissing } from "./fs-utils.js";
 import { assertCanSyncProject } from "./project-root.js";
 import type { Ide, SyncProjectOptions } from "./types.js";
@@ -9,7 +16,7 @@ import type { Ide, SyncProjectOptions } from "./types.js";
 async function ensureSharedAgentWorkspace(projectRoot: string): Promise<void> {
   await writeFileIfMissing(path.join(projectRoot, "AGENTS.md"), sharedAgentEntryContent());
   for (const [fileName, content] of Object.entries(sharedAiWorkspaceDocs)) {
-    await writeFileIfMissing(path.join(projectRoot, "docs", "ai-workspace", fileName), content);
+    await writeFileIfMissing(path.join(projectRoot, sharedAgentDocsDir, fileName), content);
   }
 }
 
@@ -50,40 +57,40 @@ async function syncCodex(repoRoot: string, projectRoot: string, packRoot: string
   await writeGeneratedRuntimeFile(
     path.join(codexRoot, "README.md"),
     [
-      "# Codex Runtime",
+      "# Codex 运行入口",
       "",
-      "Read `AGENTS.md` and `docs/ai-workspace/` first. Use `.codex/agent-rules.md`, `.codex/repo-context.md`, and `.codex/skills/` as Codex runtime entrypoints.",
+      `请先读取 \`AGENTS.md\` 和 \`${sharedAgentDocsDir}/\`。\`.codex/agent-rules.md\`、\`.codex/repo-context.md\` 和 \`.codex/skills/\` 是 Codex 运行入口。`,
       "",
-      "`project-step-files` are the source of truth; `.codex/` is a runtime mirror."
+      "`project-step-files` 是事实源；`.codex/` 是运行镜像。"
     ].join("\n")
   );
   await writeGeneratedRuntimeFile(
     path.join(codexRoot, "agent-rules.md"),
     [
-      "# Codex Agent Rules",
+      "# Codex 智能体规则",
       "",
-      "Summary runtime rules:",
-      "- Read `AGENTS.md` and `docs/ai-workspace/` before changing project files.",
-      "- Treat `project-step-files` as the source of truth.",
-      "- Keep Step 3 and Step 4 frame-aligned.",
-      "- Enforce the Step 4 fixed file contract.",
-      "- Use relative paths only.",
-      "- Keep `.codex/ai-video-workflow/` as the full runtime mirror and `.codex/skills/` as runtime skill entries.",
-      "- Platform memory is not project truth."
+      "运行规则摘要：",
+      `- 修改项目文件前先读取 \`AGENTS.md\` 和 \`${sharedAgentDocsDir}/\`。`,
+      "- 将 `project-step-files` 作为事实源。",
+      "- 保持步骤三和步骤四逐镜头对齐。",
+      "- 保持步骤四固定文件合同。",
+      "- 只使用相对路径。",
+      "- 保持 `.codex/ai-video-workflow/` 作为完整运行镜像，`.codex/skills/` 作为运行技能入口。",
+      "- 平台记忆不是项目事实源。"
     ].join("\n")
   );
   await writeGeneratedRuntimeFile(
     path.join(codexRoot, "repo-context.md"),
     [
-      "# Repo Context",
+      "# 仓库上下文",
       "",
-      "- Product repo: `ai-video-workflow`",
-      "- Default pack: `official-ai-video`",
-      "- Shared entry: `AGENTS.md`",
-      "- Shared AI docs: `docs/ai-workspace/`",
-      "- Source of truth: `project-step-files`",
-      "- Runtime mirror: `.codex/ai-video-workflow/`",
-      "- Runtime skills: `.codex/skills/`"
+      "- 产品仓库：`ai-video-workflow`",
+      "- 默认工作流包：`official-ai-video`",
+      "- 共享入口：`AGENTS.md`",
+      `- 共享 AI 文档：\`${sharedAgentDocsDir}/\``,
+      "- 事实源：`project-step-files`",
+      "- 运行镜像：`.codex/ai-video-workflow/`",
+      "- 运行技能：`.codex/skills/`"
     ].join("\n")
   );
 }
@@ -106,17 +113,17 @@ async function syncCursor(projectRoot: string, packRoot: string): Promise<void> 
       "alwaysApply: true",
       "---",
       "",
-      "# AI Video Workflow",
+      "# AI 视频工作流",
       "",
-      "- Read `AGENTS.md` and `docs/ai-workspace/` first.",
-      "- Use project Step 1 to Step 6 files as the source of truth.",
-      "- Treat `project-step-files` as the shared cross-agent source of truth.",
-      "- Use `.cursor/ai-video-workflow/` as the runtime mirror.",
-      "- Use `.cursor/skills/` as adapter-ready skill bundles.",
-      "- Keep Step 3 and Step 4 frame-aligned.",
-      "- Keep Step 4 file contracts intact.",
-      "- Use relative links only.",
-      "- Platform memory is not project truth."
+      `- 先读取 \`AGENTS.md\` 和 \`${sharedAgentDocsDir}/\`。`,
+      "- 将项目步骤一到步骤六文件作为事实源。",
+      "- 将 `project-step-files` 作为跨智能体共享事实源。",
+      "- `.cursor/ai-video-workflow/` 是运行镜像。",
+      "- `.cursor/skills/` 是适配器可用的技能包。",
+      "- 保持步骤三和步骤四逐镜头对齐。",
+      "- 保持步骤四文件合同完整。",
+      "- 只使用相对链接。",
+      "- 平台记忆不是项目事实源。"
     ].join("\n")
   );
 }
@@ -135,50 +142,50 @@ async function syncClaudeCode(repoRoot: string, projectRoot: string, packRoot: s
   await writeFileIfMissing(
     path.join(projectRoot, "CLAUDE.md"),
     [
-      "# Claude Code Runtime",
+      "# Claude Code 运行入口",
       "",
-      "This is a Claude Code entrypoint. It does not replace `AGENTS.md`.",
+      "这是 Claude Code 专属入口。它不替代 `AGENTS.md`。",
       "",
-      "Use project Step 1 to Step 6 files as the source of truth. Treat `project-step-files` as the shared source of truth.",
+      "将项目步骤一到步骤六文件作为事实源。将 `project-step-files` 作为共享事实源。",
       "",
-      "Read order:",
+      "## 阅读顺序",
       "",
       "1. `project.config.yaml`",
       "2. `AGENTS.md`",
-      "3. `docs/ai-workspace/README.md`",
+      `3. \`${sharedAgentDocsReadmePath}\``,
       "4. `CLAUDE.md`",
       "5. `.claude/ai-video-workflow/WORKFLOW_OVERVIEW.md`",
       "6. `.claude/skills/<skill>/SKILL.md`",
-      "7. Source Step files in the project",
+      "7. 项目中的步骤源文件",
       "",
-      "Runtime boundaries:",
+      "## 运行边界",
       "",
-      "- `.claude/ai-video-workflow/` is a generated runtime mirror.",
-      "- `.claude/skills/` contains adapter-ready skill bundles.",
-      "- `.claude/commands/ai-video-workflow.md` is a command-style handoff entry.",
-      "- Do not edit generated Obsidian projection files as the workflow source.",
-      "- Keep Step 3 and Step 4 frame-aligned.",
-      "- Keep Step 4 file contracts intact.",
-      "- Use relative links only.",
-      "- Platform memory is not project truth."
+      "- `.claude/ai-video-workflow/` 是生成的运行镜像。",
+      "- `.claude/skills/` 包含适配器可用的技能包。",
+      "- `.claude/commands/ai-video-workflow.md` 是命令式交接入口。",
+      "- 不要把生成的 Obsidian 投影文件当作工作流源文件来编辑。",
+      "- 保持步骤三和步骤四逐镜头对齐。",
+      "- 保持步骤四文件合同完整。",
+      "- 只使用相对链接。",
+      "- 平台记忆不是项目事实源。"
     ].join("\n")
   );
   await writeGeneratedRuntimeFile(
     path.join(projectRoot, ".claude", "commands", "ai-video-workflow.md"),
     [
-      "# AI Video Workflow Command Entry",
+      "# AI 视频工作流命令入口",
       "",
-      "When working on this project:",
+      "处理这个项目时：",
       "",
-      "1. Read `project.config.yaml`.",
-      "2. Read `AGENTS.md`.",
-      "3. Read `docs/ai-workspace/README.md` and `docs/ai-workspace/BOUNDARIES.md`.",
-      "4. Read `.claude/ai-video-workflow/WORKFLOW_OVERVIEW.md`.",
-      "5. Use `.claude/skills/film-workflow/SKILL.md` for workflow execution.",
-      "6. Edit source Step files only when changing project truth.",
-      "7. Run `ai-video-workflow verify --project <path> --ide claude-code` after changes.",
+      "1. 读取 `project.config.yaml`。",
+      "2. 读取 `AGENTS.md`。",
+      `3. 读取 \`${sharedAgentDocsReadmePath}\` 和 \`${sharedAgentDocsBoundaryPath}\`。`,
+      "4. 读取 `.claude/ai-video-workflow/WORKFLOW_OVERVIEW.md`。",
+      "5. 使用 `.claude/skills/film-workflow/SKILL.md` 执行工作流。",
+      "6. 只有在改变项目事实时才编辑步骤源文件。",
+      "7. 修改后运行 `ai-video-workflow verify --project <path> --ide claude-code`。",
       "",
-      "Do not treat `.claude/ai-video-workflow/`, generated Obsidian vault files, MCP resources, or platform memory as upstream creative truth. Source files are `project-step-files`."
+      "不要把 `.claude/ai-video-workflow/`、生成的 Obsidian vault 文件、MCP 资源或平台记忆当作上游创作事实源。源文件是 `project-step-files`。"
     ].join("\n")
   );
 }
@@ -197,31 +204,31 @@ async function syncTrae(repoRoot: string, projectRoot: string, packRoot: string)
   await writeGeneratedRuntimeFile(
     path.join(projectRoot, ".trae", "rules", "ai-video-workflow.md"),
     [
-      "# AI Video Workflow Trae Runtime",
+      "# AI 视频工作流 Trae 运行入口",
       "",
-      "Use project Step 1 to Step 6 files as the source of truth.",
+      "将项目步骤一到步骤六文件作为事实源。",
       "",
-      "Read order:",
+      "## 阅读顺序",
       "",
       "1. `project.config.yaml`",
       "2. `AGENTS.md`",
-      "3. `docs/ai-workspace/README.md`",
+      `3. \`${sharedAgentDocsReadmePath}\``,
       "4. `.trae/rules/ai-video-workflow.md`",
       "5. `.trae/documents/ai-video-workflow/WORKFLOW_OVERVIEW.md`",
       "6. `.trae/skills/<skill>/SKILL.md`",
-      "7. Source Step files in the project",
+      "7. 项目中的步骤源文件",
       "",
-      "Runtime boundaries:",
+      "## 运行边界",
       "",
-      "- `project-step-files` are the source of truth.",
-      "- `.trae/skills/` contains adapter-ready skill bundles.",
-      "- `.trae/specs/ai-video-workflow/` contains generated workflow specs.",
-      "- `.trae/documents/ai-video-workflow/` is a generated runtime mirror.",
-      "- Do not edit generated Obsidian projection files as the workflow source.",
-      "- Keep Step 3 and Step 4 frame-aligned.",
-      "- Keep Step 4 file contracts intact.",
-      "- Use relative links only.",
-      "- Platform memory is not project truth."
+      "- `project-step-files` 是事实源。",
+      "- `.trae/skills/` 包含适配器可用的技能包。",
+      "- `.trae/specs/ai-video-workflow/` 包含生成的工作流规格。",
+      "- `.trae/documents/ai-video-workflow/` 是生成的运行镜像。",
+      "- 不要把生成的 Obsidian 投影文件当作工作流源文件来编辑。",
+      "- 保持步骤三和步骤四逐镜头对齐。",
+      "- 保持步骤四文件合同完整。",
+      "- 只使用相对链接。",
+      "- 平台记忆不是项目事实源。"
     ].join("\n")
   );
 }

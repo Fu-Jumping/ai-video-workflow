@@ -28,7 +28,7 @@
 4. 让 Codex、Cursor、Claude Code、Trae 或其他智能体打开生成后的创作项目目录。
 5. 从 Step 1 到 Step 6 推进创作。
 
-CLI 初始化会生成项目骨架，并同步共享智能体入口和指定 IDE 的 runtime 目录。它不仅是创建文件夹，还负责把 `AGENTS.md`、`docs/ai-workspace/`、pack skills、templates、indexes 和 IDE 规则放到正确位置。
+CLI 初始化会生成项目骨架，并同步共享智能体入口和指定 IDE 的 runtime 目录。它不仅是创建文件夹，还负责把 `AGENTS.md`、`文档/智能体工作区/`、pack skills、templates、indexes 和 IDE 规则放到正确位置。
 
 所以从当前实现看，CLI 是标准初始化入口。手工复制理论上可行，但对普通创作者不现实，也容易漏掉运行规则、模板或校验边界。
 
@@ -124,7 +124,7 @@ CLI 初始化会生成项目骨架，并同步共享智能体入口和指定 IDE
 | 目标同名目录已存在且里面有用户文件 | 当前 `init` 会进入该目录继续写入，部分文件可能被覆盖 | 高风险；应先检查非空目录并要求确认或中止 |
 | 目标同名目录已经是 Git 仓库 | 烟测确认存在 `.git` 不会阻止 `init` 写入配置、README 和 runtime | 高风险；应把 `.git` 目录视为“非空且重要”的强提示，默认拒绝或要求显式确认 |
 | 目标目录已有 `AGENTS.md` | `sync` 使用缺失才写策略，不会覆盖已有 `AGENTS.md` | 相对安全；但需要提示用户按 `ENTRYPOINT_RECONCILIATION.md` 合并 ai-video-workflow block |
-| 目标目录已有 `docs/ai-workspace/*` | 已存在文件不会被覆盖，缺失文件会补齐 | 相对安全；但旧版本内容可能不会自动升级 |
+| 目标目录已有 `文档/智能体工作区/*` | 已存在文件不会被覆盖，缺失文件会补齐 | 相对安全；但旧版本内容可能不会自动升级 |
 | 目标目录已有 `.codex/`、`.cursor/`、`.claude/`、`.trae/` | runtime mirror 复制使用覆盖写入，可能覆盖这些目录下同路径的生成内容 | 中风险；这些目录应视为可重建运行表面，但如果用户手写过同名文件，应先提示 |
 | 目标目录已有 Cherry Studio `SOUL.md`、`USER.md`、`memory/` | 当前共享规则把它们视为宿主/用户表面，并加入忽略；`sync` 不生成或覆盖它们 | 当前方向正确；仍需提示智能体不要把这些内容当成 Step 源文件 |
 | 目标目录已有自定义 `AGENTS.md`、`SOUL.md`、`USER.md`、`memory/` 后再运行 `init` | 烟测确认宿主文件会保留，但 `verify` 会提示自定义 `AGENTS.md` 需要合并 ai-video-workflow shared entry block | 保留宿主文件是正确行为；向导应在初始化前说明后续可能需要合并入口规则 |
@@ -135,7 +135,7 @@ CLI 初始化会生成项目骨架，并同步共享智能体入口和指定 IDE
 | 在一个已初始化项目内部再运行 `init --name child-project` | 烟测确认会创建嵌套子项目，父项目 `verify` 仍通过 | 高风险；应拒绝在项目根内部创建另一个项目，或至少强提示嵌套项目不属于父项目 Step 源 |
 | 已经开始写 Step 文件后重复运行 `init` | Step 目录会保留，部分执行计划空文件通常不会覆盖已有内容，但配置、README、runtime mirror 仍有覆盖风险 | 应要求先运行 `verify/doctor`，只缺 runtime 时运行 `sync` |
 | 用户把剧本素材先放进目录，再初始化 | 如果素材不与生成文件同名，通常会保留；如果与 README、配置、runtime 路径同名，有覆盖风险 | 向导应先盘点目录，再建议迁移素材或选择新目录 |
-| 用户运行 `sync --project <不存在路径>` | 当前会创建一个只有 `AGENTS.md`、`docs/ai-workspace/`、`.gitignore` 和 IDE runtime 的半成品目录，没有 `project.config.yaml` 和 Step 目录 | 高风险；`sync` 应拒绝不存在项目，或要求显式 `--create-missing-runtime-root` 之类的高级开关 |
+| 用户运行 `sync --project <不存在路径>` | 当前会创建一个只有 `AGENTS.md`、`文档/智能体工作区/`、`.gitignore` 和 IDE runtime 的半成品目录，没有 `project.config.yaml` 和 Step 目录 | 高风险；`sync` 应拒绝不存在项目，或要求显式 `--create-missing-runtime-root` 之类的高级开关 |
 | 用户运行 `sync --ide` 拼错，例如 `codx` | 当前命令会显示 `Sync complete`，但只写共享入口和 `.gitignore`，不会写 IDE runtime | 高风险；所有接收 `--ide` 的命令都应统一校验枚举值 |
 | 用户运行 `init --ide/--image/--video` 拼错 | 当前能阻止写入，但错误以 Node stack trace 形式输出，不是面向新手的 CLI 提示 | 应统一捕获 action error，只输出错误摘要、可选值和下一步建议 |
 | 用户运行 `verify/doctor --ide` 拼错 | 当前会触发运行时 TypeError，而不是友好错误 | 高风险；应在 CLI 边界校验并输出可选值 |
@@ -164,7 +164,7 @@ CLI 初始化会生成项目骨架，并同步共享智能体入口和指定 IDE
 | --- | --- | --- |
 | 工具仓库中检查 CLI，然后切到创作项目父目录运行 `init --name <safe-name>` | 不会出错 | 推荐默认路径 |
 | 在创作项目父目录生成不存在的目标子目录 | 不会出错 | 推荐默认路径 |
-| 生成后切到项目根，让智能体读取 `AGENTS.md` 和 `docs/ai-workspace/` | 不会出错 | 推荐默认路径 |
+| 生成后切到项目根，让智能体读取 `AGENTS.md` 和 `文档/智能体工作区/` | 不会出错 | 推荐默认路径 |
 | 同一项目补同步第二个 IDE runtime | 不会出错，但配置表达不完整 | 可支持，但需要解释多 IDE 与 `config.ide` 的关系 |
 | 已有自定义 `AGENTS.md` 或 Cherry Studio 宿主文件后初始化/同步 | 不会覆盖宿主文件，但需要合并入口规则 | 可支持，但必须提示人工合并 |
 | 在工具仓库、空创作目录、已有项目目录中直接运行 `init` | 命令可能成功，但目录层级或写入位置可能错 | 当前高风险 |
@@ -185,7 +185,7 @@ CLI 初始化会生成项目骨架，并同步共享智能体入口和指定 IDE
 
 按当前实现，初始化和同步大致分三类写入：
 
-- 缺失才写：`AGENTS.md`、`docs/ai-workspace/*`、`CLAUDE.md` 这类共享或平台入口会尽量保留已有文件。
+- 缺失才写：`AGENTS.md`、`文档/智能体工作区/*`、`CLAUDE.md` 这类共享或平台入口会尽量保留已有文件。
 - 追加或补块：`.gitignore` 会追加 ai-video-workflow 的本地/生成表面忽略块。
 - 覆盖写入：pack skills、templates、workflow indexes、IDE runtime mirror、`project.config.yaml` 和当前生成项目 README 存在覆盖风险。
 
@@ -197,7 +197,7 @@ CLI 初始化会生成项目骨架，并同步共享智能体入口和指定 IDE
 将创建或更新：
 - 创作项目根目录
 - Step 1 到 Step 6 目录
-- AGENTS.md 和 docs/ai-workspace/
+- AGENTS.md 和 文档/智能体工作区/
 - 目标 IDE 的 runtime mirror
 
 可能覆盖：
@@ -213,12 +213,12 @@ CLI 初始化会生成项目骨架，并同步共享智能体入口和指定 IDE
 本轮排查确认当前已经具备这些保护，后续不应回退：
 
 - `init` 的 `--ide`、`--image`、`--video` 在显式传参时会做枚举校验；缺参时会进入交互选择。
-- `sync` 不覆盖已有 `AGENTS.md`、`docs/ai-workspace/*` 和 `CLAUDE.md`。
+- `sync` 不覆盖已有 `AGENTS.md`、`文档/智能体工作区/*` 和 `CLAUDE.md`。
 - `sync` 会把 `_views/`、`.obsidian/`、`.codex/`、`.cursor/`、`.claude/`、`.trae/`、`SOUL.md`、`USER.md`、大小写变体和 `memory/` 写入 `.gitignore` 保护块。
 - `verify` 会忽略根 `_views/`、根 `.obsidian/`、Cherry Studio `SOUL.md`、`USER.md` 和 `memory/`，避免本地观看层或宿主记忆污染项目级 Markdown 链接检查。
 - `verify` 能识别自定义 `AGENTS.md` 缺少 ai-video-workflow block 的情况，并要求合并而不是覆盖。
 - `doctor` 对自定义 `AGENTS.md` 会输出可合并 block，并提醒不要复制 Cherry Studio 私有记忆、token、本机路径或平台缓存到项目事实源。
-- Obsidian 默认增量导出会保留 `Notes/` 用户笔记，并跳过用户手改过的生成文件。
+- Obsidian 默认增量导出会保留 `笔记/` 用户笔记，并跳过用户手改过的生成文件。
 - Obsidian `--force` 会拒绝删除包含 `.git` 的输出目录。
 - Obsidian 导出禁止输出目录等于项目根或项目父目录。
 - Obsidian manifest 和 MCP context 已有“不写本机绝对路径”的测试约束。
@@ -263,7 +263,7 @@ CLI 初始化会生成项目骨架，并同步共享智能体入口和指定 IDE
 | P1 | `sync --project` 可误指向工具仓库或源码目录 | 只读审计指出 `sync` 会向传入目录写共享入口和 runtime；如果目标是工具仓库根或 `apps/cli`，会污染工具代码区 | `sync` 应校验目标是有效创作项目，并识别工具仓库/源码目录后给出明确错误 |
 | P1 | `init --name <已存在普通文件名>` 缺少产品级诊断 | 目标路径若是普通文件，当前会落到底层文件系统错误 | 写入前检查目标类型，输出“目标已存在但不是目录”，并保证不写入任何项目文件 |
 | P1 | 新项目结构校验和创作入口可用性没有分开 | 当前空 Step 目录可能满足部分结构要求，但不能让新手实际开始 Step 1 | 增加“新手可启动”验收面，生成 README、Step 1 起步文件或模板指引必须可用 |
-| P2 | 共享文档“缺失才写”导致旧版本共享文档不会自动升级 | `sync` 保留已有 `docs/ai-workspace/*` | 需要版本标记或 doctor 提示“旧共享文档可升级”，避免长期漂移 |
+| P2 | 共享文档“缺失才写”导致旧版本共享文档不会自动升级 | `sync` 保留已有 `文档/智能体工作区/*` | 需要版本标记或 doctor 提示“旧共享文档可升级”，避免长期漂移 |
 | P2 | IDE runtime mirror 是覆盖语义，但用户不可见 | `copyDirectory` 和 generated runtime files 使用覆盖写入 | 将 runtime mirror 明确标记为可重建；对用户手写同名文件给提示 |
 | P2 | MCP context/server 对缺失项目有较好错误，但不提供修复路径 | `mcp-context` 缺配置/Step 目录会 throw；`mcp-server` 启动前同样依赖 `buildMcpContext` | 错误信息可指向 init/verify/doctor，但不能自动写入 |
 | P2 | `new-pack --name` 与 `init --name` 有同类路径名风险 | `createPackScaffold` 直接 `path.join(targetRoot, packName)` | 复用安全名称校验，避免 pack scaffold 写出目标根 |
@@ -578,7 +578,7 @@ node apps/cli/dist/index.js new-pack --name '..\escaped-pack'
 3. 智能体确认目标子目录不存在或为空。
 4. 智能体运行 CLI 初始化。
 5. 用户或智能体切换到生成后的创作项目目录。
-6. 智能体读取创作项目里的 `AGENTS.md` 和 `docs/ai-workspace/`。
+6. 智能体读取创作项目里的 `AGENTS.md` 和 `文档/智能体工作区/`。
 7. 智能体带用户从 Step 1 开始，而不是继续在工具仓库里写创作内容。
 
 对于已经有内容的目录，默认顺序应改成：

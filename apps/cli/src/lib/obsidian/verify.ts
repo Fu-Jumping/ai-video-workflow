@@ -10,40 +10,40 @@ import { hashContent, projectionManifestPath, readProjectionManifest } from "./m
 import type { ObsidianProjectionManifest, ObsidianProjectionManifestEntry } from "./types.js";
 
 const requiredDashboardMarkers: Record<string, string[]> = {
-  "00_Project_Home.md": ["Review Command Center", "Project Health", "Shot Progress", "Execution Readiness", "Graph and Canvas Navigation"],
-  "01_Review_Dashboard.md": ["Needs Attention", "Ready for Execution", "Generated File Conflicts", "Review Map"],
-  "03_Production_Board.md": ["Execution Readiness", "Production Status", "Handoff Links"]
+  "00_项目首页.md": ["审阅总控", "项目健康", "镜头进度", "执行就绪", "图谱和画布导航"],
+  "01_审阅总览.md": ["需要关注", "执行就绪", "生成文件冲突", "审阅地图"],
+  "03_制作看板.md": ["执行就绪", "制作状态", "交接链接"]
 };
-const requiredBaseFiles = ["Bases/Workflow Files.base", "Bases/Shots.base", "Bases/Production Status.base"];
+const requiredBaseFiles = ["数据表/流程文件.base", "数据表/镜头.base", "数据表/制作状态.base"];
 const requiredBaseViews: Record<string, string[]> = {
-  "Bases/Workflow Files.base": ["Workflow Files", "Review Queue", "Modified Generated Files"],
-  "Bases/Shots.base": ["Shot Table", "Shot Cards", "Shot Progress", "Immersive Review", "Agent Handoff"],
-  "Bases/Production Status.base": ["Production Status", "Execution Readiness"]
+  "数据表/流程文件.base": ["流程文件", "审阅队列", "已改动生成文件"],
+  "数据表/镜头.base": ["镜头表", "镜头卡片", "镜头进度", "沉浸式审阅", "智能体交接"],
+  "数据表/制作状态.base": ["制作状态", "执行就绪"]
 };
-const requiredCanvasFiles = ["Canvas/Workflow Map.canvas", "Canvas/Shot Pipeline.canvas", "Canvas/Review Map.canvas"];
-const agentHandoffPath = "04_Agent_Handoff.md";
-const requiredAgentHandoffMarkers = ["Agent Handoff", "Copy-ready Prompts", "Source Editing Boundary", "Verification Commands"];
+const requiredCanvasFiles = ["画布/流程图.canvas", "画布/镜头流水线.canvas", "画布/审阅地图.canvas"];
+const agentHandoffPath = "04_智能体交接.md";
+const requiredAgentHandoffMarkers = ["智能体交接", "可复制提示词", "源文件编辑边界", "验证命令"];
 const suggestedUiDir = ".obsidian/ai-video-workflow-suggested";
 const requiredSuggestedUiFiles = ["bookmarks.json", "workspace.json", "core-plugins.json", "appearance.json"];
 const requiredBookmarkPaths = [
-  "00_Project_Home.md",
-  "04_Agent_Handoff.md",
-  "02_Shot_Index.md",
-  "03_Production_Board.md",
-  "Canvas/Review Map.canvas",
-  "Canvas/Shot Pipeline.canvas",
-  "Notes/README.md"
+  "00_项目首页.md",
+  "04_智能体交接.md",
+  "02_镜头索引.md",
+  "03_制作看板.md",
+  "画布/审阅地图.canvas",
+  "画布/镜头流水线.canvas",
+  "笔记/README.md"
 ];
-const requiredWorkspacePaths = ["00_Project_Home.md", "04_Agent_Handoff.md", "Canvas/Review Map.canvas"];
+const requiredWorkspacePaths = ["00_项目首页.md", "04_智能体交接.md", "画布/审阅地图.canvas"];
 const requiredShotReviewMarkers = [
-  "Immersive Review",
-  "Review Route",
-  "Source Sequence",
-  "Frame Continuity",
-  "Prompt Handoff",
-  "Execution Readiness",
-  "User Notes",
-  "Review Canvas"
+  "沉浸式审阅",
+  "审阅路径",
+  "源文件序列",
+  "画面连续性",
+  "提示词交接",
+  "执行就绪",
+  "用户笔记",
+  "审阅画布"
 ];
 const absoluteLinkPattern = /([A-Za-z]:\\|[A-Za-z]:\/|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
 const unsafeLocalPathStringPattern = /(^|[^A-Za-z])[A-Za-z]:[\\/]|file:\/\/|vscode:\/\//i;
@@ -76,11 +76,13 @@ function vaultFsPath(vaultRoot: string, vaultPath: string): string {
 
 function isRelativeVaultPath(value: string): boolean {
   return (
+    value.length > 0 &&
+    !value.includes("\\") &&
     !path.isAbsolute(value) &&
     !unsafeLocalPathStringPattern.test(value) &&
     !value.startsWith("../") &&
     !value.includes("/../") &&
-    !value.includes("\\..\\")
+    !value.split("/").some((segment) => segment === "." || segment === ".." || segment.length === 0)
   );
 }
 
@@ -221,16 +223,16 @@ async function verifyAgentHandoff(vaultRoot: string, files: string[], issues: Ve
     }
   }
 
-  for (const file of files.filter((filePath) => filePath.startsWith("Shots/") && filePath.endsWith(".md"))) {
+  for (const file of files.filter((filePath) => filePath.startsWith("镜头/") && filePath.endsWith(".md"))) {
     const content = await fs.readFile(vaultFsPath(vaultRoot, file), "utf8");
-    if (!content.includes("## Agent Handoff")) {
-      pushIssue(issues, { code: "invalid-obsidian-agent-handoff", message: `Shot page is missing Agent Handoff section: ${file}`, path: file });
+    if (!content.includes("## 智能体交接")) {
+      pushIssue(issues, { code: "invalid-obsidian-agent-handoff", message: `镜头页缺少智能体交接区块：${file}`, path: file });
     }
   }
 }
 
 async function verifyCanvasFiles(vaultRoot: string, issues: VerificationIssue[]): Promise<void> {
-  const canvasFiles = [...requiredCanvasFiles, ...(await listVaultFiles(vaultRoot)).filter((file) => file.startsWith("Canvas/Shot Reviews/") && file.endsWith(".canvas"))];
+  const canvasFiles = [...requiredCanvasFiles, ...(await listVaultFiles(vaultRoot)).filter((file) => file.startsWith("画布/镜头审阅/") && file.endsWith(".canvas"))];
   for (const file of canvasFiles) {
     const fullPath = vaultFsPath(vaultRoot, file);
     if (!(await fs.pathExists(fullPath))) {
@@ -258,7 +260,7 @@ async function verifyCanvasFiles(vaultRoot: string, issues: VerificationIssue[])
 }
 
 async function verifyShotReviewPages(vaultRoot: string, files: string[], issues: VerificationIssue[]): Promise<void> {
-  for (const file of files.filter((filePath) => filePath.startsWith("Shots/") && filePath.endsWith(".md"))) {
+  for (const file of files.filter((filePath) => filePath.startsWith("镜头/") && filePath.endsWith(".md"))) {
     const content = await fs.readFile(vaultFsPath(vaultRoot, file), "utf8");
     const frontmatter = readFrontmatter(content);
     const shotId = frontmatter?.shot_id ?? path.basename(file, ".md");
@@ -270,7 +272,7 @@ async function verifyShotReviewPages(vaultRoot: string, files: string[], issues:
         pushIssue(issues, { code: "invalid-obsidian-shot-review", message: `Shot review page is missing marker: ${marker}`, path: file });
       }
     }
-    const reviewCanvasPath = `Canvas/Shot Reviews/${shotId}.canvas`;
+    const reviewCanvasPath = `画布/镜头审阅/${shotId}.canvas`;
     if (!content.includes(`[[${reviewCanvasPath}`) || !(await fs.pathExists(vaultFsPath(vaultRoot, reviewCanvasPath)))) {
       pushIssue(issues, { code: "invalid-obsidian-shot-review", message: `Shot review canvas is missing or not linked: ${reviewCanvasPath}`, path: file });
     }

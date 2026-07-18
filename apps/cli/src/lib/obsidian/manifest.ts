@@ -4,7 +4,7 @@ import path from "node:path";
 
 import type { ObsidianGeneratedFile, ObsidianProjectionManifest, ObsidianProjectionManifestEntry } from "./types.js";
 
-export const projectionManifestPath = "Projection Manifest.json";
+export const projectionManifestPath = "投影清单.json";
 
 export function hashContent(content: string): string {
   return crypto.createHash("sha256").update(content, "utf8").digest("hex");

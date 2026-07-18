@@ -16,13 +16,13 @@ afterEach(async () => {
 });
 
 function officialExampleRoot(): string {
-  return path.resolve(__dirname, "..", "..", "..", "examples", "official-mini-film");
+  return path.resolve(__dirname, "..", "..", "..", "examples", "官方示例-云上早市");
 }
 
 describe("Obsidian export paths", () => {
   test("normalizes Windows paths to vault-relative POSIX paths", () => {
-    expect(toVaultPath(path.join("Workflow", "Step 3 - Storyboard", "Shot 001.md"))).toBe(
-      "Workflow/Step 3 - Storyboard/Shot 001.md"
+    expect(toVaultPath(path.join("流程", "步骤三 - 分镜脚本", "镜头 001.md"))).toBe(
+      "流程/步骤三 - 分镜脚本/镜头 001.md"
     );
   });
 });
@@ -39,8 +39,8 @@ describe("Obsidian projection manifests", () => {
       projectRoot: "demo",
       files: [
         {
-          vaultPath: "Workflow/Step 1 - Concept/Story Kernel.md",
-          sourcePath: "01_concept/story-kernel.md",
+          vaultPath: "流程/步骤一 - 概念策划/故事内核.md",
+          sourcePath: "01_概念策划/故事内核.md",
           contentHash: hashContent("story")
         }
       ]
@@ -92,7 +92,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-empty-vault-"));
     tempRoots.push(projectRoot, outRoot);
     await fs.copy(officialExampleRoot(), projectRoot);
-    for (const stepDir of ["01_concept", "02_setting", "03_storyboard", "04_image_prompts", "05_video_prompts", "06_execution_plan"]) {
+    for (const stepDir of ["01_概念策划", "02_世界设定", "03_分镜脚本", "04_图片提示词", "05_视频提示词", "06_执行计划"]) {
       await fs.emptyDir(path.join(projectRoot, stepDir));
     }
 
@@ -112,6 +112,13 @@ describe("exportObsidianVault", () => {
     await expect(exportObsidianVault({ projectRoot, outRoot: fileOut, force: false, includePluginRecipes: true })).rejects.toThrow("must be a directory");
     await expect(exportObsidianVault({ projectRoot, outRoot: internalOut, force: false, includePluginRecipes: true })).rejects.toThrow("--in-project-view");
     await expect(exportObsidianVault({ projectRoot, outRoot: inProjectPathAsOut, force: false, includePluginRecipes: true })).rejects.toThrow("--in-project-view");
+    if (process.platform === "win32") {
+      const parentOut = path.dirname(projectRoot);
+      const differentlyCasedParentOut = parentOut.toUpperCase() === parentOut ? parentOut.toLowerCase() : parentOut.toUpperCase();
+      await expect(exportObsidianVault({ projectRoot, outRoot: differentlyCasedParentOut, force: false, includePluginRecipes: true })).rejects.toThrow(
+        "project parent"
+      );
+    }
   });
 
   test("force dry-run reports nested Git risk and force rejects non-manifest directories", async () => {
@@ -127,7 +134,7 @@ describe("exportObsidianVault", () => {
     ).rejects.toThrow("containing .git");
     await expect(
       exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot: plainVault, force: true, includePluginRecipes: true })
-    ).rejects.toThrow("without Projection Manifest.json");
+    ).rejects.toThrow("without 投影清单.json");
     await expect(fs.pathExists(path.join(gitVault, ".git", "config"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(plainVault, "manual.md"))).resolves.toBe(true);
   });
@@ -153,8 +160,8 @@ describe("exportObsidianVault", () => {
     expect(manifest?.files).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          vaultPath: "Workflow/Step 3 - Storyboard/Shot 001 - Storyboard.md",
-          sourcePath: "03_storyboard/shot-001.md",
+          vaultPath: "流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md",
+          sourcePath: "03_分镜脚本/镜头-001.md",
           sourceContentHash: expect.any(String)
         })
       ])
@@ -187,16 +194,16 @@ describe("exportObsidianVault", () => {
 
     await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
-    const storyboard = await fs.readFile(path.join(outRoot, "Workflow", "Step 3 - Storyboard", "Shot 001 - Storyboard.md"), "utf8");
+    const storyboard = await fs.readFile(path.join(outRoot, "流程", "步骤三 - 分镜脚本", "镜头 001 - 分镜脚本.md"), "utf8");
     expect(storyboard).toContain("projection_generated: true");
-    expect(storyboard).toContain("source_path: 03_storyboard/shot-001.md");
+    expect(storyboard).toContain("source_path: 03_分镜脚本/镜头-001.md");
     expect(storyboard).toContain("stage_group: shot-review");
     expect(storyboard).toContain("review_status: shot-review");
     expect(storyboard).toContain("execution_status: not-applicable");
     expect(storyboard).toContain("shot_order: 1");
     expect(storyboard).toContain("ai-video/step/03-storyboard");
-    expect(storyboard).toContain("[[01_Review_Dashboard]]");
-    expect(storyboard).toContain("[[Canvas/Review Map.canvas]]");
+    expect(storyboard).toContain("[[01_审阅总览]]");
+    expect(storyboard).toContain("[[画布/审阅地图.canvas]]");
     await expect(fs.pathExists(path.join(outRoot, projectionManifestPath))).resolves.toBe(true);
   });
 
@@ -206,30 +213,30 @@ describe("exportObsidianVault", () => {
 
     await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
-    const home = await fs.readFile(path.join(outRoot, "00_Project_Home.md"), "utf8");
-    expect(home).toContain("Open Vault Workflow");
-    expect(home).toContain("Inspect project");
-    expect(home).toContain("Inspect a shot");
-    expect(home).toContain("Hand off to agent");
-    expect(home).toContain("Verify after edits");
-    expect(home).toContain("Review Command Center");
-    expect(home).toContain("Immersive Shot Reviews");
-    expect(home).toContain("[[04_Agent_Handoff|Agent Handoff]]");
-    expect(home).toContain("Project Health");
-    expect(home).toContain("Shot Progress");
-    expect(home).toContain("Execution Readiness");
-    expect(home).toContain("![[Bases/Workflow Files.base#Workflow Files]]");
-    expect(home).toContain("![[Bases/Workflow Files.base#Review Queue]]");
-    expect(home).toContain("![[Canvas/Workflow Map.canvas]]");
-    expect(home).toContain("[[Canvas/Review Map.canvas|Review Map]]");
-    expect(home).toContain("[[Notes/README|Obsidian Notes]]");
+    const home = await fs.readFile(path.join(outRoot, "00_项目首页.md"), "utf8");
+    expect(home).toContain("打开观看层后的流程");
+    expect(home).toContain("检查项目");
+    expect(home).toContain("检查镜头");
+    expect(home).toContain("交接给智能体");
+    expect(home).toContain("修改后验证");
+    expect(home).toContain("审阅总控");
+    expect(home).toContain("沉浸式镜头审阅");
+    expect(home).toContain("[[04_智能体交接|智能体交接]]");
+    expect(home).toContain("项目健康");
+    expect(home).toContain("镜头进度");
+    expect(home).toContain("执行就绪");
+    expect(home).toContain("![[数据表/流程文件.base#流程文件]]");
+    expect(home).toContain("![[数据表/流程文件.base#审阅队列]]");
+    expect(home).toContain("![[画布/流程图.canvas]]");
+    expect(home).toContain("[[画布/审阅地图.canvas|审阅地图]]");
+    expect(home).toContain("[[笔记/README|Obsidian 笔记]]");
     expect(home).toContain("```query");
 
-    const reviewDashboard = await fs.readFile(path.join(outRoot, "01_Review_Dashboard.md"), "utf8");
-    expect(reviewDashboard).toContain("Generated File Conflicts");
-    expect(reviewDashboard).toContain("Agent Handoff");
-    expect(reviewDashboard).toContain("Shot Review Canvases");
-    expect(reviewDashboard).toContain("![[Bases/Workflow Files.base#Modified Generated Files]]");
+    const reviewDashboard = await fs.readFile(path.join(outRoot, "01_审阅总览.md"), "utf8");
+    expect(reviewDashboard).toContain("生成文件冲突");
+    expect(reviewDashboard).toContain("智能体交接");
+    expect(reviewDashboard).toContain("镜头审阅画布");
+    expect(reviewDashboard).toContain("![[数据表/流程文件.base#已改动生成文件]]");
   });
 
   test("exports a generated README with an open-vault path", async () => {
@@ -238,12 +245,12 @@ describe("exportObsidianVault", () => {
 
     await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
-    const readme = await fs.readFile(path.join(outRoot, "README.md"), "utf8");
-    expect(readme).toContain("[[00_Project_Home]]");
-    expect(readme).toContain("[[02_Shot_Index]]");
-    expect(readme).toContain("[[04_Agent_Handoff]]");
-    expect(readme).toContain("[[Canvas/Review Map.canvas|Review Map]]");
-    expect(readme).toContain("[[03_Production_Board]]");
+    const readme = await fs.readFile(path.join(outRoot, "说明.md"), "utf8");
+    expect(readme).toContain("[[00_项目首页]]");
+    expect(readme).toContain("[[02_镜头索引]]");
+    expect(readme).toContain("[[04_智能体交接]]");
+    expect(readme).toContain("[[画布/审阅地图.canvas|审阅地图]]");
+    expect(readme).toContain("[[03_制作看板]]");
   });
 
   test("exports project-level agent handoff guidance", async () => {
@@ -252,15 +259,15 @@ describe("exportObsidianVault", () => {
 
     await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
-    const handoff = await fs.readFile(path.join(outRoot, "04_Agent_Handoff.md"), "utf8");
-    expect(handoff).toContain("# Agent Handoff");
-    expect(handoff).toContain("Copy-ready Prompts");
-    expect(handoff).toContain("Source Editing Boundary");
-    expect(handoff).toContain("Verification Commands");
-    expect(handoff).toContain("edit only the source Step files");
-    expect(handoff).toContain("Do not edit generated Obsidian projection files");
+    const handoff = await fs.readFile(path.join(outRoot, "04_智能体交接.md"), "utf8");
+    expect(handoff).toContain("# 智能体交接");
+    expect(handoff).toContain("可复制提示词");
+    expect(handoff).toContain("源文件编辑边界");
+    expect(handoff).toContain("验证命令");
+    expect(handoff).toContain("只编辑步骤源文件");
+    expect(handoff).toContain("不要编辑生成的 Obsidian 观看层文件");
     expect(handoff).toContain("node apps/cli/dist/index.js verify --project <project-path> --ide codex");
-    expect(handoff).toContain("[[Shots/shot-001|shot-001]]");
+    expect(handoff).toContain("[[镜头/shot-001|shot-001]]");
   });
 
   test("exports immersive single-shot review pages", async () => {
@@ -269,27 +276,27 @@ describe("exportObsidianVault", () => {
 
     await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
-    const shotReview = await fs.readFile(path.join(outRoot, "Shots", "shot-001.md"), "utf8");
+    const shotReview = await fs.readFile(path.join(outRoot, "镜头", "shot-001.md"), "utf8");
     expect(shotReview).toContain("review_mode: immersive");
-    expect(shotReview).toContain('review_canvas: "[[Canvas/Shot Reviews/shot-001.canvas]]"');
-    expect(shotReview).toContain('review_note: "[[Notes/Shot Reviews/shot-001]]"');
+    expect(shotReview).toContain('review_canvas: "[[画布/镜头审阅/shot-001.canvas]]"');
+    expect(shotReview).toContain('review_note: "[[笔记/镜头审阅/shot-001]]"');
     expect(shotReview).toContain("has_storyboard: true");
     expect(shotReview).toContain("has_image_prompt: true");
     expect(shotReview).toContain("has_video_prompt: true");
-    expect(shotReview).toContain('agent_handoff: "[[04_Agent_Handoff#Single-Shot Handoff|Agent Handoff]]"');
-    expect(shotReview).toContain("## Immersive Review");
-    expect(shotReview).toContain("## Frame Continuity");
-    expect(shotReview).toContain("## Prompt Handoff");
-    expect(shotReview).toContain("## Agent Handoff");
-    expect(shotReview).toContain("## Review Canvas");
-    expect(shotReview).toContain("![[Workflow/Step 3 - Storyboard/Shot 001 - Storyboard.md]]");
-    expect(shotReview).toContain("![[Workflow/Step 4 - Image Prompts/Shot 001 Keyframe - Image Prompt.md]]");
-    expect(shotReview).toContain("![[Workflow/Step 5 - Video Prompts/Shot 001 - Video Prompt.md]]");
-    expect(shotReview).toContain("Please inspect shot-001 across its Step 3 storyboard");
-    expect(shotReview).toContain("03_storyboard/shot-001.md");
-    expect(shotReview).toContain("04_image_prompts/shot-001-keyframe.md");
-    expect(shotReview).toContain("05_video_prompts/shot-001.md");
-    expect(shotReview).toContain("Do not edit generated Obsidian projection files");
+    expect(shotReview).toContain('agent_handoff: "[[04_智能体交接#单镜头交接|智能体交接]]"');
+    expect(shotReview).toContain("## 沉浸式审阅");
+    expect(shotReview).toContain("## 画面连续性");
+    expect(shotReview).toContain("## 提示词交接");
+    expect(shotReview).toContain("## 智能体交接");
+    expect(shotReview).toContain("## 审阅画布");
+    expect(shotReview).toContain("![[流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md]]");
+    expect(shotReview).toContain("![[流程/步骤四 - 图片提示词/镜头 001 关键帧 - 图片提示词.md]]");
+    expect(shotReview).toContain("![[流程/步骤五 - 视频提示词/镜头 001 - 视频提示词.md]]");
+    expect(shotReview).toContain("请检查 shot-001 的步骤三分镜脚本");
+    expect(shotReview).toContain("03_分镜脚本/镜头-001.md");
+    expect(shotReview).toContain("04_图片提示词/镜头-001-关键帧.md");
+    expect(shotReview).toContain("05_视频提示词/镜头-001.md");
+    expect(shotReview).toContain("不要编辑生成的 Obsidian 观看层文件");
   });
 
   test("exports Obsidian Bases for workflow files and shots", async () => {
@@ -298,23 +305,23 @@ describe("exportObsidianVault", () => {
 
     await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
-    const shotsBase = await fs.readFile(path.join(outRoot, "Bases", "Shots.base"), "utf8");
+    const shotsBase = await fs.readFile(path.join(outRoot, "数据表", "镜头.base"), "utf8");
     expect(shotsBase).toContain("file.hasTag(\"ai-video/shot\")");
     expect(shotsBase).toContain("type: table");
     expect(shotsBase).toContain("type: cards");
-    expect(shotsBase).toContain("Shot Progress");
-    expect(shotsBase).toContain("Immersive Review");
-    expect(shotsBase).toContain("Agent Handoff");
+    expect(shotsBase).toContain("镜头进度");
+    expect(shotsBase).toContain("沉浸式审阅");
+    expect(shotsBase).toContain("智能体交接");
     expect(shotsBase).toContain("agent_handoff");
     expect(shotsBase).toContain("review_canvas");
     expect(shotsBase).toContain("review_note");
 
-    const workflowBase = await fs.readFile(path.join(outRoot, "Bases", "Workflow Files.base"), "utf8");
-    expect(workflowBase).toContain("Review Queue");
-    expect(workflowBase).toContain("Modified Generated Files");
+    const workflowBase = await fs.readFile(path.join(outRoot, "数据表", "流程文件.base"), "utf8");
+    expect(workflowBase).toContain("审阅队列");
+    expect(workflowBase).toContain("已改动生成文件");
 
-    const productionBase = await fs.readFile(path.join(outRoot, "Bases", "Production Status.base"), "utf8");
-    expect(productionBase).toContain("Execution Readiness");
+    const productionBase = await fs.readFile(path.join(outRoot, "数据表", "制作状态.base"), "utf8");
+    expect(productionBase).toContain("执行就绪");
   });
 
   test("exports valid JSON Canvas maps", async () => {
@@ -323,37 +330,37 @@ describe("exportObsidianVault", () => {
 
     await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
-    const workflowMap = await fs.readJson(path.join(outRoot, "Canvas", "Workflow Map.canvas"));
-    expect(workflowMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "group", label: "Step 3" })]));
+    const workflowMap = await fs.readJson(path.join(outRoot, "画布", "流程图.canvas"));
+    expect(workflowMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "group", label: "步骤 3" })]));
     expect(workflowMap.edges.length).toBeGreaterThan(0);
 
-    const shotPipeline = await fs.readJson(path.join(outRoot, "Canvas", "Shot Pipeline.canvas"));
+    const shotPipeline = await fs.readJson(path.join(outRoot, "画布", "镜头流水线.canvas"));
     expect(shotPipeline.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file" })]));
 
-    const reviewMap = await fs.readJson(path.join(outRoot, "Canvas", "Review Map.canvas"));
-    expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "00_Project_Home.md" })]));
-    expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "Bases/Workflow Files.base" })]));
-    expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "04_Agent_Handoff.md" })]));
+    const reviewMap = await fs.readJson(path.join(outRoot, "画布", "审阅地图.canvas"));
+    expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "00_项目首页.md" })]));
+    expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "数据表/流程文件.base" })]));
+    expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "04_智能体交接.md" })]));
     expect(reviewMap.edges.length).toBeGreaterThan(0);
 
-    const shotReview = await fs.readJson(path.join(outRoot, "Canvas", "Shot Reviews", "shot-001.canvas"));
-    expect(shotReview.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "Shots/shot-001.md" })]));
-    expect(shotReview.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "03_Production_Board.md" })]));
+    const shotReview = await fs.readJson(path.join(outRoot, "画布", "镜头审阅", "shot-001.canvas"));
+    expect(shotReview.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "镜头/shot-001.md" })]));
+    expect(shotReview.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "03_制作看板.md" })]));
     expect(shotReview.nodes).toEqual(
-      expect.arrayContaining([expect.objectContaining({ type: "file", file: "Workflow/Step 3 - Storyboard/Shot 001 - Storyboard.md" })])
+      expect.arrayContaining([expect.objectContaining({ type: "file", file: "流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md" })])
     );
     expect(shotReview.nodes).toEqual(
-      expect.arrayContaining([expect.objectContaining({ type: "file", file: "Workflow/Step 4 - Image Prompts/Shot 001 Keyframe - Image Prompt.md" })])
+      expect.arrayContaining([expect.objectContaining({ type: "file", file: "流程/步骤四 - 图片提示词/镜头 001 关键帧 - 图片提示词.md" })])
     );
     expect(shotReview.nodes).toEqual(
-      expect.arrayContaining([expect.objectContaining({ type: "file", file: "Workflow/Step 5 - Video Prompts/Shot 001 - Video Prompt.md" })])
+      expect.arrayContaining([expect.objectContaining({ type: "file", file: "流程/步骤五 - 视频提示词/镜头 001 - 视频提示词.md" })])
     );
     expect(
       shotReview.nodes
         .filter((node: { type?: string }) => node.type === "file")
         .every((node: { file?: string }) => node.file && !path.isAbsolute(node.file) && !node.file.includes(":\\") && !node.file.includes(":/"))
     ).toBe(true);
-    expect(shotReview.edges).toEqual(expect.arrayContaining([expect.objectContaining({ label: "review start / frame" })]));
+    expect(shotReview.edges).toEqual(expect.arrayContaining([expect.objectContaining({ label: "审阅起点 / 画面" })]));
   });
 
   test("preserves user-authored notes during incremental export", async () => {
@@ -361,12 +368,12 @@ describe("exportObsidianVault", () => {
     tempRoots.push(outRoot);
 
     await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
-    const userNote = path.join(outRoot, "Notes", "manual-review.md");
+    const userNote = path.join(outRoot, "笔记", "manual-review.md");
     await fs.writeFile(userNote, "# Manual Review\n\nKeep this note.\n", "utf8");
     const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true });
 
     await expect(fs.readFile(userNote, "utf8")).resolves.toContain("Keep this note.");
-    expect(result.operations).toEqual(expect.arrayContaining([expect.objectContaining({ status: "unchanged", vaultPath: "00_Project_Home.md" })]));
+    expect(result.operations).toEqual(expect.arrayContaining([expect.objectContaining({ status: "unchanged", vaultPath: "00_项目首页.md" })]));
   });
 
   test("skips user-modified generated files by default", async () => {
@@ -374,7 +381,7 @@ describe("exportObsidianVault", () => {
     tempRoots.push(outRoot);
 
     await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
-    const generatedFile = path.join(outRoot, "Workflow", "Step 3 - Storyboard", "Shot 001 - Storyboard.md");
+    const generatedFile = path.join(outRoot, "流程", "步骤三 - 分镜脚本", "镜头 001 - 分镜脚本.md");
     await fs.appendFile(generatedFile, "\nUser edit inside Obsidian.\n", "utf8");
     const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true });
 
@@ -382,7 +389,7 @@ describe("exportObsidianVault", () => {
       expect.arrayContaining([
         expect.objectContaining({
           status: "skipped-user-modified",
-          vaultPath: "Workflow/Step 3 - Storyboard/Shot 001 - Storyboard.md"
+          vaultPath: "流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md"
         })
       ])
     );
@@ -396,15 +403,15 @@ describe("exportObsidianVault", () => {
     await fs.copy(officialExampleRoot(), projectRoot);
 
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
-    await fs.appendFile(path.join(projectRoot, "03_storyboard", "shot-001.md"), "\nUpdated source beat.\n", "utf8");
+    await fs.appendFile(path.join(projectRoot, "03_分镜脚本", "镜头-001.md"), "\nUpdated source beat.\n", "utf8");
     const result = await exportObsidianVault({ projectRoot, outRoot, force: false, includePluginRecipes: true });
-    const generatedFile = path.join(outRoot, "Workflow", "Step 3 - Storyboard", "Shot 001 - Storyboard.md");
+    const generatedFile = path.join(outRoot, "流程", "步骤三 - 分镜脚本", "镜头 001 - 分镜脚本.md");
 
     expect(result.operations).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           status: "updated",
-          vaultPath: "Workflow/Step 3 - Storyboard/Shot 001 - Storyboard.md"
+          vaultPath: "流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md"
         })
       ])
     );
@@ -416,7 +423,7 @@ describe("exportObsidianVault", () => {
     tempRoots.push(outRoot);
 
     await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
-    const userNote = path.join(outRoot, "Notes", "manual-review.md");
+    const userNote = path.join(outRoot, "笔记", "manual-review.md");
     await fs.writeFile(userNote, "# Manual Review\n", "utf8");
     const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
@@ -443,7 +450,7 @@ describe("exportObsidianVault", () => {
 
     const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true, dryRun: true });
 
-    expect(result.operations).toEqual(expect.arrayContaining([expect.objectContaining({ status: "created", vaultPath: "00_Project_Home.md" })]));
+    expect(result.operations).toEqual(expect.arrayContaining([expect.objectContaining({ status: "created", vaultPath: "00_项目首页.md" })]));
     await expect(fs.pathExists(outRoot)).resolves.toBe(false);
   });
 
@@ -469,27 +476,27 @@ describe("exportObsidianVault", () => {
     await expect(fs.pathExists(path.join(outRoot, ".obsidian", "ai-video-workflow-suggested", "bookmarks.json"))).resolves.toBe(true);
 
     const bookmarks = await fs.readJson(path.join(outRoot, ".obsidian", "bookmarks.json"));
-    expect(JSON.stringify(bookmarks)).toContain("00_Project_Home.md");
-    expect(JSON.stringify(bookmarks)).toContain("04_Agent_Handoff.md");
-    expect(JSON.stringify(bookmarks)).toContain("02_Shot_Index.md");
-    expect(JSON.stringify(bookmarks)).toContain("03_Production_Board.md");
-    expect(JSON.stringify(bookmarks)).toContain("Canvas/Review Map.canvas");
-    expect(JSON.stringify(bookmarks)).toContain("Canvas/Shot Pipeline.canvas");
-    expect(JSON.stringify(bookmarks)).toContain("Notes/README.md");
+    expect(JSON.stringify(bookmarks)).toContain("00_项目首页.md");
+    expect(JSON.stringify(bookmarks)).toContain("04_智能体交接.md");
+    expect(JSON.stringify(bookmarks)).toContain("02_镜头索引.md");
+    expect(JSON.stringify(bookmarks)).toContain("03_制作看板.md");
+    expect(JSON.stringify(bookmarks)).toContain("画布/审阅地图.canvas");
+    expect(JSON.stringify(bookmarks)).toContain("画布/镜头流水线.canvas");
+    expect(JSON.stringify(bookmarks)).toContain("笔记/README.md");
 
     const suggestedBookmarks = await fs.readJson(path.join(outRoot, ".obsidian", "ai-video-workflow-suggested", "bookmarks.json"));
-    expect(JSON.stringify(suggestedBookmarks)).toContain("00_Project_Home.md");
-    expect(JSON.stringify(suggestedBookmarks)).toContain("04_Agent_Handoff.md");
-    expect(JSON.stringify(suggestedBookmarks)).toContain("02_Shot_Index.md");
-    expect(JSON.stringify(suggestedBookmarks)).toContain("03_Production_Board.md");
-    expect(JSON.stringify(suggestedBookmarks)).toContain("Canvas/Review Map.canvas");
-    expect(JSON.stringify(suggestedBookmarks)).toContain("Canvas/Shot Pipeline.canvas");
-    expect(JSON.stringify(suggestedBookmarks)).toContain("Notes/README.md");
+    expect(JSON.stringify(suggestedBookmarks)).toContain("00_项目首页.md");
+    expect(JSON.stringify(suggestedBookmarks)).toContain("04_智能体交接.md");
+    expect(JSON.stringify(suggestedBookmarks)).toContain("02_镜头索引.md");
+    expect(JSON.stringify(suggestedBookmarks)).toContain("03_制作看板.md");
+    expect(JSON.stringify(suggestedBookmarks)).toContain("画布/审阅地图.canvas");
+    expect(JSON.stringify(suggestedBookmarks)).toContain("画布/镜头流水线.canvas");
+    expect(JSON.stringify(suggestedBookmarks)).toContain("笔记/README.md");
 
     const workspace = await fs.readJson(path.join(outRoot, ".obsidian", "workspace.json"));
-    expect(JSON.stringify(workspace)).toContain("00_Project_Home.md");
-    expect(JSON.stringify(workspace)).toContain("04_Agent_Handoff.md");
-    expect(JSON.stringify(workspace)).toContain("Canvas/Review Map.canvas");
+    expect(JSON.stringify(workspace)).toContain("00_项目首页.md");
+    expect(JSON.stringify(workspace)).toContain("04_智能体交接.md");
+    expect(JSON.stringify(workspace)).toContain("画布/审阅地图.canvas");
     expect(
       JSON.stringify(workspace).includes(":\\") || JSON.stringify(workspace).includes("file://") || JSON.stringify(workspace).includes("vscode://")
     ).toBe(false);

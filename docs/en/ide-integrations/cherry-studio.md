@@ -7,13 +7,13 @@ Cherry Studio is treated as a working-directory agent adapter in v0.6. It is not
 Point the Cherry Studio Agent working directory at the project root. In the agent prompt, tell it to read:
 
 1. `AGENTS.md`
-2. `docs/ai-workspace/README.md`
-3. `docs/ai-workspace/BOUNDARIES.md`
+2. `文档/智能体工作区/入口说明.md`
+3. `文档/智能体工作区/边界说明.md`
 4. Source Step files
 
 The agent should edit Step files only when changing project truth.
 
-Cherry Studio may automatically create root `SOUL.md`, `USER.md`, and `memory/` files in the working directory. These files are allowed to exist, but they do not change the default ai-video-workflow source model: `AGENTS.md` and `docs/ai-workspace/` remain the cross-agent entry, and Step files remain the creative source of truth.
+Cherry Studio may automatically create root `SOUL.md`, `USER.md`, and `memory/` files in the working directory. These files are allowed to exist, but they do not change the default ai-video-workflow source model: `AGENTS.md` and `文档/智能体工作区/` remain the cross-agent entry, and Step files remain the creative source of truth.
 
 ## Initialization Order
 
@@ -46,7 +46,7 @@ Other agents should treat these files as Cherry Studio host/user context, not as
 
 ## Adapter Contract
 
-- Read: `AGENTS.md`, `docs/ai-workspace/`, project Step files.
+- Read: `AGENTS.md`, `文档/智能体工作区/`, project Step files.
 - Write: no generated Cherry Studio runtime files in v0.6.
 - Sync direction: `read-only-context`.
 - Source of truth: `project-step-files`.

@@ -5,7 +5,7 @@ Codex keeps two runtime layers:
 - `.codex/ai-video-workflow/` as the full runtime mirror
 - `.codex/skills/` as runtime skill entrypoints
 
-Read `AGENTS.md` and `docs/ai-workspace/` before using the Codex runtime mirror.
+Read `AGENTS.md` and `文档/智能体工作区/` before using the Codex runtime mirror.
 
 ## Adapter Contract
 

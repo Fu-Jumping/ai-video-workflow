@@ -33,7 +33,7 @@
 
 跨智能体工作目录可选字段：
 
-- `sharedEntryPoints`：所有智能体都应读取的共享项目入口，例如 `AGENTS.md` 和 `docs/ai-workspace/`。
+- `sharedEntryPoints`：所有智能体都应读取的共享项目入口，例如 `AGENTS.md` 和 `文档/智能体工作区/`。
 - `generatedSurfaces`：adapter 拥有、可以重新生成的输出。
 - `userOwnedSurfaces`：用户或宿主平台拥有的文件。
 - `privateRuntimeSurfaces`：平台本地状态、缓存、记忆或凭据，不属于项目事实源。

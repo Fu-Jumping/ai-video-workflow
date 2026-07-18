@@ -69,7 +69,7 @@ Prompt 文案必须告诉智能体：
 - 先读取源 Step 文件
 - 需要修改时只编辑源 Step 文件
 - 不要把 Obsidian 投影、IDE runtime mirror 或 MCP resources 当作源文件编辑
-- 把 `_views/obsidian/Notes/` 视为用户观察记录；它不能替代 Step 文件
+- 把 `_views/obsidian/笔记/` 视为用户观察记录；它不能替代 Step 文件
 - 修改后运行验证
 
 内容修改边界：
@@ -94,13 +94,13 @@ v0.5 tools 应该只读：
 
 MCP adapter 不能写入：
 
-- `01_concept/`
-- `02_setting/`
-- `03_storyboard/`
-- `04_image_prompts/`
-- `05_video_prompts/`
-- `06_execution_plan/`
-- `_views/obsidian/` 下的生成 Obsidian 投影目录，包括 `Workflow/`、`Shots/`、`Canvas/`、`Bases/` 和 `Projection Manifest.json`
+- `01_概念策划/`
+- `02_世界设定/`
+- `03_分镜脚本/`
+- `04_图片提示词/`
+- `05_视频提示词/`
+- `06_执行计划/`
+- `_views/obsidian/` 下的生成 Obsidian 投影目录，包括 `流程/`、`镜头/`、`画布/`、`数据表/` 和 `投影清单.json`
 - `.obsidian/`
 - `.codex/`
 - `.cursor/`
@@ -169,7 +169,7 @@ server 只绑定一个项目路径。每个项目单独启动一个 server。
 
 如果某个镜头没有出现在 MCP resources 中：
 
-- 确认该镜头在 `03_storyboard/` 下有 Markdown 文件
+- 确认该镜头在 `03_分镜脚本/` 下有 Markdown 文件
 - 确认 Step 3 文件链接到 Step 4 image prompt 和 Step 5 video prompt
 - 重新运行 `mcp-context` 并检查 `shots` 数组
 

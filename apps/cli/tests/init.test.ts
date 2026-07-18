@@ -215,20 +215,20 @@ describe("createProject", () => {
 
     const projectRoot = path.join(root, "demo-project");
     await expect(fs.pathExists(path.join(projectRoot, "project.config.yaml"))).resolves.toBe(true);
-    await expect(fs.pathExists(path.join(projectRoot, "01_concept"))).resolves.toBe(true);
-    await expect(fs.pathExists(path.join(projectRoot, "06_execution_plan", "00_execution_plan.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "01_概念策划"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "06_执行计划", "00_执行计划.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, ".codex", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, ".codex", "skills", "film-workflow", "SKILL.md"))).resolves.toBe(true);
 
     const readme = await fs.readFile(path.join(projectRoot, "README.md"), "utf8");
-    expect(readme).toContain("This is an AI video creative project");
-    expect(readme).toContain("01_concept/story-kernel.md");
+    expect(readme).toContain("这是一个由 `ai-video-workflow` 生成的 AI 视频创作项目");
+    expect(readme).toContain("01_概念策划/故事内核.md");
     expect(readme).toContain("_views/obsidian/");
 
-    const storyKernel = await fs.readFile(path.join(projectRoot, "01_concept", "story-kernel.md"), "utf8");
+    const storyKernel = await fs.readFile(path.join(projectRoot, "01_概念策划", "故事内核.md"), "utf8");
     expect(storyKernel).toContain("故事内核模板");
-    const executionPlan = await fs.readFile(path.join(projectRoot, "06_execution_plan", "00_execution_plan.md"), "utf8");
-    expect(executionPlan.length).toBeGreaterThan(20);
+    const executionPlan = await fs.readFile(path.join(projectRoot, "06_执行计划", "00_执行计划.md"), "utf8");
+    expect(executionPlan).toContain("生产总控表模板");
 
     const config = await fs.readFile(path.join(projectRoot, "project.config.yaml"), "utf8");
     expect(config).toContain("pack: official-ai-video");

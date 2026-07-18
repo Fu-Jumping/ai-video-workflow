@@ -13,7 +13,7 @@ function shotOrder(shotId: string): number | undefined {
 
 function linkForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSourceFile["sourceKind"], label: string): string {
   const file = sourceFiles.find((sourceFile) => sourceFile.sourceKind === kind);
-  return file ? `[[${workflowVaultPath(file)}|${label}]]` : `${label}: missing`;
+  return file ? `[[${workflowVaultPath(file)}|${label}]]` : `${label}: 缺失`;
 }
 
 function fileForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSourceFile["sourceKind"]): ObsidianSourceFile | undefined {
@@ -22,7 +22,7 @@ function fileForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSourceFile
 
 function embeddedFileForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSourceFile["sourceKind"], missingLabel: string): string {
   const file = fileForKind(sourceFiles, kind);
-  return file ? `![[${workflowVaultPath(file)}]]` : `> ${missingLabel}: missing`;
+  return file ? `![[${workflowVaultPath(file)}]]` : `> ${missingLabel}: 缺失`;
 }
 
 function sourcePathForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSourceFile["sourceKind"]): string {
@@ -34,8 +34,8 @@ function shotNavigation(shotId: string, shotIds: string[]): string {
   const previousShotId = index > 0 ? shotIds[index - 1] : undefined;
   const nextShotId = index >= 0 && index < shotIds.length - 1 ? shotIds[index + 1] : undefined;
   return [
-    previousShotId ? `- Previous shot: [[Shots/${previousShotId}|${previousShotId}]]` : "- Previous shot: none",
-    nextShotId ? `- Next shot: [[Shots/${nextShotId}|${nextShotId}]]` : "- Next shot: none"
+    previousShotId ? `- 上一镜头：[[镜头/${previousShotId}|${previousShotId}]]` : "- 上一镜头：无",
+    nextShotId ? `- 下一镜头：[[镜头/${nextShotId}|${nextShotId}]]` : "- 下一镜头：无"
   ].join("\n");
 }
 
@@ -48,40 +48,40 @@ function renderShotAgentHandoff(shotId: string, shotFiles: ObsidianSourceFile[],
   const imagePromptSourcePath = sourcePathForKind(shotFiles, "image-prompt");
   const videoPromptSourcePath = sourcePathForKind(shotFiles, "video-prompt");
   const executionPlanSourcePath = sourcePathForKind(allSourceFiles, "execution-plan");
-  return `## Agent Handoff
+  return `## 智能体交接
 
-Use this section to copy context into an agent conversation. Give feedback in the agent chat; do not edit generated Obsidian projection files.
+这一段用于把当前镜头上下文复制到智能体对话里。反馈写在智能体聊天中，不要编辑生成的 Obsidian 观看层文件。
 
-### Source Files for Agent
+### 给智能体的源文件
 
-- Storyboard source: \`${storyboardSourcePath}\`
-- Step 4 image prompt source: \`${imagePromptSourcePath}\`
-- Step 5 video prompt source: \`${videoPromptSourcePath}\`
-- Execution plan source: \`${executionPlanSourcePath}\`
-- Project handoff hub: [[04_Agent_Handoff|Agent Handoff]]
+- 分镜脚本源文件：\`${storyboardSourcePath}\`
+- 步骤四图片提示词源文件：\`${imagePromptSourcePath}\`
+- 步骤五视频提示词源文件：\`${videoPromptSourcePath}\`
+- 执行计划源文件：\`${executionPlanSourcePath}\`
+- 项目交接入口：[[04_智能体交接|智能体交接]]
 
-### Source Editing Boundary
+### 源文件编辑边界
 
-- Narrative frame or shot intent changes belong in Step 3: \`${storyboardSourcePath}\`
-- Image and frame consistency changes belong in Step 4: \`${imagePromptSourcePath}\`
-- Motion, timing, and camera behavior changes belong in Step 5: \`${videoPromptSourcePath}\`
-- Generated Obsidian files under \`Shots/\`, \`Workflow/\`, \`Bases/\`, and \`Canvas/\` are projection outputs.
+- 叙事画面或镜头意图修改写入步骤三：\`${storyboardSourcePath}\`
+- 图片与画面一致性修改写入步骤四：\`${imagePromptSourcePath}\`
+- 运动、时长和镜头行为修改写入步骤五：\`${videoPromptSourcePath}\`
+- \`镜头/\`、\`流程/\`、\`数据表/\` 和 \`画布/\` 下的生成文件只是观看层输出。
 
-### Copy-ready Prompt
+### 可复制提示词
 
 \`\`\`text
-Please inspect ${shotId} across its Step 3 storyboard, Step 4 image prompt, and Step 5 video prompt.
+请检查 ${shotId} 的步骤三分镜脚本、步骤四图片提示词和步骤五视频提示词。
 
-Source files:
-- Storyboard: ${storyboardSourcePath}
-- Step 4 image prompt: ${imagePromptSourcePath}
-- Step 5 video prompt: ${videoPromptSourcePath}
-- Execution plan: ${executionPlanSourcePath}
+源文件：
+- 分镜脚本：${storyboardSourcePath}
+- 步骤四图片提示词：${imagePromptSourcePath}
+- 步骤五视频提示词：${videoPromptSourcePath}
+- 执行计划：${executionPlanSourcePath}
 
-Keep Step 3 and Step 4 frame-aligned. If changes are needed, edit only the source Step files. Do not edit generated Obsidian projection files.
+保持步骤三和步骤四逐镜头对齐。如果需要修改，只编辑步骤源文件，不要编辑生成的 Obsidian 观看层文件。
 \`\`\`
 
-### Verification Commands
+### 验证命令
 
 \`\`\`powershell
 node apps/cli/dist/index.js verify --project <project-path> --ide codex
@@ -101,7 +101,7 @@ function renderShotHub(shotId: string, shotFiles: ObsidianSourceFile[], allSourc
   const videoPrompt = fileForKind(shotFiles, "video-prompt");
   const reviewCanvasPath = shotReviewCanvasPath(shotId);
   return {
-    vaultPath: `Shots/${shotId}.md`,
+    vaultPath: `镜头/${shotId}.md`,
     content: `---
 projection_generated: true
 source_kind: index
@@ -112,8 +112,8 @@ execution_status: prompt-ready
 needs_attention: false
 review_mode: immersive
 review_canvas: "[[${reviewCanvasPath}]]"
-review_note: "[[Notes/Shot Reviews/${shotId}]]"
-agent_handoff: "[[04_Agent_Handoff#Single-Shot Handoff|Agent Handoff]]"
+review_note: "[[笔记/镜头审阅/${shotId}]]"
+agent_handoff: "[[04_智能体交接#单镜头交接|智能体交接]]"
 has_storyboard: ${booleanProperty(Boolean(storyboard))}
 has_image_prompt: ${booleanProperty(Boolean(imagePrompt))}
 has_video_prompt: ${booleanProperty(Boolean(videoPrompt))}
@@ -127,59 +127,59 @@ tags:
 
 # ${shotId}
 
-## Immersive Review
+## 沉浸式审阅
 
-- Storyboard: ${linkForKind(shotFiles, "storyboard", "Storyboard")}
-- Image prompt: ${linkForKind(shotFiles, "image-prompt", "Image Prompt")}
-- Video prompt: ${linkForKind(shotFiles, "video-prompt", "Video Prompt")}
-- Execution plan: ${linkForKind(allSourceFiles, "execution-plan", "Execution Plan")}
-- Review canvas: [[${reviewCanvasPath}|Shot Review Canvas]]
-- User review note: [[Notes/Shot Reviews/${shotId}|${shotId} Review Note]]
+- 分镜脚本：${linkForKind(shotFiles, "storyboard", "分镜脚本")}
+- 图片提示词：${linkForKind(shotFiles, "image-prompt", "图片提示词")}
+- 视频提示词：${linkForKind(shotFiles, "video-prompt", "视频提示词")}
+- 执行计划：${linkForKind(allSourceFiles, "execution-plan", "执行计划")}
+- 审阅画布：[[${reviewCanvasPath}|镜头审阅画布]]
+- 用户审阅笔记：[[笔记/镜头审阅/${shotId}|${shotId} 审阅笔记]]
 
-## Review Route
+## 审阅路径
 
-- Review dashboard: [[01_Review_Dashboard]]
-- Production board: [[03_Production_Board]]
-- Review map: [[Canvas/Review Map.canvas]]
+- 审阅总览：[[01_审阅总览]]
+- 制作看板：[[03_制作看板]]
+- 审阅地图：[[画布/审阅地图.canvas]]
 ${shotNavigation(shotId, shotIds)}
 
-## Source Sequence
+## 源文件序列
 
-${embeddedFileForKind(shotFiles, "storyboard", "Storyboard")}
+${embeddedFileForKind(shotFiles, "storyboard", "分镜脚本")}
 
-## Frame Continuity
+## 画面连续性
 
-Use the storyboard frame as the reference when reviewing Step 4 image prompt continuity.
+审阅步骤四图片提示词连续性时，以步骤三分镜画面为参照。
 
-${embeddedFileForKind(shotFiles, "image-prompt", "Image prompt")}
+${embeddedFileForKind(shotFiles, "image-prompt", "图片提示词")}
 
-## Prompt Handoff
+## 提示词交接
 
-Check whether the Step 5 video prompt preserves the Step 4 visual frame and adds only motion, timing, and camera behavior.
+检查步骤五视频提示词是否保留步骤四视觉画面，并且只增加运动、时长和镜头行为。
 
-${embeddedFileForKind(shotFiles, "video-prompt", "Video prompt")}
+${embeddedFileForKind(shotFiles, "video-prompt", "视频提示词")}
 
-## Execution Readiness
+## 执行就绪
 
-- Source Step files remain the source of truth.
-- Confirm the storyboard, image prompt, and video prompt are aligned before execution.
-- Use [[03_Production_Board]] for project-level execution checks.
+- 步骤源文件仍是事实源。
+- 执行前确认分镜脚本、图片提示词和视频提示词对齐。
+- 项目级执行检查使用 [[03_制作看板]]。
 
 ${renderShotAgentHandoff(shotId, shotFiles, allSourceFiles)}
 
-## Shot Records
+## 镜头记录
 
-![[Bases/Shots.base#Shot Table]]
+![[数据表/镜头.base#镜头表]]
 
-## Progress View
+## 进度视图
 
-![[Bases/Shots.base#Shot Progress]]
+![[数据表/镜头.base#镜头进度]]
 
-## User Notes
+## 用户笔记
 
-Write durable review comments under [[Notes/Shot Reviews/${shotId}|Notes/Shot Reviews/${shotId}]] so incremental export can keep generated files replaceable.
+持久审阅意见写到 [[笔记/镜头审阅/${shotId}|笔记/镜头审阅/${shotId}]]，这样增量导出可以持续替换生成文件。
 
-## Review Canvas
+## 审阅画布
 
 ![[${reviewCanvasPath}]]
 `
@@ -187,69 +187,69 @@ Write durable review comments under [[Notes/Shot Reviews/${shotId}|Notes/Shot Re
 }
 
 function renderAgentHandoffPage(shotIds: string[]): ObsidianGeneratedFile {
-  const shotLinks = shotIds.length > 0 ? shotIds.map((shotId) => `- [[Shots/${shotId}|${shotId}]] - [[Canvas/Shot Reviews/${shotId}.canvas|Review Canvas]]`).join("\n") : "- No shot files found yet.";
+  const shotLinks = shotIds.length > 0 ? shotIds.map((shotId) => `- [[镜头/${shotId}|${shotId}]] - [[画布/镜头审阅/${shotId}.canvas|审阅画布]]`).join("\n") : "- 尚未发现镜头文件。";
   return {
-    vaultPath: "04_Agent_Handoff.md",
-    content: `# Agent Handoff
+    vaultPath: "04_智能体交接.md",
+    content: `# 智能体交接
 
-Use this page when you have inspected the project in Obsidian and want an agent to modify source Step files. Obsidian is the viewing and location layer. The project Step files remain the source of truth.
+当你已经在 Obsidian 中检查项目，并希望让智能体修改步骤源文件时，使用这个页面。Obsidian 是观看和定位层，项目步骤文件才是事实源。
 
-## Navigation
+## 导航
 
-- Project home: [[00_Project_Home]]
-- Review dashboard: [[01_Review_Dashboard]]
-- Shot index: [[02_Shot_Index]]
-- Production board: [[03_Production_Board]]
-- Workflow files: [[Bases/Workflow Files.base]]
-- Shots base: [[Bases/Shots.base]]
-- Production status: [[Bases/Production Status.base]]
+- 项目首页：[[00_项目首页]]
+- 审阅总览：[[01_审阅总览]]
+- 镜头索引：[[02_镜头索引]]
+- 制作看板：[[03_制作看板]]
+- 流程文件表：[[数据表/流程文件.base]]
+- 镜头表：[[数据表/镜头.base]]
+- 制作状态表：[[数据表/制作状态.base]]
 
-## Single-Shot Handoff
+## 单镜头交接
 
 ${shotLinks}
 
-## Source Editing Boundary
+## 源文件编辑边界
 
-- Change story intent or shot framing in Step 3 storyboard files.
-- Change image composition, subject description, and frame continuity in Step 4 image prompt files.
-- Change motion, timing, camera movement, and video behavior in Step 5 video prompt files.
-- Do not edit generated Obsidian projection files as the workflow source.
+- 故事意图或镜头构图修改写入步骤三分镜脚本文件。
+- 图片构图、主体描述和画面连续性修改写入步骤四图片提示词文件。
+- 运动、时长、镜头移动和视频行为修改写入步骤五视频提示词文件。
+- 不要把生成的 Obsidian 观看层文件当作工作流源文件编辑。
 
-## Copy-ready Prompts
+## 可复制提示词
 
-### Single-shot check
-
-\`\`\`text
-Please inspect the selected shot across Step 3 storyboard, Step 4 image prompt, and Step 5 video prompt.
-Keep Step 3 and Step 4 frame-aligned.
-If changes are needed, edit only the source Step files and do not edit generated Obsidian projection files.
-\`\`\`
-
-### Step 4 image prompt edit
+### 单镜头检查
 
 \`\`\`text
-Please update the Step 4 image prompt for the selected shot so it stays frame-aligned with the Step 3 storyboard.
-Keep the Step 4 file contract intact and avoid context-dependent wording.
-Do not edit generated Obsidian projection files.
+请检查选中镜头的步骤三分镜脚本、步骤四图片提示词和步骤五视频提示词。
+保持步骤三和步骤四逐镜头对齐。
+如果需要修改，只编辑步骤源文件，不要编辑生成的 Obsidian 观看层文件。
 \`\`\`
 
-### Step 5 video prompt edit
+### 步骤四图片提示词修改
 
 \`\`\`text
-Please update the Step 5 video prompt for the selected shot.
-Preserve the Step 4 visual frame, and change only motion, timing, camera behavior, or video-specific details.
-Do not edit generated Obsidian projection files.
+请更新选中镜头的步骤四图片提示词，使它和步骤三分镜脚本保持逐镜头对齐。
+保持步骤四文件合同完整，避免依赖上下文的模糊写法。
+不要编辑生成的 Obsidian 观看层文件。
 \`\`\`
 
-### Full project verification
+### 步骤五视频提示词修改
 
 \`\`\`text
-Please verify the project after the source Step file edits.
-Run the project verifier, refresh the Obsidian projection if needed, then run verify-obsidian.
-Report any remaining Step 3 to Step 4 alignment or projection issues with exact source paths.
+请更新选中镜头的步骤五视频提示词。
+保留步骤四视觉画面，只修改运动、时长、镜头行为或视频专属细节。
+不要编辑生成的 Obsidian 观看层文件。
 \`\`\`
 
-## Verification Commands
+### 全项目验证
+
+\`\`\`text
+请在步骤源文件修改后验证项目。
+运行项目校验，必要时刷新 Obsidian 观看层，然后运行 verify-obsidian。
+用精确源路径报告仍存在的步骤三到步骤四对齐问题或投影问题。
+\`\`\`
+
+## 验证命令
 
 \`\`\`powershell
 pnpm build
@@ -263,124 +263,124 @@ node apps/cli/dist/index.js verify-obsidian --project <project-path> --in-projec
 
 function renderCommunityPluginRecipes(): ObsidianGeneratedFile {
   return {
-    vaultPath: "Community Plugin Recipes.md",
-    content: `# Community Plugin Recipes
+    vaultPath: "社区插件配方.md",
+    content: `# 社区插件配方
 
-The default Obsidian projection works with core Obsidian features only. These recipes are optional.
+默认 Obsidian 观看层只依赖 Obsidian 核心功能。以下配方都是可选项。
 
 ## Dataview
 
-Use Dataview only when a project wants richer queries than core Bases.
+当项目需要比核心 Bases 更复杂的查询时，再使用 Dataview。
 
 ## Tasks
 
-Use Tasks only when the project wants interactive task queries across the vault.
+当项目希望在 vault 中做交互式任务查询时，再使用 Tasks。
 
 ## Kanban
 
-Use Kanban only when the project wants a Markdown-backed board view.
+当项目需要 Markdown 支撑的看板视图时，再使用 Kanban。
 
 ## Excalidraw
 
-Use Excalidraw only when the project needs richer visual sketching than core Canvas.
+当项目需要比核心 Canvas 更强的视觉草图能力时，再使用 Excalidraw。
 `
   };
 }
 
 export function renderDashboardFiles(projectName: string, sourceFiles: ObsidianSourceFile[], includePluginRecipes: boolean): ObsidianGeneratedFile[] {
   const shotIds = uniqueShotIds(sourceFiles);
-  const shotLinks = shotIds.length > 0 ? shotIds.map((shotId) => `- [[Shots/${shotId}|${shotId}]] - [[${shotReviewCanvasPath(shotId)}|Review Canvas]]`).join("\n") : "- No shot files found yet.";
+  const shotLinks = shotIds.length > 0 ? shotIds.map((shotId) => `- [[镜头/${shotId}|${shotId}]] - [[${shotReviewCanvasPath(shotId)}|审阅画布]]`).join("\n") : "- 尚未发现镜头文件。";
   const files: ObsidianGeneratedFile[] = [
     {
-      vaultPath: "README.md",
-      content: `# ${projectName} Obsidian Projection
+      vaultPath: "说明.md",
+      content: `# ${projectName} Obsidian 观看层
 
-Start with [[00_Project_Home]] for the open-vault workflow. Use [[02_Shot_Index]] to inspect shots, [[Canvas/Review Map.canvas|Review Map]] for spatial navigation, [[04_Agent_Handoff]] to copy source-file context into an agent chat, and [[03_Production_Board]] before execution.
+打开 vault 后，从 [[00_项目首页]] 开始。用 [[02_镜头索引]] 检查镜头，用 [[画布/审阅地图.canvas|审阅地图]] 做空间导航，用 [[04_智能体交接]] 把源文件上下文复制到智能体聊天中，执行前打开 [[03_制作看板]]。
 
-Do not treat generated projection files as the source of truth. Edit the original Step files for workflow changes, and use [[Notes/README]] for Obsidian-only notes.
+不要把生成的观看层文件当作事实源。工作流修改请编辑原始步骤文件；Obsidian 专属笔记写到 [[笔记/README]]。
 `
     },
     {
-      vaultPath: "00_Project_Home.md",
-      content: `# Project Home
+      vaultPath: "00_项目首页.md",
+      content: `# 项目首页
 
-## Open Vault Workflow
+## 打开观看层后的流程
 
-1. Inspect project: use [[00_Project_Home|Project Home]] and [[Canvas/Review Map.canvas|Review Map]].
-2. Inspect a shot: open [[02_Shot_Index|Shot Index]], then choose a shot page and its Review Canvas.
-3. Hand off to agent: open [[04_Agent_Handoff|Agent Handoff]] and copy source-file context into an agent chat.
-4. Verify after edits: run project verification, refresh this vault projection, then run \`verify-obsidian\`.
+1. 检查项目：使用 [[00_项目首页|项目首页]] 和 [[画布/审阅地图.canvas|审阅地图]]。
+2. 检查镜头：打开 [[02_镜头索引|镜头索引]]，再选择镜头页和审阅画布。
+3. 交接给智能体：打开 [[04_智能体交接|智能体交接]]，把源文件上下文复制到智能体聊天中。
+4. 修改后验证：运行项目校验，刷新这个观看层，再运行 \`verify-obsidian\`。
 
-Generated Obsidian files are for viewing and handoff. Source Step files remain the workflow source of truth.
+生成的 Obsidian 文件只用于观看和交接。步骤源文件仍是工作流事实源。
 
-## Review Command Center
+## 审阅总控
 
-- [[01_Review_Dashboard|Review Dashboard]]
-- [[02_Shot_Index|Shot Index]]
-- [[03_Production_Board|Production Board]]
-- [[04_Agent_Handoff|Agent Handoff]]
-- [[Notes/README|Obsidian Notes]]
-- [[Canvas/Review Map.canvas|Review Map]]
-- [[Canvas/Workflow Map.canvas|Workflow Map]]
-- [[Canvas/Shot Pipeline.canvas|Shot Pipeline]]
+- [[01_审阅总览|审阅总览]]
+- [[02_镜头索引|镜头索引]]
+- [[03_制作看板|制作看板]]
+- [[04_智能体交接|智能体交接]]
+- [[笔记/README|Obsidian 笔记]]
+- [[画布/审阅地图.canvas|审阅地图]]
+- [[画布/流程图.canvas|流程图]]
+- [[画布/镜头流水线.canvas|镜头流水线]]
 
-## Immersive Shot Reviews
+## 沉浸式镜头审阅
 
 ${shotLinks}
 
-## Project Health
+## 项目健康
 
-![[Bases/Workflow Files.base#Review Queue]]
+![[数据表/流程文件.base#审阅队列]]
 
-## Shot Progress
+## 镜头进度
 
-![[Bases/Shots.base#Shot Progress]]
+![[数据表/镜头.base#镜头进度]]
 
-## Execution Readiness
+## 执行就绪
 
-![[Bases/Production Status.base#Execution Readiness]]
+![[数据表/制作状态.base#执行就绪]]
 
-## Graph and Canvas Navigation
+## 图谱和画布导航
 
-- Open Graph view to inspect generated Markdown links between project home, dashboards, shot hubs, and workflow files.
-- Use [[Canvas/Review Map.canvas|Review Map]] for the review route.
-- Use [[Canvas/Workflow Map.canvas|Workflow Map]] for step-level flow.
-- Use [[Canvas/Shot Pipeline.canvas|Shot Pipeline]] for shot-level flow.
+- 打开图谱视图检查项目首页、仪表盘、镜头页和流程文件之间的生成链接。
+- 使用 [[画布/审阅地图.canvas|审阅地图]] 查看审阅路径。
+- 使用 [[画布/流程图.canvas|流程图]] 查看步骤级流转。
+- 使用 [[画布/镜头流水线.canvas|镜头流水线]] 查看镜头级流转。
 
-## Base Tables
+## 数据表
 
-- [[Bases/Workflow Files.base|Workflow Files Base]]
-- [[Bases/Shots.base|Shots Base]]
-- [[Bases/Production Status.base|Production Status Base]]
+- [[数据表/流程文件.base|流程文件表]]
+- [[数据表/镜头.base|镜头表]]
+- [[数据表/制作状态.base|制作状态表]]
 
-## Generated Conflict Check
+## 生成文件冲突检查
 
-- Incremental exports skip generated files that were edited in Obsidian and report \`skipped-user-modified\`.
-- Run \`verify-obsidian\` to detect manifest hash mismatches before execution.
+- 增量导出会跳过在 Obsidian 中被修改过的生成文件，并报告 \`skipped-user-modified\`。
+- 执行前运行 \`verify-obsidian\`，检查投影清单哈希是否有冲突。
 
-## Editing Boundary
+## 编辑边界
 
-- Source Step files remain the workflow source of truth.
-- Generated projection files may be refreshed by \`export-obsidian\`.
-- User-authored Obsidian notes belong under [[Notes/README|Notes]].
+- 步骤源文件仍是工作流事实源。
+- 生成的观看层文件可以由 \`export-obsidian\` 刷新。
+- 用户手写 Obsidian 笔记放在 [[笔记/README|笔记]]。
 
-## Workflow Files
+## 流程文件
 
-![[Bases/Workflow Files.base#Workflow Files]]
+![[数据表/流程文件.base#流程文件]]
 
-## Shot Cards
+## 镜头卡片
 
-![[Bases/Shots.base#Shot Cards]]
+![[数据表/镜头.base#镜头卡片]]
 
-## Workflow Map
+## 流程图
 
-![[Canvas/Workflow Map.canvas]]
+![[画布/流程图.canvas]]
 
-## Shot Pipeline
+## 镜头流水线
 
-![[Canvas/Shot Pipeline.canvas]]
+![[画布/镜头流水线.canvas]]
 
-## Review Queries
+## 审阅查询
 
 \`\`\`query
 tag:#ai-video/review/needs-step4-link OR tag:#ai-video/status/blocked
@@ -388,143 +388,143 @@ tag:#ai-video/review/needs-step4-link OR tag:#ai-video/status/blocked
 `
     },
     {
-      vaultPath: "01_Review_Dashboard.md",
-      content: `# Review Dashboard
+      vaultPath: "01_审阅总览.md",
+      content: `# 审阅总览
 
-## Needs Attention
+## 需要关注
 
-![[Bases/Workflow Files.base#Review Queue]]
+![[数据表/流程文件.base#审阅队列]]
 
-## Blocked
+## 阻塞项
 
 \`\`\`query
 tag:#ai-video/status/blocked OR tag:#ai-video/review/needs-source-link OR tag:#ai-video/review/needs-step4-link
 \`\`\`
 
-## Ready for Execution
+## 执行就绪
 
-![[Bases/Production Status.base#Execution Readiness]]
+![[数据表/制作状态.base#执行就绪]]
 
-## Generated File Conflicts
+## 生成文件冲突
 
-![[Bases/Workflow Files.base#Modified Generated Files]]
+![[数据表/流程文件.base#已改动生成文件]]
 
-Use \`verify-obsidian\` when this queue shows possible projection conflicts. Move durable review notes into [[Notes/README|Notes]] instead of editing generated files.
+当这个队列显示可能的投影冲突时，使用 \`verify-obsidian\`。持久审阅笔记请移到 [[笔记/README|笔记]]，不要直接编辑生成文件。
 
-## Agent Handoff
+## 智能体交接
 
-[[04_Agent_Handoff|Agent Handoff]]
+[[04_智能体交接|智能体交接]]
 
-## Review Map
+## 审阅地图
 
-![[Canvas/Review Map.canvas]]
+![[画布/审阅地图.canvas]]
 
-## Shot Review Canvases
+## 镜头审阅画布
 
 ${shotLinks}
 
 `
     },
     {
-      vaultPath: "02_Shot_Index.md",
-      content: `# Shot Index
+      vaultPath: "02_镜头索引.md",
+      content: `# 镜头索引
 
 ${shotLinks}
 
-## Agent Handoff
+## 智能体交接
 
-[[04_Agent_Handoff|Agent Handoff]]
+[[04_智能体交接|智能体交接]]
 
-## Shot Table
+## 镜头表
 
-![[Bases/Shots.base#Shot Table]]
+![[数据表/镜头.base#镜头表]]
 
-## Shot Progress
+## 镜头进度
 
-![[Bases/Shots.base#Shot Progress]]
+![[数据表/镜头.base#镜头进度]]
 
-## Immersive Review Table
+## 沉浸式审阅表
 
-![[Bases/Shots.base#Immersive Review]]
+![[数据表/镜头.base#沉浸式审阅]]
 
-## Agent Handoff Table
+## 智能体交接表
 
-![[Bases/Shots.base#Agent Handoff]]
+![[数据表/镜头.base#智能体交接]]
 `
     },
     {
-      vaultPath: "03_Production_Board.md",
-      content: `# Production Board
+      vaultPath: "03_制作看板.md",
+      content: `# 制作看板
 
-## Execution Readiness
+## 执行就绪
 
-![[Bases/Production Status.base#Execution Readiness]]
+![[数据表/制作状态.base#执行就绪]]
 
-## Production Status
+## 制作状态
 
-![[Bases/Production Status.base#Production Status]]
+![[数据表/制作状态.base#制作状态]]
 
-## Shot Progress
+## 镜头进度
 
-![[Bases/Shots.base#Shot Progress]]
+![[数据表/镜头.base#镜头进度]]
 
-## Ready Items
+## 就绪项
 
 \`\`\`query
 tag:#ai-video/status/ready
 \`\`\`
 
-## Handoff Links
+## 交接链接
 
-- Review queue: [[01_Review_Dashboard]]
-- Shot index: [[02_Shot_Index]]
-- Agent handoff: [[04_Agent_Handoff]]
-- Workflow map: [[Canvas/Workflow Map.canvas]]
-- Review map: [[Canvas/Review Map.canvas]]
-- Shot reviews: [[02_Shot_Index]]
+- 审阅队列：[[01_审阅总览]]
+- 镜头索引：[[02_镜头索引]]
+- 智能体交接：[[04_智能体交接]]
+- 流程图：[[画布/流程图.canvas]]
+- 审阅地图：[[画布/审阅地图.canvas]]
+- 镜头审阅：[[02_镜头索引]]
 `
     },
     {
-      vaultPath: "Templates/Review Note Template.md",
+      vaultPath: "模板/审阅笔记模板.md",
       content: `---
 tags:
   - ai-video/review
 ---
 
-# Review Note
+# 审阅笔记
 
-## Finding
+## 发现
 
-## Source Link
+## 源文件链接
 
-## Follow-up
+## 后续动作
 `
     },
     {
-      vaultPath: "Templates/Shot Follow-up Template.md",
+      vaultPath: "模板/镜头跟进模板.md",
       content: `---
 tags:
   - ai-video/shot
 ---
 
-# Shot Follow-up
+# 镜头跟进
 
-## Shot
+## 镜头
 
-## Issue
+## 问题
 
-## Next Action
+## 下一步
 `
     },
     {
-      vaultPath: "Notes/README.md",
-      content: `# Obsidian Notes
+      vaultPath: "笔记/README.md",
+      content: `# Obsidian 笔记
 
-Use this folder for Obsidian-only notes, review comments, meeting notes, and research that should live beside the generated projection.
+这个文件夹用于存放 Obsidian 专属笔记、审阅意见、会议记录和研究材料，它们可以放在生成观看层旁边。
 
-Files you create in this folder are not part of the generated projection manifest and will be preserved by incremental \`export-obsidian\` runs.
+你在这个文件夹中创建的文件不属于生成投影清单，增量运行 \`export-obsidian\` 时会保留。
 
-If you edit a generated file, the next incremental export will skip that file and report it as \`skipped-user-modified\`.
+如果你编辑了生成文件，下一次增量导出会跳过那个文件，并报告 \`skipped-user-modified\`。
 `
     },
     renderAgentHandoffPage(shotIds),

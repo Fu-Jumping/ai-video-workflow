@@ -10,7 +10,7 @@ Manual setup remains available for advanced and scripted use:
 4. Run `node apps/cli/dist/index.js verify --project <project-path> --ide <ide>`.
 5. If verification fails, run `node apps/cli/dist/index.js doctor --project <project-path> --ide <ide>`.
 6. If IDE runtime files are missing, run `node apps/cli/dist/index.js sync --project <project-path> --ide <ide>`.
-7. Start working from `01_concept/story-kernel.md`.
+7. Start working from `01_概念策划/故事内核.md`.
 
 Interactive initialization:
 
@@ -55,20 +55,20 @@ ai-video-workflow verify-obsidian --project <path> --in-project-view
 External vault mode remains available when you want the generated vault outside the project:
 
 ```powershell
-node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian
-node apps/cli/dist/index.js verify-obsidian --project examples/official-mini-film --vault .tmp/official-mini-film-obsidian
+node apps/cli/dist/index.js export-obsidian --project examples/官方示例-云上早市 --out .tmp/官方示例-云上早市-obsidian
+node apps/cli/dist/index.js verify-obsidian --project examples/官方示例-云上早市 --vault .tmp/官方示例-云上早市-obsidian
 ```
 
-Default export is safe and incremental. When exporting to the same vault again, the CLI reads `Projection Manifest.json`, updates generated files that have not been user-edited, and preserves user notes created under `Notes/`.
+Default export is safe and incremental. When exporting to the same vault again, the CLI reads `投影清单.json`, updates generated files that have not been user-edited, and preserves user notes created under `笔记/`.
 
-The generated vault includes a Project Home, Review Dashboard, Shot Index, Production Board, Agent Handoff page, Review Queue, Shot Progress, Execution Readiness, Workflow Map, Shot Pipeline, Review Map, immersive `Shots/<shotId>.md` review pages, and per-shot `Canvas/Shot Reviews/<shotId>.canvas` canvases. Open `00_Project_Home.md`, follow `Open Vault Workflow`, inspect a shot, use `04_Agent_Handoff.md` to copy source-file context into an agent conversation, then rerun verification after source Step edits. These are generated views over the Step files, not a second source of truth.
+The generated vault includes `00_项目首页.md`, `01_审阅总览.md`, `02_镜头索引.md`, `03_制作看板.md`, `04_智能体交接.md`, review queues, shot progress, execution readiness, `画布/流程图.canvas`, `画布/镜头流水线.canvas`, `画布/审阅地图.canvas`, immersive `镜头/<shotId>.md` review pages, and per-shot `画布/镜头审阅/<shotId>.canvas` canvases. Open `00_项目首页.md`, follow the viewing route, inspect a shot, use `04_智能体交接.md` to copy source-file context into an agent conversation, then rerun verification after source Step edits. These are generated views over the Step files, not a second source of truth.
 
 Common options:
 
 ```powershell
-node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --in-project-view --dry-run
-node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --in-project-view --force
-node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --in-project-view --include-obsidian-ui
+node apps/cli/dist/index.js export-obsidian --project examples/官方示例-云上早市 --in-project-view --dry-run
+node apps/cli/dist/index.js export-obsidian --project examples/官方示例-云上早市 --in-project-view --force
+node apps/cli/dist/index.js export-obsidian --project examples/官方示例-云上早市 --in-project-view --include-obsidian-ui
 ```
 
-`--dry-run` prints planned operations without writing files. `--force` clears and rebuilds the output vault, and refuses to delete a vault containing `.git`. By default, export does not write `.obsidian/`; `--include-obsidian-ui` adds optional suggested Bookmarks and Workspace for Project Home, Agent Handoff, Shot Index, Review Map, and Shot Pipeline without overwriting existing user config. The projection is a one-way reading and review view. Do not treat projected files as source Step files. See [Obsidian vault projection](../contributors/obsidian-vault-projection.md) for the boundary.
+`--dry-run` prints planned operations without writing files. `--force` clears and rebuilds the output vault, and refuses to delete a vault containing `.git`. By default, export does not write `.obsidian/`; `--include-obsidian-ui` adds optional suggested Bookmarks and Workspace for the project home, agent handoff, shot index, review map, and shot pipeline without overwriting existing user config. The projection is a one-way reading and review view. Do not treat projected files as source Step files. See [Obsidian vault projection](../contributors/obsidian-vault-projection.md) for the boundary.

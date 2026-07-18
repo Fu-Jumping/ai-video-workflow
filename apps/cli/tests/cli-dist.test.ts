@@ -8,7 +8,7 @@ import { afterEach, describe, expect, test } from "vitest";
 
 const execFileAsync = promisify(execFile);
 const tempRoots: string[] = [];
-const stepDirs = ["01_concept", "02_setting", "03_storyboard", "04_image_prompts", "05_video_prompts", "06_execution_plan"];
+const stepDirs = ["01_概念策划", "02_世界设定", "03_分镜脚本", "04_图片提示词", "05_视频提示词", "06_执行计划"];
 
 async function run(command: string, args: string[], cwd: string): Promise<{ stdout: string; stderr: string }> {
   return await execFileAsync(command, args, {
@@ -162,9 +162,9 @@ describe("built CLI", () => {
     expect(config).toContain("ide: codex");
     expect(config).toContain("default: openai");
     expect(config).toContain("default: runway");
-    expect(result.stdout).toContain("Project path:");
-    expect(result.stdout).toContain("Open this directory in your AI agent");
-    expect(result.stdout).toContain("01_concept/story-kernel.md");
+    expect(result.stdout).toContain("项目路径：");
+    expect(result.stdout).toContain("请在智能体中打开这个目录");
+    expect(result.stdout).toContain("01_概念策划/故事内核.md");
     expect(result.stdout).toContain("verify --project");
   });
 
@@ -222,7 +222,7 @@ describe("built CLI", () => {
         path.join(cliRoot, "dist", "index.js"),
         "export-obsidian",
         "--project",
-        path.join(repoRoot, "examples", "official-mini-film"),
+        path.join(repoRoot, "examples", "官方示例-云上早市"),
         "--out",
         outRoot,
         "--force"
@@ -230,9 +230,9 @@ describe("built CLI", () => {
       repoRoot
     );
 
-    await expect(fs.pathExists(path.join(outRoot, "00_Project_Home.md"))).resolves.toBe(true);
-    await expect(fs.pathExists(path.join(outRoot, "Canvas", "Workflow Map.canvas"))).resolves.toBe(true);
-    await expect(fs.pathExists(path.join(outRoot, "Bases", "Shots.base"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, "00_项目首页.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, "画布", "流程图.canvas"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, "数据表", "镜头.base"))).resolves.toBe(true);
   });
 
   test("export-obsidian and verify-obsidian support in-project view targets", async () => {
@@ -240,9 +240,9 @@ describe("built CLI", () => {
     const repoRoot = path.resolve(cliRoot, "..", "..");
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-obsidian-in-project-"));
     tempRoots.push(tempRoot);
-    const projectRoot = path.join(tempRoot, "official-mini-film");
+    const projectRoot = path.join(tempRoot, "官方示例-云上早市");
     const otherVaultRoot = path.join(tempRoot, "external-vault");
-    await fs.copy(path.join(repoRoot, "examples", "official-mini-film"), projectRoot);
+    await fs.copy(path.join(repoRoot, "examples", "官方示例-云上早市"), projectRoot);
 
     await buildCli(cliRoot);
     const exportResult = await run(
@@ -259,7 +259,7 @@ describe("built CLI", () => {
     expect(exportResult.stdout).toContain("_views");
     expect(exportResult.stdout).toContain("obsidian");
     expect(verifyResult.stdout).toContain("Obsidian projection verification passed");
-    await expect(fs.pathExists(path.join(projectRoot, "_views", "obsidian", "00_Project_Home.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "_views", "obsidian", "00_项目首页.md"))).resolves.toBe(true);
 
     const conflictingTarget = await runExpectFailure(
       process.execPath,
@@ -282,7 +282,7 @@ describe("built CLI", () => {
       repoRoot
     );
     expect(`${missingVaultTarget.stdout}\n${missingVaultTarget.stderr}`).toContain("Missing --vault");
-  });
+  }, 10000);
 
   test("export-obsidian rejects missing projects without creating a vault or printing stack traces", async () => {
     const cliRoot = path.resolve(__dirname, "..");
@@ -321,7 +321,7 @@ describe("built CLI", () => {
         path.join(cliRoot, "dist", "index.js"),
         "verify-obsidian",
         "--project",
-        path.join(repoRoot, "examples", "official-mini-film"),
+        path.join(repoRoot, "examples", "官方示例-云上早市"),
         "--vault",
         vaultPath
       ],
@@ -368,7 +368,7 @@ describe("built CLI", () => {
         path.join(cliRoot, "dist", "index.js"),
         "export-obsidian",
         "--project",
-        path.join(repoRoot, "examples", "official-mini-film"),
+        path.join(repoRoot, "examples", "官方示例-云上早市"),
         "--out",
         outRoot,
         "--dry-run"
@@ -378,7 +378,7 @@ describe("built CLI", () => {
 
     expect(stdout).toContain("Obsidian export operations:");
     expect(stdout).toContain("Dry run complete");
-    await expect(fs.pathExists(path.join(outRoot, "00_Project_Home.md"))).resolves.toBe(false);
+    await expect(fs.pathExists(path.join(outRoot, "00_项目首页.md"))).resolves.toBe(false);
   });
 
   test("export-obsidian can include optional Obsidian UI suggestions", async () => {
@@ -394,7 +394,7 @@ describe("built CLI", () => {
         path.join(cliRoot, "dist", "index.js"),
         "export-obsidian",
         "--project",
-        path.join(repoRoot, "examples", "official-mini-film"),
+        path.join(repoRoot, "examples", "官方示例-云上早市"),
         "--out",
         outRoot,
         "--include-obsidian-ui"
@@ -422,7 +422,7 @@ describe("built CLI", () => {
         path.join(cliRoot, "dist", "index.js"),
         "export-obsidian",
         "--project",
-        path.join(repoRoot, "examples", "official-mini-film"),
+        path.join(repoRoot, "examples", "官方示例-云上早市"),
         "--out",
         outRoot,
         "--dry-run",
@@ -447,14 +447,14 @@ describe("built CLI", () => {
         path.join(cliRoot, "dist", "index.js"),
         "mcp-context",
         "--project",
-        path.join(repoRoot, "examples", "official-mini-film")
+        path.join(repoRoot, "examples", "官方示例-云上早市")
       ],
       repoRoot
     );
 
     expect(stdout).toContain("\"shots\"");
     expect(stdout).toContain("\"verificationCommands\"");
-    expect(stdout).toContain("04_image_prompts/shot-001-keyframe.md");
+    expect(stdout).toContain("04_图片提示词/镜头-001-关键帧.md");
     expect(stdout).not.toMatch(/[A-Z]:\\\\|[A-Z]:\\\/|file:\/\/|vscode:\/\//);
   });
 

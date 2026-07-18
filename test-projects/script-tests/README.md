@@ -14,3 +14,4 @@ Current rule:
 - `01-neon-harbor-rain`: near-future sci-fi suspense.
 - `02-blue-breakfast-van`: contemporary healing family road drama.
 - `03-borrowed-sword-inn`: period martial-arts comedy.
+- `04-yunshang-zaoshi`：中文奇幻生活短片。

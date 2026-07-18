@@ -1,5 +1,5 @@
 import type { VerificationIssue } from "./types.js";
-import { sharedAgentEntryMergeBlock } from "./agent-workspace.js";
+import { sharedAgentDocsDir, sharedAgentEntryMergeBlock } from "./agent-workspace.js";
 
 const groups: Record<string, string> = {
   "missing-project-root": "Project Root",
@@ -111,7 +111,7 @@ export async function diagnoseProject({
         lines.push("  Restore the missing Step 6 execution plan file.");
       }
       if (issue.code === "missing-step4-section") {
-        lines.push("  Restore the Step 4 sections: `快速导读`, `中文完整版本`, and `English Version (Copy Ready)`, plus `避免:` and `Avoid:`.");
+        lines.push("  恢复步骤四必需段落：`快速导读`、`中文完整版本`、`可复制提示词`，并补齐 `避免：`。");
       }
       if (issue.code === "step4-forbidden-text") {
         lines.push("  Replace inherited or context-dependent wording with a self-contained visual prompt.");
@@ -137,7 +137,7 @@ export async function diagnoseProject({
         lines.push("  Do not copy Cherry Studio private memory, tokens, local paths, or platform caches into project truth.");
       }
       if (issue.code === "agent-runtime-conflict") {
-        lines.push("  Regenerate the platform runtime mirror with `ai-video-workflow sync --project <path> --ide <id>`, then keep platform-specific rules aligned with `AGENTS.md` and `docs/ai-workspace/`.");
+        lines.push(`  Regenerate the platform runtime mirror with \`ai-video-workflow sync --project <path> --ide <id>\`, then keep platform-specific rules aligned with \`AGENTS.md\` and \`${sharedAgentDocsDir}/\`.`);
       }
       if (issue.code === "missing-step3-step4-link") {
         lines.push("  Add a relative link from the storyboard card to the matching Step 4 image prompt.");
@@ -155,10 +155,10 @@ export async function diagnoseProject({
         lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view`; do not hand-edit generated Canvas JSON.");
       }
       if (issue.code === "invalid-obsidian-shot-review") {
-        lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so each `Shots/` page and `Canvas/Shot Reviews/` canvas matches the current single-shot review format.");
+        lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so each `镜头/` page and `画布/镜头审阅/` canvas matches the current single-shot review format.");
       }
       if (issue.code === "invalid-obsidian-agent-handoff") {
-        lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so `04_Agent_Handoff.md` and each `Shots/` page expose copy-ready agent context. Edit source Step files, not generated projection files.");
+        lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so `04_智能体交接.md` and each `镜头/` page expose copy-ready agent context. Edit source Step files, not generated projection files.");
       }
       if (issue.code === "invalid-obsidian-ui-config") {
         lines.push("  Delete or regenerate `.obsidian/ai-video-workflow-suggested/`; these files are optional UI suggestions, not project truth.");
@@ -176,7 +176,7 @@ export async function diagnoseProject({
         lines.push("  Rerun `ai-video-workflow export-obsidian --project <path> --in-project-view` to refresh the projection manifest, or use `--out <vault>` for an external vault.");
       }
       if (issue.code === "obsidian-manifest-hash-mismatch") {
-        lines.push("  Review the modified generated file, move user notes into `Notes/`, then rerun `ai-video-workflow export-obsidian --project <path> --in-project-view` or use `--force` for a clean rebuild.");
+        lines.push("  Review the modified generated file, move user notes into `笔记/`, then rerun `ai-video-workflow export-obsidian --project <path> --in-project-view` or use `--force` for a clean rebuild.");
       }
       if (issue.code === "obsidian-manifest-source-mismatch") {
         lines.push("  Regenerate the projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` and confirm each manifest `sourcePath` points to a project-relative Step file.");

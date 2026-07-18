@@ -28,7 +28,7 @@ v0.3 已经完成 Obsidian vault 投影这个单向 adapter：
 - 安全增量导出
 - 生成 dashboard、Bases 和 Canvas map
 - 单镜头沉浸式审阅页
-- 用于源文件修改上下文的 Agent Handoff 页面
+- 用于源文件修改上下文的智能体交接页面
 - 可选 UI 建议
 - 通过 `pnpm example:obsidian:ui` 进行真实 vault QA
 
@@ -44,7 +44,7 @@ v0.3 之后，优先级不是继续增加 Obsidian 表层功能，而是定义�
 2. v0.4 智能体 adapter contract，覆盖 Codex、Cursor、Claude Code、Trae、MCP 和未来 adapter。
 3. v0.4.1 到 v0.4.5 完成 Codex、Cursor、Claude Code 和 Trae adapter 加固，并加入 runtime 验证。
 4. v0.5：MCP 只读上下文 adapter。先提供 resources、prompts 和只读诊断；写入工具和 LibTV 执行继续暂缓。
-5. v0.6：跨智能体工作目录一致性。使用 `AGENTS.md` 和 `docs/ai-workspace/` 作为 Codex、Cursor、Claude Code、Trae、Cherry Studio、Obsidian 和 MCP 表面的共享项目入口。
+5. v0.6：跨智能体工作目录一致性。使用 `AGENTS.md` 和 `文档/智能体工作区/` 作为 Codex、Cursor、Claude Code、Trae、Cherry Studio、Obsidian 和 MCP 表面的共享项目入口。
 5. 等 LibTV 平台和 CLI 足够稳定后，再回到 LibTV 执行投影。
 
 ## v0.4 之后已完成
@@ -71,7 +71,7 @@ v0.5 应把 MCP 作为只读上下文 adapter 引入：
 
 v0.6 应让多平台反复访问同一工作目录更安全：
 
-- IDE sync 创建 `AGENTS.md` 和 `docs/ai-workspace/`
+- IDE sync 创建 `AGENTS.md` 和 `文档/智能体工作区/`
 - 平台 runtime mirror 回指共享入口
 - 把 Cherry Studio 记录为工作目录型 adapter，不写宿主记忆或 persona 文件
 - 校验共享文档缺失和 runtime 入口重定义事实源的问题

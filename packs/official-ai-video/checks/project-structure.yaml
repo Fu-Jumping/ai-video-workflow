@@ -1,15 +1,15 @@
 directories:
-  - 01_concept
-  - 02_setting
-  - 03_storyboard
-  - 04_image_prompts
-  - 05_video_prompts
-  - 06_execution_plan
+  - 01_概念策划
+  - 02_世界设定
+  - 03_分镜脚本
+  - 04_图片提示词
+  - 05_视频提示词
+  - 06_执行计划
 step4Contract:
   requiredSections:
     - 快速导读
     - 中文完整版本
-    - English Version (Copy Ready)
+    - 可复制提示词
   requiredAvoidMarkers:
     - 避免:
-    - Avoid:
+    - 避免：

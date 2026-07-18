@@ -22,4 +22,4 @@ pnpm verify:v0.2
 git diff --check
 ```
 
-For Obsidian-related releases, also run the absolute-link scan documented in the v0.3 release notes. Manual QA should open `examples/official-mini-film/_views/obsidian/` in Obsidian, not `examples/official-mini-film/`.
+For Obsidian-related releases, also run the absolute-link scan documented in the v0.3 release notes. Manual QA should open `examples/官方示例-云上早市/_views/obsidian/` in Obsidian, not `examples/官方示例-云上早市/`.

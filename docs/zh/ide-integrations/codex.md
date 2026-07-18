@@ -5,7 +5,7 @@ Codex 保留两层运行结构：
 - `.codex/ai-video-workflow/`：完整运行镜像层
 - `.codex/skills/`：技能运行入口层
 
-使用 Codex runtime mirror 前，先读 `AGENTS.md` 和 `docs/ai-workspace/`。
+使用 Codex runtime mirror 前，先读 `AGENTS.md` 和 `文档/智能体工作区/`。
 
 ## Adapter Contract
 

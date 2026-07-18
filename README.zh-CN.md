@@ -31,10 +31,10 @@
 `sync --ide codex|cursor|claude-code|trae` 会为每个项目初始化共享智能体工作目录：
 
 - `AGENTS.md` 是跨智能体根入口。
-- `docs/ai-workspace/` 记录共享边界、交接、平台矩阵和安全规则。
+- `文档/智能体工作区/` 记录共享边界、交接、平台矩阵和安全规则。
 - 平台 runtime mirror 仍然只是 adapter 表面，不是项目事实源。
 - Cherry Studio 作为工作目录型 adapter 进入文档，不生成记忆或 persona 文件。
-- 如果项目已有自定义 `AGENTS.md`，`sync` 不会覆盖它；按 `docs/ai-workspace/ENTRYPOINT_RECONCILIATION.md` 或 `doctor` 输出合并 ai-video-workflow block。
+- 如果项目已有自定义 `AGENTS.md`，`sync` 不会覆盖它；按 `文档/智能体工作区/入口协调.md` 或 `doctor` 输出合并 ai-video-workflow block。
 
 说明见 `docs/zh/contributors/cross-agent-workspace.md` 和 `docs/zh/ide-integrations/cherry-studio.md`。
 
@@ -59,15 +59,15 @@ pnpm example:obsidian:in-project
 project/_views/obsidian/
 ```
 
-不要把项目根目录本身作为 Obsidian vault 打开。`project/_views/obsidian/` 内的 `Workflow/`、`Shots/`、`Bases/`、`Canvas/`、dashboard 和 `Projection Manifest.json` 都是生成观看表面。`Notes/` 是用户手写笔记区，增量导出会保留它，但它不是 Step 事实源。Step 1 到 Step 6 文件仍是唯一创作事实源。
+不要把项目根目录本身作为 Obsidian vault 打开。`project/_views/obsidian/` 内的 `流程/`、`镜头/`、`数据表/`、`画布/`、`00_项目首页.md` 和 `投影清单.json` 都是生成观看表面。`笔记/` 是用户手写笔记区，增量导出会保留它，但它不是 Step 事实源。`01_概念策划/` 到 `06_执行计划/` 文件仍是唯一创作事实源。
 
-该命令会把官方示例导出到项目内 Obsidian 观看层，并校验 dashboard、Bases、Canvas、manifest hash 和来源路径。外部 vault 旧模式仍可用：`export-obsidian --project <path> --out <vault-path>` 与 `verify-obsidian --project <path> --vault <vault-path>`。
+该命令会把官方示例导出到项目内 Obsidian 观看层，并校验中文首页、数据表、画布、投影清单 hash 和来源路径。外部 vault 旧模式仍可用：`export-obsidian --project <path> --out <vault-path>` 与 `verify-obsidian --project <path> --vault <vault-path>`。
 
 `export-obsidian` 默认使用安全增量导出：再次导出到同一个 vault 时，只更新投影层生成文件，保留用户在 Obsidian 中新增的笔记。`--force` 会在重建前删除输出 vault；如果该 vault 包含 `.git`，命令会拒绝删除。`--dry-run` 会只打印将创建、更新、跳过或保留的文件，不写入磁盘。
 
-使用 `04_Agent_Handoff.md` 和每个镜头页里的 `Agent Handoff` 区块，可以把源文件上下文复制到智能体对话中。智能体应修改源 Step 文件，而不是修改生成的 Obsidian 投影文件。
+使用 `04_智能体交接.md` 和每个镜头页里的智能体交接区块，可以把源文件上下文复制到智能体对话中。智能体应修改源 Step 文件，而不是修改生成的 Obsidian 投影文件。
 
-默认导出不会写入 `.obsidian/`。只有显式使用 `--include-obsidian-ui` 时，才会生成可选的 Bookmarks 和 Workspace 建议，用于预置 Project Home、Agent Handoff、Shot Index、Review Map 和 Shot Pipeline 打开路径。已有用户 `.obsidian` 文件不会被覆盖；建议副本会写入 `.obsidian/ai-video-workflow-suggested/`。
+默认导出不会写入 `.obsidian/`。只有显式使用 `--include-obsidian-ui` 时，才会生成可选的书签和工作区建议，用于预置项目首页、智能体交接、镜头索引、审阅地图和镜头流水线打开路径。已有用户 `.obsidian` 文件不会被覆盖；建议副本会写入 `.obsidian/ai-video-workflow-suggested/`。
 
 如果要对可选打开体验做发版 QA，可以在 `pnpm build` 后运行 `pnpm example:obsidian:ui`。它会用 `--include-obsidian-ui` 导出官方示例并验证生成的 vault，但不会自动启动 Obsidian。
 

@@ -33,10 +33,10 @@ Future Obsidian, LibTV, MCP, and agent-platform work should attach as adapters, 
 `sync --ide codex|cursor|claude-code|trae` initializes a shared agent workspace in each project:
 
 - `AGENTS.md` is the cross-agent root entry.
-- `docs/ai-workspace/` records shared boundaries, handoffs, platform matrix, and security rules.
+- `文档/智能体工作区/` records shared boundaries, handoffs, platform matrix, and security rules.
 - Platform runtime mirrors remain adapter surfaces, not project truth.
 - Cherry Studio is documented as a working-directory adapter; it does not receive generated memory or persona files.
-- If a project already has a custom `AGENTS.md`, `sync` preserves it; merge the ai-video-workflow block from `docs/ai-workspace/ENTRYPOINT_RECONCILIATION.md` or `doctor` output.
+- If a project already has a custom `AGENTS.md`, `sync` preserves it; merge the ai-video-workflow block from `文档/智能体工作区/入口协调.md` or `doctor` output.
 
 See `docs/en/contributors/cross-agent-workspace.md` and `docs/en/ide-integrations/cherry-studio.md`.
 
@@ -61,15 +61,15 @@ The recommended production layout keeps the AI agent working directory at the pr
 project/_views/obsidian/
 ```
 
-Do not open the project root itself as the Obsidian vault for this workflow. `project/_views/obsidian/` contains generated viewing surfaces: `Workflow/`, `Shots/`, `Bases/`, `Canvas/`, dashboards, and `Projection Manifest.json`. `Notes/` is user-authored and preserved by incremental export, but it is not the Step source of truth. Step 1 to Step 6 files remain the only creative source.
+Do not open the project root itself as the Obsidian vault for this workflow. `project/_views/obsidian/` contains generated viewing surfaces: `流程/`, `镜头/`, `数据表/`, `画布/`, `00_项目首页.md`, and `投影清单.json`. `笔记/` is user-authored and preserved by incremental export, but it is not the Step source of truth. Files under `01_概念策划/` through `06_执行计划/` remain the only creative source.
 
-This command exports the official example into the in-project Obsidian view layer and verifies dashboards, Bases, Canvas, manifest hashes, and source paths. External vault mode remains supported with `export-obsidian --project <path> --out <vault-path>` and `verify-obsidian --project <path> --vault <vault-path>`.
+This command exports the official example into the in-project Obsidian view layer and verifies the Chinese dashboards, Bases, Canvas files, projection manifest hashes, and source paths. External vault mode remains supported with `export-obsidian --project <path> --out <vault-path>` and `verify-obsidian --project <path> --vault <vault-path>`.
 
 `export-obsidian` uses safe incremental export by default: repeated exports to the same vault update generated projection files while preserving user-authored Obsidian notes. Use `--force` for a clean rebuild, or `--dry-run` to print create/update/skip/keep operations without writing files. `--force` deletes the output vault before rebuilding and is blocked if that vault contains `.git`.
 
-Use `04_Agent_Handoff.md` and the `Agent Handoff` section in each shot page to copy source-file context into an agent conversation. The agent should edit source Step files, not generated Obsidian projection files.
+Use `04_智能体交接.md` and the agent handoff section in each shot page to copy source-file context into an agent conversation. The agent should edit source Step files, not generated Obsidian projection files.
 
-By default the exporter does not write `.obsidian/`. Use `--include-obsidian-ui` only when you want optional suggested Bookmarks and Workspace for the open-vault path: Project Home, Agent Handoff, Shot Index, Review Map, and Shot Pipeline. Existing user `.obsidian` files are not overwritten; suggested copies are written under `.obsidian/ai-video-workflow-suggested/`.
+By default the exporter does not write `.obsidian/`. Use `--include-obsidian-ui` only when you want optional suggested Bookmarks and Workspace for the open-vault path: `00_项目首页.md`, `04_智能体交接.md`, `02_镜头索引.md`, `画布/审阅地图.canvas`, and `画布/镜头流水线.canvas`. Existing user `.obsidian` files are not overwritten; suggested copies are written under `.obsidian/ai-video-workflow-suggested/`.
 
 For release QA of the optional opening experience, run `pnpm example:obsidian:ui` after `pnpm build`. This exports the official sample with `--include-obsidian-ui` and verifies the generated vault without launching Obsidian automatically.
 

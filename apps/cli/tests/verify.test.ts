@@ -144,8 +144,8 @@ describe("verifyProject", () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-nested-project-"));
     tempRoots.push(root);
     const projectRoot = await createSyncedProject(root, "codex");
-    await fs.ensureDir(path.join(projectRoot, "01_concept", "child"));
-    await fs.writeFile(path.join(projectRoot, "01_concept", "child", "project.config.yaml"), "pack: official-ai-video\n", "utf8");
+    await fs.ensureDir(path.join(projectRoot, "01_概念策划", "child"));
+    await fs.writeFile(path.join(projectRoot, "01_概念策划", "child", "project.config.yaml"), "pack: official-ai-video\n", "utf8");
 
     const result = await verifyProject({
       projectRoot,
@@ -158,7 +158,7 @@ describe("verifyProject", () => {
       expect.arrayContaining([
         expect.objectContaining({
           code: "nested-project",
-          path: path.join("01_concept", "child", "project.config.yaml")
+          path: path.join("01_概念策划", "child", "project.config.yaml")
         })
       ])
     );
@@ -266,10 +266,10 @@ describe("verifyProject", () => {
         "",
         "## ai-video-workflow",
         "",
-        "Marker: ai-video-workflow shared agent entry.",
+        "标记：ai-video-workflow 共享智能体入口。",
         "",
-        "- Read `docs/ai-workspace/README.md` before changing files.",
-        "- Treat `project-step-files` as the source of truth."
+        "- 修改文件前读取 `文档/智能体工作区/入口说明.md`。",
+        "- 将 `project-step-files` 作为事实源。"
       ].join("\n"),
       "utf8"
     );
@@ -287,7 +287,7 @@ describe("verifyProject", () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-missing-shared-doc-"));
     tempRoots.push(root);
     const projectRoot = await createSyncedProject(root, "cursor");
-    await fs.remove(path.join(projectRoot, "docs", "ai-workspace", "BOUNDARIES.md"));
+    await fs.remove(path.join(projectRoot, "文档", "智能体工作区", "边界说明.md"));
 
     const result = await verifyProject({
       projectRoot,
@@ -300,7 +300,7 @@ describe("verifyProject", () => {
       expect.arrayContaining([
         expect.objectContaining({
           code: "missing-shared-agent-doc",
-          path: "docs/ai-workspace/BOUNDARIES.md"
+          path: "文档/智能体工作区/边界说明.md"
         })
       ])
     );
@@ -310,7 +310,7 @@ describe("verifyProject", () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-missing-entrypoint-doc-"));
     tempRoots.push(root);
     const projectRoot = await createSyncedProject(root, "cursor");
-    const docPath = "docs/ai-workspace/ENTRYPOINT_RECONCILIATION.md";
+    const docPath = "文档/智能体工作区/入口协调.md";
     await fs.remove(path.join(projectRoot, docPath));
 
     const result = await verifyProject({
@@ -334,7 +334,7 @@ describe("verifyProject", () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-invalid-entrypoint-doc-"));
     tempRoots.push(root);
     const projectRoot = await createSyncedProject(root, "cursor");
-    const docPath = "docs/ai-workspace/ENTRYPOINT_RECONCILIATION.md";
+    const docPath = "文档/智能体工作区/入口协调.md";
     await fs.writeFile(path.join(projectRoot, docPath), "# Entrypoint Reconciliation\n", "utf8");
 
     const result = await verifyProject({
@@ -386,8 +386,8 @@ describe("verifyProject", () => {
     tempRoots.push(root);
 
     const projectRoot = path.join(root, "bad-project");
-    await fs.ensureDir(path.join(projectRoot, "04_image_prompts"));
-    await fs.ensureDir(path.join(projectRoot, "06_execution_plan"));
+    await fs.ensureDir(path.join(projectRoot, "04_图片提示词"));
+    await fs.ensureDir(path.join(projectRoot, "06_执行计划"));
     await fs.writeFile(
       path.join(projectRoot, "project.config.yaml"),
       [
@@ -403,7 +403,7 @@ describe("verifyProject", () => {
       "utf8"
     );
     await fs.writeFile(
-      path.join(projectRoot, "04_image_prompts", "shot-01.md"),
+      path.join(projectRoot, "04_图片提示词", "shot-01.md"),
       [
         "# Shot 01",
         "",
@@ -414,6 +414,10 @@ describe("verifyProject", () => {
         "中文完整版本",
         "",
         "参考前文继续写，模型应自行理解剧情。",
+        "",
+        "可复制提示词",
+        "",
+        "主体在夜色中前行。",
         "",
         "[bad](G:\\absolute\\path.md)"
       ].join("\n"),
@@ -443,8 +447,8 @@ describe("verifyProject", () => {
     tempRoots.push(root);
 
     const projectRoot = path.join(root, "bad-links");
-    await fs.ensureDir(path.join(projectRoot, "01_concept"));
-    await fs.ensureDir(path.join(projectRoot, "06_execution_plan"));
+    await fs.ensureDir(path.join(projectRoot, "01_概念策划"));
+    await fs.ensureDir(path.join(projectRoot, "06_执行计划"));
     await fs.writeFile(
       path.join(projectRoot, "project.config.yaml"),
       [
@@ -461,11 +465,11 @@ describe("verifyProject", () => {
       ].join("\n"),
       "utf8"
     );
-    await fs.writeFile(path.join(projectRoot, "06_execution_plan", "00_execution_plan.md"), "# Plan\n", "utf8");
-    await fs.writeFile(path.join(projectRoot, "06_execution_plan", "01_image_execution_plan.md"), "# Images\n", "utf8");
-    await fs.writeFile(path.join(projectRoot, "06_execution_plan", "02_video_execution_plan.md"), "# Videos\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "06_执行计划", "00_执行计划.md"), "# 计划\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "06_执行计划", "01_图片执行计划.md"), "# 图片\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "06_执行计划", "02_视频执行计划.md"), "# 视频\n", "utf8");
     await fs.writeFile(
-      path.join(projectRoot, "01_concept", "story.md"),
+      path.join(projectRoot, "01_概念策划", "story.md"),
       "[bad](file:///C:/Users/example/story.md)\n",
       "utf8"
     );
@@ -481,7 +485,7 @@ describe("verifyProject", () => {
       expect.arrayContaining([
         expect.objectContaining({
           code: "absolute-path-link",
-          path: path.join("01_concept", "story.md")
+          path: path.join("01_概念策划", "story.md")
         })
       ])
     );
@@ -520,8 +524,8 @@ describe("verifyProject", () => {
     const outRoot = path.join(projectRoot, "_views", "obsidian");
 
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, inProjectView: true });
-    await fs.writeFile(path.join(outRoot, "Notes", "manual.md"), "[local](G:\\private\\note.md)\n", "utf8");
-    await fs.writeFile(path.join(outRoot, "Workflow", "manual-generated.md"), "[local](file:///C:/private/generated.md)\n", "utf8");
+    await fs.writeFile(path.join(outRoot, "笔记", "manual.md"), "[local](G:\\private\\note.md)\n", "utf8");
+    await fs.writeFile(path.join(outRoot, "流程", "manual-generated.md"), "[local](file:///C:/private/generated.md)\n", "utf8");
 
     const result = await verifyProject({
       projectRoot,
@@ -568,9 +572,9 @@ describe("verifyProject", () => {
     tempRoots.push(root);
 
     const projectRoot = path.join(root, "bad-trace");
-    await fs.ensureDir(path.join(projectRoot, "03_storyboard"));
-    await fs.ensureDir(path.join(projectRoot, "04_image_prompts"));
-    await fs.ensureDir(path.join(projectRoot, "06_execution_plan"));
+    await fs.ensureDir(path.join(projectRoot, "03_分镜脚本"));
+    await fs.ensureDir(path.join(projectRoot, "04_图片提示词"));
+    await fs.ensureDir(path.join(projectRoot, "06_执行计划"));
     await fs.writeFile(
       path.join(projectRoot, "project.config.yaml"),
       [
@@ -587,12 +591,12 @@ describe("verifyProject", () => {
       ].join("\n"),
       "utf8"
     );
-    await fs.writeFile(path.join(projectRoot, "06_execution_plan", "00_execution_plan.md"), "# Plan\n", "utf8");
-    await fs.writeFile(path.join(projectRoot, "06_execution_plan", "01_image_execution_plan.md"), "# Images\n", "utf8");
-    await fs.writeFile(path.join(projectRoot, "06_execution_plan", "02_video_execution_plan.md"), "# Videos\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "06_执行计划", "00_执行计划.md"), "# 计划\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "06_执行计划", "01_图片执行计划.md"), "# 图片\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "06_执行计划", "02_视频执行计划.md"), "# 视频\n", "utf8");
     await fs.writeFile(
-      path.join(projectRoot, "03_storyboard", "shot-001.md"),
-      "[missing](../04_image_prompts/missing.md)\n",
+      path.join(projectRoot, "03_分镜脚本", "镜头-001.md"),
+      "[missing](../04_图片提示词/missing.md)\n",
       "utf8"
     );
 
@@ -607,7 +611,7 @@ describe("verifyProject", () => {
       expect.arrayContaining([
         expect.objectContaining({
           code: "broken-step3-step4-link",
-          path: path.join("03_storyboard", "shot-001.md")
+          path: path.join("03_分镜脚本", "镜头-001.md")
         })
       ])
     );
