@@ -1,9 +1,17 @@
 import type { ObsidianGeneratedFile, ObsidianSourceFile } from "./types.js";
 import { workflowVaultPath } from "./markdown.js";
 import { shotReviewCanvasPath } from "./canvas.js";
+import { notesIndexLink, notesIndexPath } from "./routes.js";
 
 function uniqueShotIds(sourceFiles: ObsidianSourceFile[]): string[] {
   return [...new Set(sourceFiles.map((file) => file.shotId).filter((shotId): shotId is string => Boolean(shotId)))].sort();
+}
+
+function shotDisplayName(shotId: string, sourceFiles: ObsidianSourceFile[]): string {
+  const shotFiles = sourceFiles.filter((file) => file.shotId === shotId);
+  const storyboard = shotFiles.find((file) => file.sourceKind === "storyboard");
+  const title = storyboard?.headingTitle ?? storyboard?.title ?? shotFiles[0]?.headingTitle ?? shotFiles[0]?.title;
+  return title?.trim() || shotId;
 }
 
 function shotOrder(shotId: string): number | undefined {
@@ -29,13 +37,13 @@ function sourcePathForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSour
   return fileForKind(sourceFiles, kind)?.sourcePath ?? "missing";
 }
 
-function shotNavigation(shotId: string, shotIds: string[]): string {
+function shotNavigation(shotId: string, shotIds: string[], sourceFiles: ObsidianSourceFile[]): string {
   const index = shotIds.indexOf(shotId);
   const previousShotId = index > 0 ? shotIds[index - 1] : undefined;
   const nextShotId = index >= 0 && index < shotIds.length - 1 ? shotIds[index + 1] : undefined;
   return [
-    previousShotId ? `- 上一镜头：[[镜头/${previousShotId}|${previousShotId}]]` : "- 上一镜头：无",
-    nextShotId ? `- 下一镜头：[[镜头/${nextShotId}|${nextShotId}]]` : "- 下一镜头：无"
+    previousShotId ? `- 上一镜头：[[镜头/${previousShotId}|${shotDisplayName(previousShotId, sourceFiles)}]]` : "- 上一镜头：无",
+    nextShotId ? `- 下一镜头：[[镜头/${nextShotId}|${shotDisplayName(nextShotId, sourceFiles)}]]` : "- 下一镜头：无"
   ].join("\n");
 }
 
@@ -48,6 +56,7 @@ function renderShotAgentHandoff(shotId: string, shotFiles: ObsidianSourceFile[],
   const imagePromptSourcePath = sourcePathForKind(shotFiles, "image-prompt");
   const videoPromptSourcePath = sourcePathForKind(shotFiles, "video-prompt");
   const executionPlanSourcePath = sourcePathForKind(allSourceFiles, "execution-plan");
+  const displayName = shotDisplayName(shotId, allSourceFiles);
   return `## 智能体交接
 
 这一段用于把当前镜头上下文复制到智能体对话里。反馈写在智能体聊天中，不要编辑生成的 Obsidian 观看层文件。
@@ -70,7 +79,7 @@ function renderShotAgentHandoff(shotId: string, shotFiles: ObsidianSourceFile[],
 ### 可复制提示词
 
 \`\`\`text
-请检查 ${shotId} 的步骤三分镜脚本、步骤四图片提示词和步骤五视频提示词。
+请检查 ${displayName}（${shotId}）的步骤三分镜脚本、步骤四图片提示词和步骤五视频提示词。
 
 源文件：
 - 分镜脚本：${storyboardSourcePath}
@@ -96,6 +105,7 @@ function renderShotHub(shotId: string, shotFiles: ObsidianSourceFile[], allSourc
   const sourcePathLine = sourcePath ? `source_path: ${sourcePath}\n` : "";
   const order = shotOrder(shotId);
   const shotOrderLine = order === undefined ? "" : `shot_order: ${order}\n`;
+  const displayName = shotDisplayName(shotId, allSourceFiles);
   const storyboard = fileForKind(shotFiles, "storyboard");
   const imagePrompt = fileForKind(shotFiles, "image-prompt");
   const videoPrompt = fileForKind(shotFiles, "video-prompt");
@@ -125,7 +135,7 @@ tags:
   - ai-video/status/ready
 ---
 
-# ${shotId}
+# ${displayName}
 
 ## 沉浸式审阅
 
@@ -134,14 +144,14 @@ tags:
 - 视频提示词：${linkForKind(shotFiles, "video-prompt", "视频提示词")}
 - 执行计划：${linkForKind(allSourceFiles, "execution-plan", "执行计划")}
 - 审阅画布：[[${reviewCanvasPath}|镜头审阅画布]]
-- 用户审阅笔记：[[笔记/镜头审阅/${shotId}|${shotId} 审阅笔记]]
+- 用户审阅笔记：[[笔记/镜头审阅/${shotId}|${displayName} 审阅笔记]]
 
 ## 审阅路径
 
 - 审阅总览：[[01_审阅总览]]
 - 制作看板：[[03_制作看板]]
 - 审阅地图：[[画布/审阅地图.canvas]]
-${shotNavigation(shotId, shotIds)}
+${shotNavigation(shotId, shotIds, allSourceFiles)}
 
 ## 源文件序列
 
@@ -177,7 +187,7 @@ ${renderShotAgentHandoff(shotId, shotFiles, allSourceFiles)}
 
 ## 用户笔记
 
-持久审阅意见写到 [[笔记/镜头审阅/${shotId}|笔记/镜头审阅/${shotId}]]，这样增量导出可以持续替换生成文件。
+持久审阅意见写到 [[笔记/镜头审阅/${shotId}|${displayName} 审阅笔记]]，这样增量导出可以持续替换生成文件。
 
 ## 审阅画布
 
@@ -186,8 +196,10 @@ ${renderShotAgentHandoff(shotId, shotFiles, allSourceFiles)}
   };
 }
 
-function renderAgentHandoffPage(shotIds: string[]): ObsidianGeneratedFile {
-  const shotLinks = shotIds.length > 0 ? shotIds.map((shotId) => `- [[镜头/${shotId}|${shotId}]] - [[画布/镜头审阅/${shotId}.canvas|审阅画布]]`).join("\n") : "- 尚未发现镜头文件。";
+function renderAgentHandoffPage(shotIds: string[], sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedFile {
+  const shotLinks = shotIds.length > 0
+    ? shotIds.map((shotId) => `- [[镜头/${shotId}|${shotDisplayName(shotId, sourceFiles)}]] - [[画布/镜头审阅/${shotId}.canvas|审阅画布]]`).join("\n")
+    : "- 尚未发现镜头文件。";
   return {
     vaultPath: "04_智能体交接.md",
     content: `# 智能体交接
@@ -289,7 +301,9 @@ function renderCommunityPluginRecipes(): ObsidianGeneratedFile {
 
 export function renderDashboardFiles(projectName: string, sourceFiles: ObsidianSourceFile[], includePluginRecipes: boolean): ObsidianGeneratedFile[] {
   const shotIds = uniqueShotIds(sourceFiles);
-  const shotLinks = shotIds.length > 0 ? shotIds.map((shotId) => `- [[镜头/${shotId}|${shotId}]] - [[${shotReviewCanvasPath(shotId)}|审阅画布]]`).join("\n") : "- 尚未发现镜头文件。";
+  const shotLinks = shotIds.length > 0
+    ? shotIds.map((shotId) => `- [[镜头/${shotId}|${shotDisplayName(shotId, sourceFiles)}]] - [[${shotReviewCanvasPath(shotId)}|审阅画布]]`).join("\n")
+    : "- 尚未发现镜头文件。";
   const files: ObsidianGeneratedFile[] = [
     {
       vaultPath: "说明.md",
@@ -297,7 +311,7 @@ export function renderDashboardFiles(projectName: string, sourceFiles: ObsidianS
 
 打开 vault 后，从 [[00_项目首页]] 开始。用 [[02_镜头索引]] 检查镜头，用 [[画布/审阅地图.canvas|审阅地图]] 做空间导航，用 [[04_智能体交接]] 把源文件上下文复制到智能体聊天中，执行前打开 [[03_制作看板]]。
 
-不要把生成的观看层文件当作事实源。工作流修改请编辑原始步骤文件；Obsidian 专属笔记写到 [[笔记/README]]。
+不要把生成的观看层文件当作事实源。工作流修改请编辑原始步骤文件；Obsidian 专属笔记写到 [[${notesIndexLink}]]。
 `
     },
     {
@@ -319,7 +333,7 @@ export function renderDashboardFiles(projectName: string, sourceFiles: ObsidianS
 - [[02_镜头索引|镜头索引]]
 - [[03_制作看板|制作看板]]
 - [[04_智能体交接|智能体交接]]
-- [[笔记/README|Obsidian 笔记]]
+- [[${notesIndexLink}|用户笔记]]
 - [[画布/审阅地图.canvas|审阅地图]]
 - [[画布/流程图.canvas|流程图]]
 - [[画布/镜头流水线.canvas|镜头流水线]]
@@ -362,7 +376,7 @@ ${shotLinks}
 
 - 步骤源文件仍是工作流事实源。
 - 生成的观看层文件可以由 \`export-obsidian\` 刷新。
-- 用户手写 Obsidian 笔记放在 [[笔记/README|笔记]]。
+- 用户手写 Obsidian 笔记放在 [[${notesIndexLink}|笔记]]。
 
 ## 流程文件
 
@@ -409,7 +423,7 @@ tag:#ai-video/status/blocked OR tag:#ai-video/review/needs-source-link OR tag:#a
 
 ![[数据表/流程文件.base#已改动生成文件]]
 
-当这个队列显示可能的投影冲突时，使用 \`verify-obsidian\`。持久审阅笔记请移到 [[笔记/README|笔记]]，不要直接编辑生成文件。
+当这个队列显示可能的投影冲突时，使用 \`verify-obsidian\`。持久审阅笔记请移到 [[${notesIndexLink}|笔记]]，不要直接编辑生成文件。
 
 ## 智能体交接
 
@@ -517,8 +531,8 @@ tags:
 `
     },
     {
-      vaultPath: "笔记/README.md",
-      content: `# Obsidian 笔记
+      vaultPath: notesIndexPath,
+      content: `# 笔记说明
 
 这个文件夹用于存放 Obsidian 专属笔记、审阅意见、会议记录和研究材料，它们可以放在生成观看层旁边。
 
@@ -527,7 +541,7 @@ tags:
 如果你编辑了生成文件，下一次增量导出会跳过那个文件，并报告 \`skipped-user-modified\`。
 `
     },
-    renderAgentHandoffPage(shotIds),
+    renderAgentHandoffPage(shotIds, sourceFiles),
     ...shotIds.map((shotId) => renderShotHub(shotId, sourceFiles.filter((file) => file.shotId === shotId), sourceFiles, shotIds))
   ];
   if (includePluginRecipes) {

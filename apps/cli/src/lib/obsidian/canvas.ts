@@ -1,4 +1,5 @@
 import { workflowVaultPath } from "./markdown.js";
+import { notesIndexPath } from "./routes.js";
 import type { ObsidianGeneratedFile, ObsidianSourceFile } from "./types.js";
 
 interface CanvasNode {
@@ -45,6 +46,13 @@ function canvasJson(canvas: CanvasFile): string {
 
 function uniqueShotIds(sourceFiles: ObsidianSourceFile[]): string[] {
   return [...new Set(sourceFiles.map((file) => file.shotId).filter((shotId): shotId is string => Boolean(shotId)))].sort();
+}
+
+function shotDisplayName(sourceFiles: ObsidianSourceFile[], shotId: string): string {
+  const shotFiles = sourceFiles.filter((file) => file.shotId === shotId);
+  const storyboard = shotFiles.find((file) => file.sourceKind === "storyboard");
+  const title = storyboard?.headingTitle ?? storyboard?.title ?? shotFiles[0]?.headingTitle ?? shotFiles[0]?.title;
+  return title?.trim() || shotId;
 }
 
 function shotFileForKind(sourceFiles: ObsidianSourceFile[], shotId: string, sourceKind: ObsidianSourceFile["sourceKind"]): ObsidianSourceFile | undefined {
@@ -180,7 +188,7 @@ export function renderShotPipelineCanvas(sourceFiles: ObsidianSourceFile[]): Obs
     nodes.push({
       id: `shot-${shotIndex}-group`,
       type: "group",
-      label: shotId,
+      label: shotDisplayName(sourceFiles, shotId),
       x: 0,
       y: shotIndex * 460,
       width: 1200,
@@ -289,7 +297,7 @@ export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): Obs
       {
         id: "notes",
         type: "file",
-        file: "笔记/README.md",
+        file: notesIndexPath,
         x: 420,
         y: 120,
         width: 320,
@@ -377,7 +385,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "notes",
       type: "file",
-      file: "笔记/README.md",
+      file: notesIndexPath,
       x: 0,
       y: 240,
       width: 300,

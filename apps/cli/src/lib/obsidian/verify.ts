@@ -7,6 +7,7 @@ import type { VerificationIssue, VerificationResult } from "../types.js";
 import { projectRootIssues } from "../project-root.js";
 import { parseYaml } from "../yaml.js";
 import { hashContent, projectionManifestPath, readProjectionManifest } from "./manifest.js";
+import { notesIndexPath } from "./routes.js";
 import type { ObsidianProjectionManifest, ObsidianProjectionManifestEntry } from "./types.js";
 
 const requiredDashboardMarkers: Record<string, string[]> = {
@@ -32,7 +33,7 @@ const requiredBookmarkPaths = [
   "03_制作看板.md",
   "画布/审阅地图.canvas",
   "画布/镜头流水线.canvas",
-  "笔记/README.md"
+  notesIndexPath
 ];
 const requiredWorkspacePaths = ["00_项目首页.md", "04_智能体交接.md", "画布/审阅地图.canvas"];
 const requiredShotReviewMarkers = [

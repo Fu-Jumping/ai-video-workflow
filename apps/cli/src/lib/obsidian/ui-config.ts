@@ -1,4 +1,5 @@
 import type { ObsidianGeneratedFile } from "./types.js";
+import { notesIndexPath } from "./routes.js";
 
 interface SuggestedUiFile {
   fileName: string;
@@ -69,7 +70,7 @@ function suggestedFiles(): SuggestedUiFile[] {
           {
             type: "file",
             ctime: 0,
-            path: "笔记/README.md",
+            path: notesIndexPath,
             title: "笔记"
           }
         ]

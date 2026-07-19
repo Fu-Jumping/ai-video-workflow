@@ -60,7 +60,7 @@ describe("scanProjectForObsidian", () => {
     expect(files).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ sourceKind: "concept", step: 1 }),
-        expect.objectContaining({ sourceKind: "storyboard", step: 3, shotId: "shot-001" }),
+        expect.objectContaining({ sourceKind: "storyboard", step: 3, shotId: "shot-001", title: "镜头 001", headingTitle: "镜头 001：清晨前的邀请" }),
         expect.objectContaining({ sourceKind: "image-prompt", step: 4, shotId: "shot-001" }),
         expect.objectContaining({ sourceKind: "video-prompt", step: 5, shotId: "shot-001" }),
         expect.objectContaining({ sourceKind: "execution-plan", step: 6 })
@@ -229,7 +229,8 @@ describe("exportObsidianVault", () => {
     expect(home).toContain("![[数据表/流程文件.base#审阅队列]]");
     expect(home).toContain("![[画布/流程图.canvas]]");
     expect(home).toContain("[[画布/审阅地图.canvas|审阅地图]]");
-    expect(home).toContain("[[笔记/README|Obsidian 笔记]]");
+    expect(home).toContain("[[笔记/说明|用户笔记]]");
+    expect(home).not.toContain("笔记/README");
     expect(home).toContain("```query");
 
     const reviewDashboard = await fs.readFile(path.join(outRoot, "01_审阅总览.md"), "utf8");
@@ -251,6 +252,7 @@ describe("exportObsidianVault", () => {
     expect(readme).toContain("[[04_智能体交接]]");
     expect(readme).toContain("[[画布/审阅地图.canvas|审阅地图]]");
     expect(readme).toContain("[[03_制作看板]]");
+    expect(readme).toContain("[[笔记/说明]]");
   });
 
   test("exports project-level agent handoff guidance", async () => {
@@ -267,7 +269,8 @@ describe("exportObsidianVault", () => {
     expect(handoff).toContain("只编辑步骤源文件");
     expect(handoff).toContain("不要编辑生成的 Obsidian 观看层文件");
     expect(handoff).toContain("node apps/cli/dist/index.js verify --project <project-path> --ide codex");
-    expect(handoff).toContain("[[镜头/shot-001|shot-001]]");
+    expect(handoff).toContain("[[镜头/shot-001|镜头 001：清晨前的邀请]]");
+    expect(handoff).not.toContain("[[镜头/shot-001|shot-001]]");
   });
 
   test("exports immersive single-shot review pages", async () => {
@@ -292,7 +295,10 @@ describe("exportObsidianVault", () => {
     expect(shotReview).toContain("![[流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md]]");
     expect(shotReview).toContain("![[流程/步骤四 - 图片提示词/镜头 001 关键帧 - 图片提示词.md]]");
     expect(shotReview).toContain("![[流程/步骤五 - 视频提示词/镜头 001 - 视频提示词.md]]");
-    expect(shotReview).toContain("请检查 shot-001 的步骤三分镜脚本");
+    expect(shotReview).toContain("# 镜头 001：清晨前的邀请");
+    expect(shotReview).toContain("请检查 镜头 001：清晨前的邀请（shot-001）的步骤三分镜脚本");
+    expect(shotReview).toContain("[[笔记/镜头审阅/shot-001|镜头 001：清晨前的邀请 审阅笔记]]");
+    expect(shotReview).not.toContain("[[笔记/镜头审阅/shot-001|笔记/镜头审阅/shot-001]]");
     expect(shotReview).toContain("03_分镜脚本/镜头-001.md");
     expect(shotReview).toContain("04_图片提示词/镜头-001-关键帧.md");
     expect(shotReview).toContain("05_视频提示词/镜头-001.md");
@@ -336,16 +342,19 @@ describe("exportObsidianVault", () => {
 
     const shotPipeline = await fs.readJson(path.join(outRoot, "画布", "镜头流水线.canvas"));
     expect(shotPipeline.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file" })]));
+    expect(shotPipeline.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "group", label: "镜头 001：清晨前的邀请" })]));
 
     const reviewMap = await fs.readJson(path.join(outRoot, "画布", "审阅地图.canvas"));
     expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "00_项目首页.md" })]));
     expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "数据表/流程文件.base" })]));
     expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "04_智能体交接.md" })]));
+    expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "笔记/说明.md" })]));
     expect(reviewMap.edges.length).toBeGreaterThan(0);
 
     const shotReview = await fs.readJson(path.join(outRoot, "画布", "镜头审阅", "shot-001.canvas"));
     expect(shotReview.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "镜头/shot-001.md" })]));
     expect(shotReview.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "03_制作看板.md" })]));
+    expect(shotReview.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "笔记/说明.md" })]));
     expect(shotReview.nodes).toEqual(
       expect.arrayContaining([expect.objectContaining({ type: "file", file: "流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md" })])
     );
@@ -482,7 +491,8 @@ describe("exportObsidianVault", () => {
     expect(JSON.stringify(bookmarks)).toContain("03_制作看板.md");
     expect(JSON.stringify(bookmarks)).toContain("画布/审阅地图.canvas");
     expect(JSON.stringify(bookmarks)).toContain("画布/镜头流水线.canvas");
-    expect(JSON.stringify(bookmarks)).toContain("笔记/README.md");
+    expect(JSON.stringify(bookmarks)).toContain("笔记/说明.md");
+    expect(JSON.stringify(bookmarks)).not.toContain("笔记/README.md");
 
     const suggestedBookmarks = await fs.readJson(path.join(outRoot, ".obsidian", "ai-video-workflow-suggested", "bookmarks.json"));
     expect(JSON.stringify(suggestedBookmarks)).toContain("00_项目首页.md");
@@ -491,7 +501,8 @@ describe("exportObsidianVault", () => {
     expect(JSON.stringify(suggestedBookmarks)).toContain("03_制作看板.md");
     expect(JSON.stringify(suggestedBookmarks)).toContain("画布/审阅地图.canvas");
     expect(JSON.stringify(suggestedBookmarks)).toContain("画布/镜头流水线.canvas");
-    expect(JSON.stringify(suggestedBookmarks)).toContain("笔记/README.md");
+    expect(JSON.stringify(suggestedBookmarks)).toContain("笔记/说明.md");
+    expect(JSON.stringify(suggestedBookmarks)).not.toContain("笔记/README.md");
 
     const workspace = await fs.readJson(path.join(outRoot, ".obsidian", "workspace.json"));
     expect(JSON.stringify(workspace)).toContain("00_项目首页.md");

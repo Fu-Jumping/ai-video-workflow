@@ -12,6 +12,7 @@ export interface ObsidianSourceFile {
   sourceKind: ObsidianSourceKind;
   step: number;
   title: string;
+  headingTitle?: string;
   shotId?: string;
 }
 
