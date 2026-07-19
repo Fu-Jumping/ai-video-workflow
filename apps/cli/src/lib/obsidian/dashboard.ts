@@ -2,6 +2,7 @@ import type { ObsidianGeneratedFile, ObsidianSourceFile } from "./types.js";
 import { workflowVaultPath } from "./markdown.js";
 import { shotReviewCanvasPath } from "./canvas.js";
 import { notesIndexLink, notesIndexPath } from "./routes.js";
+import { obsidianProperties, obsidianPropertyValues } from "./properties.js";
 
 function uniqueShotIds(sourceFiles: ObsidianSourceFile[]): string[] {
   return [...new Set(sourceFiles.map((file) => file.shotId).filter((shotId): shotId is string => Boolean(shotId)))].sort();
@@ -47,8 +48,8 @@ function shotNavigation(shotId: string, shotIds: string[], sourceFiles: Obsidian
   ].join("\n");
 }
 
-function booleanProperty(value: boolean): string {
-  return value ? "true" : "false";
+function yesNoProperty(value: boolean): string {
+  return value ? obsidianPropertyValues.yes : obsidianPropertyValues.no;
 }
 
 function renderShotAgentHandoff(shotId: string, shotFiles: ObsidianSourceFile[], allSourceFiles: ObsidianSourceFile[]): string {
@@ -102,9 +103,9 @@ node apps/cli/dist/index.js verify-obsidian --project <project-path> --in-projec
 
 function renderShotHub(shotId: string, shotFiles: ObsidianSourceFile[], allSourceFiles: ObsidianSourceFile[], shotIds: string[]): ObsidianGeneratedFile {
   const sourcePath = shotFiles.find((file) => file.sourceKind === "storyboard")?.sourcePath ?? shotFiles[0]?.sourcePath;
-  const sourcePathLine = sourcePath ? `source_path: ${sourcePath}\n` : "";
+  const sourcePathLine = sourcePath ? `${obsidianProperties.sourcePath}: ${sourcePath}\n` : "";
   const order = shotOrder(shotId);
-  const shotOrderLine = order === undefined ? "" : `shot_order: ${order}\n`;
+  const shotOrderLine = order === undefined ? "" : `${obsidianProperties.shotOrder}: ${order}\n`;
   const displayName = shotDisplayName(shotId, allSourceFiles);
   const storyboard = fileForKind(shotFiles, "storyboard");
   const imagePrompt = fileForKind(shotFiles, "image-prompt");
@@ -113,21 +114,21 @@ function renderShotHub(shotId: string, shotFiles: ObsidianSourceFile[], allSourc
   return {
     vaultPath: `镜头/${shotId}.md`,
     content: `---
-projection_generated: true
-source_kind: index
-${sourcePathLine}shot_id: ${shotId}
-${shotOrderLine}stage_group: shot-review
-review_status: shot-review
-execution_status: prompt-ready
-needs_attention: false
-review_mode: immersive
-review_canvas: "[[${reviewCanvasPath}]]"
-review_note: "[[笔记/镜头审阅/${shotId}]]"
-agent_handoff: "[[04_智能体交接#单镜头交接|智能体交接]]"
-has_storyboard: ${booleanProperty(Boolean(storyboard))}
-has_image_prompt: ${booleanProperty(Boolean(imagePrompt))}
-has_video_prompt: ${booleanProperty(Boolean(videoPrompt))}
-status: ready
+${obsidianProperties.projectionGenerated}: ${obsidianPropertyValues.yes}
+${obsidianProperties.sourceKind}: ${obsidianPropertyValues.sourceKind.index}
+${sourcePathLine}${obsidianProperties.shotId}: ${shotId}
+${shotOrderLine}${obsidianProperties.stageGroup}: ${obsidianPropertyValues.stageGroup["shot-review"]}
+${obsidianProperties.reviewStatus}: ${obsidianPropertyValues.reviewStatus["shot-review"]}
+${obsidianProperties.executionStatus}: ${obsidianPropertyValues.executionStatus["prompt-ready"]}
+${obsidianProperties.needsAttention}: ${obsidianPropertyValues.no}
+${obsidianProperties.reviewMode}: ${obsidianPropertyValues.reviewMode.immersive}
+${obsidianProperties.reviewCanvas}: "[[${reviewCanvasPath}]]"
+${obsidianProperties.reviewNote}: "[[笔记/镜头审阅/${shotId}]]"
+${obsidianProperties.agentHandoff}: "[[04_智能体交接#单镜头交接|智能体交接]]"
+${obsidianProperties.hasStoryboard}: ${yesNoProperty(Boolean(storyboard))}
+${obsidianProperties.hasImagePrompt}: ${yesNoProperty(Boolean(imagePrompt))}
+${obsidianProperties.hasVideoPrompt}: ${yesNoProperty(Boolean(videoPrompt))}
+${obsidianProperties.status}: ${obsidianPropertyValues.ready}
 tags:
   - ai-video/project
   - ai-video/shot/${shotId}

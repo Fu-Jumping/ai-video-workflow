@@ -82,7 +82,7 @@ v0.7 起，推荐命令路径是 `--in-project-view`。导出器写入 schema ve
 
 ## 使用的 Obsidian 能力
 
-- Properties：记录 `source_path`、`source_kind`、`step`、`shot_id`、`shot_order`、`stage_group`、`review_status`、`execution_status`、`needs_attention` 和 `status`。
+- Properties：新导出的生成笔记使用中文属性，例如 `投影生成`、`源文件路径`、`源文件类型`、`步骤`、`镜头ID`、`镜头顺序`、`阶段`、`审阅状态`、`执行状态`、`需要关注` 和 `状态`。`tags`、`ai-video/...` 标签、`shot-001` 镜头机器 ID 和 `投影清单.json` schema 仍保持机器可读。
 - Tags：用 nested tags 区分步骤、文件类型、镜头和状态。
 - Markdown 内部链接：用 vault 相对链接连接生成页面。
 - Graph：根据内部链接展示工作流关系。

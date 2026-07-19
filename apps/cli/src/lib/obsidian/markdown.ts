@@ -1,6 +1,7 @@
 import path from "node:path";
 
 import { sanitizeVaultFileName, toVaultPath } from "./paths.js";
+import { obsidianProperties, obsidianPropertyValues } from "./properties.js";
 import type { ObsidianSourceFile } from "./types.js";
 
 const stepNames: Record<number, string> = {
@@ -30,7 +31,11 @@ const stepTags: Record<number, string> = {
   6: "ai-video/step/06-execution"
 };
 
-const stageGroups: Record<number, string> = {
+type StageGroup = keyof typeof obsidianPropertyValues.stageGroup;
+type ReviewStatus = keyof typeof obsidianPropertyValues.reviewStatus;
+type ExecutionStatus = keyof typeof obsidianPropertyValues.executionStatus;
+
+const stageGroups: Record<number, StageGroup> = {
   1: "foundation",
   2: "foundation",
   3: "shot-review",
@@ -67,7 +72,7 @@ function shotOrder(shotId: string | undefined): number | undefined {
   return match ? Number.parseInt(match[1], 10) : undefined;
 }
 
-function reviewStatus(sourceFile: ObsidianSourceFile): string {
+function reviewStatus(sourceFile: ObsidianSourceFile): ReviewStatus {
   if (sourceFile.step === 6) {
     return "execution-review";
   }
@@ -77,7 +82,7 @@ function reviewStatus(sourceFile: ObsidianSourceFile): string {
   return "reference";
 }
 
-function executionStatus(sourceFile: ObsidianSourceFile): string {
+function executionStatus(sourceFile: ObsidianSourceFile): ExecutionStatus {
   if (sourceFile.step === 6) {
     return "ready-for-execution";
   }
@@ -110,28 +115,29 @@ function renderTags(sourceFile: ObsidianSourceFile): string[] {
 
 export function renderFrontmatter(sourceFile: ObsidianSourceFile, projectName: string): string {
   const order = shotOrder(sourceFile.shotId);
+  const stageGroup = stageGroups[sourceFile.step] ?? "other";
   const lines = [
     "---",
-    "projection_generated: true",
-    "workflow_pack: official-ai-video",
-    `project: ${projectName}`,
-    `source_path: ${sourceFile.sourcePath}`,
-    `source_kind: ${sourceFile.sourceKind}`,
-    `step: ${sourceFile.step}`,
-    `step_name: ${stepNames[sourceFile.step] ?? sourceFile.sourceKind}`,
-    `stage_group: ${stageGroups[sourceFile.step] ?? "other"}`,
-    `review_status: ${reviewStatus(sourceFile)}`,
-    `execution_status: ${executionStatus(sourceFile)}`,
-    "needs_attention: false"
+    `${obsidianProperties.projectionGenerated}: ${obsidianPropertyValues.yes}`,
+    `${obsidianProperties.workflowPack}: official-ai-video`,
+    `${obsidianProperties.project}: ${projectName}`,
+    `${obsidianProperties.sourcePath}: ${sourceFile.sourcePath}`,
+    `${obsidianProperties.sourceKind}: ${obsidianPropertyValues.sourceKind[sourceFile.sourceKind]}`,
+    `${obsidianProperties.step}: ${sourceFile.step}`,
+    `${obsidianProperties.stepName}: ${stepNames[sourceFile.step] ?? obsidianPropertyValues.sourceKind[sourceFile.sourceKind]}`,
+    `${obsidianProperties.stageGroup}: ${obsidianPropertyValues.stageGroup[stageGroup]}`,
+    `${obsidianProperties.reviewStatus}: ${obsidianPropertyValues.reviewStatus[reviewStatus(sourceFile)]}`,
+    `${obsidianProperties.executionStatus}: ${obsidianPropertyValues.executionStatus[executionStatus(sourceFile)]}`,
+    `${obsidianProperties.needsAttention}: ${obsidianPropertyValues.no}`
   ];
   if (sourceFile.shotId) {
-    lines.push(`shot_id: ${sourceFile.shotId}`);
+    lines.push(`${obsidianProperties.shotId}: ${sourceFile.shotId}`);
     if (order !== undefined) {
-      lines.push(`shot_order: ${order}`);
+      lines.push(`${obsidianProperties.shotOrder}: ${order}`);
     }
-    lines.push(`shot_index: "[[${sourceFile.shotId}]]"`);
+    lines.push(`${obsidianProperties.shotIndex}: "[[${sourceFile.shotId}]]"`);
   }
-  lines.push("status: ready", "tags:");
+  lines.push(`${obsidianProperties.status}: ${obsidianPropertyValues.ready}`, `${obsidianProperties.tags}:`);
   for (const tag of renderTags(sourceFile)) {
     lines.push(`  - ${tag}`);
   }

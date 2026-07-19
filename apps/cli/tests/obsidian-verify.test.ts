@@ -102,6 +102,21 @@ describe("verifyObsidianVault", () => {
     expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "obsidian-manifest-hash-mismatch" })]));
   });
 
+  test("fails when a Chinese generated note is missing source path", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-cn-source-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    const generatedPath = path.join(outRoot, "流程", "步骤三 - 分镜脚本", "镜头 001 - 分镜脚本.md");
+    const content = await fs.readFile(generatedPath, "utf8");
+    await fs.writeFile(generatedPath, content.replace(/^源文件路径: .*$/m, ""), "utf8");
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "missing-obsidian-source-path" })]));
+  });
+
   test("fails when source files changed after an in-project view export", async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-stale-project-"));
     tempRoots.push(projectRoot);

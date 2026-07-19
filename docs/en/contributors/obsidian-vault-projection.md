@@ -82,7 +82,7 @@ By default, export does not write `.obsidian/`. Use `--include-obsidian-ui` only
 
 ## Obsidian Features Used
 
-- Properties: record `source_path`, `source_kind`, `step`, `shot_id`, `shot_order`, `stage_group`, `review_status`, `execution_status`, `needs_attention`, and `status`.
+- Properties: newly generated notes use Chinese property names such as `投影生成`, `源文件路径`, `源文件类型`, `步骤`, `镜头ID`, `镜头顺序`, `阶段`, `审阅状态`, `执行状态`, `需要关注`, and `状态`. `tags`, `ai-video/...` tags, `shot-001` machine IDs, and the `投影清单.json` schema remain machine-readable.
 - Tags: use nested tags for steps, file types, shots, and status.
 - Markdown internal links: connect generated vault pages with vault-relative links.
 - Graph: show workflow relationships derived from internal links.

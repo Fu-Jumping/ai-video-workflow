@@ -12,6 +12,7 @@ import {
   renderProjectionManifest
 } from "./manifest.js";
 import { renderGeneratedWorkflowNote, workflowVaultPath } from "./markdown.js";
+import { hasGeneratedFrontmatterMarker } from "./properties.js";
 import { sourcePathToFsPath } from "./paths.js";
 import { scanProjectForObsidian } from "./scan.js";
 import type {
@@ -107,7 +108,7 @@ async function isKnownGeneratedFileWithoutManifest(fullPath: string): Promise<bo
     return false;
   }
   const content = await fs.readFile(fullPath, "utf8");
-  return content.startsWith("---\n") && content.includes("\nprojection_generated: true\n");
+  return hasGeneratedFrontmatterMarker(content);
 }
 
 function manifestByVaultPath(manifest: ObsidianProjectionManifest | null): Map<string, ObsidianProjectionManifestEntry> {

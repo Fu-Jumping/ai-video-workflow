@@ -7,6 +7,7 @@ import type { VerificationIssue, VerificationResult } from "../types.js";
 import { projectRootIssues } from "../project-root.js";
 import { parseYaml } from "../yaml.js";
 import { hashContent, projectionManifestPath, readProjectionManifest } from "./manifest.js";
+import { frontmatterValue, isGeneratedFrontmatter, obsidianPropertyValues } from "./properties.js";
 import { notesIndexPath } from "./routes.js";
 import type { ObsidianProjectionManifest, ObsidianProjectionManifestEntry } from "./types.js";
 
@@ -167,7 +168,7 @@ function readFrontmatter(content: string): Record<string, string> | null {
   const frontmatter = content.slice(4, end);
   const values: Record<string, string> = {};
   for (const line of frontmatter.split(/\r?\n/)) {
-    const match = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+    const match = line.match(/^([^:\r\n]+):\s*(.*)$/u);
     if (match) {
       values[match[1]] = match[2].replace(/^"|"$/g, "");
     }
@@ -264,8 +265,8 @@ async function verifyShotReviewPages(vaultRoot: string, files: string[], issues:
   for (const file of files.filter((filePath) => filePath.startsWith("镜头/") && filePath.endsWith(".md"))) {
     const content = await fs.readFile(vaultFsPath(vaultRoot, file), "utf8");
     const frontmatter = readFrontmatter(content);
-    const shotId = frontmatter?.shot_id ?? path.basename(file, ".md");
-    if (frontmatter?.review_mode !== "immersive") {
+    const shotId = frontmatterValue(frontmatter ?? {}, "shotId") ?? path.basename(file, ".md");
+    if (frontmatterValue(frontmatter ?? {}, "reviewMode") !== obsidianPropertyValues.reviewMode.immersive) {
       pushIssue(issues, { code: "invalid-obsidian-shot-review", message: `Shot review page is missing immersive review mode: ${file}`, path: file });
     }
     for (const marker of requiredShotReviewMarkers) {
@@ -366,16 +367,16 @@ async function verifyGeneratedMarkdown(
   for (const file of files.filter((filePath) => filePath.endsWith(".md"))) {
     const content = await fs.readFile(vaultFsPath(vaultRoot, file), "utf8");
     const frontmatter = readFrontmatter(content);
-    if (frontmatter?.projection_generated !== "true") {
+    if (!isGeneratedFrontmatter(frontmatter)) {
       continue;
     }
-    const sourcePath = frontmatter.source_path;
+    const sourcePath = frontmatterValue(frontmatter ?? {}, "sourcePath");
     if (!sourcePath) {
-      pushIssue(issues, { code: "missing-obsidian-source-path", message: "Generated Obsidian note is missing source_path", path: file });
+      pushIssue(issues, { code: "missing-obsidian-source-path", message: "Generated Obsidian note is missing 源文件路径", path: file });
       continue;
     }
     if (!isRelativeVaultPath(sourcePath) || !(await fs.pathExists(sourceFsPath(projectRoot, sourcePath)))) {
-      pushIssue(issues, { code: "broken-obsidian-source-path", message: `Generated Obsidian source_path does not resolve: ${sourcePath}`, path: file });
+      pushIssue(issues, { code: "broken-obsidian-source-path", message: `Generated Obsidian 源文件路径 does not resolve: ${sourcePath}`, path: file });
     }
     const manifestEntry = manifestEntries.get(file);
     if (manifestEntry?.sourcePath && manifestEntry.sourcePath !== sourcePath) {

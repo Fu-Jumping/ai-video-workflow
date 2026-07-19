@@ -167,7 +167,7 @@ export async function diagnoseProject({
         lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view`; do not hand-edit generated `.base` YAML.");
       }
       if (issue.code === "missing-obsidian-source-path" || issue.code === "broken-obsidian-source-path") {
-        lines.push("  Regenerate the projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so each generated note records a valid relative `source_path`.");
+        lines.push("  Regenerate the projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so each generated note records a valid relative `源文件路径`.");
       }
       if (issue.code === "obsidian-absolute-link") {
         lines.push("  Replace the Obsidian projection link with a vault-relative path or regenerate the projection with `ai-video-workflow export-obsidian --project <path> --in-project-view`.");
