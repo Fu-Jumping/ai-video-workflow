@@ -266,7 +266,7 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
     const originalContent = await fs.readFile(sourcePathToFsPath(projectRoot, sourceFile.sourcePath), "utf8");
     workflowFiles.push({
       vaultPath: workflowVaultPath(sourceFile),
-      content: renderGeneratedWorkflowNote(sourceFile, originalContent, projectName),
+      content: renderGeneratedWorkflowNote(sourceFile, originalContent, projectName, sourceFiles),
       sourcePath: sourceFile.sourcePath,
       sourceContent: originalContent
     });

@@ -204,6 +204,10 @@ describe("exportObsidianVault", () => {
     expect(storyboard).toContain("执行状态: 不适用");
     expect(storyboard).toContain("需要关注: 否");
     expect(storyboard).toContain("镜头顺序: 1");
+    expect(storyboard).toContain('镜头索引: "[[镜头/shot-001|镜头 001：清晨前的邀请]]"');
+    expect(storyboard).toContain("- 镜头索引：[[镜头/shot-001|镜头 001：清晨前的邀请]]");
+    expect(storyboard).not.toContain('镜头索引: "[[shot-001]]"');
+    expect(storyboard).not.toContain("- 镜头索引：[[shot-001]]");
     expect(storyboard).not.toContain("projection_generated:");
     expect(storyboard).not.toContain("source_path:");
     expect(storyboard).not.toContain("review_status:");

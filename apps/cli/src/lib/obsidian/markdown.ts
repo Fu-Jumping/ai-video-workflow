@@ -72,6 +72,23 @@ function shotOrder(shotId: string | undefined): number | undefined {
   return match ? Number.parseInt(match[1], 10) : undefined;
 }
 
+function shotDisplayName(sourceFile: ObsidianSourceFile, sourceFiles: ObsidianSourceFile[] = [sourceFile]): string {
+  if (!sourceFile.shotId) {
+    return sourceFile.headingTitle?.trim() || sourceFile.title;
+  }
+  const shotFiles = sourceFiles.filter((file) => file.shotId === sourceFile.shotId);
+  const storyboard = shotFiles.find((file) => file.sourceKind === "storyboard");
+  const title = storyboard?.headingTitle ?? storyboard?.title ?? sourceFile.headingTitle ?? sourceFile.title;
+  return title?.trim() || sourceFile.shotId;
+}
+
+function shotIndexLink(sourceFile: ObsidianSourceFile, sourceFiles: ObsidianSourceFile[] = [sourceFile]): string | undefined {
+  if (!sourceFile.shotId) {
+    return undefined;
+  }
+  return `[[镜头/${sourceFile.shotId}|${shotDisplayName(sourceFile, sourceFiles)}]]`;
+}
+
 function reviewStatus(sourceFile: ObsidianSourceFile): ReviewStatus {
   if (sourceFile.step === 6) {
     return "execution-review";
@@ -113,7 +130,7 @@ function renderTags(sourceFile: ObsidianSourceFile): string[] {
   return tags;
 }
 
-export function renderFrontmatter(sourceFile: ObsidianSourceFile, projectName: string): string {
+export function renderFrontmatter(sourceFile: ObsidianSourceFile, projectName: string, sourceFiles: ObsidianSourceFile[] = [sourceFile]): string {
   const order = shotOrder(sourceFile.shotId);
   const stageGroup = stageGroups[sourceFile.step] ?? "other";
   const lines = [
@@ -135,7 +152,7 @@ export function renderFrontmatter(sourceFile: ObsidianSourceFile, projectName: s
     if (order !== undefined) {
       lines.push(`${obsidianProperties.shotOrder}: ${order}`);
     }
-    lines.push(`${obsidianProperties.shotIndex}: "[[${sourceFile.shotId}]]"`);
+    lines.push(`${obsidianProperties.shotIndex}: "${shotIndexLink(sourceFile, sourceFiles)}"`);
   }
   lines.push(`${obsidianProperties.status}: ${obsidianPropertyValues.ready}`, `${obsidianProperties.tags}:`);
   for (const tag of renderTags(sourceFile)) {
@@ -145,7 +162,12 @@ export function renderFrontmatter(sourceFile: ObsidianSourceFile, projectName: s
   return lines.join("\n");
 }
 
-export function renderGeneratedWorkflowNote(sourceFile: ObsidianSourceFile, originalContent: string, projectName: string): string {
+export function renderGeneratedWorkflowNote(
+  sourceFile: ObsidianSourceFile,
+  originalContent: string,
+  projectName: string,
+  sourceFiles: ObsidianSourceFile[] = [sourceFile]
+): string {
   const navigation = [
     `> 这是生成的 Obsidian 观看层文件。需要修改项目事实时，请编辑源文件：\`${sourceFile.sourcePath}\`。`,
     "",
@@ -159,8 +181,8 @@ export function renderGeneratedWorkflowNote(sourceFile: ObsidianSourceFile, orig
     `- 源路径：\`${sourceFile.sourcePath}\``
   ];
   if (sourceFile.shotId) {
-    navigation.splice(5, 0, `- 镜头索引：[[${sourceFile.shotId}]]`);
+    navigation.splice(5, 0, `- 镜头索引：${shotIndexLink(sourceFile, sourceFiles)}`);
   }
 
-  return [renderFrontmatter(sourceFile, projectName), "", ...navigation, "", stripFrontmatter(originalContent).trim(), ""].join("\n");
+  return [renderFrontmatter(sourceFile, projectName, sourceFiles), "", ...navigation, "", stripFrontmatter(originalContent).trim(), ""].join("\n");
 }
