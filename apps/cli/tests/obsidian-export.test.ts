@@ -361,10 +361,24 @@ describe("exportObsidianVault", () => {
     const workflowMap = await fs.readJson(path.join(outRoot, "画布", "流程图.canvas"));
     expect(workflowMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "group", label: "步骤 3" })]));
     expect(workflowMap.edges.length).toBeGreaterThan(0);
+    const workflowStep3Group = workflowMap.nodes.find((node: { label?: string }) => node.label === "步骤 3");
+    expect(workflowStep3Group.width).toBeGreaterThanOrEqual(560);
+    expect(workflowStep3Group.height).toBeGreaterThanOrEqual(900);
+    const workflowStoryboard = workflowMap.nodes.find((node: { file?: string }) => node.file === "流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md");
+    expect(workflowStoryboard.width).toBeGreaterThanOrEqual(480);
+    expect(workflowStoryboard.height).toBeGreaterThanOrEqual(170);
 
     const shotPipeline = await fs.readJson(path.join(outRoot, "画布", "镜头流水线.canvas"));
     expect(shotPipeline.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file" })]));
     expect(shotPipeline.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "group", label: "镜头 001：清晨前的邀请" })]));
+    const shotPipelineGroup = shotPipeline.nodes.find((node: { label?: string }) => node.label === "镜头 001：清晨前的邀请");
+    expect(shotPipelineGroup.width).toBeGreaterThanOrEqual(2000);
+    expect(shotPipelineGroup.height).toBeGreaterThanOrEqual(520);
+    const pipelineStoryboard = shotPipeline.nodes.find((node: { file?: string }) => node.file === "流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md");
+    const pipelineImagePrompt = shotPipeline.nodes.find((node: { file?: string }) => node.file === "流程/步骤四 - 图片提示词/镜头 001 关键帧 - 图片提示词.md");
+    expect(pipelineStoryboard.width).toBeGreaterThanOrEqual(520);
+    expect(pipelineStoryboard.height).toBeGreaterThanOrEqual(200);
+    expect(pipelineImagePrompt.x - pipelineStoryboard.x).toBeGreaterThanOrEqual(640);
 
     const reviewMap = await fs.readJson(path.join(outRoot, "画布", "审阅地图.canvas"));
     expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "00_项目首页.md" })]));
@@ -372,6 +386,11 @@ describe("exportObsidianVault", () => {
     expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "04_智能体交接.md" })]));
     expect(reviewMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "笔记/说明.md" })]));
     expect(reviewMap.edges.length).toBeGreaterThan(0);
+    const reviewHome = reviewMap.nodes.find((node: { file?: string }) => node.file === "00_项目首页.md");
+    const reviewShotIndex = reviewMap.nodes.find((node: { file?: string }) => node.file === "02_镜头索引.md");
+    expect(reviewHome.width).toBeGreaterThanOrEqual(460);
+    expect(reviewHome.height).toBeGreaterThanOrEqual(170);
+    expect(reviewShotIndex.x - reviewHome.x).toBeGreaterThanOrEqual(700);
 
     const shotReview = await fs.readJson(path.join(outRoot, "画布", "镜头审阅", "shot-001.canvas"));
     expect(shotReview.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "镜头/shot-001.md" })]));
@@ -391,6 +410,17 @@ describe("exportObsidianVault", () => {
         .filter((node: { type?: string }) => node.type === "file")
         .every((node: { file?: string }) => node.file && !path.isAbsolute(node.file) && !node.file.includes(":\\") && !node.file.includes(":/"))
     ).toBe(true);
+    const shotReviewHub = shotReview.nodes.find((node: { id?: string }) => node.id === "shot-review");
+    const shotReviewStoryboard = shotReview.nodes.find((node: { id?: string }) => node.id === "storyboard");
+    const shotReviewImagePrompt = shotReview.nodes.find((node: { id?: string }) => node.id === "image-prompt");
+    const shotReviewNotes = shotReview.nodes.find((node: { id?: string }) => node.id === "notes");
+    expect(shotReviewHub.width).toBeGreaterThanOrEqual(500);
+    expect(shotReviewHub.height).toBeGreaterThanOrEqual(200);
+    expect(shotReviewStoryboard.width).toBeGreaterThanOrEqual(520);
+    expect(shotReviewStoryboard.height).toBeGreaterThanOrEqual(240);
+    expect(shotReviewStoryboard.x - (shotReviewHub.x + shotReviewHub.width)).toBeGreaterThanOrEqual(280);
+    expect(shotReviewImagePrompt.x - (shotReviewStoryboard.x + shotReviewStoryboard.width)).toBeGreaterThanOrEqual(260);
+    expect(shotReviewNotes.y - (shotReviewHub.y + shotReviewHub.height)).toBeGreaterThanOrEqual(100);
     expect(shotReview.edges).toEqual(expect.arrayContaining([expect.objectContaining({ label: "审阅起点 / 画面" })]));
   });
 
