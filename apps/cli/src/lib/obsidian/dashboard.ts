@@ -115,6 +115,9 @@ function renderShotHub(shotId: string, shotFiles: ObsidianSourceFile[], allSourc
     vaultPath: `镜头/${shotId}.md`,
     content: `---
 ${obsidianProperties.projectionGenerated}: ${obsidianPropertyValues.yes}
+${obsidianProperties.title}: ${JSON.stringify(displayName)}
+${obsidianProperties.shotTitle}: ${JSON.stringify(displayName)}
+${obsidianProperties.nextAction}: ${obsidianPropertyValues.nextAction.index}
 ${obsidianProperties.sourceKind}: ${obsidianPropertyValues.sourceKind.index}
 ${sourcePathLine}${obsidianProperties.shotId}: ${shotId}
 ${shotOrderLine}${obsidianProperties.stageGroup}: ${obsidianPropertyValues.stageGroup["shot-review"]}

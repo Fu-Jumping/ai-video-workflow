@@ -197,6 +197,9 @@ describe("exportObsidianVault", () => {
     const storyboard = await fs.readFile(path.join(outRoot, "流程", "步骤三 - 分镜脚本", "镜头 001 - 分镜脚本.md"), "utf8");
     expect(storyboard).toContain("投影生成: 是");
     expect(storyboard).toContain("工作流包: official-ai-video");
+    expect(storyboard).toContain('标题: "镜头 001：清晨前的邀请"');
+    expect(storyboard).toContain('镜头标题: "镜头 001：清晨前的邀请"');
+    expect(storyboard).toContain("下一步: 审阅镜头画面");
     expect(storyboard).toContain("源文件路径: 03_分镜脚本/镜头-001.md");
     expect(storyboard).toContain("源文件类型: 分镜脚本");
     expect(storyboard).toContain("阶段: 镜头审阅");
@@ -291,6 +294,9 @@ describe("exportObsidianVault", () => {
     await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const shotReview = await fs.readFile(path.join(outRoot, "镜头", "shot-001.md"), "utf8");
+    expect(shotReview).toContain('标题: "镜头 001：清晨前的邀请"');
+    expect(shotReview).toContain('镜头标题: "镜头 001：清晨前的邀请"');
+    expect(shotReview).toContain("下一步: 检查镜头对齐");
     expect(shotReview).toContain("审阅模式: 沉浸式");
     expect(shotReview).toContain('审阅画布: "[[画布/镜头审阅/shot-001.canvas]]"');
     expect(shotReview).toContain('审阅笔记: "[[笔记/镜头审阅/shot-001]]"');
@@ -333,23 +339,35 @@ describe("exportObsidianVault", () => {
     expect(shotsBase).toContain("镜头进度");
     expect(shotsBase).toContain("沉浸式审阅");
     expect(shotsBase).toContain("智能体交接");
+    expect(shotsBase).toContain("标题:");
+    expect(shotsBase).toContain("镜头标题:");
+    expect(shotsBase).toContain("下一步:");
     expect(shotsBase).toContain("镜头ID:");
     expect(shotsBase).toContain("智能体交接:");
     expect(shotsBase).toContain("审阅画布:");
     expect(shotsBase).toContain("审阅笔记:");
-    expect(shotsBase).toContain("property: 镜头ID");
+    expect(shotsBase).toContain("property: 镜头标题");
+    expect(shotsBase).toMatch(/name: 镜头表[\s\S]*order:\s*\n\s*- 镜头顺序\s*\n\s*- 镜头标题\s*\n\s*- 标题\s*\n\s*- 下一步/);
     expect(shotsBase).not.toContain("shot_id:");
     expect(shotsBase).not.toContain("agent_handoff");
 
     const workflowBase = await fs.readFile(path.join(outRoot, "数据表", "流程文件.base"), "utf8");
+    expect(workflowBase).toContain("标题:");
+    expect(workflowBase).toContain("镜头标题:");
+    expect(workflowBase).toContain("下一步:");
     expect(workflowBase).toContain("审阅队列");
     expect(workflowBase).toContain("已改动生成文件");
     expect(workflowBase).toContain("property: 审阅状态");
+    expect(workflowBase).toMatch(/name: 流程文件[\s\S]*order:\s*\n\s*- 标题\s*\n\s*- 镜头标题\s*\n\s*- 步骤\s*\n\s*- 步骤名称\s*\n\s*- 源文件类型\s*\n\s*- 下一步/);
     expect(workflowBase).toContain("'投影生成 == \"是\"'");
     expect(workflowBase).not.toContain("projection_generated");
 
     const productionBase = await fs.readFile(path.join(outRoot, "数据表", "制作状态.base"), "utf8");
+    expect(productionBase).toContain("标题:");
+    expect(productionBase).toContain("镜头标题:");
+    expect(productionBase).toContain("下一步:");
     expect(productionBase).toContain("执行就绪");
+    expect(productionBase).toMatch(/name: 制作状态[\s\S]*order:\s*\n\s*- 标题\s*\n\s*- 镜头标题\s*\n\s*- 下一步\s*\n\s*- 状态/);
   });
 
   test("exports valid JSON Canvas maps", async () => {

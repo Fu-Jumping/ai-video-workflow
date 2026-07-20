@@ -9,6 +9,12 @@ export function renderBaseFiles(): ObsidianGeneratedFile[] {
   and:
     - file.hasTag("ai-video/project")
 properties:
+  ${obsidianProperties.title}:
+    displayName: ${obsidianProperties.title}
+  ${obsidianProperties.shotTitle}:
+    displayName: ${obsidianProperties.shotTitle}
+  ${obsidianProperties.nextAction}:
+    displayName: ${obsidianProperties.nextAction}
   ${obsidianProperties.stageGroup}:
     displayName: ${obsidianProperties.stageGroup}
   ${obsidianProperties.reviewStatus}:
@@ -21,6 +27,8 @@ properties:
     displayName: ${obsidianProperties.projectionGenerated}
   ${obsidianProperties.step}:
     displayName: ${obsidianProperties.step}
+  ${obsidianProperties.stepName}:
+    displayName: ${obsidianProperties.stepName}
   ${obsidianProperties.sourceKind}:
     displayName: ${obsidianProperties.sourceKind}
   ${obsidianProperties.status}:
@@ -31,12 +39,16 @@ views:
   - type: table
     name: 流程文件
     order:
-      - file.name
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.shotTitle}
       - ${obsidianProperties.step}
+      - ${obsidianProperties.stepName}
       - ${obsidianProperties.sourceKind}
+      - ${obsidianProperties.nextAction}
       - ${obsidianProperties.stageGroup}
       - ${obsidianProperties.reviewStatus}
       - ${obsidianProperties.executionStatus}
+      - ${obsidianProperties.needsAttention}
       - ${obsidianProperties.status}
       - ${obsidianProperties.sourcePath}
   - type: list
@@ -50,8 +62,10 @@ views:
       property: ${obsidianProperties.reviewStatus}
       direction: ASC
     order:
-      - file.name
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.shotTitle}
       - ${obsidianProperties.needsAttention}
+      - ${obsidianProperties.nextAction}
       - ${obsidianProperties.reviewStatus}
       - ${obsidianProperties.stageGroup}
       - ${obsidianProperties.sourceKind}
@@ -62,7 +76,8 @@ views:
       and:
         - '${obsidianProperties.projectionGenerated} == "${obsidianPropertyValues.yes}"'
     order:
-      - file.name
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.shotTitle}
       - file.mtime
       - ${obsidianProperties.sourcePath}
       - ${obsidianProperties.status}
@@ -74,6 +89,12 @@ views:
   and:
     - file.hasTag("ai-video/shot")
 properties:
+  ${obsidianProperties.title}:
+    displayName: ${obsidianProperties.title}
+  ${obsidianProperties.shotTitle}:
+    displayName: ${obsidianProperties.shotTitle}
+  ${obsidianProperties.nextAction}:
+    displayName: ${obsidianProperties.nextAction}
   ${obsidianProperties.shotId}:
     displayName: ${obsidianProperties.shotId}
   ${obsidianProperties.shotOrder}:
@@ -106,26 +127,31 @@ views:
   - type: table
     name: 镜头表
     order:
-      - file.name
       - ${obsidianProperties.shotOrder}
-      - ${obsidianProperties.shotId}
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.nextAction}
       - ${obsidianProperties.reviewStatus}
       - ${obsidianProperties.executionStatus}
+      - ${obsidianProperties.needsAttention}
       - ${obsidianProperties.status}
       - ${obsidianProperties.sourcePath}
   - type: cards
     name: 镜头卡片
     order:
-      - file.name
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.nextAction}
       - ${obsidianProperties.status}
   - type: table
     name: 镜头进度
     groupBy:
-      property: ${obsidianProperties.shotId}
+      property: ${obsidianProperties.shotTitle}
       direction: ASC
     order:
       - ${obsidianProperties.shotOrder}
-      - file.name
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.nextAction}
       - ${obsidianProperties.reviewStatus}
       - ${obsidianProperties.executionStatus}
       - ${obsidianProperties.needsAttention}
@@ -134,7 +160,9 @@ views:
     name: 沉浸式审阅
     order:
       - ${obsidianProperties.shotOrder}
-      - file.name
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.nextAction}
       - ${obsidianProperties.reviewMode}
       - ${obsidianProperties.reviewCanvas}
       - ${obsidianProperties.reviewNote}
@@ -146,7 +174,9 @@ views:
     name: 智能体交接
     order:
       - ${obsidianProperties.shotOrder}
-      - file.name
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.nextAction}
       - ${obsidianProperties.agentHandoff}
       - ${obsidianProperties.reviewCanvas}
       - ${obsidianProperties.sourcePath}
@@ -159,6 +189,12 @@ views:
   and:
     - file.hasTag("ai-video/status")
 properties:
+  ${obsidianProperties.title}:
+    displayName: ${obsidianProperties.title}
+  ${obsidianProperties.shotTitle}:
+    displayName: ${obsidianProperties.shotTitle}
+  ${obsidianProperties.nextAction}:
+    displayName: ${obsidianProperties.nextAction}
   ${obsidianProperties.status}:
     displayName: ${obsidianProperties.status}
   ${obsidianProperties.step}:
@@ -180,10 +216,11 @@ views:
       property: ${obsidianProperties.status}
       direction: ASC
     order:
-      - file.name
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.nextAction}
       - ${obsidianProperties.status}
       - ${obsidianProperties.step}
-      - ${obsidianProperties.shotId}
       - ${obsidianProperties.sourcePath}
   - type: table
     name: 执行就绪
@@ -191,11 +228,12 @@ views:
       property: ${obsidianProperties.executionStatus}
       direction: ASC
     order:
-      - file.name
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.nextAction}
       - ${obsidianProperties.executionStatus}
       - ${obsidianProperties.reviewStatus}
       - ${obsidianProperties.stageGroup}
-      - ${obsidianProperties.shotId}
       - ${obsidianProperties.sourcePath}
 `
     }

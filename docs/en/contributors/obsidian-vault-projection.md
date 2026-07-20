@@ -82,12 +82,12 @@ By default, export does not write `.obsidian/`. Use `--include-obsidian-ui` only
 
 ## Obsidian Features Used
 
-- Properties: newly generated notes use Chinese property names such as `投影生成`, `源文件路径`, `源文件类型`, `步骤`, `镜头ID`, `镜头顺序`, `阶段`, `审阅状态`, `执行状态`, `需要关注`, and `状态`. `tags`, `ai-video/...` tags, `shot-001` machine IDs, and the `投影清单.json` schema remain machine-readable.
+- Properties: newly generated notes use Chinese property names such as `标题`, `镜头标题`, `下一步`, `投影生成`, `源文件路径`, `源文件类型`, `步骤`, `镜头ID`, `镜头顺序`, `阶段`, `审阅状态`, `执行状态`, `需要关注`, and `状态`. Default tables prioritize human-readable fields like `标题`, `镜头标题`, `下一步`, and status fields, while `源文件路径`, `镜头ID`, and `投影生成` stay available for routing, handoff, and diagnostics. `tags`, `ai-video/...` tags, `shot-001` machine IDs, and the `投影清单.json` schema remain machine-readable.
 - Tags: use nested tags for steps, file types, shots, and status.
 - Markdown internal links: connect generated vault pages with vault-relative links.
 - Graph: show workflow relationships derived from internal links.
 - Search query blocks: surface review items in dashboards.
-- Bases: `.base` files browse Review Queue, Shot Progress, Execution Readiness, Modified Generated Files, shots, files, and production status as tables and cards.
+- Bases: `.base` files browse review queues, shot progress, execution readiness, modified generated files, shots, files, and production status as tables and cards. Default tables emphasize human-readable fields, while diagnostic views keep source paths and generation markers.
 - Canvas: `.canvas` JSON files show Step 1 to Step 6 relationships, shot pipelines, the project-level review route, each single-shot review route, and the agent handoff entry.
 - Optional Bookmarks and Workspace: `.obsidian` suggestions are opt-in UI state only.
 

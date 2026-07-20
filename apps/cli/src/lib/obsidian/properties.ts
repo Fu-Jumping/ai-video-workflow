@@ -4,6 +4,9 @@ export const obsidianProperties = {
   projectionGenerated: "投影生成",
   workflowPack: "工作流包",
   project: "项目",
+  title: "标题",
+  shotTitle: "镜头标题",
+  nextAction: "下一步",
   sourcePath: "源文件路径",
   sourceKind: "源文件类型",
   step: "步骤",
@@ -29,6 +32,9 @@ export const obsidianProperties = {
 export const legacyObsidianProperties: Partial<Record<keyof typeof obsidianProperties, string>> = {
   projectionGenerated: "projection_generated",
   workflowPack: "workflow_pack",
+  title: "title",
+  shotTitle: "shot_title",
+  nextAction: "next_action",
   sourcePath: "source_path",
   sourceKind: "source_kind",
   stepName: "step_name",
@@ -80,6 +86,15 @@ export const obsidianPropertyValues = {
   },
   reviewMode: {
     immersive: "沉浸式"
+  },
+  nextAction: {
+    concept: "完善故事内核",
+    setting: "核对设定一致性",
+    storyboard: "审阅镜头画面",
+    "image-prompt": "检查图片提示词",
+    "video-prompt": "检查视频提示词",
+    "execution-plan": "执行前检查",
+    index: "检查镜头对齐"
   }
 } as const;
 

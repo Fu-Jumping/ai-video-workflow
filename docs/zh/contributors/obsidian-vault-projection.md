@@ -82,12 +82,12 @@ v0.7 起，推荐命令路径是 `--in-project-view`。导出器写入 schema ve
 
 ## 使用的 Obsidian 能力
 
-- Properties：新导出的生成笔记使用中文属性，例如 `投影生成`、`源文件路径`、`源文件类型`、`步骤`、`镜头ID`、`镜头顺序`、`阶段`、`审阅状态`、`执行状态`、`需要关注` 和 `状态`。`tags`、`ai-video/...` 标签、`shot-001` 镜头机器 ID 和 `投影清单.json` schema 仍保持机器可读。
+- Properties：新导出的生成笔记使用中文属性，例如 `标题`、`镜头标题`、`下一步`、`投影生成`、`源文件路径`、`源文件类型`、`步骤`、`镜头ID`、`镜头顺序`、`阶段`、`审阅状态`、`执行状态`、`需要关注` 和 `状态`。默认数据表优先展示 `标题`、`镜头标题`、`下一步` 和状态类字段；`源文件路径`、`镜头ID`、`投影生成` 等字段保留给定位、交接和诊断。`tags`、`ai-video/...` 标签、`shot-001` 镜头机器 ID 和 `投影清单.json` schema 仍保持机器可读。
 - Tags：用 nested tags 区分步骤、文件类型、镜头和状态。
 - Markdown 内部链接：用 vault 相对链接连接生成页面。
 - Graph：根据内部链接展示工作流关系。
 - Search query blocks：在 dashboard 中呈现待处理项。
-- Bases：用 `.base` 文件提供表格和卡片视图，浏览 Review Queue、Shot Progress、Execution Readiness、Modified Generated Files、镜头、文件和生产状态。
+- Bases：用 `.base` 文件提供表格和卡片视图，浏览审阅队列、镜头进度、执行就绪、已改动生成文件、镜头、流程文件和制作状态。主视图优先显示人读字段，诊断视图保留源路径和生成标记。
 - Canvas：用 `.canvas` JSON 文件展示 Step 1 到 Step 6 关系、镜头流水线、项目级审阅路线、单镜头审阅路线和智能体交接入口。
 - 可选 Bookmarks 和 Workspace：`.obsidian` 建议只属于 opt-in UI 状态。
 

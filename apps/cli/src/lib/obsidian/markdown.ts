@@ -72,14 +72,26 @@ function shotOrder(shotId: string | undefined): number | undefined {
   return match ? Number.parseInt(match[1], 10) : undefined;
 }
 
+function yamlString(value: string): string {
+  return JSON.stringify(value);
+}
+
+function noteTitle(sourceFile: ObsidianSourceFile): string {
+  return sourceFile.headingTitle?.trim() || sourceFile.title;
+}
+
 function shotDisplayName(sourceFile: ObsidianSourceFile, sourceFiles: ObsidianSourceFile[] = [sourceFile]): string {
   if (!sourceFile.shotId) {
-    return sourceFile.headingTitle?.trim() || sourceFile.title;
+    return noteTitle(sourceFile);
   }
   const shotFiles = sourceFiles.filter((file) => file.shotId === sourceFile.shotId);
   const storyboard = shotFiles.find((file) => file.sourceKind === "storyboard");
   const title = storyboard?.headingTitle ?? storyboard?.title ?? sourceFile.headingTitle ?? sourceFile.title;
   return title?.trim() || sourceFile.shotId;
+}
+
+function nextAction(sourceFile: ObsidianSourceFile): string {
+  return obsidianPropertyValues.nextAction[sourceFile.sourceKind];
 }
 
 function shotIndexLink(sourceFile: ObsidianSourceFile, sourceFiles: ObsidianSourceFile[] = [sourceFile]): string | undefined {
@@ -138,6 +150,8 @@ export function renderFrontmatter(sourceFile: ObsidianSourceFile, projectName: s
     `${obsidianProperties.projectionGenerated}: ${obsidianPropertyValues.yes}`,
     `${obsidianProperties.workflowPack}: official-ai-video`,
     `${obsidianProperties.project}: ${projectName}`,
+    `${obsidianProperties.title}: ${yamlString(noteTitle(sourceFile))}`,
+    `${obsidianProperties.nextAction}: ${nextAction(sourceFile)}`,
     `${obsidianProperties.sourcePath}: ${sourceFile.sourcePath}`,
     `${obsidianProperties.sourceKind}: ${obsidianPropertyValues.sourceKind[sourceFile.sourceKind]}`,
     `${obsidianProperties.step}: ${sourceFile.step}`,
@@ -152,6 +166,7 @@ export function renderFrontmatter(sourceFile: ObsidianSourceFile, projectName: s
     if (order !== undefined) {
       lines.push(`${obsidianProperties.shotOrder}: ${order}`);
     }
+    lines.push(`${obsidianProperties.shotTitle}: ${yamlString(shotDisplayName(sourceFile, sourceFiles))}`);
     lines.push(`${obsidianProperties.shotIndex}: "${shotIndexLink(sourceFile, sourceFiles)}"`);
   }
   lines.push(`${obsidianProperties.status}: ${obsidianPropertyValues.ready}`, `${obsidianProperties.tags}:`);
