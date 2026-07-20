@@ -1,6 +1,9 @@
 import type { ObsidianGeneratedFile } from "./types.js";
 import { obsidianProperties, obsidianPropertyValues } from "./properties.js";
 
+const modifiedTimeColumn = "file.mtime";
+const modifiedTimeDisplayName = "最近修改时间";
+
 export function renderBaseFiles(): ObsidianGeneratedFile[] {
   return [
     {
@@ -31,31 +34,31 @@ properties:
     displayName: ${obsidianProperties.stepName}
   ${obsidianProperties.sourceKind}:
     displayName: ${obsidianProperties.sourceKind}
-  ${obsidianProperties.status}:
-    displayName: ${obsidianProperties.status}
+  ${obsidianProperties.shotIndex}:
+    displayName: ${obsidianProperties.shotIndex}
   ${obsidianProperties.sourcePath}:
     displayName: ${obsidianProperties.sourcePath}
+  ${modifiedTimeColumn}:
+    displayName: ${modifiedTimeDisplayName}
 views:
   - type: table
     name: 流程文件
     order:
       - ${obsidianProperties.title}
       - ${obsidianProperties.shotTitle}
-      - ${obsidianProperties.step}
-      - ${obsidianProperties.stepName}
+      - ${obsidianProperties.sourcePath}
       - ${obsidianProperties.sourceKind}
-      - ${obsidianProperties.nextAction}
-      - ${obsidianProperties.stageGroup}
+      - ${obsidianProperties.stepName}
       - ${obsidianProperties.reviewStatus}
       - ${obsidianProperties.executionStatus}
-      - ${obsidianProperties.needsAttention}
-      - ${obsidianProperties.status}
-      - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.shotIndex}
+      - ${modifiedTimeColumn}
   - type: list
     name: 审阅列表
     order:
-      - file.name
-      - ${obsidianProperties.status}
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.reviewStatus}
+      - ${obsidianProperties.executionStatus}
   - type: table
     name: 审阅队列
     groupBy:
@@ -64,12 +67,13 @@ views:
     order:
       - ${obsidianProperties.title}
       - ${obsidianProperties.shotTitle}
-      - ${obsidianProperties.needsAttention}
-      - ${obsidianProperties.nextAction}
-      - ${obsidianProperties.reviewStatus}
-      - ${obsidianProperties.stageGroup}
-      - ${obsidianProperties.sourceKind}
       - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.sourceKind}
+      - ${obsidianProperties.stepName}
+      - ${obsidianProperties.reviewStatus}
+      - ${obsidianProperties.executionStatus}
+      - ${obsidianProperties.shotIndex}
+      - ${modifiedTimeColumn}
   - type: table
     name: 已改动生成文件
     filters:
@@ -78,9 +82,13 @@ views:
     order:
       - ${obsidianProperties.title}
       - ${obsidianProperties.shotTitle}
-      - file.mtime
       - ${obsidianProperties.sourcePath}
-      - ${obsidianProperties.status}
+      - ${obsidianProperties.sourceKind}
+      - ${obsidianProperties.stepName}
+      - ${obsidianProperties.reviewStatus}
+      - ${obsidianProperties.executionStatus}
+      - ${obsidianProperties.shotIndex}
+      - ${modifiedTimeColumn}
 `
     },
     {
@@ -99,6 +107,12 @@ properties:
     displayName: ${obsidianProperties.shotId}
   ${obsidianProperties.shotOrder}:
     displayName: ${obsidianProperties.shotOrder}
+  ${obsidianProperties.sourceKind}:
+    displayName: ${obsidianProperties.sourceKind}
+  ${obsidianProperties.stepName}:
+    displayName: ${obsidianProperties.stepName}
+  ${obsidianProperties.shotIndex}:
+    displayName: ${obsidianProperties.shotIndex}
   ${obsidianProperties.reviewMode}:
     displayName: ${obsidianProperties.reviewMode}
   ${obsidianProperties.reviewCanvas}:
@@ -123,64 +137,78 @@ properties:
     displayName: ${obsidianProperties.status}
   ${obsidianProperties.sourcePath}:
     displayName: ${obsidianProperties.sourcePath}
+  ${modifiedTimeColumn}:
+    displayName: ${modifiedTimeDisplayName}
 views:
   - type: table
     name: 镜头表
     order:
-      - ${obsidianProperties.shotOrder}
-      - ${obsidianProperties.shotTitle}
       - ${obsidianProperties.title}
-      - ${obsidianProperties.nextAction}
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.sourceKind}
+      - ${obsidianProperties.stepName}
       - ${obsidianProperties.reviewStatus}
       - ${obsidianProperties.executionStatus}
-      - ${obsidianProperties.needsAttention}
-      - ${obsidianProperties.status}
-      - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.shotIndex}
+      - ${obsidianProperties.reviewCanvas}
+      - ${obsidianProperties.reviewNote}
+      - ${modifiedTimeColumn}
   - type: cards
     name: 镜头卡片
     order:
       - ${obsidianProperties.shotTitle}
-      - ${obsidianProperties.nextAction}
-      - ${obsidianProperties.status}
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.reviewStatus}
+      - ${obsidianProperties.executionStatus}
+      - ${obsidianProperties.reviewCanvas}
+      - ${obsidianProperties.reviewNote}
+      - ${modifiedTimeColumn}
   - type: table
     name: 镜头进度
     groupBy:
       property: ${obsidianProperties.shotTitle}
       direction: ASC
     order:
-      - ${obsidianProperties.shotOrder}
-      - ${obsidianProperties.shotTitle}
       - ${obsidianProperties.title}
-      - ${obsidianProperties.nextAction}
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.sourceKind}
+      - ${obsidianProperties.stepName}
       - ${obsidianProperties.reviewStatus}
       - ${obsidianProperties.executionStatus}
-      - ${obsidianProperties.needsAttention}
-      - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.shotIndex}
+      - ${obsidianProperties.reviewCanvas}
+      - ${obsidianProperties.reviewNote}
+      - ${modifiedTimeColumn}
   - type: table
     name: 沉浸式审阅
     order:
-      - ${obsidianProperties.shotOrder}
-      - ${obsidianProperties.shotTitle}
       - ${obsidianProperties.title}
-      - ${obsidianProperties.nextAction}
-      - ${obsidianProperties.reviewMode}
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.sourceKind}
+      - ${obsidianProperties.stepName}
+      - ${obsidianProperties.reviewStatus}
+      - ${obsidianProperties.executionStatus}
+      - ${obsidianProperties.shotIndex}
       - ${obsidianProperties.reviewCanvas}
       - ${obsidianProperties.reviewNote}
-      - ${obsidianProperties.hasStoryboard}
-      - ${obsidianProperties.hasImagePrompt}
-      - ${obsidianProperties.hasVideoPrompt}
-      - ${obsidianProperties.executionStatus}
+      - ${modifiedTimeColumn}
   - type: table
     name: 智能体交接
     order:
-      - ${obsidianProperties.shotOrder}
-      - ${obsidianProperties.shotTitle}
       - ${obsidianProperties.title}
-      - ${obsidianProperties.nextAction}
-      - ${obsidianProperties.agentHandoff}
-      - ${obsidianProperties.reviewCanvas}
+      - ${obsidianProperties.shotTitle}
       - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.sourceKind}
+      - ${obsidianProperties.stepName}
+      - ${obsidianProperties.reviewStatus}
       - ${obsidianProperties.executionStatus}
+      - ${obsidianProperties.shotIndex}
+      - ${obsidianProperties.reviewCanvas}
+      - ${obsidianProperties.reviewNote}
+      - ${modifiedTimeColumn}
 `
     },
     {
@@ -199,6 +227,8 @@ properties:
     displayName: ${obsidianProperties.status}
   ${obsidianProperties.step}:
     displayName: ${obsidianProperties.step}
+  ${obsidianProperties.stepName}:
+    displayName: ${obsidianProperties.stepName}
   ${obsidianProperties.stageGroup}:
     displayName: ${obsidianProperties.stageGroup}
   ${obsidianProperties.reviewStatus}:
@@ -207,21 +237,36 @@ properties:
     displayName: ${obsidianProperties.executionStatus}
   ${obsidianProperties.shotId}:
     displayName: ${obsidianProperties.shotId}
+  ${obsidianProperties.sourceKind}:
+    displayName: ${obsidianProperties.sourceKind}
+  ${obsidianProperties.shotIndex}:
+    displayName: ${obsidianProperties.shotIndex}
+  ${obsidianProperties.reviewCanvas}:
+    displayName: ${obsidianProperties.reviewCanvas}
+  ${obsidianProperties.reviewNote}:
+    displayName: ${obsidianProperties.reviewNote}
   ${obsidianProperties.sourcePath}:
     displayName: ${obsidianProperties.sourcePath}
+  ${modifiedTimeColumn}:
+    displayName: ${modifiedTimeDisplayName}
 views:
   - type: table
     name: 制作状态
     groupBy:
-      property: ${obsidianProperties.status}
+      property: ${obsidianProperties.executionStatus}
       direction: ASC
     order:
       - ${obsidianProperties.title}
       - ${obsidianProperties.shotTitle}
-      - ${obsidianProperties.nextAction}
-      - ${obsidianProperties.status}
-      - ${obsidianProperties.step}
       - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.sourceKind}
+      - ${obsidianProperties.stepName}
+      - ${obsidianProperties.reviewStatus}
+      - ${obsidianProperties.executionStatus}
+      - ${obsidianProperties.shotIndex}
+      - ${obsidianProperties.reviewCanvas}
+      - ${obsidianProperties.reviewNote}
+      - ${modifiedTimeColumn}
   - type: table
     name: 执行就绪
     groupBy:
@@ -230,11 +275,15 @@ views:
     order:
       - ${obsidianProperties.title}
       - ${obsidianProperties.shotTitle}
-      - ${obsidianProperties.nextAction}
+      - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.sourceKind}
+      - ${obsidianProperties.stepName}
       - ${obsidianProperties.executionStatus}
       - ${obsidianProperties.reviewStatus}
-      - ${obsidianProperties.stageGroup}
-      - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.shotIndex}
+      - ${obsidianProperties.reviewCanvas}
+      - ${obsidianProperties.reviewNote}
+      - ${modifiedTimeColumn}
 `
     }
   ];

@@ -82,7 +82,7 @@ By default, export does not write `.obsidian/`. Use `--include-obsidian-ui` only
 
 ## Obsidian Features Used
 
-- Properties: newly generated notes use Chinese property names such as `标题`, `镜头标题`, `下一步`, `投影生成`, `源文件路径`, `源文件类型`, `步骤`, `镜头ID`, `镜头顺序`, `阶段`, `审阅状态`, `执行状态`, `需要关注`, and `状态`. Default tables prioritize human-readable fields like `标题`, `镜头标题`, `下一步`, and status fields, while `源文件路径`, `镜头ID`, and `投影生成` stay available for routing, handoff, and diagnostics. `tags`, `ai-video/...` tags, `shot-001` machine IDs, and the `投影清单.json` schema remain machine-readable.
+- Properties: newly generated notes use Chinese property names such as `标题`, `镜头标题`, `下一步`, `投影生成`, `源文件路径`, `源文件类型`, `步骤`, `镜头ID`, `镜头顺序`, `阶段`, `审阅状态`, `执行状态`, `需要关注`, and `状态`. Default tables now show only the user-approved columns: `标题`, `镜头标题`, `源文件路径`, `源文件类型`, `步骤名称`, `审阅状态`, `执行状态`, `镜头索引`, `审阅画布`, `审阅笔记`, and `最近修改时间` backed by `file.mtime`. Properties such as `下一步`, `镜头ID`, and `投影生成` remain available for filtering, routing, handoff, and diagnostics, but they are no longer part of the default visible columns. `tags`, `ai-video/...` tags, `shot-001` machine IDs, and the `投影清单.json` schema remain machine-readable.
 - Tags: use nested tags for steps, file types, shots, and status.
 - Markdown internal links: connect generated vault pages with vault-relative links.
 - Graph: show workflow relationships derived from internal links.

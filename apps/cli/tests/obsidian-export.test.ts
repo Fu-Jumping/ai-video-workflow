@@ -19,6 +19,48 @@ function officialExampleRoot(): string {
   return path.resolve(__dirname, "..", "..", "..", "examples", "官方示例-云上早市");
 }
 
+function baseViewOrder(baseContent: string, viewName: string): string[] {
+  const lines = baseContent.split(/\r?\n/);
+  const nameIndex = lines.findIndex((line) => line.trim() === `name: ${viewName}`);
+  expect(nameIndex, `Base view ${viewName} exists`).toBeGreaterThanOrEqual(0);
+  const orderIndex = lines.findIndex((line, index) => index > nameIndex && line.trim() === "order:");
+  expect(orderIndex, `Base view ${viewName} has an order`).toBeGreaterThanOrEqual(0);
+
+  const order: string[] = [];
+  for (let index = orderIndex + 1; index < lines.length; index += 1) {
+    const match = lines[index].match(/^ {6}- (.+)$/);
+    if (match) {
+      order.push(match[1].trim());
+      continue;
+    }
+    if (/^ {2}- type:/.test(lines[index]) || /^ {4}\S/.test(lines[index]) || /^[^\s]/.test(lines[index])) {
+      break;
+    }
+  }
+  return order;
+}
+
+function expectOnlyDefaultVisibleColumns(baseContent: string, viewNames: string[]): void {
+  const defaultVisibleColumns = new Set([
+    "标题",
+    "镜头标题",
+    "源文件路径",
+    "源文件类型",
+    "步骤名称",
+    "审阅状态",
+    "执行状态",
+    "镜头索引",
+    "审阅画布",
+    "审阅笔记",
+    "file.mtime"
+  ]);
+
+  for (const viewName of viewNames) {
+    const order = baseViewOrder(baseContent, viewName);
+    expect(order.every((column) => defaultVisibleColumns.has(column)), `${viewName} only uses user-approved default columns`).toBe(true);
+  }
+}
+
 describe("Obsidian export paths", () => {
   test("normalizes Windows paths to vault-relative POSIX paths", () => {
     expect(toVaultPath(path.join("流程", "步骤三 - 分镜脚本", "镜头 001.md"))).toBe(
@@ -346,8 +388,24 @@ describe("exportObsidianVault", () => {
     expect(shotsBase).toContain("智能体交接:");
     expect(shotsBase).toContain("审阅画布:");
     expect(shotsBase).toContain("审阅笔记:");
+    expect(shotsBase).toContain("file.mtime:");
+    expect(shotsBase).toContain("displayName: 最近修改时间");
     expect(shotsBase).toContain("property: 镜头标题");
-    expect(shotsBase).toMatch(/name: 镜头表[\s\S]*order:\s*\n\s*- 镜头顺序\s*\n\s*- 镜头标题\s*\n\s*- 标题\s*\n\s*- 下一步/);
+    expect(baseViewOrder(shotsBase, "镜头表")).toEqual([
+      "标题",
+      "镜头标题",
+      "源文件路径",
+      "源文件类型",
+      "步骤名称",
+      "审阅状态",
+      "执行状态",
+      "镜头索引",
+      "审阅画布",
+      "审阅笔记",
+      "file.mtime"
+    ]);
+    expect(baseViewOrder(shotsBase, "镜头卡片")).toEqual(["镜头标题", "标题", "审阅状态", "执行状态", "审阅画布", "审阅笔记", "file.mtime"]);
+    expectOnlyDefaultVisibleColumns(shotsBase, ["镜头表", "镜头卡片", "镜头进度", "沉浸式审阅", "智能体交接"]);
     expect(shotsBase).not.toContain("shot_id:");
     expect(shotsBase).not.toContain("agent_handoff");
 
@@ -358,7 +416,21 @@ describe("exportObsidianVault", () => {
     expect(workflowBase).toContain("审阅队列");
     expect(workflowBase).toContain("已改动生成文件");
     expect(workflowBase).toContain("property: 审阅状态");
-    expect(workflowBase).toMatch(/name: 流程文件[\s\S]*order:\s*\n\s*- 标题\s*\n\s*- 镜头标题\s*\n\s*- 步骤\s*\n\s*- 步骤名称\s*\n\s*- 源文件类型\s*\n\s*- 下一步/);
+    expect(workflowBase).toContain("file.mtime:");
+    expect(workflowBase).toContain("displayName: 最近修改时间");
+    expect(baseViewOrder(workflowBase, "流程文件")).toEqual([
+      "标题",
+      "镜头标题",
+      "源文件路径",
+      "源文件类型",
+      "步骤名称",
+      "审阅状态",
+      "执行状态",
+      "镜头索引",
+      "file.mtime"
+    ]);
+    expect(baseViewOrder(workflowBase, "审阅列表")).toEqual(["标题", "审阅状态", "执行状态"]);
+    expectOnlyDefaultVisibleColumns(workflowBase, ["流程文件", "审阅列表", "审阅队列", "已改动生成文件"]);
     expect(workflowBase).toContain("'投影生成 == \"是\"'");
     expect(workflowBase).not.toContain("projection_generated");
 
@@ -367,7 +439,36 @@ describe("exportObsidianVault", () => {
     expect(productionBase).toContain("镜头标题:");
     expect(productionBase).toContain("下一步:");
     expect(productionBase).toContain("执行就绪");
-    expect(productionBase).toMatch(/name: 制作状态[\s\S]*order:\s*\n\s*- 标题\s*\n\s*- 镜头标题\s*\n\s*- 下一步\s*\n\s*- 状态/);
+    expect(productionBase).toContain("property: 执行状态");
+    expect(productionBase).toContain("file.mtime:");
+    expect(productionBase).toContain("displayName: 最近修改时间");
+    expect(baseViewOrder(productionBase, "制作状态")).toEqual([
+      "标题",
+      "镜头标题",
+      "源文件路径",
+      "源文件类型",
+      "步骤名称",
+      "审阅状态",
+      "执行状态",
+      "镜头索引",
+      "审阅画布",
+      "审阅笔记",
+      "file.mtime"
+    ]);
+    expect(baseViewOrder(productionBase, "执行就绪")).toEqual([
+      "标题",
+      "镜头标题",
+      "源文件路径",
+      "源文件类型",
+      "步骤名称",
+      "执行状态",
+      "审阅状态",
+      "镜头索引",
+      "审阅画布",
+      "审阅笔记",
+      "file.mtime"
+    ]);
+    expectOnlyDefaultVisibleColumns(productionBase, ["制作状态", "执行就绪"]);
   });
 
   test("exports valid JSON Canvas maps", async () => {
