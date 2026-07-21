@@ -250,16 +250,17 @@ describe("exportObsidianVault", () => {
     expect(storyboard).toContain("需要关注: 否");
     expect(storyboard).toContain("镜头顺序: 1");
     expect(storyboard).toContain('镜头索引: "[[镜头/shot-001|镜头 001：清晨前的邀请]]"');
-    expect(storyboard).toContain("- 镜头索引：[[镜头/shot-001|镜头 001：清晨前的邀请]]");
+    expect(storyboard).toContain("> 源文件：`03_分镜脚本/镜头-001.md`");
+    expect(storyboard).toContain("镜头：[[镜头/shot-001|镜头 001：清晨前的邀请]]");
     expect(storyboard).not.toContain('镜头索引: "[[shot-001]]"');
     expect(storyboard).not.toContain("- 镜头索引：[[shot-001]]");
+    expect(storyboard).not.toContain("## Obsidian 导航");
     expect(storyboard).not.toContain("projection_generated:");
     expect(storyboard).not.toContain("source_path:");
     expect(storyboard).not.toContain("review_status:");
     expect(storyboard).toContain("ai-video/step/03-storyboard");
     expect(storyboard).toContain("tags:");
-    expect(storyboard).toContain("[[01_审阅总览]]");
-    expect(storyboard).toContain("[[画布/审阅地图.canvas]]");
+    expect(storyboard).toContain("[[01_审阅总览|审阅总览]]");
     await expect(fs.pathExists(path.join(outRoot, projectionManifestPath))).resolves.toBe(true);
   });
 
@@ -271,10 +272,9 @@ describe("exportObsidianVault", () => {
 
     const home = await fs.readFile(path.join(outRoot, "00_项目首页.md"), "utf8");
     expect(home).toContain("打开观看层后的流程");
-    expect(home).toContain("检查项目");
-    expect(home).toContain("检查镜头");
-    expect(home).toContain("交接给智能体");
-    expect(home).toContain("修改后验证");
+    expect(home).toContain("看项目状态");
+    expect(home).toContain("逐镜头检查");
+    expect(home).toContain("需要智能体修改");
     expect(home).toContain("审阅总控");
     expect(home).toContain("沉浸式镜头审阅");
     expect(home).toContain("[[04_智能体交接|智能体交接]]");
@@ -287,13 +287,15 @@ describe("exportObsidianVault", () => {
     expect(home).toContain("[[画布/审阅地图.canvas|审阅地图]]");
     expect(home).toContain("[[笔记/说明|用户笔记]]");
     expect(home).not.toContain("笔记/README");
-    expect(home).toContain("```query");
+    expect(home).not.toContain("生成文件冲突检查");
+    expect(home).not.toContain("```query");
+    expect(home).not.toContain("skipped-user-modified");
 
     const reviewDashboard = await fs.readFile(path.join(outRoot, "01_审阅总览.md"), "utf8");
-    expect(reviewDashboard).toContain("生成文件冲突");
-    expect(reviewDashboard).toContain("智能体交接");
     expect(reviewDashboard).toContain("镜头审阅画布");
-    expect(reviewDashboard).toContain("![[数据表/流程文件.base#已改动生成文件]]");
+    expect(reviewDashboard).not.toContain("生成文件冲突");
+    expect(reviewDashboard).not.toContain("verify-obsidian");
+    expect(reviewDashboard).not.toContain("智能体交接");
   });
 
   test("exports a generated README with an open-vault path", async () => {
@@ -306,9 +308,9 @@ describe("exportObsidianVault", () => {
     expect(readme).toContain("[[00_项目首页]]");
     expect(readme).toContain("[[02_镜头索引]]");
     expect(readme).toContain("[[04_智能体交接]]");
-    expect(readme).toContain("[[画布/审阅地图.canvas|审阅地图]]");
     expect(readme).toContain("[[03_制作看板]]");
     expect(readme).toContain("[[笔记/说明]]");
+    expect(readme).not.toContain("不要把生成的观看层文件当作事实源");
   });
 
   test("exports project-level agent handoff guidance", async () => {
@@ -326,6 +328,9 @@ describe("exportObsidianVault", () => {
     expect(handoff).toContain("不要编辑生成的 Obsidian 观看层文件");
     expect(handoff).toContain("node apps/cli/dist/index.js verify --project <project-path> --ide codex");
     expect(handoff).toContain("[[镜头/shot-001|镜头 001：清晨前的邀请]]");
+    expect(handoff).toContain("分镜脚本源文件：`03_分镜脚本/镜头-001.md`");
+    expect(handoff).toContain("步骤四图片提示词源文件：`04_图片提示词/镜头-001-关键帧.md`");
+    expect(handoff).toContain("步骤五视频提示词源文件：`05_视频提示词/镜头-001.md`");
     expect(handoff).not.toContain("[[镜头/shot-001|shot-001]]");
   });
 
@@ -352,20 +357,24 @@ describe("exportObsidianVault", () => {
     expect(shotReview).not.toContain("agent_handoff:");
     expect(shotReview).toContain("## 沉浸式审阅");
     expect(shotReview).toContain("## 画面连续性");
-    expect(shotReview).toContain("## 提示词交接");
-    expect(shotReview).toContain("## 智能体交接");
+    expect(shotReview).toContain("## 视频提示词");
+    expect(shotReview).toContain("## 执行检查");
+    expect(shotReview).toContain("## 修改入口");
+    expect(shotReview).toContain("[[04_智能体交接#单镜头交接|智能体交接]]");
+    expect(shotReview).not.toContain("## 智能体交接");
+    expect(shotReview).not.toContain("可复制提示词");
+    expect(shotReview).not.toContain("验证命令");
     expect(shotReview).toContain("## 审阅画布");
     expect(shotReview).toContain("![[流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md]]");
     expect(shotReview).toContain("![[流程/步骤四 - 图片提示词/镜头 001 关键帧 - 图片提示词.md]]");
     expect(shotReview).toContain("![[流程/步骤五 - 视频提示词/镜头 001 - 视频提示词.md]]");
     expect(shotReview).toContain("# 镜头 001：清晨前的邀请");
-    expect(shotReview).toContain("请检查 镜头 001：清晨前的邀请（shot-001）的步骤三分镜脚本");
     expect(shotReview).toContain("[[笔记/镜头审阅/shot-001|镜头 001：清晨前的邀请 审阅笔记]]");
     expect(shotReview).not.toContain("[[笔记/镜头审阅/shot-001|笔记/镜头审阅/shot-001]]");
     expect(shotReview).toContain("03_分镜脚本/镜头-001.md");
-    expect(shotReview).toContain("04_图片提示词/镜头-001-关键帧.md");
-    expect(shotReview).toContain("05_视频提示词/镜头-001.md");
-    expect(shotReview).toContain("不要编辑生成的 Obsidian 观看层文件");
+    expect(shotReview).not.toContain("04_图片提示词/镜头-001-关键帧.md");
+    expect(shotReview).not.toContain("05_视频提示词/镜头-001.md");
+    expect(shotReview).not.toContain("不要编辑生成的 Obsidian 观看层文件");
   });
 
   test("exports Obsidian Bases for workflow files and shots", async () => {
@@ -677,7 +686,8 @@ describe("exportObsidianVault", () => {
 
     const workspace = await fs.readJson(path.join(outRoot, ".obsidian", "workspace.json"));
     expect(JSON.stringify(workspace)).toContain("00_项目首页.md");
-    expect(JSON.stringify(workspace)).toContain("04_智能体交接.md");
+    expect(JSON.stringify(workspace)).toContain("01_审阅总览.md");
+    expect(JSON.stringify(workspace)).not.toContain("04_智能体交接.md");
     expect(JSON.stringify(workspace)).toContain("画布/审阅地图.canvas");
     expect(
       JSON.stringify(workspace).includes(":\\") || JSON.stringify(workspace).includes("file://") || JSON.stringify(workspace).includes("vscode://")

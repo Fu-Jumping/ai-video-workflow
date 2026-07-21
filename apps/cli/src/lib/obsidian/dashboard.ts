@@ -52,53 +52,25 @@ function yesNoProperty(value: boolean): string {
   return value ? obsidianPropertyValues.yes : obsidianPropertyValues.no;
 }
 
-function renderShotAgentHandoff(shotId: string, shotFiles: ObsidianSourceFile[], allSourceFiles: ObsidianSourceFile[]): string {
+function renderShotHandoffEntry(shotId: string, shotFiles: ObsidianSourceFile[], allSourceFiles: ObsidianSourceFile[]): string {
   const storyboardSourcePath = sourcePathForKind(shotFiles, "storyboard");
   const imagePromptSourcePath = sourcePathForKind(shotFiles, "image-prompt");
   const videoPromptSourcePath = sourcePathForKind(shotFiles, "video-prompt");
   const executionPlanSourcePath = sourcePathForKind(allSourceFiles, "execution-plan");
   const displayName = shotDisplayName(shotId, allSourceFiles);
-  return `## 智能体交接
+  return `### [[镜头/${shotId}|${displayName}]]
 
-这一段用于把当前镜头上下文复制到智能体对话里。反馈写在智能体聊天中，不要编辑生成的 Obsidian 观看层文件。
-
-### 给智能体的源文件
-
+- 审阅画布：[[${shotReviewCanvasPath(shotId)}|审阅画布]]
 - 分镜脚本源文件：\`${storyboardSourcePath}\`
 - 步骤四图片提示词源文件：\`${imagePromptSourcePath}\`
 - 步骤五视频提示词源文件：\`${videoPromptSourcePath}\`
-- 执行计划源文件：\`${executionPlanSourcePath}\`
-- 项目交接入口：[[04_智能体交接|智能体交接]]
+- 执行计划源文件：\`${executionPlanSourcePath}\``;
+}
 
-### 源文件编辑边界
+function renderShotEditEntry(): string {
+  return `## 修改入口
 
-- 叙事画面或镜头意图修改写入步骤三：\`${storyboardSourcePath}\`
-- 图片与画面一致性修改写入步骤四：\`${imagePromptSourcePath}\`
-- 运动、时长和镜头行为修改写入步骤五：\`${videoPromptSourcePath}\`
-- \`镜头/\`、\`流程/\`、\`数据表/\` 和 \`画布/\` 下的生成文件只是观看层输出。
-
-### 可复制提示词
-
-\`\`\`text
-请检查 ${displayName}（${shotId}）的步骤三分镜脚本、步骤四图片提示词和步骤五视频提示词。
-
-源文件：
-- 分镜脚本：${storyboardSourcePath}
-- 步骤四图片提示词：${imagePromptSourcePath}
-- 步骤五视频提示词：${videoPromptSourcePath}
-- 执行计划：${executionPlanSourcePath}
-
-保持步骤三和步骤四逐镜头对齐。如果需要修改，只编辑步骤源文件，不要编辑生成的 Obsidian 观看层文件。
-\`\`\`
-
-### 验证命令
-
-\`\`\`powershell
-node apps/cli/dist/index.js verify --project <project-path> --ide codex
-node apps/cli/dist/index.js export-obsidian --project <project-path> --in-project-view
-node apps/cli/dist/index.js verify-obsidian --project <project-path> --in-project-view
-\`\`\`
-`;
+- 需要智能体修改源文件时：[[04_智能体交接#单镜头交接|智能体交接]]`;
 }
 
 function renderShotHub(shotId: string, shotFiles: ObsidianSourceFile[], allSourceFiles: ObsidianSourceFile[], shotIds: string[]): ObsidianGeneratedFile {
@@ -167,19 +139,18 @@ ${embeddedFileForKind(shotFiles, "storyboard", "分镜脚本")}
 
 ${embeddedFileForKind(shotFiles, "image-prompt", "图片提示词")}
 
-## 提示词交接
+## 视频提示词
 
 检查步骤五视频提示词是否保留步骤四视觉画面，并且只增加运动、时长和镜头行为。
 
 ${embeddedFileForKind(shotFiles, "video-prompt", "视频提示词")}
 
-## 执行就绪
+## 执行检查
 
-- 步骤源文件仍是事实源。
-- 执行前确认分镜脚本、图片提示词和视频提示词对齐。
-- 项目级执行检查使用 [[03_制作看板]]。
+- 分镜脚本、图片提示词和视频提示词逐镜头对齐。
+- 执行前打开 [[03_制作看板|制作看板]]。
 
-${renderShotAgentHandoff(shotId, shotFiles, allSourceFiles)}
+${renderShotEditEntry()}
 
 ## 镜头记录
 
@@ -189,10 +160,6 @@ ${renderShotAgentHandoff(shotId, shotFiles, allSourceFiles)}
 
 ![[数据表/镜头.base#镜头进度]]
 
-## 用户笔记
-
-持久审阅意见写到 [[笔记/镜头审阅/${shotId}|${displayName} 审阅笔记]]，这样增量导出可以持续替换生成文件。
-
 ## 审阅画布
 
 ![[${reviewCanvasPath}]]
@@ -201,14 +168,14 @@ ${renderShotAgentHandoff(shotId, shotFiles, allSourceFiles)}
 }
 
 function renderAgentHandoffPage(shotIds: string[], sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedFile {
-  const shotLinks = shotIds.length > 0
-    ? shotIds.map((shotId) => `- [[镜头/${shotId}|${shotDisplayName(shotId, sourceFiles)}]] - [[画布/镜头审阅/${shotId}.canvas|审阅画布]]`).join("\n")
-    : "- 尚未发现镜头文件。";
+  const shotHandoffEntries = shotIds.length > 0
+    ? shotIds.map((shotId) => renderShotHandoffEntry(shotId, sourceFiles.filter((file) => file.shotId === shotId), sourceFiles)).join("\n\n")
+    : "尚未发现镜头文件。";
   return {
     vaultPath: "04_智能体交接.md",
     content: `# 智能体交接
 
-当你已经在 Obsidian 中检查项目，并希望让智能体修改步骤源文件时，使用这个页面。Obsidian 是观看和定位层，项目步骤文件才是事实源。
+这个页面集中放给智能体的源文件路径、编辑边界和提示词。先在审阅页定位问题，再把对应内容复制到智能体对话中。
 
 ## 导航
 
@@ -222,7 +189,7 @@ function renderAgentHandoffPage(shotIds: string[], sourceFiles: ObsidianSourceFi
 
 ## 单镜头交接
 
-${shotLinks}
+${shotHandoffEntries}
 
 ## 源文件编辑边界
 
@@ -237,6 +204,7 @@ ${shotLinks}
 
 \`\`\`text
 请检查选中镜头的步骤三分镜脚本、步骤四图片提示词和步骤五视频提示词。
+使用“单镜头交接”中对应镜头的源文件路径。
 保持步骤三和步骤四逐镜头对齐。
 如果需要修改，只编辑步骤源文件，不要编辑生成的 Obsidian 观看层文件。
 \`\`\`
@@ -313,9 +281,7 @@ export function renderDashboardFiles(projectName: string, sourceFiles: ObsidianS
       vaultPath: "说明.md",
       content: `# ${projectName} Obsidian 观看层
 
-打开 vault 后，从 [[00_项目首页]] 开始。用 [[02_镜头索引]] 检查镜头，用 [[画布/审阅地图.canvas|审阅地图]] 做空间导航，用 [[04_智能体交接]] 把源文件上下文复制到智能体聊天中，执行前打开 [[03_制作看板]]。
-
-不要把生成的观看层文件当作事实源。工作流修改请编辑原始步骤文件；Obsidian 专属笔记写到 [[${notesIndexLink}]]。
+打开 vault 后，从 [[00_项目首页]] 开始。检查镜头用 [[02_镜头索引]]，执行准备看 [[03_制作看板]]，长期记录写到 [[${notesIndexLink}]]。需要让智能体修改源文件时，打开 [[04_智能体交接]]。
 `
     },
     {
@@ -324,12 +290,10 @@ export function renderDashboardFiles(projectName: string, sourceFiles: ObsidianS
 
 ## 打开观看层后的流程
 
-1. 检查项目：使用 [[00_项目首页|项目首页]] 和 [[画布/审阅地图.canvas|审阅地图]]。
-2. 检查镜头：打开 [[02_镜头索引|镜头索引]]，再选择镜头页和审阅画布。
-3. 交接给智能体：打开 [[04_智能体交接|智能体交接]]，把源文件上下文复制到智能体聊天中。
-4. 修改后验证：运行项目校验，刷新这个观看层，再运行 \`verify-obsidian\`。
-
-生成的 Obsidian 文件只用于观看和交接。步骤源文件仍是工作流事实源。
+1. 打开 [[01_审阅总览|审阅总览]] 看项目状态。
+2. 打开 [[02_镜头索引|镜头索引]] 逐镜头检查分镜、图片提示词和视频提示词。
+3. 打开 [[03_制作看板|制作看板]] 确认执行准备。
+4. 审阅意见写到 [[${notesIndexLink}|笔记]]；需要智能体修改时再打开 [[04_智能体交接|智能体交接]]。
 
 ## 审阅总控
 
@@ -358,29 +322,17 @@ ${shotLinks}
 
 ![[数据表/制作状态.base#执行就绪]]
 
-## 图谱和画布导航
+## 画布导航
 
-- 打开图谱视图检查项目首页、仪表盘、镜头页和流程文件之间的生成链接。
-- 使用 [[画布/审阅地图.canvas|审阅地图]] 查看审阅路径。
-- 使用 [[画布/流程图.canvas|流程图]] 查看步骤级流转。
-- 使用 [[画布/镜头流水线.canvas|镜头流水线]] 查看镜头级流转。
+- [[画布/审阅地图.canvas|审阅地图]]
+- [[画布/流程图.canvas|流程图]]
+- [[画布/镜头流水线.canvas|镜头流水线]]
 
 ## 数据表
 
 - [[数据表/流程文件.base|流程文件表]]
 - [[数据表/镜头.base|镜头表]]
 - [[数据表/制作状态.base|制作状态表]]
-
-## 生成文件冲突检查
-
-- 增量导出会跳过在 Obsidian 中被修改过的生成文件，并报告 \`skipped-user-modified\`。
-- 执行前运行 \`verify-obsidian\`，检查投影清单哈希是否有冲突。
-
-## 编辑边界
-
-- 步骤源文件仍是工作流事实源。
-- 生成的观看层文件可以由 \`export-obsidian\` 刷新。
-- 用户手写 Obsidian 笔记放在 [[${notesIndexLink}|笔记]]。
 
 ## 流程文件
 
@@ -397,12 +349,6 @@ ${shotLinks}
 ## 镜头流水线
 
 ![[画布/镜头流水线.canvas]]
-
-## 审阅查询
-
-\`\`\`query
-tag:#ai-video/review/needs-step4-link OR tag:#ai-video/status/blocked
-\`\`\`
 `
     },
     {
@@ -413,25 +359,9 @@ tag:#ai-video/review/needs-step4-link OR tag:#ai-video/status/blocked
 
 ![[数据表/流程文件.base#审阅队列]]
 
-## 阻塞项
-
-\`\`\`query
-tag:#ai-video/status/blocked OR tag:#ai-video/review/needs-source-link OR tag:#ai-video/review/needs-step4-link
-\`\`\`
-
 ## 执行就绪
 
 ![[数据表/制作状态.base#执行就绪]]
-
-## 生成文件冲突
-
-![[数据表/流程文件.base#已改动生成文件]]
-
-当这个队列显示可能的投影冲突时，使用 \`verify-obsidian\`。持久审阅笔记请移到 [[${notesIndexLink}|笔记]]，不要直接编辑生成文件。
-
-## 智能体交接
-
-[[04_智能体交接|智能体交接]]
 
 ## 审阅地图
 
@@ -449,10 +379,6 @@ ${shotLinks}
 
 ${shotLinks}
 
-## 智能体交接
-
-[[04_智能体交接|智能体交接]]
-
 ## 镜头表
 
 ![[数据表/镜头.base#镜头表]]
@@ -464,10 +390,6 @@ ${shotLinks}
 ## 沉浸式审阅表
 
 ![[数据表/镜头.base#沉浸式审阅]]
-
-## 智能体交接表
-
-![[数据表/镜头.base#智能体交接]]
 `
     },
     {
@@ -486,17 +408,10 @@ ${shotLinks}
 
 ![[数据表/镜头.base#镜头进度]]
 
-## 就绪项
-
-\`\`\`query
-tag:#ai-video/status/ready
-\`\`\`
-
-## 交接链接
+## 导航
 
 - 审阅队列：[[01_审阅总览]]
 - 镜头索引：[[02_镜头索引]]
-- 智能体交接：[[04_智能体交接]]
 - 流程图：[[画布/流程图.canvas]]
 - 审阅地图：[[画布/审阅地图.canvas]]
 - 镜头审阅：[[02_镜头索引]]
@@ -538,11 +453,7 @@ tags:
       vaultPath: notesIndexPath,
       content: `# 笔记说明
 
-这个文件夹用于存放 Obsidian 专属笔记、审阅意见、会议记录和研究材料，它们可以放在生成观看层旁边。
-
-你在这个文件夹中创建的文件不属于生成投影清单，增量运行 \`export-obsidian\` 时会保留。
-
-如果你编辑了生成文件，下一次增量导出会跳过那个文件，并报告 \`skipped-user-modified\`。
+这个文件夹用于存放审阅意见、会议记录和研究材料。你在这里写的内容会保留在 Obsidian vault 中。
 `
     },
     renderAgentHandoffPage(shotIds, sourceFiles),

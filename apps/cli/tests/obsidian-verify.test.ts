@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { exportObsidianVault } from "../src/lib/obsidian/export.js";
-import { projectionManifestPath, readProjectionManifest, renderProjectionManifest } from "../src/lib/obsidian/manifest.js";
+import { hashContent, projectionManifestPath, readProjectionManifest, renderProjectionManifest } from "../src/lib/obsidian/manifest.js";
 import { verifyObsidianVault } from "../src/lib/obsidian/verify.js";
 import type { ObsidianProjectionManifest } from "../src/lib/obsidian/types.js";
 
@@ -291,7 +291,17 @@ describe("verifyObsidianVault", () => {
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
     const shotReviewPath = path.join(outRoot, "镜头", "shot-001.md");
     const content = await fs.readFile(shotReviewPath, "utf8");
-    await fs.writeFile(shotReviewPath, content.replace("## 提示词交接", "## 提示词桥接"), "utf8");
+    const nextContent = content.replace("## 视频提示词", "## 提示词桥接");
+    await fs.writeFile(shotReviewPath, nextContent, "utf8");
+    const manifest = (await readProjectionManifest(outRoot)) as ObsidianProjectionManifest;
+    await fs.writeFile(
+      path.join(outRoot, projectionManifestPath),
+      renderProjectionManifest({
+        ...manifest,
+        files: manifest.files.map((entry) => entry.vaultPath === "镜头/shot-001.md" ? { ...entry, contentHash: hashContent(nextContent) } : entry)
+      }),
+      "utf8"
+    );
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
 
@@ -325,14 +335,14 @@ describe("verifyObsidianVault", () => {
     expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "invalid-obsidian-agent-handoff" })]));
   });
 
-  test("fails when a shot page is missing agent handoff guidance", async () => {
+  test("fails when a shot page is missing the agent handoff entry link", async () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-agent-shot-marker-"));
     tempRoots.push(outRoot);
     const projectRoot = officialExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
     const shotReviewPath = path.join(outRoot, "镜头", "shot-001.md");
     const content = await fs.readFile(shotReviewPath, "utf8");
-    await fs.writeFile(shotReviewPath, content.replace("## 智能体交接", "## 智能体上下文"), "utf8");
+    await fs.writeFile(shotReviewPath, content.replaceAll("[[04_智能体交接#单镜头交接|智能体交接]]", "[[04_智能体交接|智能体交接]]"), "utf8");
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
 

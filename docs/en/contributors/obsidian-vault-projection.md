@@ -46,7 +46,7 @@ External vault mode remains supported with `--out <vault-path>` and `--vault <va
 - Generated Obsidian vault directory, recommended at `_views/obsidian/`
 - Projected Markdown files with properties and tags
 - Project home, review dashboard, shot index, and production board
-- Project-level `04_智能体交接.md` page for copying source context into agent conversations
+- Project-level `04_智能体交接.md` page that centralizes source paths, edit boundaries, and copy-ready agent prompts
 - Immersive `镜头/<shotId>.md` single-shot review pages
 - Bases `.base` files with Review Queue, Shot Progress, Execution Readiness, and Modified Generated Files views
 - Canvas `.canvas` files for the workflow map, shot pipeline, review map, and per-shot `画布/镜头审阅/<shotId>.canvas` review canvases
@@ -64,11 +64,11 @@ Use `--force` to clear and rebuild the output directory. Use `--dry-run` to prin
 
 Starting in v0.3.2, the generated project home is a review command center. It links to review queues, shot progress, execution readiness, Graph/Canvas routes, Bases, and the user note area. The review map canvas is a spatial route through the project home, review dashboard, shot index, production board, Bases, notes, workflow map, and shot pipeline.
 
-Starting in v0.3.3, each generated `镜头/<shotId>.md` page is an immersive single-shot review hub. It links and embeds the storyboard, Step 4 image prompt, Step 5 video prompt, execution readiness, user review note target, and per-shot `画布/镜头审阅/<shotId>.canvas`. The shot page is still generated projection content; durable human comments belong under `笔记/`.
+Starting in v0.3.3, each generated `镜头/<shotId>.md` page is an immersive single-shot review hub. It links and embeds the storyboard, Step 4 image prompt, Step 5 video prompt, execution checks, user review note target, and per-shot `画布/镜头审阅/<shotId>.canvas`. Shot pages keep only a short edit entry, and durable human comments belong under `笔记/`.
 
-Starting in v0.3.4, `04_智能体交接.md` and each shot page include copy-ready agent context. Users can inspect the project in Obsidian, then ask an agent to modify source Step files in chat. The generated handoff text tells agents to edit Step files only and never treat Obsidian projection files as the workflow source.
+Starting in v0.3.4, `04_智能体交接.md` centralizes copy-ready agent context, per-shot source paths, edit boundaries, and verification commands. Users can inspect the project in Obsidian, then open the handoff page and copy the relevant context to an agent. Shot review pages no longer expand the full agent prompt, keeping agent-facing text out of the main creator review flow.
 
-Starting in v0.3.5, the generated project home includes a viewing route for first-time vault use. Optional `--include-obsidian-ui` suggestions bookmark the project home, agent handoff, shot index, review map, shot pipeline, and notes, and open the project home next to the agent handoff in the suggested workspace.
+Starting in v0.3.5, the generated project home includes a viewing route for first-time vault use. Optional `--include-obsidian-ui` suggestions bookmark the project home, agent handoff, shot index, review map, shot pipeline, and notes, and open the project home next to the review dashboard in the suggested workspace.
 
 Starting in v0.3.6, release hardening treats real-vault QA as an explicit gate. `verify-obsidian` validates optional suggested UI JSON when present, including required Bookmarks and Workspace routes. `pnpm example:obsidian:ui` exports the official sample with `--include-obsidian-ui` and verifies the generated vault. Opening the vault in Obsidian remains a human QA step, not an automated CLI action.
 
@@ -86,7 +86,7 @@ By default, export does not write `.obsidian/`. Use `--include-obsidian-ui` only
 - Tags: use nested tags for steps, file types, shots, and status.
 - Markdown internal links: connect generated vault pages with vault-relative links.
 - Graph: show workflow relationships derived from internal links.
-- Search query blocks: surface review items in dashboards.
+- Search query blocks: can surface review items when needed; default review pages prioritize Bases and Canvas to avoid exposing technical query text.
 - Bases: `.base` files browse review queues, shot progress, execution readiness, modified generated files, shots, files, and production status as tables and cards. Default tables emphasize human-readable fields, while diagnostic views keep source paths and generation markers.
 - Canvas: `.canvas` JSON files show Step 1 to Step 6 relationships, shot pipelines, the project-level review route, each single-shot review route, and the agent handoff entry.
 - Optional Bookmarks and Workspace: `.obsidian` suggestions are opt-in UI state only.
@@ -118,7 +118,7 @@ By default, export does not write `.obsidian/`. Use `--include-obsidian-ui` only
 - `.base` files are valid YAML.
 - Review Map, key dashboard markers, and key Bases views exist.
 - Single-shot review pages and per-shot review canvases exist and use relative vault paths.
-- The agent handoff page and shot-level agent handoff sections exist.
+- The agent handoff page exists, and shot pages keep a short entry link to it.
 - Optional `.obsidian/ai-video-workflow-suggested/*.json` files parse when present and include the required opening routes.
 - Every projected file remains traceable to a source project path.
 - `投影清单.json` exists, parses, records hashes that match generated files, contains no local absolute paths, and can diagnose stale views through source hashes.

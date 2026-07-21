@@ -183,21 +183,10 @@ export function renderGeneratedWorkflowNote(
   projectName: string,
   sourceFiles: ObsidianSourceFile[] = [sourceFile]
 ): string {
+  const shotLink = sourceFile.shotId ? ` · 镜头：${shotIndexLink(sourceFile, sourceFiles)}` : "";
   const navigation = [
-    `> 这是生成的 Obsidian 观看层文件。需要修改项目事实时，请编辑源文件：\`${sourceFile.sourcePath}\`。`,
-    "",
-    "## Obsidian 导航",
-    "",
-    "- 项目首页：[[00_项目首页]]",
-    "- 审阅总览：[[01_审阅总览]]",
-    "- 制作看板：[[03_制作看板]]",
-    "- 流程图：[[画布/流程图.canvas]]",
-    "- 审阅地图：[[画布/审阅地图.canvas]]",
-    `- 源路径：\`${sourceFile.sourcePath}\``
+    `> 源文件：\`${sourceFile.sourcePath}\` · [[00_项目首页|首页]] · [[01_审阅总览|审阅总览]] · [[03_制作看板|制作看板]]${shotLink}`
   ];
-  if (sourceFile.shotId) {
-    navigation.splice(5, 0, `- 镜头索引：${shotIndexLink(sourceFile, sourceFiles)}`);
-  }
 
   return [renderFrontmatter(sourceFile, projectName, sourceFiles), "", ...navigation, "", stripFrontmatter(originalContent).trim(), ""].join("\n");
 }

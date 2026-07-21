@@ -96,12 +96,12 @@ function suggestedFiles(): SuggestedUiFile[] {
               }
             },
             {
-              id: "ai-video-workflow-handoff-leaf",
+              id: "ai-video-workflow-review-leaf",
               type: "leaf",
               state: {
                 type: "markdown",
                 state: {
-                  file: "04_智能体交接.md",
+                  file: "01_审阅总览.md",
                   mode: "preview",
                   source: false
                 }
@@ -125,7 +125,7 @@ function suggestedFiles(): SuggestedUiFile[] {
           width: 300
         },
         active: "ai-video-workflow-home-leaf",
-        lastOpenFiles: ["00_项目首页.md", "04_智能体交接.md", "02_镜头索引.md", "03_制作看板.md", "画布/审阅地图.canvas", "画布/镜头流水线.canvas"]
+        lastOpenFiles: ["00_项目首页.md", "01_审阅总览.md", "02_镜头索引.md", "03_制作看板.md", "画布/审阅地图.canvas", "画布/镜头流水线.canvas"]
       })
     },
     {
