@@ -264,23 +264,27 @@ describe("exportObsidianVault", () => {
     await expect(fs.pathExists(path.join(outRoot, projectionManifestPath))).resolves.toBe(true);
   });
 
-  test("exports Obsidian dashboards with embedded Bases and query blocks", async () => {
+  test("exports Obsidian dashboards with numbered sections and embedded Bases", async () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-dashboard-"));
     tempRoots.push(outRoot);
 
     await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const home = await fs.readFile(path.join(outRoot, "00_项目首页.md"), "utf8");
-    expect(home).toContain("打开观看层后的流程");
+    expect(home).toContain("## 1. 打开路线");
     expect(home).toContain("看项目状态");
     expect(home).toContain("逐镜头检查");
     expect(home).toContain("需要智能体修改");
-    expect(home).toContain("审阅总控");
-    expect(home).toContain("沉浸式镜头审阅");
+    expect(home).toContain("## 2. 审阅入口");
+    expect(home).toContain("## 3. 镜头入口");
     expect(home).toContain("[[04_智能体交接|智能体交接]]");
-    expect(home).toContain("项目健康");
-    expect(home).toContain("镜头进度");
-    expect(home).toContain("执行就绪");
+    expect(home).toContain("## 4. 项目状态");
+    expect(home).toContain("### 4.1 审阅队列");
+    expect(home).toContain("### 4.2 镜头进度");
+    expect(home).toContain("### 4.3 执行就绪");
+    expect(home).toContain("## 5. 画布与数据");
+    expect(home).toContain("### 5.1 画布导航");
+    expect(home).toContain("### 5.2 数据表入口");
     expect(home).toContain("![[数据表/流程文件.base#流程文件]]");
     expect(home).toContain("![[数据表/流程文件.base#审阅队列]]");
     expect(home).toContain("![[画布/流程图.canvas]]");
@@ -288,14 +292,48 @@ describe("exportObsidianVault", () => {
     expect(home).toContain("[[笔记/说明|用户笔记]]");
     expect(home).not.toContain("笔记/README");
     expect(home).not.toContain("生成文件冲突检查");
+    expect(home).not.toContain("## 打开观看层后的流程");
+    expect(home).not.toContain("## 审阅总控");
+    expect(home).not.toContain("## 项目健康");
     expect(home).not.toContain("```query");
     expect(home).not.toContain("skipped-user-modified");
 
     const reviewDashboard = await fs.readFile(path.join(outRoot, "01_审阅总览.md"), "utf8");
-    expect(reviewDashboard).toContain("镜头审阅画布");
+    expect(reviewDashboard).toContain("## 1. 需要关注");
+    expect(reviewDashboard).toContain("## 2. 执行就绪");
+    expect(reviewDashboard).toContain("## 3. 审阅地图");
+    expect(reviewDashboard).toContain("## 4. 镜头审阅画布");
     expect(reviewDashboard).not.toContain("生成文件冲突");
     expect(reviewDashboard).not.toContain("verify-obsidian");
     expect(reviewDashboard).not.toContain("智能体交接");
+
+    const shotIndex = await fs.readFile(path.join(outRoot, "02_镜头索引.md"), "utf8");
+    expect(shotIndex).toContain("## 1. 镜头入口");
+    expect(shotIndex).toContain("## 2. 镜头表");
+    expect(shotIndex).toContain("## 3. 镜头进度");
+    expect(shotIndex).toContain("## 4. 沉浸式审阅表");
+
+    const productionBoard = await fs.readFile(path.join(outRoot, "03_制作看板.md"), "utf8");
+    expect(productionBoard).toContain("## 1. 执行就绪");
+    expect(productionBoard).toContain("## 2. 制作状态");
+    expect(productionBoard).toContain("## 3. 镜头进度");
+    expect(productionBoard).toContain("## 4. 导航");
+
+    const reviewTemplate = await fs.readFile(path.join(outRoot, "模板", "审阅笔记模板.md"), "utf8");
+    expect(reviewTemplate).toContain("## 1. 发现");
+    expect(reviewTemplate).toContain("## 2. 源文件链接");
+    expect(reviewTemplate).toContain("## 3. 后续动作");
+
+    const shotTemplate = await fs.readFile(path.join(outRoot, "模板", "镜头跟进模板.md"), "utf8");
+    expect(shotTemplate).toContain("## 1. 镜头");
+    expect(shotTemplate).toContain("## 2. 问题");
+    expect(shotTemplate).toContain("## 3. 下一步");
+
+    const pluginRecipes = await fs.readFile(path.join(outRoot, "社区插件配方.md"), "utf8");
+    expect(pluginRecipes).toContain("## 1. Dataview");
+    expect(pluginRecipes).toContain("## 2. Tasks");
+    expect(pluginRecipes).toContain("## 3. Kanban");
+    expect(pluginRecipes).toContain("## 4. Excalidraw");
   });
 
   test("exports a generated README with an open-vault path", async () => {
@@ -321,9 +359,13 @@ describe("exportObsidianVault", () => {
 
     const handoff = await fs.readFile(path.join(outRoot, "04_智能体交接.md"), "utf8");
     expect(handoff).toContain("# 智能体交接");
-    expect(handoff).toContain("可复制提示词");
-    expect(handoff).toContain("源文件编辑边界");
-    expect(handoff).toContain("验证命令");
+    expect(handoff).toContain("## 1. 导航");
+    expect(handoff).toContain("## 2. 单镜头交接");
+    expect(handoff).toContain("## 3. 源文件编辑边界");
+    expect(handoff).toContain("## 4. 可复制提示词");
+    expect(handoff).toContain("## 5. 验证命令");
+    expect(handoff).toContain("### 2.1 [[镜头/shot-001|镜头 001：清晨前的邀请]]");
+    expect(handoff).toContain("### 4.1 单镜头检查");
     expect(handoff).toContain("只编辑步骤源文件");
     expect(handoff).toContain("不要编辑生成的 Obsidian 观看层文件");
     expect(handoff).toContain("node apps/cli/dist/index.js verify --project <project-path> --ide codex");
@@ -350,21 +392,27 @@ describe("exportObsidianVault", () => {
     expect(shotReview).toContain("有分镜脚本: 是");
     expect(shotReview).toContain("有图片提示词: 是");
     expect(shotReview).toContain("有视频提示词: 是");
-    expect(shotReview).toContain('智能体交接: "[[04_智能体交接#单镜头交接|智能体交接]]"');
+    expect(shotReview).toContain('智能体交接: "[[04_智能体交接#2. 单镜头交接|智能体交接]]"');
     expect(shotReview).not.toContain("review_mode:");
     expect(shotReview).not.toContain("review_note:");
     expect(shotReview).not.toContain("has_storyboard:");
     expect(shotReview).not.toContain("agent_handoff:");
-    expect(shotReview).toContain("## 沉浸式审阅");
-    expect(shotReview).toContain("## 画面连续性");
-    expect(shotReview).toContain("## 视频提示词");
-    expect(shotReview).toContain("## 执行检查");
-    expect(shotReview).toContain("## 修改入口");
-    expect(shotReview).toContain("[[04_智能体交接#单镜头交接|智能体交接]]");
+    expect(shotReview).toContain("## 1. 快速审阅");
+    expect(shotReview).toContain("## 2. 审阅路径");
+    expect(shotReview).toContain("## 3. 源文件序列");
+    expect(shotReview).toContain("## 4. 画面连续性");
+    expect(shotReview).toContain("## 5. 视频提示词");
+    expect(shotReview).toContain("## 6. 执行检查");
+    expect(shotReview).toContain("## 7. 修改入口");
+    expect(shotReview).toContain("## 8. 数据视图");
+    expect(shotReview).toContain("### 8.1 镜头记录");
+    expect(shotReview).toContain("### 8.2 进度视图");
+    expect(shotReview).toContain("[[04_智能体交接#2. 单镜头交接|智能体交接]]");
+    expect(shotReview).not.toContain("## 沉浸式审阅");
     expect(shotReview).not.toContain("## 智能体交接");
     expect(shotReview).not.toContain("可复制提示词");
     expect(shotReview).not.toContain("验证命令");
-    expect(shotReview).toContain("## 审阅画布");
+    expect(shotReview).toContain("## 9. 审阅画布");
     expect(shotReview).toContain("![[流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md]]");
     expect(shotReview).toContain("![[流程/步骤四 - 图片提示词/镜头 001 关键帧 - 图片提示词.md]]");
     expect(shotReview).toContain("![[流程/步骤五 - 视频提示词/镜头 001 - 视频提示词.md]]");

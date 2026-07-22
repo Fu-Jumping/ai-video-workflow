@@ -45,7 +45,7 @@ ai-video-workflow verify-obsidian --project <path> --in-project-view
 
 - 生成的 Obsidian vault 目录，推荐位置为 `_views/obsidian/`
 - 带 properties 和 tags 的投影 Markdown
-- 项目首页、审阅页、镜头索引和生产看板
+- 使用编号标题的项目首页、审阅页、镜头索引和生产看板
 - 集中存放源文件路径、编辑边界和提示词的项目级 `04_智能体交接.md` 页面
 - 沉浸式 `镜头/<shotId>.md` 单镜头审阅页
 - 带 Review Queue、Shot Progress、Execution Readiness、Modified Generated Files 视图的 Bases `.base` 文件
@@ -71,6 +71,8 @@ v0.3.4 起，`04_智能体交接.md` 集中提供可复制的智能体上下文�
 v0.3.5 起，生成的项目首页会包含观看路线，用于第一次打开 vault 后快速进入项目、镜头、制作看板和智能体交接。可选的 `--include-obsidian-ui` 建议会把项目首页、智能体交接、镜头索引、审阅地图、镜头流水线和笔记加入书签，并在工作区中并排打开项目首页与审阅总览。
 
 v0.3.6 起，发版硬化会把真实 vault QA 作为显式门槛。如果存在可选 UI 建议，`verify-obsidian` 会校验建议 JSON，包括 Bookmarks 和 Workspace 是否包含必要入口。`pnpm example:obsidian:ui` 会用 `--include-obsidian-ui` 导出官方示例并验证生成的 vault。真正打开 Obsidian 检查仍然是人工 QA 步骤，不作为自动 CLI 行为。
+
+当前生成的观看层控制页、单镜头页、智能体交接页和模板页使用显式编号标题，例如 `## 1. 打开路线`、`## 5. 视频提示词` 和 `### 4.1 单镜头检查`。编号用于 Obsidian 大纲、页面内扫读和交接定位；`流程/` 下投影出来的 Step 文件正文仍保持源文件原样，不会被自动加编号。
 
 v0.7 起，推荐命令路径是 `--in-project-view`。导出器写入 schema version 2 manifest，不再记录本机绝对项目路径；生成 workflow notes 会记录源文件内容 hash；源 Step 文件在导出后变化时，`verify-obsidian` 会报告 `obsidian-view-stale`。`--force` 如果遇到包含 `.git` 的输出 vault，会拒绝删除。
 
@@ -117,6 +119,7 @@ v0.7 起，推荐命令路径是 `--in-project-view`。导出器写入 schema ve
 - Canvas 文件必须是可解析 JSON。
 - `.base` 文件必须是有效 YAML。
 - Review Map、关键 dashboard 标记和关键 Bases 视图必须存在。
+- 关键观看层页面必须保留编号标题，便于 Obsidian 大纲和页面内导航。
 - 单镜头审阅页和逐镜头 Review Canvas 必须存在，并且只使用 vault 相对路径。
 - 智能体交接页面必须存在；镜头页必须保留通往智能体交接页面的短入口。
 - 如果存在 `.obsidian/ai-video-workflow-suggested/*.json`，必须能解析为 JSON，并且包含必要的打开路线。

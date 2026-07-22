@@ -52,13 +52,13 @@ function yesNoProperty(value: boolean): string {
   return value ? obsidianPropertyValues.yes : obsidianPropertyValues.no;
 }
 
-function renderShotHandoffEntry(shotId: string, shotFiles: ObsidianSourceFile[], allSourceFiles: ObsidianSourceFile[]): string {
+function renderShotHandoffEntry(shotId: string, shotIndex: number, shotFiles: ObsidianSourceFile[], allSourceFiles: ObsidianSourceFile[]): string {
   const storyboardSourcePath = sourcePathForKind(shotFiles, "storyboard");
   const imagePromptSourcePath = sourcePathForKind(shotFiles, "image-prompt");
   const videoPromptSourcePath = sourcePathForKind(shotFiles, "video-prompt");
   const executionPlanSourcePath = sourcePathForKind(allSourceFiles, "execution-plan");
   const displayName = shotDisplayName(shotId, allSourceFiles);
-  return `### [[镜头/${shotId}|${displayName}]]
+  return `### 2.${shotIndex + 1} [[镜头/${shotId}|${displayName}]]
 
 - 审阅画布：[[${shotReviewCanvasPath(shotId)}|审阅画布]]
 - 分镜脚本源文件：\`${storyboardSourcePath}\`
@@ -68,9 +68,9 @@ function renderShotHandoffEntry(shotId: string, shotFiles: ObsidianSourceFile[],
 }
 
 function renderShotEditEntry(): string {
-  return `## 修改入口
+  return `## 7. 修改入口
 
-- 需要智能体修改源文件时：[[04_智能体交接#单镜头交接|智能体交接]]`;
+- 需要智能体修改源文件时：[[04_智能体交接#2. 单镜头交接|智能体交接]]`;
 }
 
 function renderShotHub(shotId: string, shotFiles: ObsidianSourceFile[], allSourceFiles: ObsidianSourceFile[], shotIds: string[]): ObsidianGeneratedFile {
@@ -99,7 +99,7 @@ ${obsidianProperties.needsAttention}: ${obsidianPropertyValues.no}
 ${obsidianProperties.reviewMode}: ${obsidianPropertyValues.reviewMode.immersive}
 ${obsidianProperties.reviewCanvas}: "[[${reviewCanvasPath}]]"
 ${obsidianProperties.reviewNote}: "[[笔记/镜头审阅/${shotId}]]"
-${obsidianProperties.agentHandoff}: "[[04_智能体交接#单镜头交接|智能体交接]]"
+${obsidianProperties.agentHandoff}: "[[04_智能体交接#2. 单镜头交接|智能体交接]]"
 ${obsidianProperties.hasStoryboard}: ${yesNoProperty(Boolean(storyboard))}
 ${obsidianProperties.hasImagePrompt}: ${yesNoProperty(Boolean(imagePrompt))}
 ${obsidianProperties.hasVideoPrompt}: ${yesNoProperty(Boolean(videoPrompt))}
@@ -113,7 +113,7 @@ tags:
 
 # ${displayName}
 
-## 沉浸式审阅
+## 1. 快速审阅
 
 - 分镜脚本：${linkForKind(shotFiles, "storyboard", "分镜脚本")}
 - 图片提示词：${linkForKind(shotFiles, "image-prompt", "图片提示词")}
@@ -122,45 +122,47 @@ tags:
 - 审阅画布：[[${reviewCanvasPath}|镜头审阅画布]]
 - 用户审阅笔记：[[笔记/镜头审阅/${shotId}|${displayName} 审阅笔记]]
 
-## 审阅路径
+## 2. 审阅路径
 
 - 审阅总览：[[01_审阅总览]]
 - 制作看板：[[03_制作看板]]
 - 审阅地图：[[画布/审阅地图.canvas]]
 ${shotNavigation(shotId, shotIds, allSourceFiles)}
 
-## 源文件序列
+## 3. 源文件序列
 
 ${embeddedFileForKind(shotFiles, "storyboard", "分镜脚本")}
 
-## 画面连续性
+## 4. 画面连续性
 
 审阅步骤四图片提示词连续性时，以步骤三分镜画面为参照。
 
 ${embeddedFileForKind(shotFiles, "image-prompt", "图片提示词")}
 
-## 视频提示词
+## 5. 视频提示词
 
 检查步骤五视频提示词是否保留步骤四视觉画面，并且只增加运动、时长和镜头行为。
 
 ${embeddedFileForKind(shotFiles, "video-prompt", "视频提示词")}
 
-## 执行检查
+## 6. 执行检查
 
 - 分镜脚本、图片提示词和视频提示词逐镜头对齐。
 - 执行前打开 [[03_制作看板|制作看板]]。
 
 ${renderShotEditEntry()}
 
-## 镜头记录
+## 8. 数据视图
+
+### 8.1 镜头记录
 
 ![[数据表/镜头.base#镜头表]]
 
-## 进度视图
+### 8.2 进度视图
 
 ![[数据表/镜头.base#镜头进度]]
 
-## 审阅画布
+## 9. 审阅画布
 
 ![[${reviewCanvasPath}]]
 `
@@ -169,7 +171,7 @@ ${renderShotEditEntry()}
 
 function renderAgentHandoffPage(shotIds: string[], sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedFile {
   const shotHandoffEntries = shotIds.length > 0
-    ? shotIds.map((shotId) => renderShotHandoffEntry(shotId, sourceFiles.filter((file) => file.shotId === shotId), sourceFiles)).join("\n\n")
+    ? shotIds.map((shotId, index) => renderShotHandoffEntry(shotId, index, sourceFiles.filter((file) => file.shotId === shotId), sourceFiles)).join("\n\n")
     : "尚未发现镜头文件。";
   return {
     vaultPath: "04_智能体交接.md",
@@ -177,7 +179,7 @@ function renderAgentHandoffPage(shotIds: string[], sourceFiles: ObsidianSourceFi
 
 这个页面集中放给智能体的源文件路径、编辑边界和提示词。先在审阅页定位问题，再把对应内容复制到智能体对话中。
 
-## 导航
+## 1. 导航
 
 - 项目首页：[[00_项目首页]]
 - 审阅总览：[[01_审阅总览]]
@@ -187,20 +189,20 @@ function renderAgentHandoffPage(shotIds: string[], sourceFiles: ObsidianSourceFi
 - 镜头表：[[数据表/镜头.base]]
 - 制作状态表：[[数据表/制作状态.base]]
 
-## 单镜头交接
+## 2. 单镜头交接
 
 ${shotHandoffEntries}
 
-## 源文件编辑边界
+## 3. 源文件编辑边界
 
 - 故事意图或镜头构图修改写入步骤三分镜脚本文件。
 - 图片构图、主体描述和画面连续性修改写入步骤四图片提示词文件。
 - 运动、时长、镜头移动和视频行为修改写入步骤五视频提示词文件。
 - 不要把生成的 Obsidian 观看层文件当作工作流源文件编辑。
 
-## 可复制提示词
+## 4. 可复制提示词
 
-### 单镜头检查
+### 4.1 单镜头检查
 
 \`\`\`text
 请检查选中镜头的步骤三分镜脚本、步骤四图片提示词和步骤五视频提示词。
@@ -209,7 +211,7 @@ ${shotHandoffEntries}
 如果需要修改，只编辑步骤源文件，不要编辑生成的 Obsidian 观看层文件。
 \`\`\`
 
-### 步骤四图片提示词修改
+### 4.2 步骤四图片提示词修改
 
 \`\`\`text
 请更新选中镜头的步骤四图片提示词，使它和步骤三分镜脚本保持逐镜头对齐。
@@ -217,7 +219,7 @@ ${shotHandoffEntries}
 不要编辑生成的 Obsidian 观看层文件。
 \`\`\`
 
-### 步骤五视频提示词修改
+### 4.3 步骤五视频提示词修改
 
 \`\`\`text
 请更新选中镜头的步骤五视频提示词。
@@ -225,7 +227,7 @@ ${shotHandoffEntries}
 不要编辑生成的 Obsidian 观看层文件。
 \`\`\`
 
-### 全项目验证
+### 4.4 全项目验证
 
 \`\`\`text
 请在步骤源文件修改后验证项目。
@@ -233,7 +235,7 @@ ${shotHandoffEntries}
 用精确源路径报告仍存在的步骤三到步骤四对齐问题或投影问题。
 \`\`\`
 
-## 验证命令
+## 5. 验证命令
 
 \`\`\`powershell
 pnpm build
@@ -252,19 +254,19 @@ function renderCommunityPluginRecipes(): ObsidianGeneratedFile {
 
 默认 Obsidian 观看层只依赖 Obsidian 核心功能。以下配方都是可选项。
 
-## Dataview
+## 1. Dataview
 
 当项目需要比核心 Bases 更复杂的查询时，再使用 Dataview。
 
-## Tasks
+## 2. Tasks
 
 当项目希望在 vault 中做交互式任务查询时，再使用 Tasks。
 
-## Kanban
+## 3. Kanban
 
 当项目需要 Markdown 支撑的看板视图时，再使用 Kanban。
 
-## Excalidraw
+## 4. Excalidraw
 
 当项目需要比核心 Canvas 更强的视觉草图能力时，再使用 Excalidraw。
 `
@@ -288,14 +290,14 @@ export function renderDashboardFiles(projectName: string, sourceFiles: ObsidianS
       vaultPath: "00_项目首页.md",
       content: `# 项目首页
 
-## 打开观看层后的流程
+## 1. 打开路线
 
 1. 打开 [[01_审阅总览|审阅总览]] 看项目状态。
 2. 打开 [[02_镜头索引|镜头索引]] 逐镜头检查分镜、图片提示词和视频提示词。
 3. 打开 [[03_制作看板|制作看板]] 确认执行准备。
 4. 审阅意见写到 [[${notesIndexLink}|笔记]]；需要智能体修改时再打开 [[04_智能体交接|智能体交接]]。
 
-## 审阅总控
+## 2. 审阅入口
 
 - [[01_审阅总览|审阅总览]]
 - [[02_镜头索引|镜头索引]]
@@ -306,47 +308,51 @@ export function renderDashboardFiles(projectName: string, sourceFiles: ObsidianS
 - [[画布/流程图.canvas|流程图]]
 - [[画布/镜头流水线.canvas|镜头流水线]]
 
-## 沉浸式镜头审阅
+## 3. 镜头入口
 
 ${shotLinks}
 
-## 项目健康
+## 4. 项目状态
+
+### 4.1 审阅队列
 
 ![[数据表/流程文件.base#审阅队列]]
 
-## 镜头进度
+### 4.2 镜头进度
 
 ![[数据表/镜头.base#镜头进度]]
 
-## 执行就绪
+### 4.3 执行就绪
 
 ![[数据表/制作状态.base#执行就绪]]
 
-## 画布导航
+## 5. 画布与数据
+
+### 5.1 画布导航
 
 - [[画布/审阅地图.canvas|审阅地图]]
 - [[画布/流程图.canvas|流程图]]
 - [[画布/镜头流水线.canvas|镜头流水线]]
 
-## 数据表
+### 5.2 数据表入口
 
 - [[数据表/流程文件.base|流程文件表]]
 - [[数据表/镜头.base|镜头表]]
 - [[数据表/制作状态.base|制作状态表]]
 
-## 流程文件
+### 5.3 流程文件
 
 ![[数据表/流程文件.base#流程文件]]
 
-## 镜头卡片
+### 5.4 镜头卡片
 
 ![[数据表/镜头.base#镜头卡片]]
 
-## 流程图
+### 5.5 流程图
 
 ![[画布/流程图.canvas]]
 
-## 镜头流水线
+### 5.6 镜头流水线
 
 ![[画布/镜头流水线.canvas]]
 `
@@ -355,19 +361,19 @@ ${shotLinks}
       vaultPath: "01_审阅总览.md",
       content: `# 审阅总览
 
-## 需要关注
+## 1. 需要关注
 
 ![[数据表/流程文件.base#审阅队列]]
 
-## 执行就绪
+## 2. 执行就绪
 
 ![[数据表/制作状态.base#执行就绪]]
 
-## 审阅地图
+## 3. 审阅地图
 
 ![[画布/审阅地图.canvas]]
 
-## 镜头审阅画布
+## 4. 镜头审阅画布
 
 ${shotLinks}
 
@@ -377,17 +383,19 @@ ${shotLinks}
       vaultPath: "02_镜头索引.md",
       content: `# 镜头索引
 
+## 1. 镜头入口
+
 ${shotLinks}
 
-## 镜头表
+## 2. 镜头表
 
 ![[数据表/镜头.base#镜头表]]
 
-## 镜头进度
+## 3. 镜头进度
 
 ![[数据表/镜头.base#镜头进度]]
 
-## 沉浸式审阅表
+## 4. 沉浸式审阅表
 
 ![[数据表/镜头.base#沉浸式审阅]]
 `
@@ -396,19 +404,19 @@ ${shotLinks}
       vaultPath: "03_制作看板.md",
       content: `# 制作看板
 
-## 执行就绪
+## 1. 执行就绪
 
 ![[数据表/制作状态.base#执行就绪]]
 
-## 制作状态
+## 2. 制作状态
 
 ![[数据表/制作状态.base#制作状态]]
 
-## 镜头进度
+## 3. 镜头进度
 
 ![[数据表/镜头.base#镜头进度]]
 
-## 导航
+## 4. 导航
 
 - 审阅队列：[[01_审阅总览]]
 - 镜头索引：[[02_镜头索引]]
@@ -426,11 +434,11 @@ tags:
 
 # 审阅笔记
 
-## 发现
+## 1. 发现
 
-## 源文件链接
+## 2. 源文件链接
 
-## 后续动作
+## 3. 后续动作
 `
     },
     {
@@ -442,11 +450,11 @@ tags:
 
 # 镜头跟进
 
-## 镜头
+## 1. 镜头
 
-## 问题
+## 2. 问题
 
-## 下一步
+## 3. 下一步
 `
     },
     {

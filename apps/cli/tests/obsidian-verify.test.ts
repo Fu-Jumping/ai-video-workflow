@@ -291,7 +291,7 @@ describe("verifyObsidianVault", () => {
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
     const shotReviewPath = path.join(outRoot, "镜头", "shot-001.md");
     const content = await fs.readFile(shotReviewPath, "utf8");
-    const nextContent = content.replace("## 视频提示词", "## 提示词桥接");
+    const nextContent = content.replace("## 5. 视频提示词", "## 5. 提示词桥接");
     await fs.writeFile(shotReviewPath, nextContent, "utf8");
     const manifest = (await readProjectionManifest(outRoot)) as ObsidianProjectionManifest;
     await fs.writeFile(
@@ -342,7 +342,7 @@ describe("verifyObsidianVault", () => {
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
     const shotReviewPath = path.join(outRoot, "镜头", "shot-001.md");
     const content = await fs.readFile(shotReviewPath, "utf8");
-    await fs.writeFile(shotReviewPath, content.replaceAll("[[04_智能体交接#单镜头交接|智能体交接]]", "[[04_智能体交接|智能体交接]]"), "utf8");
+    await fs.writeFile(shotReviewPath, content.replaceAll("[[04_智能体交接#2. 单镜头交接|智能体交接]]", "[[04_智能体交接|智能体交接]]"), "utf8");
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
 

@@ -45,7 +45,7 @@ External vault mode remains supported with `--out <vault-path>` and `--vault <va
 
 - Generated Obsidian vault directory, recommended at `_views/obsidian/`
 - Projected Markdown files with properties and tags
-- Project home, review dashboard, shot index, and production board
+- Project home, review dashboard, shot index, and production board with numbered sections
 - Project-level `04_智能体交接.md` page that centralizes source paths, edit boundaries, and copy-ready agent prompts
 - Immersive `镜头/<shotId>.md` single-shot review pages
 - Bases `.base` files with Review Queue, Shot Progress, Execution Readiness, and Modified Generated Files views
@@ -71,6 +71,8 @@ Starting in v0.3.4, `04_智能体交接.md` centralizes copy-ready agent context
 Starting in v0.3.5, the generated project home includes a viewing route for first-time vault use. Optional `--include-obsidian-ui` suggestions bookmark the project home, agent handoff, shot index, review map, shot pipeline, and notes, and open the project home next to the review dashboard in the suggested workspace.
 
 Starting in v0.3.6, release hardening treats real-vault QA as an explicit gate. `verify-obsidian` validates optional suggested UI JSON when present, including required Bookmarks and Workspace routes. `pnpm example:obsidian:ui` exports the official sample with `--include-obsidian-ui` and verifies the generated vault. Opening the vault in Obsidian remains a human QA step, not an automated CLI action.
+
+Generated view-layer control pages, single-shot pages, agent handoff pages, and templates now use explicit numbered headings, such as `## 1. 打开路线`, `## 5. 视频提示词`, and `### 4.1 单镜头检查`. The numbering supports Obsidian outlines, scanning, and handoff anchors. Projected Step-file bodies under `流程/` still preserve source Markdown headings and are not automatically renumbered.
 
 Starting in v0.7, `--in-project-view` is the recommended command path. The exporter writes schema version 2 manifests without local absolute project paths, records source content hashes for generated workflow notes, and `verify-obsidian` reports `obsidian-view-stale` when Step sources changed after export. `--force` refuses to delete an output vault that contains `.git`.
 
@@ -117,6 +119,7 @@ By default, export does not write `.obsidian/`. Use `--include-obsidian-ui` only
 - Canvas files parse as JSON.
 - `.base` files are valid YAML.
 - Review Map, key dashboard markers, and key Bases views exist.
+- Key view-layer pages keep numbered headings for Obsidian outlines and in-page navigation.
 - Single-shot review pages and per-shot review canvases exist and use relative vault paths.
 - The agent handoff page exists, and shot pages keep a short entry link to it.
 - Optional `.obsidian/ai-video-workflow-suggested/*.json` files parse when present and include the required opening routes.

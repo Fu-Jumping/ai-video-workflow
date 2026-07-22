@@ -12,9 +12,10 @@ import { notesIndexPath } from "./routes.js";
 import type { ObsidianProjectionManifest, ObsidianProjectionManifestEntry } from "./types.js";
 
 const requiredDashboardMarkers: Record<string, string[]> = {
-  "00_项目首页.md": ["审阅总控", "项目健康", "镜头进度", "执行就绪", "画布导航"],
-  "01_审阅总览.md": ["需要关注", "执行就绪", "审阅地图", "镜头审阅画布"],
-  "03_制作看板.md": ["执行就绪", "制作状态", "镜头进度", "导航"]
+  "00_项目首页.md": ["## 1. 打开路线", "## 2. 审阅入口", "## 3. 镜头入口", "## 4. 项目状态", "### 5.1 画布导航"],
+  "01_审阅总览.md": ["## 1. 需要关注", "## 2. 执行就绪", "## 3. 审阅地图", "## 4. 镜头审阅画布"],
+  "02_镜头索引.md": ["## 1. 镜头入口", "## 2. 镜头表", "## 3. 镜头进度", "## 4. 沉浸式审阅表"],
+  "03_制作看板.md": ["## 1. 执行就绪", "## 2. 制作状态", "## 3. 镜头进度", "## 4. 导航"]
 };
 const requiredBaseFiles = ["数据表/流程文件.base", "数据表/镜头.base", "数据表/制作状态.base"];
 const requiredBaseViews: Record<string, string[]> = {
@@ -24,8 +25,8 @@ const requiredBaseViews: Record<string, string[]> = {
 };
 const requiredCanvasFiles = ["画布/流程图.canvas", "画布/镜头流水线.canvas", "画布/审阅地图.canvas"];
 const agentHandoffPath = "04_智能体交接.md";
-const requiredAgentHandoffMarkers = ["智能体交接", "单镜头交接", "分镜脚本源文件", "可复制提示词", "源文件编辑边界", "验证命令"];
-const requiredShotAgentHandoffLink = "[[04_智能体交接#单镜头交接|智能体交接]]";
+const requiredAgentHandoffMarkers = ["## 1. 导航", "## 2. 单镜头交接", "分镜脚本源文件", "## 3. 源文件编辑边界", "## 4. 可复制提示词", "## 5. 验证命令"];
+const requiredShotAgentHandoffLink = "[[04_智能体交接#2. 单镜头交接|智能体交接]]";
 const suggestedUiDir = ".obsidian/ai-video-workflow-suggested";
 const requiredSuggestedUiFiles = ["bookmarks.json", "workspace.json", "core-plugins.json", "appearance.json"];
 const requiredBookmarkPaths = [
@@ -39,14 +40,15 @@ const requiredBookmarkPaths = [
 ];
 const requiredWorkspacePaths = ["00_项目首页.md", "01_审阅总览.md", "画布/审阅地图.canvas"];
 const requiredShotReviewMarkers = [
-  "## 沉浸式审阅",
-  "## 审阅路径",
-  "## 源文件序列",
-  "## 画面连续性",
-  "## 视频提示词",
-  "## 执行检查",
-  "## 修改入口",
-  "## 审阅画布"
+  "## 1. 快速审阅",
+  "## 2. 审阅路径",
+  "## 3. 源文件序列",
+  "## 4. 画面连续性",
+  "## 5. 视频提示词",
+  "## 6. 执行检查",
+  "## 7. 修改入口",
+  "## 8. 数据视图",
+  "## 9. 审阅画布"
 ];
 const absoluteLinkPattern = /([A-Za-z]:\\|[A-Za-z]:\/|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
 const unsafeLocalPathStringPattern = /(^|[^A-Za-z])[A-Za-z]:[\\/]|file:\/\/|vscode:\/\//i;
