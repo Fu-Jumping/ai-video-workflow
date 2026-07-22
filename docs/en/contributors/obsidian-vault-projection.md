@@ -76,6 +76,8 @@ Generated view-layer control pages, single-shot pages, agent handoff pages, and 
 
 Projected pages under `流程/` rewrite source-relative links that can be mapped to project Step Markdown files into vault-internal links. For example, `../04_图片提示词/镜头-002-关键帧.md` from Step 3 points to the real projected file under `流程/步骤四 - 图片提示词/...`, so Obsidian does not try to create a missing path when users click it.
 
+`verify-obsidian` also checks these navigation surfaces: Markdown and wiki links must resolve to existing vault files; `#` anchors on Markdown links must land on a real heading; `#` anchors on Base embeds must land on a real view; Canvas file nodes and edge endpoints must resolve; optional `.obsidian` UI suggestions must point at real vault files.
+
 Starting in v0.7, `--in-project-view` is the recommended command path. The exporter writes schema version 2 manifests without local absolute project paths, records source content hashes for generated workflow notes, and `verify-obsidian` reports `obsidian-view-stale` when Step sources changed after export. `--force` refuses to delete an output vault that contains `.git`.
 
 By default, export does not write `.obsidian/`. Use `--include-obsidian-ui` only when you want optional suggested Bookmarks, Workspace, core plugin, and appearance JSON files. Existing user `.obsidian` files are not overwritten; the exporter reports `skipped-user-config-existing` and writes suggested copies under `.obsidian/ai-video-workflow-suggested/`.
@@ -123,7 +125,9 @@ By default, export does not write `.obsidian/`. Use `--include-obsidian-ui` only
 - Review Map, key dashboard markers, and key Bases views exist.
 - Key view-layer pages keep numbered headings for Obsidian outlines and in-page navigation.
 - Generated Markdown links that target vault files resolve to existing files, except intentional user-note targets.
+- Generated Markdown and Base `#` anchors resolve to real headings or views.
 - Single-shot review pages and per-shot review canvases exist and use relative vault paths.
+- Canvas edges connect to real nodes, and optional `.obsidian` UI paths exist.
 - The agent handoff page exists, and shot pages keep a short entry link to it.
 - Optional `.obsidian/ai-video-workflow-suggested/*.json` files parse when present and include the required opening routes.
 - Every projected file remains traceable to a source project path.

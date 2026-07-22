@@ -59,8 +59,20 @@ interface VerifyObsidianOptions {
 }
 
 interface CanvasNode {
+  id?: string;
   type?: string;
   file?: string;
+}
+
+interface CanvasEdge {
+  id?: string;
+  fromNode?: string;
+  toNode?: string;
+}
+
+interface CanvasFile {
+  nodes?: CanvasNode[];
+  edges?: CanvasEdge[];
 }
 
 interface BaseView {
@@ -69,6 +81,11 @@ interface BaseView {
 
 interface BaseFile {
   views?: BaseView[];
+}
+
+interface VaultLinkTarget {
+  target: string;
+  anchor: string;
 }
 
 function pushIssue(issues: VerificationIssue[], issue: VerificationIssue): void {
@@ -114,29 +131,33 @@ function containsUnsafeManifestString(value: unknown): boolean {
   return collectJsonStrings(value).some((item) => unsafeLocalPathStringPattern.test(item));
 }
 
-function splitLinkTarget(target: string): string {
+function splitLinkTarget(target: string): { pathPart: string; anchor: string } {
   const withoutAlias = target.split("|")[0] ?? "";
-  return withoutAlias.split("#")[0]?.trim() ?? "";
+  const hashIndex = withoutAlias.indexOf("#");
+  if (hashIndex === -1) {
+    return { pathPart: withoutAlias.trim(), anchor: "" };
+  }
+  return { pathPart: withoutAlias.slice(0, hashIndex).trim(), anchor: withoutAlias.slice(hashIndex + 1).trim() };
 }
 
-function isExternalOrAnchorLink(target: string): boolean {
-  return target.length === 0 || target.startsWith("#") || /^[a-z][a-z0-9+.-]*:/i.test(target);
+function isExternalLink(target: string): boolean {
+  return /^[a-z][a-z0-9+.-]*:/i.test(target);
 }
 
-function vaultLinkTargetCandidates(currentFile: string, target: string, isWikiLink: boolean): string[] {
-  const cleanTarget = splitLinkTarget(target);
-  if (isExternalOrAnchorLink(cleanTarget)) {
+function vaultLinkTargetCandidates(currentFile: string, target: string, isWikiLink: boolean): VaultLinkTarget[] {
+  const { pathPart, anchor } = splitLinkTarget(target);
+  if (pathPart.length === 0 || isExternalLink(pathPart)) {
     return [];
   }
   if (isWikiLink) {
-    const ext = path.posix.extname(cleanTarget);
-    return [ext ? cleanTarget : `${cleanTarget}.md`];
+    const ext = path.posix.extname(pathPart);
+    return [{ target: ext ? pathPart : `${pathPart}.md`, anchor }];
   }
-  const ext = path.posix.extname(cleanTarget);
+  const ext = path.posix.extname(pathPart);
   if (![".md", ".canvas", ".base"].includes(ext)) {
     return [];
   }
-  return [path.posix.normalize(path.posix.join(path.posix.dirname(currentFile), cleanTarget))];
+  return [{ target: path.posix.normalize(path.posix.join(path.posix.dirname(currentFile), pathPart)), anchor }];
 }
 
 function isOptionalUserNoteTarget(target: string): boolean {
@@ -187,6 +208,54 @@ async function listDirectJsonFiles(root: string): Promise<string[]> {
   }
   const entries = await fs.readdir(root, { withFileTypes: true });
   return entries.filter((entry) => entry.isFile() && entry.name.endsWith(".json")).map((entry) => entry.name);
+}
+
+function decodeAnchor(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function markdownHeadingAnchors(content: string): Set<string> {
+  const headings = new Set<string>();
+  let inFence = false;
+  for (const line of content.split(/\r?\n/)) {
+    if (/^\s*(```|~~~)/.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) {
+      continue;
+    }
+    const match = line.match(/^#{1,6}\s+(.+?)\s*#*\s*$/u);
+    if (match) {
+      headings.add(match[1].trim());
+    }
+  }
+  return headings;
+}
+
+async function markdownHeadingIndex(vaultRoot: string, files: string[]): Promise<Map<string, Set<string>>> {
+  const index = new Map<string, Set<string>>();
+  for (const file of files.filter((filePath) => filePath.endsWith(".md"))) {
+    index.set(file, markdownHeadingAnchors(await fs.readFile(vaultFsPath(vaultRoot, file), "utf8")));
+  }
+  return index;
+}
+
+async function baseViewIndex(vaultRoot: string, files: string[]): Promise<Map<string, Set<string>>> {
+  const index = new Map<string, Set<string>>();
+  for (const file of files.filter((filePath) => filePath.endsWith(".base"))) {
+    try {
+      const base = parseYaml<BaseFile>(await fs.readFile(vaultFsPath(vaultRoot, file), "utf8"));
+      index.set(file, new Set((base.views ?? []).map((view) => view.name).filter((name): name is string => Boolean(name))));
+    } catch {
+      index.set(file, new Set());
+    }
+  }
+  return index;
 }
 
 function readFrontmatter(content: string): Record<string, string> | null {
@@ -274,17 +343,39 @@ async function verifyCanvasFiles(vaultRoot: string, issues: VerificationIssue[])
       continue;
     }
     try {
-      const canvas = (await fs.readJson(fullPath)) as { nodes?: CanvasNode[] };
+      const canvas = (await fs.readJson(fullPath)) as CanvasFile;
       if (!Array.isArray(canvas.nodes)) {
         pushIssue(issues, { code: "invalid-obsidian-canvas-json", message: "Canvas JSON must contain a nodes array", path: file });
         continue;
       }
+      if (!Array.isArray(canvas.edges)) {
+        pushIssue(issues, { code: "invalid-obsidian-canvas-json", message: "Canvas JSON must contain an edges array", path: file });
+        continue;
+      }
+      const nodeIds = new Set<string>();
       for (const node of canvas.nodes) {
+        if (!node.id) {
+          pushIssue(issues, { code: "invalid-obsidian-canvas-json", message: "Canvas node must contain an id", path: file });
+          continue;
+        }
+        if (nodeIds.has(node.id)) {
+          pushIssue(issues, { code: "invalid-obsidian-canvas-json", message: `Canvas node id is duplicated: ${node.id}`, path: file });
+        }
+        nodeIds.add(node.id);
         if (node.type === "file" && (!node.file || !isRelativeVaultPath(node.file))) {
           pushIssue(issues, { code: "invalid-obsidian-canvas-json", message: "Canvas file node must use a relative vault path", path: file });
         }
         if (node.type === "file" && node.file && isRelativeVaultPath(node.file) && !(await fs.pathExists(vaultFsPath(vaultRoot, node.file)))) {
           pushIssue(issues, { code: "invalid-obsidian-canvas-json", message: `Canvas file node target is missing: ${node.file}`, path: file });
+        }
+      }
+      for (const edge of canvas.edges) {
+        if (!edge.fromNode || !nodeIds.has(edge.fromNode) || !edge.toNode || !nodeIds.has(edge.toNode)) {
+          pushIssue(issues, {
+            code: "invalid-obsidian-canvas-json",
+            message: `Canvas edge endpoint is missing: ${edge.id ?? "unnamed-edge"}`,
+            path: file
+          });
         }
       }
     } catch {
@@ -428,32 +519,71 @@ async function verifyNoAbsoluteLinks(vaultRoot: string, files: string[], issues:
 
 async function verifyMarkdownLinks(vaultRoot: string, files: string[], issues: VerificationIssue[]): Promise<void> {
   const existingFiles = new Set(files);
+  const markdownHeadings = await markdownHeadingIndex(vaultRoot, files);
+  const baseViews = await baseViewIndex(vaultRoot, files);
   const markdownLinkPattern = /(?<!!)\[[^\]\r\n]+\]\(([^)\r\n]+)\)/g;
   const wikiLinkPattern = /!?\[\[([^\]\r\n]+)\]\]/g;
+  const anchorExists = ({ target, anchor }: VaultLinkTarget): boolean => {
+    if (!anchor || anchor.startsWith("^")) {
+      return true;
+    }
+    const anchors = new Set([anchor, decodeAnchor(anchor)]);
+    if (target.endsWith(".md")) {
+      const headings = markdownHeadings.get(target) ?? new Set();
+      return [...anchors].some((candidate) => headings.has(candidate));
+    }
+    if (target.endsWith(".base")) {
+      const views = baseViews.get(target) ?? new Set();
+      return [...anchors].some((candidate) => views.has(candidate));
+    }
+    return true;
+  };
   for (const file of files.filter((filePath) => filePath.endsWith(".md"))) {
     const content = await fs.readFile(vaultFsPath(vaultRoot, file), "utf8");
     const targets = [
       ...[...content.matchAll(markdownLinkPattern)].flatMap((match) => vaultLinkTargetCandidates(file, match[1]?.trim() ?? "", false)),
       ...[...content.matchAll(wikiLinkPattern)].flatMap((match) => vaultLinkTargetCandidates(file, match[1]?.trim() ?? "", true))
     ];
-    for (const target of targets) {
+    for (const linkTarget of targets) {
+      const { target, anchor } = linkTarget;
       if (isOptionalUserNoteTarget(target)) {
         continue;
       }
       if (!isRelativeVaultPath(target) || !existingFiles.has(target)) {
         pushIssue(issues, { code: "broken-obsidian-markdown-link", message: `Obsidian Markdown link target is missing: ${target}`, path: file });
+        continue;
+      }
+      if (!anchorExists(linkTarget)) {
+        pushIssue(issues, { code: "broken-obsidian-markdown-anchor", message: `Obsidian Markdown link anchor is missing: ${target}#${anchor}`, path: file });
       }
     }
   }
 }
 
-async function verifyOptionalUiConfig(vaultRoot: string, issues: VerificationIssue[]): Promise<void> {
+function isVaultFilePathString(value: string): boolean {
+  return /\.(md|canvas|base)$/i.test(value);
+}
+
+function verifyJsonVaultPathStrings(vaultPath: string, value: unknown, existingFiles: Set<string>, issues: VerificationIssue[]): void {
+  for (const item of collectJsonStrings(value)) {
+    if (!isVaultFilePathString(item)) {
+      continue;
+    }
+    if (!isRelativeVaultPath(item) || !existingFiles.has(item)) {
+      pushIssue(issues, { code: "invalid-obsidian-ui-config", message: `Optional Obsidian UI config path is missing or unsafe: ${item}`, path: vaultPath });
+    }
+  }
+}
+
+async function verifyOptionalUiConfig(vaultRoot: string, files: string[], issues: VerificationIssue[]): Promise<void> {
+  const existingFiles = new Set(files);
   async function readUiJson(vaultPath: string): Promise<unknown | null> {
     try {
       const value = await fs.readJson(vaultFsPath(vaultRoot, vaultPath));
       if (containsUnsafePathString(value)) {
         pushIssue(issues, { code: "invalid-obsidian-ui-config", message: `Optional Obsidian UI config contains an absolute path: ${vaultPath}`, path: vaultPath });
       }
+      verifyJsonVaultPathStrings(vaultPath, value, existingFiles, issues);
       return value;
     } catch {
       pushIssue(issues, { code: "invalid-obsidian-ui-config", message: `Optional Obsidian UI config JSON is invalid: ${vaultPath}`, path: vaultPath });
@@ -558,6 +688,6 @@ export async function verifyObsidianVault({ projectRoot, vaultRoot }: VerifyObsi
   await verifyGeneratedMarkdown(resolvedProjectRoot, resolvedVaultRoot, files, manifest, issues);
   await verifyNoAbsoluteLinks(resolvedVaultRoot, files, issues);
   await verifyMarkdownLinks(resolvedVaultRoot, files, issues);
-  await verifyOptionalUiConfig(resolvedVaultRoot, issues);
+  await verifyOptionalUiConfig(resolvedVaultRoot, files, issues);
   return { ok: issues.length === 0, issues };
 }

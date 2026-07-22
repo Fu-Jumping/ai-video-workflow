@@ -76,6 +76,8 @@ v0.3.6 起，发版硬化会把真实 vault QA 作为显式门槛。如果存在
 
 `流程/` 投影页会把能映射到项目 Step Markdown 文件的源相对链接改写为 vault 内链接。例如步骤三中的 `../04_图片提示词/镜头-002-关键帧.md` 会指向 `流程/步骤四 - 图片提示词/...` 下的真实投影文件，避免 Obsidian 点击时尝试创建不存在的路径。
 
+`verify-obsidian` 会继续校验这些观看层跳转：Markdown 和 wiki 链接必须指向存在的 vault 文件；带 `#` 的 Markdown 标题锚点必须能落到目标页面标题；带 `#` 的 Base 嵌入必须能落到目标 `.base` view；Canvas file 节点和 edge 端点必须可解析；可选 `.obsidian` UI 建议中的 vault 路径必须指向真实文件。
+
 v0.7 起，推荐命令路径是 `--in-project-view`。导出器写入 schema version 2 manifest，不再记录本机绝对项目路径；生成 workflow notes 会记录源文件内容 hash；源 Step 文件在导出后变化时，`verify-obsidian` 会报告 `obsidian-view-stale`。`--force` 如果遇到包含 `.git` 的输出 vault，会拒绝删除。
 
 默认导出不会写入 `.obsidian/`。只有显式使用 `--include-obsidian-ui` 时，才会生成可选的 Bookmarks、Workspace、核心插件和 appearance 建议 JSON。已有用户 `.obsidian` 文件不会被覆盖；导出会报告 `skipped-user-config-existing`，并把建议副本写入 `.obsidian/ai-video-workflow-suggested/`。
@@ -123,7 +125,9 @@ v0.7 起，推荐命令路径是 `--in-project-view`。导出器写入 schema ve
 - Review Map、关键 dashboard 标记和关键 Bases 视图必须存在。
 - 关键观看层页面必须保留编号标题，便于 Obsidian 大纲和页面内导航。
 - 生成 Markdown 中指向 vault 内文件的链接必须能解析到真实文件；用户笔记目标除外。
+- 生成 Markdown 中指向标题或 Base view 的 `#` 锚点必须能解析到真实标题或真实 view。
 - 单镜头审阅页和逐镜头 Review Canvas 必须存在，并且只使用 vault 相对路径。
+- Canvas edge 必须连接到真实节点；可选 `.obsidian` UI 配置中的 vault 路径必须存在。
 - 智能体交接页面必须存在；镜头页必须保留通往智能体交接页面的短入口。
 - 如果存在 `.obsidian/ai-video-workflow-suggested/*.json`，必须能解析为 JSON，并且包含必要的打开路线。
 - 每个投影文件必须能追踪到源项目路径。

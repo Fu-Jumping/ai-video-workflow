@@ -18,6 +18,20 @@ function officialExampleRoot(): string {
   return path.resolve(__dirname, "..", "..", "..", "examples", "官方示例-云上早市");
 }
 
+async function refreshManifestEntryHash(outRoot: string, vaultPath: string): Promise<void> {
+  const generatedPath = path.join(outRoot, ...vaultPath.split("/"));
+  const nextContent = await fs.readFile(generatedPath, "utf8");
+  const manifest = (await readProjectionManifest(outRoot)) as ObsidianProjectionManifest;
+  await fs.writeFile(
+    path.join(outRoot, projectionManifestPath),
+    renderProjectionManifest({
+      ...manifest,
+      files: manifest.files.map((entry) => entry.vaultPath === vaultPath ? { ...entry, contentHash: hashContent(nextContent) } : entry)
+    }),
+    "utf8"
+  );
+}
+
 describe("verifyObsidianVault", () => {
   test("fails when the source project is missing, a file, or incomplete", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-bad-source-"));
@@ -129,6 +143,50 @@ describe("verifyObsidianVault", () => {
         expect.objectContaining({
           code: "broken-obsidian-markdown-link",
           message: expect.stringContaining("流程/04_图片提示词/missing.md")
+        })
+      ])
+    );
+  });
+
+  test("fails when a generated Markdown link points to a missing heading anchor", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-broken-heading-anchor-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    const vaultPath = "镜头/shot-001.md";
+    await fs.appendFile(path.join(outRoot, ...vaultPath.split("/")), "\n[[04_智能体交接#不存在段落|坏标题锚点]]\n", "utf8");
+    await refreshManifestEntryHash(outRoot, vaultPath);
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "broken-obsidian-markdown-anchor",
+          message: expect.stringContaining("04_智能体交接.md#不存在段落")
+        })
+      ])
+    );
+  });
+
+  test("fails when an embedded Base link points to a missing view anchor", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-broken-base-anchor-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    const vaultPath = "00_项目首页.md";
+    await fs.appendFile(path.join(outRoot, ...vaultPath.split("/")), "\n![[数据表/镜头.base#不存在视图]]\n", "utf8");
+    await refreshManifestEntryHash(outRoot, vaultPath);
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "broken-obsidian-markdown-anchor",
+          message: expect.stringContaining("数据表/镜头.base#不存在视图")
         })
       ])
     );
@@ -252,6 +310,35 @@ describe("verifyObsidianVault", () => {
     expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "invalid-obsidian-canvas-json" })]));
   });
 
+  test("fails when a canvas edge points to a missing node", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-canvas-edge-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+
+    const reviewMapPath = path.join(outRoot, "画布", "审阅地图.canvas");
+    const reviewMap = (await fs.readJson(reviewMapPath)) as { edges: Array<Record<string, unknown>> };
+    reviewMap.edges.push({
+      id: "broken-edge",
+      fromNode: "missing-node",
+      toNode: "home",
+      toEnd: "arrow"
+    });
+    await fs.writeJson(reviewMapPath, reviewMap, { spaces: 2 });
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "invalid-obsidian-canvas-json",
+          message: expect.stringContaining("broken-edge")
+        })
+      ])
+    );
+  });
+
   test("fails when a required Base view is missing", async () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-missing-base-view-"));
     tempRoots.push(outRoot);
@@ -298,6 +385,29 @@ describe("verifyObsidianVault", () => {
         expect.objectContaining({
           code: "invalid-obsidian-ui-config",
           message: expect.stringContaining("04_智能体交接.md")
+        })
+      ])
+    );
+  });
+
+  test("fails when optional Obsidian UI config points to a missing vault path", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-missing-ui-path-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, includeObsidianUi: true });
+    const bookmarksPath = path.join(outRoot, ".obsidian", "ai-video-workflow-suggested", "bookmarks.json");
+    const bookmarks = await fs.readJson(bookmarksPath) as { items: Array<Record<string, unknown>> };
+    bookmarks.items.push({ type: "file", ctime: 0, path: "不存在.md", title: "坏路径" });
+    await fs.writeJson(bookmarksPath, bookmarks, { spaces: 2 });
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "invalid-obsidian-ui-config",
+          message: expect.stringContaining("不存在.md")
         })
       ])
     );
