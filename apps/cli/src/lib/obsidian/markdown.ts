@@ -129,6 +129,66 @@ function stripFrontmatter(content: string): string {
   return end === -1 ? content : content.slice(end + 5);
 }
 
+function normalizeSourcePath(value: string): string {
+  return path.posix.normalize(value.replace(/\\/g, "/")).replace(/^\.\//, "");
+}
+
+function splitLinkTarget(target: string): { pathPart: string; anchor: string } {
+  const hashIndex = target.indexOf("#");
+  if (hashIndex === -1) {
+    return { pathPart: target, anchor: "" };
+  }
+  return { pathPart: target.slice(0, hashIndex), anchor: target.slice(hashIndex) };
+}
+
+function isRewritableSourceMarkdownTarget(target: string): boolean {
+  return (
+    target.length > 0 &&
+    target.endsWith(".md") &&
+    !target.startsWith("#") &&
+    !target.startsWith("/") &&
+    !target.includes("\\") &&
+    !/^[a-z][a-z0-9+.-]*:/i.test(target)
+  );
+}
+
+function rewriteSourceMarkdownLinks(content: string, sourceFile: ObsidianSourceFile, sourceFiles: ObsidianSourceFile[]): string {
+  const sourcePathToVaultPath = new Map(sourceFiles.map((file) => [normalizeSourcePath(file.sourcePath), workflowVaultPath(file)]));
+  const sourceDir = path.posix.dirname(normalizeSourcePath(sourceFile.sourcePath));
+  const markdownLinkPattern = /(!?)\[([^\]\r\n]+)\]\(([^)\r\n]+)\)/g;
+  const wikiLinkPattern = /(!?)\[\[([^\]\r\n]+)\]\]/g;
+
+  const rewriteTarget = (target: string): string | undefined => {
+    const { pathPart, anchor } = splitLinkTarget(target);
+    if (!isRewritableSourceMarkdownTarget(pathPart)) {
+      return undefined;
+    }
+    const resolvedSourcePath = normalizeSourcePath(path.posix.join(sourceDir, pathPart));
+    if (resolvedSourcePath.startsWith("../")) {
+      return undefined;
+    }
+    const vaultPath = sourcePathToVaultPath.get(resolvedSourcePath);
+    return vaultPath ? `${vaultPath}${anchor}` : undefined;
+  };
+
+  const contentWithMarkdownLinks = content.replace(markdownLinkPattern, (match, imagePrefix: string, label: string, rawTarget: string) => {
+    if (imagePrefix) {
+      return match;
+    }
+    const rewrittenTarget = rewriteTarget(rawTarget.trim());
+    return rewrittenTarget ? `[[${rewrittenTarget}|${label}]]` : match;
+  });
+
+  return contentWithMarkdownLinks.replace(wikiLinkPattern, (match, embedPrefix: string, rawTarget: string) => {
+    const [target, alias] = rawTarget.split("|", 2);
+    const rewrittenTarget = rewriteTarget(target?.trim() ?? "");
+    if (!rewrittenTarget) {
+      return match;
+    }
+    return `${embedPrefix}[[${rewrittenTarget}${alias ? `|${alias}` : ""}]]`;
+  });
+}
+
 function renderTags(sourceFile: ObsidianSourceFile): string[] {
   const tags = [
     "ai-video/project",
@@ -187,6 +247,7 @@ export function renderGeneratedWorkflowNote(
   const navigation = [
     `> 源文件：\`${sourceFile.sourcePath}\` · [[00_项目首页|首页]] · [[01_审阅总览|审阅总览]] · [[03_制作看板|制作看板]]${shotLink}`
   ];
+  const body = rewriteSourceMarkdownLinks(stripFrontmatter(originalContent).trim(), sourceFile, sourceFiles);
 
-  return [renderFrontmatter(sourceFile, projectName, sourceFiles), "", ...navigation, "", stripFrontmatter(originalContent).trim(), ""].join("\n");
+  return [renderFrontmatter(sourceFile, projectName, sourceFiles), "", ...navigation, "", body, ""].join("\n");
 }

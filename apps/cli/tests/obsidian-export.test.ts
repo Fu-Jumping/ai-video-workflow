@@ -252,6 +252,8 @@ describe("exportObsidianVault", () => {
     expect(storyboard).toContain('镜头索引: "[[镜头/shot-001|镜头 001：清晨前的邀请]]"');
     expect(storyboard).toContain("> 源文件：`03_分镜脚本/镜头-001.md`");
     expect(storyboard).toContain("镜头：[[镜头/shot-001|镜头 001：清晨前的邀请]]");
+    expect(storyboard).toContain("对应步骤四：[[流程/步骤四 - 图片提示词/镜头 001 关键帧 - 图片提示词.md|镜头 001 关键帧图片提示词]]");
+    expect(storyboard).not.toContain("](../04_图片提示词/镜头-001-关键帧.md)");
     expect(storyboard).not.toContain('镜头索引: "[[shot-001]]"');
     expect(storyboard).not.toContain("- 镜头索引：[[shot-001]]");
     expect(storyboard).not.toContain("## Obsidian 导航");
@@ -261,6 +263,9 @@ describe("exportObsidianVault", () => {
     expect(storyboard).toContain("ai-video/step/03-storyboard");
     expect(storyboard).toContain("tags:");
     expect(storyboard).toContain("[[01_审阅总览|审阅总览]]");
+    const imagePrompt = await fs.readFile(path.join(outRoot, "流程", "步骤四 - 图片提示词", "镜头 001 关键帧 - 图片提示词.md"), "utf8");
+    expect(imagePrompt).toContain("[[流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md]]");
+    expect(imagePrompt).not.toContain("[[../03_分镜脚本/镜头-001.md]]");
     await expect(fs.pathExists(path.join(outRoot, projectionManifestPath))).resolves.toBe(true);
   });
 

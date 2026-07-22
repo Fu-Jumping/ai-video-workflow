@@ -114,6 +114,35 @@ function containsUnsafeManifestString(value: unknown): boolean {
   return collectJsonStrings(value).some((item) => unsafeLocalPathStringPattern.test(item));
 }
 
+function splitLinkTarget(target: string): string {
+  const withoutAlias = target.split("|")[0] ?? "";
+  return withoutAlias.split("#")[0]?.trim() ?? "";
+}
+
+function isExternalOrAnchorLink(target: string): boolean {
+  return target.length === 0 || target.startsWith("#") || /^[a-z][a-z0-9+.-]*:/i.test(target);
+}
+
+function vaultLinkTargetCandidates(currentFile: string, target: string, isWikiLink: boolean): string[] {
+  const cleanTarget = splitLinkTarget(target);
+  if (isExternalOrAnchorLink(cleanTarget)) {
+    return [];
+  }
+  if (isWikiLink) {
+    const ext = path.posix.extname(cleanTarget);
+    return [ext ? cleanTarget : `${cleanTarget}.md`];
+  }
+  const ext = path.posix.extname(cleanTarget);
+  if (![".md", ".canvas", ".base"].includes(ext)) {
+    return [];
+  }
+  return [path.posix.normalize(path.posix.join(path.posix.dirname(currentFile), cleanTarget))];
+}
+
+function isOptionalUserNoteTarget(target: string): boolean {
+  return target.startsWith("笔记/镜头审阅/");
+}
+
 function sourceFsPath(projectRoot: string, sourcePath: string): string {
   return path.join(projectRoot, ...sourcePath.split("/"));
 }
@@ -397,6 +426,27 @@ async function verifyNoAbsoluteLinks(vaultRoot: string, files: string[], issues:
   }
 }
 
+async function verifyMarkdownLinks(vaultRoot: string, files: string[], issues: VerificationIssue[]): Promise<void> {
+  const existingFiles = new Set(files);
+  const markdownLinkPattern = /(?<!!)\[[^\]\r\n]+\]\(([^)\r\n]+)\)/g;
+  const wikiLinkPattern = /!?\[\[([^\]\r\n]+)\]\]/g;
+  for (const file of files.filter((filePath) => filePath.endsWith(".md"))) {
+    const content = await fs.readFile(vaultFsPath(vaultRoot, file), "utf8");
+    const targets = [
+      ...[...content.matchAll(markdownLinkPattern)].flatMap((match) => vaultLinkTargetCandidates(file, match[1]?.trim() ?? "", false)),
+      ...[...content.matchAll(wikiLinkPattern)].flatMap((match) => vaultLinkTargetCandidates(file, match[1]?.trim() ?? "", true))
+    ];
+    for (const target of targets) {
+      if (isOptionalUserNoteTarget(target)) {
+        continue;
+      }
+      if (!isRelativeVaultPath(target) || !existingFiles.has(target)) {
+        pushIssue(issues, { code: "broken-obsidian-markdown-link", message: `Obsidian Markdown link target is missing: ${target}`, path: file });
+      }
+    }
+  }
+}
+
 async function verifyOptionalUiConfig(vaultRoot: string, issues: VerificationIssue[]): Promise<void> {
   async function readUiJson(vaultPath: string): Promise<unknown | null> {
     try {
@@ -507,6 +557,7 @@ export async function verifyObsidianVault({ projectRoot, vaultRoot }: VerifyObsi
   await verifyShotReviewPages(resolvedVaultRoot, files, issues);
   await verifyGeneratedMarkdown(resolvedProjectRoot, resolvedVaultRoot, files, manifest, issues);
   await verifyNoAbsoluteLinks(resolvedVaultRoot, files, issues);
+  await verifyMarkdownLinks(resolvedVaultRoot, files, issues);
   await verifyOptionalUiConfig(resolvedVaultRoot, issues);
   return { ok: issues.length === 0, issues };
 }

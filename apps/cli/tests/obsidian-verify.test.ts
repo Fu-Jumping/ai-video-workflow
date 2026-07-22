@@ -102,6 +102,38 @@ describe("verifyObsidianVault", () => {
     expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "obsidian-manifest-hash-mismatch" })]));
   });
 
+  test("fails when a generated Markdown link points to a missing vault file", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-broken-markdown-link-"));
+    tempRoots.push(outRoot);
+    const projectRoot = officialExampleRoot();
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    const vaultPath = "流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md";
+    const generatedPath = path.join(outRoot, ...vaultPath.split("/"));
+    const nextContent = `${await fs.readFile(generatedPath, "utf8")}\n[断链](../04_图片提示词/missing.md)\n`;
+    await fs.writeFile(generatedPath, nextContent, "utf8");
+    const manifest = (await readProjectionManifest(outRoot)) as ObsidianProjectionManifest;
+    await fs.writeFile(
+      path.join(outRoot, projectionManifestPath),
+      renderProjectionManifest({
+        ...manifest,
+        files: manifest.files.map((entry) => entry.vaultPath === vaultPath ? { ...entry, contentHash: hashContent(nextContent) } : entry)
+      }),
+      "utf8"
+    );
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "broken-obsidian-markdown-link",
+          message: expect.stringContaining("流程/04_图片提示词/missing.md")
+        })
+      ])
+    );
+  });
+
   test("fails when a Chinese generated note is missing source path", async () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-cn-source-"));
     tempRoots.push(outRoot);
