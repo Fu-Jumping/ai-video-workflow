@@ -67,6 +67,10 @@ export function workflowVaultPath(sourceFile: ObsidianSourceFile): string {
   return toVaultPath(path.join("流程", stepFolderName(sourceFile.step), generatedFileName(sourceFile)));
 }
 
+export function wikiLinkTargetForVaultPath(vaultPath: string): string {
+  return vaultPath.endsWith(".md") ? vaultPath.slice(0, -3) : vaultPath;
+}
+
 function shotOrder(shotId: string | undefined): number | undefined {
   const match = shotId?.match(/(\d+)$/);
   return match ? Number.parseInt(match[1], 10) : undefined;
@@ -168,7 +172,7 @@ function rewriteSourceMarkdownLinks(content: string, sourceFile: ObsidianSourceF
       return undefined;
     }
     const vaultPath = sourcePathToVaultPath.get(resolvedSourcePath);
-    return vaultPath ? `${vaultPath}${anchor}` : undefined;
+    return vaultPath ? `${wikiLinkTargetForVaultPath(vaultPath)}${anchor}` : undefined;
   };
 
   const contentWithMarkdownLinks = content.replace(markdownLinkPattern, (match, imagePrefix: string, label: string, rawTarget: string) => {

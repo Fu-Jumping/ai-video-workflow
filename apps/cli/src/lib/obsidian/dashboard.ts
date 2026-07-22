@@ -1,5 +1,5 @@
 import type { ObsidianGeneratedFile, ObsidianSourceFile } from "./types.js";
-import { workflowVaultPath } from "./markdown.js";
+import { wikiLinkTargetForVaultPath, workflowVaultPath } from "./markdown.js";
 import { shotReviewCanvasPath } from "./canvas.js";
 import { notesIndexLink, notesIndexPath } from "./routes.js";
 import { obsidianProperties, obsidianPropertyValues } from "./properties.js";
@@ -22,7 +22,7 @@ function shotOrder(shotId: string): number | undefined {
 
 function linkForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSourceFile["sourceKind"], label: string): string {
   const file = sourceFiles.find((sourceFile) => sourceFile.sourceKind === kind);
-  return file ? `[[${workflowVaultPath(file)}|${label}]]` : `${label}: 缺失`;
+  return file ? `[[${wikiLinkTargetForVaultPath(workflowVaultPath(file))}|${label}]]` : `${label}: 缺失`;
 }
 
 function fileForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSourceFile["sourceKind"]): ObsidianSourceFile | undefined {
@@ -31,7 +31,7 @@ function fileForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSourceFile
 
 function embeddedFileForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSourceFile["sourceKind"], missingLabel: string): string {
   const file = fileForKind(sourceFiles, kind);
-  return file ? `![[${workflowVaultPath(file)}]]` : `> ${missingLabel}: 缺失`;
+  return file ? `![[${wikiLinkTargetForVaultPath(workflowVaultPath(file))}]]` : `> ${missingLabel}: 缺失`;
 }
 
 function sourcePathForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSourceFile["sourceKind"]): string {
