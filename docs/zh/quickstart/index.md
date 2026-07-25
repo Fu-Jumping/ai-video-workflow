@@ -72,3 +72,17 @@ node apps/cli/dist/index.js export-obsidian --project examples/官方示例-云�
 ```
 
 `--dry-run` 只打印计划操作，不写入文件。`--force` 会清空并重建输出 vault；如果该 vault 包含 `.git`，命令会拒绝删除。默认导出不会写入 `.obsidian/`；`--include-obsidian-ui` 会额外生成可选的书签和工作区建议，用于预置项目首页、智能体交接、镜头索引、审阅地图和镜头流水线，且不会覆盖已有用户配置。该投影是单向生成的阅读和审阅视图，不要把投影文件当作源 Step 文件。更多边界见 [Obsidian Vault 投影](../contributors/obsidian-vault-projection.md)。
+
+## 清理与重建项目内观看层
+
+如果 `_views/obsidian/` 里残留了旧投影文件，优先使用维护命令，而不是手工删除整个项目目录：
+
+```powershell
+node apps/cli/dist/index.js clean-view --project <project-path> --dry-run
+node apps/cli/dist/index.js clean-view --project <project-path>
+node apps/cli/dist/index.js rebuild-view --project <project-path>
+```
+
+`clean-view` 只清理项目内 `_views/obsidian/` 中由 `投影清单.json` 记录的生成文件，并保留清单外文件，例如你在 `笔记/` 里新增的手写笔记。`rebuild-view` 会默认先同步当前项目配置里的 IDE runtime，再清理旧观看层、重新导出并运行观看层校验。
+
+如果只是想看会发生什么，加 `--dry-run`。如果你只想重建观看层、不补 IDE runtime，可以加 `--skip-sync`。`export-obsidian --force` 仍是高级破坏性重建入口，会清空输出 vault；日常维护优先用 `rebuild-view`。

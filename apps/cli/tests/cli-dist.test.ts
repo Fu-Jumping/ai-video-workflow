@@ -284,6 +284,55 @@ describe("built CLI", () => {
     expect(`${missingVaultTarget.stdout}\n${missingVaultTarget.stderr}`).toContain("Missing --vault");
   }, 10000);
 
+  test("clean-view dry-run reports in-project view cleanup without deleting files", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const repoRoot = path.resolve(cliRoot, "..", "..");
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-clean-view-"));
+    tempRoots.push(tempRoot);
+    const projectRoot = path.join(tempRoot, "官方示例-云上早市");
+    const homePath = path.join(projectRoot, "_views", "obsidian", "00_项目首页.md");
+    await fs.copy(path.join(repoRoot, "examples", "官方示例-云上早市"), projectRoot);
+    await fs.remove(path.join(projectRoot, "_views"));
+
+    await buildCli(cliRoot);
+    await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "export-obsidian", "--project", projectRoot, "--in-project-view"], repoRoot);
+    const { stdout } = await run(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "clean-view", "--project", projectRoot, "--dry-run"],
+      repoRoot
+    );
+
+    expect(stdout).toContain("Obsidian view clean dry-run");
+    expect(stdout).toContain("would remove generated files");
+    expect(stdout).toContain("no files were deleted");
+    await expect(fs.pathExists(homePath)).resolves.toBe(true);
+  }, 10000);
+
+  test("rebuild-view refreshes the in-project view and preserves user notes", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const repoRoot = path.resolve(cliRoot, "..", "..");
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-rebuild-view-"));
+    tempRoots.push(tempRoot);
+    const projectRoot = path.join(tempRoot, "官方示例-云上早市");
+    const vaultRoot = path.join(projectRoot, "_views", "obsidian");
+    const storyProjection = path.join(vaultRoot, "流程", "步骤一 - 概念策划", "故事内核.md");
+    const userNote = path.join(vaultRoot, "笔记", "manual-review.md");
+    await fs.copy(path.join(repoRoot, "examples", "官方示例-云上早市"), projectRoot);
+    await fs.remove(path.join(projectRoot, "_views"));
+
+    await buildCli(cliRoot);
+    await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "export-obsidian", "--project", projectRoot, "--in-project-view"], repoRoot);
+    await fs.writeFile(userNote, "# 手写审阅\n\n保留这条笔记。\n", "utf8");
+    await fs.appendFile(path.join(projectRoot, "01_概念策划", "故事内核.md"), "\nCLI 重建后应该进入观看层。\n", "utf8");
+    const { stdout } = await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "rebuild-view", "--project", projectRoot], repoRoot);
+
+    expect(stdout).toContain("Obsidian view rebuild:");
+    expect(stdout).toContain("sync: ran");
+    expect(stdout).toContain("verification: passed");
+    await expect(fs.readFile(storyProjection, "utf8")).resolves.toContain("CLI 重建后应该进入观看层");
+    await expect(fs.readFile(userNote, "utf8")).resolves.toContain("保留这条笔记");
+  }, 10000);
+
   test("export-obsidian rejects missing projects without creating a vault or printing stack traces", async () => {
     const cliRoot = path.resolve(__dirname, "..");
     const repoRoot = path.resolve(cliRoot, "..", "..");
@@ -466,5 +515,7 @@ describe("built CLI", () => {
 
     expect(stdout).toContain("mcp-context");
     expect(stdout).toContain("mcp-server");
+    expect(stdout).toContain("clean-view");
+    expect(stdout).toContain("rebuild-view");
   });
 });

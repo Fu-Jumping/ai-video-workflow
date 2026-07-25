@@ -72,3 +72,17 @@ node apps/cli/dist/index.js export-obsidian --project examples/官方示例-云�
 ```
 
 `--dry-run` prints planned operations without writing files. `--force` clears and rebuilds the output vault, and refuses to delete a vault containing `.git`. By default, export does not write `.obsidian/`; `--include-obsidian-ui` adds optional suggested Bookmarks and Workspace for the project home, agent handoff, shot index, review map, and shot pipeline without overwriting existing user config. The projection is a one-way reading and review view. Do not treat projected files as source Step files. See [Obsidian vault projection](../contributors/obsidian-vault-projection.md) for the boundary.
+
+## Clean and Rebuild the In-Project View
+
+If `_views/obsidian/` contains stale generated projection files, use the maintenance commands instead of deleting the whole project directory manually:
+
+```powershell
+node apps/cli/dist/index.js clean-view --project <project-path> --dry-run
+node apps/cli/dist/index.js clean-view --project <project-path>
+node apps/cli/dist/index.js rebuild-view --project <project-path>
+```
+
+`clean-view` only removes generated files recorded in the in-project view manifest `投影清单.json`, and preserves untracked files such as hand-written notes you add under `笔记/`. `rebuild-view` syncs the IDE runtime from the project config by default, cleans the old in-project view, exports a fresh one, and verifies it.
+
+Use `--dry-run` to preview the cleanup and export plan. Use `--skip-sync` when you want to rebuild the view without refreshing IDE runtime files. `export-obsidian --force` remains available as the advanced destructive rebuild path because it clears the output vault; prefer `rebuild-view` for routine maintenance.

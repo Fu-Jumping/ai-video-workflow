@@ -8,6 +8,7 @@ import { diagnoseProject } from "./lib/doctor.js";
 import { createProject, renderInitNextSteps } from "./lib/init.js";
 import { runCliAction } from "./lib/cli-errors.js";
 import { parseIde, parsePlatform } from "./lib/cli-options.js";
+import { cleanInProjectObsidianView, rebuildInProjectObsidianView, renderCleanViewSummary, renderRebuildViewSummary } from "./lib/maintenance.js";
 import { buildMcpContext } from "./lib/mcp/context.js";
 import { startMcpServer } from "./lib/mcp/server.js";
 import { createPackScaffold } from "./lib/new-pack.js";
@@ -241,6 +242,48 @@ program
       return;
     }
     console.log("Obsidian projection verification passed");
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+program
+  .command("clean-view")
+  .description("Clean generated files from the in-project Obsidian viewing layer")
+  .requiredOption("--project <path>")
+  .option("--dry-run", "Print planned cleanup operations without deleting files", false)
+  .action((options) => runCliAction(async () => {
+    const result = await cleanInProjectObsidianView({
+      projectRoot: path.resolve(options.project),
+      dryRun: options.dryRun
+    });
+    console.log(renderCleanViewSummary(result));
+    if (options.dryRun) {
+      console.log("Dry run complete for in-project Obsidian view cleanup; no files were deleted.");
+    }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+program
+  .command("rebuild-view")
+  .description("Rebuild the in-project Obsidian viewing layer")
+  .requiredOption("--project <path>")
+  .option("--ide <ide>", "AI IDE target to sync before rebuilding; defaults to project.config.yaml")
+  .option("--dry-run", "Print planned cleanup and export operations without writing files", false)
+  .option("--include-obsidian-ui", "Include optional Obsidian UI suggestion files without overwriting existing user config", false)
+  .option("--no-plugin-recipes", "Skip optional community plugin recipe notes")
+  .option("--skip-sync", "Skip IDE runtime sync before rebuilding the view", false)
+  .action((options) => runCliAction(async () => {
+    const ide = parseIde(options.ide);
+    const result = await rebuildInProjectObsidianView({
+      repoRoot: resolveRepoRoot(moduleDir),
+      projectRoot: path.resolve(options.project),
+      ide,
+      dryRun: options.dryRun,
+      includeObsidianUi: options.includeObsidianUi,
+      includePluginRecipes: options.pluginRecipes,
+      skipSync: options.skipSync
+    });
+    console.log(renderRebuildViewSummary(result));
+    if (options.dryRun) {
+      console.log("Dry run complete for in-project Obsidian view rebuild; no files were written or deleted.");
+    }
   }, () => program.opts<{ debug?: boolean }>().debug === true));
 
 program
