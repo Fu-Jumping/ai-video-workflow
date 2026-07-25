@@ -8,7 +8,13 @@ import { diagnoseProject } from "./lib/doctor.js";
 import { createProject, renderInitNextSteps } from "./lib/init.js";
 import { runCliAction } from "./lib/cli-errors.js";
 import { parseIde, parsePlatform } from "./lib/cli-options.js";
-import { cleanInProjectObsidianView, rebuildInProjectObsidianView, renderCleanViewSummary, renderRebuildViewSummary } from "./lib/maintenance.js";
+import {
+  cleanInProjectObsidianView,
+  parseCleanViewFilter,
+  rebuildInProjectObsidianView,
+  renderCleanViewSummary,
+  renderRebuildViewSummary
+} from "./lib/maintenance.js";
 import { buildMcpContext } from "./lib/mcp/context.js";
 import { startMcpServer } from "./lib/mcp/server.js";
 import { createPackScaffold } from "./lib/new-pack.js";
@@ -48,6 +54,10 @@ function formatObsidianExportSummary(result: Awaited<ReturnType<typeof exportObs
     }
   }
   return lines.join("\n");
+}
+
+function collectRepeatedOption(value: string, previous: string[] | undefined): string[] {
+  return [...(previous ?? []), value];
 }
 
 program
@@ -249,10 +259,23 @@ program
   .description("Clean generated files from the in-project Obsidian viewing layer")
   .requiredOption("--project <path>")
   .option("--dry-run", "Print planned cleanup operations without deleting files", false)
+  .option("--kind <kind>", "Only clean generated files by kind; repeat or comma-separate values", collectRepeatedOption)
+  .option("--step <step>", "Only clean generated files for Step 1-6; repeat or comma-separate values", collectRepeatedOption)
+  .option("--shot <shot>", "Only clean generated files for a shot such as shot-002 or 2; repeat or comma-separate values", collectRepeatedOption)
+  .option("--dir <vault-path>", "Only clean generated files under a vault-relative directory; repeat or comma-separate values", collectRepeatedOption)
+  .option("--property <field=value>", "Only clean generated Markdown whose frontmatter field equals value; repeat or comma-separate values", collectRepeatedOption)
   .action((options) => runCliAction(async () => {
+    const filter = parseCleanViewFilter({
+      kinds: options.kind,
+      steps: options.step,
+      shots: options.shot,
+      dirs: options.dir,
+      properties: options.property
+    });
     const result = await cleanInProjectObsidianView({
       projectRoot: path.resolve(options.project),
-      dryRun: options.dryRun
+      dryRun: options.dryRun,
+      filter
     });
     console.log(renderCleanViewSummary(result));
     if (options.dryRun) {
@@ -269,8 +292,20 @@ program
   .option("--include-obsidian-ui", "Include optional Obsidian UI suggestion files without overwriting existing user config", false)
   .option("--no-plugin-recipes", "Skip optional community plugin recipe notes")
   .option("--skip-sync", "Skip IDE runtime sync before rebuilding the view", false)
+  .option("--kind <kind>", "Only rebuild generated files by kind; repeat or comma-separate values", collectRepeatedOption)
+  .option("--step <step>", "Only rebuild generated files for Step 1-6; repeat or comma-separate values", collectRepeatedOption)
+  .option("--shot <shot>", "Only rebuild generated files for a shot such as shot-002 or 2; repeat or comma-separate values", collectRepeatedOption)
+  .option("--dir <vault-path>", "Only rebuild generated files under a vault-relative directory; repeat or comma-separate values", collectRepeatedOption)
+  .option("--property <field=value>", "Only rebuild generated Markdown whose frontmatter field equals value; repeat or comma-separate values", collectRepeatedOption)
   .action((options) => runCliAction(async () => {
     const ide = parseIde(options.ide);
+    const filter = parseCleanViewFilter({
+      kinds: options.kind,
+      steps: options.step,
+      shots: options.shot,
+      dirs: options.dir,
+      properties: options.property
+    });
     const result = await rebuildInProjectObsidianView({
       repoRoot: resolveRepoRoot(moduleDir),
       projectRoot: path.resolve(options.project),
@@ -278,7 +313,8 @@ program
       dryRun: options.dryRun,
       includeObsidianUi: options.includeObsidianUi,
       includePluginRecipes: options.pluginRecipes,
-      skipSync: options.skipSync
+      skipSync: options.skipSync,
+      filter
     });
     console.log(renderRebuildViewSummary(result));
     if (options.dryRun) {

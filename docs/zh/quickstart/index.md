@@ -85,4 +85,18 @@ node apps/cli/dist/index.js rebuild-view --project <project-path>
 
 `clean-view` 只清理项目内 `_views/obsidian/` 中由 `投影清单.json` 记录的生成文件，并保留清单外文件，例如你在 `笔记/` 里新增的手写笔记。`rebuild-view` 会默认先同步当前项目配置里的 IDE runtime，再清理旧观看层、重新导出并运行观看层校验。
 
+也可以只清理或重建一部分观看层生成文件：
+
+```powershell
+node apps/cli/dist/index.js clean-view --project <project-path> --step 4 --dry-run
+node apps/cli/dist/index.js rebuild-view --project <project-path> --shot shot-002
+node apps/cli/dist/index.js clean-view --project <project-path> --kind canvas --dry-run
+node apps/cli/dist/index.js clean-view --project <project-path> --dir "流程/步骤四 - 图片提示词" --dry-run
+node apps/cli/dist/index.js rebuild-view --project <project-path> --property 源文件类型=图片提示词
+```
+
+可用筛选条件包括 `--kind workflow-notes|shot-pages|canvas|base|dashboard|obsidian-ui`、`--step 1..6`、`--shot shot-002` 或 `--shot 2`、`--dir <vault-relative-path>` 和 `--property 字段=值`。同一条件可重复写，也可以用英文逗号分隔；不同条件会叠加缩小范围。`--dir` 必须是 Obsidian vault 内的相对路径，使用 `/`，不能写绝对路径、反斜杠、`.` 或 `..`。`--property` 只匹配生成 Markdown 的 properties 等值，不会匹配 `.canvas` 或 `.base`。
+
+局部 `clean-view` 会把命中的生成文件从 `投影清单.json` 中移除，适合排查残留或准备局部重建；如果要得到完整可校验的观看层，优先直接运行带筛选条件的 `rebuild-view`。
+
 如果只是想看会发生什么，加 `--dry-run`。如果你只想重建观看层、不补 IDE runtime，可以加 `--skip-sync`。`export-obsidian --force` 仍是高级破坏性重建入口，会清空输出 vault；日常维护优先用 `rebuild-view`。

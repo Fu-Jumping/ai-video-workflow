@@ -71,6 +71,21 @@ async function seedWorkflowProject(projectRoot: string, ide = "codex"): Promise<
   }
 }
 
+async function seedOfficialExampleProject(prefix: string): Promise<string> {
+  const repoRoot = path.resolve(__dirname, "..", "..", "..");
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
+  tempRoots.push(tempRoot);
+  const projectRoot = path.join(tempRoot, "官方示例-云上早市");
+  await fs.copy(path.join(repoRoot, "examples", "官方示例-云上早市"), projectRoot);
+  await fs.remove(path.join(projectRoot, "_views"));
+  return projectRoot;
+}
+
+async function exportInProjectView(cliRoot: string, projectRoot: string): Promise<void> {
+  const repoRoot = path.resolve(cliRoot, "..", "..");
+  await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "export-obsidian", "--project", projectRoot, "--in-project-view"], repoRoot);
+}
+
 describe("built CLI", () => {
   test("sync resolves the official pack from the bundled ESM entry", async () => {
     const cliRoot = path.resolve(__dirname, "..");
@@ -308,6 +323,27 @@ describe("built CLI", () => {
     await expect(fs.pathExists(homePath)).resolves.toBe(true);
   }, 10000);
 
+  test("clean-view dry-run supports step filters without deleting files", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const repoRoot = path.resolve(cliRoot, "..", "..");
+    const projectRoot = await seedOfficialExampleProject("ai-video-workflow-cli-clean-view-step-");
+    const stepFourProjection = path.join(projectRoot, "_views", "obsidian", "流程", "步骤四 - 图片提示词", "镜头 002 关键帧 - 图片提示词.md");
+
+    await buildCli(cliRoot);
+    await exportInProjectView(cliRoot, projectRoot);
+    const { stdout } = await run(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "clean-view", "--project", projectRoot, "--step", "4", "--dry-run"],
+      repoRoot
+    );
+
+    expect(stdout).toContain("Obsidian view clean dry-run");
+    expect(stdout).toContain("- filters:");
+    expect(stdout).toContain("  - step: 4");
+    expect(stdout).toContain("would remove generated files");
+    await expect(fs.pathExists(stepFourProjection)).resolves.toBe(true);
+  }, 10000);
+
   test("rebuild-view refreshes the in-project view and preserves user notes", async () => {
     const cliRoot = path.resolve(__dirname, "..");
     const repoRoot = path.resolve(cliRoot, "..", "..");
@@ -331,6 +367,53 @@ describe("built CLI", () => {
     expect(stdout).toContain("verification: passed");
     await expect(fs.readFile(storyProjection, "utf8")).resolves.toContain("CLI 重建后应该进入观看层");
     await expect(fs.readFile(userNote, "utf8")).resolves.toContain("保留这条笔记");
+  }, 10000);
+
+  test("rebuild-view supports shot filters and preserves user notes", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const repoRoot = path.resolve(cliRoot, "..", "..");
+    const projectRoot = await seedOfficialExampleProject("ai-video-workflow-cli-rebuild-view-shot-");
+    const vaultRoot = path.join(projectRoot, "_views", "obsidian");
+    const shotTwoProjection = path.join(vaultRoot, "流程", "步骤四 - 图片提示词", "镜头 002 关键帧 - 图片提示词.md");
+    const shotOneProjection = path.join(vaultRoot, "流程", "步骤四 - 图片提示词", "镜头 001 关键帧 - 图片提示词.md");
+    const userNote = path.join(vaultRoot, "笔记", "manual-review.md");
+
+    await buildCli(cliRoot);
+    await exportInProjectView(cliRoot, projectRoot);
+    const shotOneBefore = await fs.readFile(shotOneProjection, "utf8");
+    await fs.writeFile(userNote, "# 手写审阅\n\n局部重建也应该保留。\n", "utf8");
+    await fs.appendFile(path.join(projectRoot, "04_图片提示词", "镜头-002-关键帧.md"), "\nCLI 局部重建后应该进入镜头 002。\n", "utf8");
+    const { stdout } = await run(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "rebuild-view", "--project", projectRoot, "--shot", "2"],
+      repoRoot
+    );
+
+    expect(stdout).toContain("Obsidian view rebuild:");
+    expect(stdout).toContain("  - shot: shot-002");
+    expect(stdout).toContain("verification: passed");
+    await expect(fs.readFile(shotTwoProjection, "utf8")).resolves.toContain("CLI 局部重建后应该进入镜头 002");
+    await expect(fs.readFile(shotOneProjection, "utf8")).resolves.toBe(shotOneBefore);
+    await expect(fs.readFile(userNote, "utf8")).resolves.toContain("局部重建也应该保留");
+  }, 10000);
+
+  test("clean-view rejects invalid filters without default stack traces", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const projectRoot = await seedOfficialExampleProject("ai-video-workflow-cli-clean-view-invalid-filter-");
+
+    await buildCli(cliRoot);
+    await exportInProjectView(cliRoot, projectRoot);
+    const result = await runExpectFailure(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "clean-view", "--project", projectRoot, "--kind", "unknown"],
+      path.resolve(cliRoot, "..", "..")
+    );
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(output).toContain("Invalid clean-view kind: unknown");
+    expect(output).toContain("Expected one of: workflow-notes, shot-pages, canvas, base, dashboard, obsidian-ui");
+    expect(output).not.toContain("node:internal");
+    expect(output).not.toContain("at Command");
   }, 10000);
 
   test("export-obsidian rejects missing projects without creating a vault or printing stack traces", async () => {

@@ -85,4 +85,18 @@ node apps/cli/dist/index.js rebuild-view --project <project-path>
 
 `clean-view` only removes generated files recorded in the in-project view manifest `投影清单.json`, and preserves untracked files such as hand-written notes you add under `笔记/`. `rebuild-view` syncs the IDE runtime from the project config by default, cleans the old in-project view, exports a fresh one, and verifies it.
 
+You can also clean or rebuild only part of the generated viewing layer:
+
+```powershell
+node apps/cli/dist/index.js clean-view --project <project-path> --step 4 --dry-run
+node apps/cli/dist/index.js rebuild-view --project <project-path> --shot shot-002
+node apps/cli/dist/index.js clean-view --project <project-path> --kind canvas --dry-run
+node apps/cli/dist/index.js clean-view --project <project-path> --dir "流程/步骤四 - 图片提示词" --dry-run
+node apps/cli/dist/index.js rebuild-view --project <project-path> --property 源文件类型=图片提示词
+```
+
+Supported filters are `--kind workflow-notes|shot-pages|canvas|base|dashboard|obsidian-ui`, `--step 1..6`, `--shot shot-002` or `--shot 2`, `--dir <vault-relative-path>`, and `--property field=value`. You can repeat a filter or comma-separate values. Values within one filter are OR; different filter types combine as AND. `--dir` must be a vault-relative path using `/`, not an absolute path, backslash path, `.`, or `..`. `--property` only matches generated Markdown frontmatter equality and does not match `.canvas` or `.base` files.
+
+Partial `clean-view` removes matched generated files from `投影清单.json`, which is useful for inspecting stale output or preparing a local rebuild. To end with a complete verifiable viewing layer, prefer running filtered `rebuild-view` directly.
+
 Use `--dry-run` to preview the cleanup and export plan. Use `--skip-sync` when you want to rebuild the view without refreshing IDE runtime files. `export-obsidian --force` remains available as the advanced destructive rebuild path because it clears the output vault; prefer `rebuild-view` for routine maintenance.
