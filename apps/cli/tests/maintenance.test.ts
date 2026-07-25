@@ -141,6 +141,12 @@ describe("cleanInProjectObsidianView", () => {
     expect(paths).toEqual(expect.arrayContaining(["画布/流程图.canvas", "画布/镜头审阅/shot-002.canvas"]));
     expect(paths.every((vaultPath) => vaultPath.endsWith(".canvas"))).toBe(true);
     expect(paths).not.toContain("00_项目首页.md");
+    const summary = renderCleanViewSummary(result);
+    expect(summary).toContain("cleanup risk: low");
+    expect(summary).toContain("matched generated files by type:");
+    expect(summary).toContain("canvas:");
+    expect(summary).toContain("画布/流程图.canvas");
+    expect(summary).not.toContain("00_项目首页.md");
     await expect(fs.pathExists(path.join(vaultRoot, "画布", "流程图.canvas"))).resolves.toBe(true);
   });
 
@@ -158,6 +164,14 @@ describe("cleanInProjectObsidianView", () => {
     expect(paths.length).toBeGreaterThan(0);
     expect(paths.every((vaultPath) => vaultPath.startsWith("流程/步骤四 - 图片提示词/"))).toBe(true);
     expect(paths).not.toEqual(expect.arrayContaining([expect.stringContaining("步骤三 - 分镜脚本")]));
+    const summary = renderCleanViewSummary(result);
+    expect(summary).toContain("cleanup risk: low");
+    expect(summary).toContain("matched generated files by type:");
+    expect(summary).toContain("workflow-notes: 3");
+    expect(summary).toContain("流程/步骤四 - 图片提示词/镜头 002 关键帧 - 图片提示词.md");
+    expect(summary).toContain("next command:");
+    expect(summary).toContain("clean-view --project");
+    expect(summary).toContain("--step 4");
   });
 
   test("dry-run can be scoped by shot id", async () => {

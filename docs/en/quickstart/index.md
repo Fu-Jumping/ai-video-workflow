@@ -99,4 +99,6 @@ Supported filters are `--kind workflow-notes|shot-pages|canvas|base|dashboard|ob
 
 Partial `clean-view` removes matched generated files from `投影清单.json`, which is useful for inspecting stale output or preparing a local rebuild. To end with a complete verifiable viewing layer, prefer running filtered `rebuild-view` directly.
 
+Filtered `--dry-run` output groups matched files by generated type, shows representative paths, marks the cleanup risk, and prints the next command to run after review.
+
 Use `--dry-run` to preview the cleanup and export plan. Use `--skip-sync` when you want to rebuild the view without refreshing IDE runtime files. `export-obsidian --force` remains available as the advanced destructive rebuild path because it clears the output vault; prefer `rebuild-view` for routine maintenance.

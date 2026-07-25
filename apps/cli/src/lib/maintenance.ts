@@ -15,6 +15,7 @@ import { verifyObsidianVault } from "./obsidian/verify.js";
 import { resolveInProjectObsidianView } from "./view-layer.js";
 
 export type CleanViewKind = "workflow-notes" | "shot-pages" | "canvas" | "base" | "dashboard" | "obsidian-ui";
+type CleanViewSummaryKind = CleanViewKind | "manifest" | "other";
 export type CleanViewOperationStatus = "would-remove" | "removed" | "missing";
 
 export interface CleanViewPropertyFilter {
@@ -80,6 +81,16 @@ export interface RebuildViewResult {
 
 const generatedViewPathExtensions = /\.(md|base|canvas|json)$/i;
 const cleanViewKinds = ["workflow-notes", "shot-pages", "canvas", "base", "dashboard", "obsidian-ui"] as const;
+const cleanViewKindLabels: Record<CleanViewSummaryKind, string> = {
+  "workflow-notes": "workflow-notes",
+  "shot-pages": "shot-pages",
+  canvas: "canvas",
+  base: "base",
+  dashboard: "dashboard",
+  "obsidian-ui": "obsidian-ui",
+  manifest: "manifest",
+  other: "other-generated"
+};
 const unsafeVaultPathPattern = /(^|[^A-Za-z])[A-Za-z]:[\\/]|^[a-z][a-z0-9+.-]*:/i;
 
 function isSafeRelativeVaultPath(value: string): boolean {
@@ -204,6 +215,30 @@ function renderFilterSummary(filter: CleanViewFilter): string[] {
   return lines;
 }
 
+function quoteCliArg(value: string): string {
+  return `"${value.replace(/"/g, "\\\"")}"`;
+}
+
+function cleanViewFilterArgs(filter: CleanViewFilter): string[] {
+  const args: string[] = [];
+  for (const value of filter.kinds ?? []) {
+    args.push("--kind", value);
+  }
+  for (const value of filter.steps ?? []) {
+    args.push("--step", String(value));
+  }
+  for (const value of filter.shots ?? []) {
+    args.push("--shot", value);
+  }
+  for (const value of filter.dirs ?? []) {
+    args.push("--dir", quoteCliArg(value));
+  }
+  for (const value of filter.properties ?? []) {
+    args.push("--property", quoteCliArg(`${value.key}=${value.value}`));
+  }
+  return args;
+}
+
 function normalizeCleanViewFilter(filter: CleanViewFilter | undefined): CleanViewFilter {
   const kinds = filter?.kinds?.map((kind) => {
     if (!isCleanViewKind(kind)) {
@@ -297,8 +332,7 @@ function cleanableManifestEntries(manifest: ObsidianProjectionManifest): Obsidia
   return [...entries.values()].sort((left, right) => left.vaultPath.localeCompare(right.vaultPath));
 }
 
-function entryKind(entry: ObsidianProjectionManifestEntry): CleanViewKind | undefined {
-  const vaultPath = entry.vaultPath;
+function kindForVaultPath(vaultPath: string): CleanViewKind | undefined {
   if (vaultPath.endsWith(".canvas")) {
     return "canvas";
   }
@@ -318,6 +352,17 @@ function entryKind(entry: ObsidianProjectionManifestEntry): CleanViewKind | unde
     return "dashboard";
   }
   return undefined;
+}
+
+function entryKind(entry: ObsidianProjectionManifestEntry): CleanViewKind | undefined {
+  return kindForVaultPath(entry.vaultPath);
+}
+
+function summaryKindForVaultPath(vaultPath: string): CleanViewSummaryKind {
+  if (vaultPath === projectionManifestPath) {
+    return "manifest";
+  }
+  return kindForVaultPath(vaultPath) ?? "other";
 }
 
 function pathMatchesShot(value: string | undefined, shotId: string): boolean {
@@ -565,6 +610,36 @@ function formatCount(label: string, count: number): string {
   return `- ${label}: ${count}`;
 }
 
+function groupedOperationLines(operations: CleanViewOperation[]): string[] {
+  const groups = new Map<CleanViewSummaryKind, string[]>();
+  for (const operation of operations) {
+    const kind = summaryKindForVaultPath(operation.vaultPath);
+    groups.set(kind, [...(groups.get(kind) ?? []), operation.vaultPath]);
+  }
+  const lines = ["- matched generated files by type:"];
+  const sortedGroups = [...groups.entries()].sort((left, right) => cleanViewKindLabels[left[0]].localeCompare(cleanViewKindLabels[right[0]]));
+  for (const [kind, paths] of sortedGroups) {
+    lines.push(`  - ${cleanViewKindLabels[kind]}: ${paths.length}`);
+    for (const vaultPath of paths.slice(0, 5)) {
+      lines.push(`    - ${vaultPath}`);
+    }
+    if (paths.length > 5) {
+      lines.push(`    - ... ${paths.length - 5} more`);
+    }
+  }
+  return lines;
+}
+
+function renderCleanViewNextCommand(result: CleanViewResult): string {
+  return [
+    "node apps/cli/dist/index.js",
+    "clean-view",
+    "--project",
+    quoteCliArg(result.projectRoot),
+    ...cleanViewFilterArgs(result.filter)
+  ].join(" ");
+}
+
 export function renderCleanViewSummary(result: CleanViewResult): string {
   const lines = [
     result.dryRun ? "Obsidian view clean dry-run:" : "Obsidian view clean:",
@@ -583,6 +658,12 @@ export function renderCleanViewSummary(result: CleanViewResult): string {
   lines.push(formatCount(result.dryRun ? "would remove generated files" : "removed generated files", result.dryRun ? wouldRemove : removed));
   lines.push(formatCount("missing manifest entries", missing));
   lines.push(formatCount("preserved untracked files", result.preservedUntrackedFiles.length));
+  if (result.dryRun && wouldRemove > 0) {
+    lines.push("- cleanup risk: low; only manifest-tracked generated files are targeted");
+    lines.push("- boundary: source Step files and untracked notes are preserved");
+    lines.push(...groupedOperationLines(result.operations.filter((operation) => operation.status === "would-remove")));
+    lines.push(`- next command: ${renderCleanViewNextCommand(result)}`);
+  }
   if (result.manifestUpdated) {
     lines.push("- manifest: updated for partial clean");
   }

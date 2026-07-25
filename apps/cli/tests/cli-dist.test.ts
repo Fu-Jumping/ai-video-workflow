@@ -341,6 +341,12 @@ describe("built CLI", () => {
     expect(stdout).toContain("- filters:");
     expect(stdout).toContain("  - step: 4");
     expect(stdout).toContain("would remove generated files");
+    expect(stdout).toContain("cleanup risk: low");
+    expect(stdout).toContain("matched generated files by type:");
+    expect(stdout).toContain("workflow-notes: 3");
+    expect(stdout).toContain("流程/步骤四 - 图片提示词/镜头 002 关键帧 - 图片提示词.md");
+    expect(stdout).toContain("next command:");
+    expect(stdout).toContain("--step 4");
     await expect(fs.pathExists(stepFourProjection)).resolves.toBe(true);
   }, 10000);
 

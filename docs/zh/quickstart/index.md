@@ -99,4 +99,6 @@ node apps/cli/dist/index.js rebuild-view --project <project-path> --property 源
 
 局部 `clean-view` 会把命中的生成文件从 `投影清单.json` 中移除，适合排查残留或准备局部重建；如果要得到完整可校验的观看层，优先直接运行带筛选条件的 `rebuild-view`。
 
+带筛选条件的 `--dry-run` 会按生成类型分组列出代表文件、标出清理风险和给出下一条可执行命令；先看清列表，再移除 `--dry-run` 或运行对应的 `rebuild-view`。
+
 如果只是想看会发生什么，加 `--dry-run`。如果你只想重建观看层、不补 IDE runtime，可以加 `--skip-sync`。`export-obsidian --force` 仍是高级破坏性重建入口，会清空输出 vault；日常维护优先用 `rebuild-view`。
