@@ -274,6 +274,143 @@ describe("verifyProject", () => {
     );
   });
 
+  test("requires Step 5 prompts to carry Step 4 character and scene reference assets", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-reference-video-trace-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await fs.writeFile(path.join(projectRoot, "02_世界设定", "角色设定.md"), "# 角色设定\n\n## 阿岚\n\n- 主角色：是\n- 三视图引用：@阿岚三视图\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "02_世界设定", "场景设定.md"), "# 场景设定\n\n## 雾塔\n\n- 需要场景图：是\n- 场景图引用：@雾塔场景图\n", "utf8");
+    await fs.writeFile(
+      path.join(projectRoot, "03_分镜脚本", "镜头-001.md"),
+      [
+        "# 镜头 001：雾塔门前",
+        "",
+        "## 镜头目标",
+        "- 对应步骤四：[镜头 001 关键帧图片提示词](../04_图片提示词/镜头-001-关键帧.md)",
+        "",
+        "## 参考资产要求",
+        "",
+        "- 主角色三视图：@阿岚三视图",
+        "- 场景设定图：@雾塔场景图"
+      ].join("\n"),
+      "utf8"
+    );
+    await fs.writeFile(
+      path.join(projectRoot, "04_图片提示词", "镜头-001-关键帧.md"),
+      [
+        "# 镜头 001 关键帧图片提示词",
+        "",
+        "## 快速导读",
+        "",
+        "- 必带参考资产：@阿岚三视图、@雾塔场景图",
+        "",
+        "## 中文完整版本",
+        "",
+        "参考 @阿岚三视图、@雾塔场景图。阿岚站在雾塔门前。",
+        "",
+        "## 可复制提示词",
+        "",
+        "```text",
+        "参考 @阿岚三视图、@雾塔场景图。阿岚站在雾塔门前。",
+        "避免：现代城市。",
+        "```"
+      ].join("\n"),
+      "utf8"
+    );
+    await fs.writeFile(
+      path.join(projectRoot, "05_视频提示词", "镜头-001.md"),
+      [
+        "# 镜头 001 视频提示词",
+        "",
+        "## 视频动作链",
+        "",
+        "以已通过的关键帧作为首帧，阿岚在雾塔门前停顿后抬头。"
+      ].join("\n"),
+      "utf8"
+    );
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "missing-step5-reference-asset", path: path.join("05_视频提示词", "镜头-001.md") })
+      ])
+    );
+  });
+
+  test("accepts Step 5 prompts that carry Step 4 character and scene reference assets", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-reference-video-pass-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await fs.writeFile(path.join(projectRoot, "02_世界设定", "角色设定.md"), "# 角色设定\n\n## 阿岚\n\n- 主角色：是\n- 三视图引用：@阿岚三视图\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "02_世界设定", "场景设定.md"), "# 场景设定\n\n## 雾塔\n\n- 需要场景图：是\n- 场景图引用：@雾塔场景图\n", "utf8");
+    await fs.writeFile(
+      path.join(projectRoot, "03_分镜脚本", "镜头-001.md"),
+      [
+        "# 镜头 001：雾塔门前",
+        "",
+        "## 镜头目标",
+        "- 对应步骤四：[镜头 001 关键帧图片提示词](../04_图片提示词/镜头-001-关键帧.md)",
+        "",
+        "## 参考资产要求",
+        "",
+        "- 主角色三视图：@阿岚三视图",
+        "- 场景设定图：@雾塔场景图"
+      ].join("\n"),
+      "utf8"
+    );
+    await fs.writeFile(
+      path.join(projectRoot, "04_图片提示词", "镜头-001-关键帧.md"),
+      [
+        "# 镜头 001 关键帧图片提示词",
+        "",
+        "## 快速导读",
+        "",
+        "- 必带参考资产：@阿岚三视图、@雾塔场景图",
+        "",
+        "## 中文完整版本",
+        "",
+        "参考 @阿岚三视图、@雾塔场景图。阿岚站在雾塔门前。",
+        "",
+        "## 可复制提示词",
+        "",
+        "```text",
+        "参考 @阿岚三视图、@雾塔场景图。阿岚站在雾塔门前。",
+        "避免：现代城市。",
+        "```"
+      ].join("\n"),
+      "utf8"
+    );
+    await fs.writeFile(
+      path.join(projectRoot, "05_视频提示词", "镜头-001.md"),
+      [
+        "# 镜头 001 视频提示词",
+        "",
+        "## 视觉参考来源",
+        "",
+        "- 继承参考资产：@阿岚三视图、@雾塔场景图",
+        "",
+        "## 视频动作链",
+        "",
+        "以已通过的关键帧作为首帧，延续 @阿岚三视图、@雾塔场景图。阿岚在雾塔门前停顿后抬头。"
+      ].join("\n"),
+      "utf8"
+    );
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
   test.each<Ide>(["codex", "cursor", "claude-code", "trae"])("passes IDE runtime verification for synced %s projects", async (ide) => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-verify-runtime-"));
     tempRoots.push(root);

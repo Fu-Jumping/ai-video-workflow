@@ -25,6 +25,7 @@ import type { Ide, VerificationIssue, VerificationResult } from "./types.js";
 const step2Dir = STEP_DIR_BY_NUMBER[2];
 const step3Dir = STEP_DIR_BY_NUMBER[3];
 const step4Dir = STEP_DIR_BY_NUMBER[4];
+const step5Dir = STEP_DIR_BY_NUMBER[5];
 const step6Dir = STEP_DIR_BY_NUMBER[6];
 const step4RequiredSections = ["快速导读", "中文完整版本", "可复制提示词"];
 const step4ForbiddenText = ["参考前文", "同上", "模型应自行理解剧情", "same as previous"];
@@ -80,6 +81,11 @@ const ideSharedRuntimeEntryPaths: Record<Ide, string[]> = {
 
 function pushIssue(issues: VerificationIssue[], issue: VerificationIssue): void {
   issues.push(issue);
+}
+
+function shotKeyFromFileName(fileName: string): string | undefined {
+  const match = fileName.match(/(?:shot|镜头)[-_ ]?(\d+)/i);
+  return match ? match[1].padStart(3, "0") : undefined;
 }
 
 async function listMarkdownFiles(root: string, current = root): Promise<string[]> {
@@ -259,6 +265,50 @@ async function verifyStep3Step4Traceability(projectRoot: string, issues: Verific
   }
 }
 
+async function verifyStep4Step5ReferenceAssets(projectRoot: string, issues: VerificationIssue[]): Promise<void> {
+  const imageDir = path.join(projectRoot, step4Dir);
+  const videoDir = path.join(projectRoot, step5Dir);
+  if (!(await fs.pathExists(imageDir)) || !(await fs.pathExists(videoDir))) {
+    return;
+  }
+
+  const videoFiles = (await fs.readdir(videoDir)).filter((name) => name.endsWith(".md"));
+  const videoByShot = new Map<string, string>();
+  for (const file of videoFiles) {
+    const shotKey = shotKeyFromFileName(file);
+    if (shotKey) {
+      videoByShot.set(shotKey, file);
+    }
+  }
+
+  const imageFiles = (await fs.readdir(imageDir)).filter((name) => name.endsWith(".md"));
+  for (const file of imageFiles) {
+    const shotKey = shotKeyFromFileName(file);
+    if (!shotKey) {
+      continue;
+    }
+    const videoFile = videoByShot.get(shotKey);
+    if (!videoFile) {
+      continue;
+    }
+    const imageContent = await fs.readFile(path.join(imageDir, file), "utf8");
+    const requiredReferenceAssets = extractReferenceAssets(imageContent);
+    if (requiredReferenceAssets.length === 0) {
+      continue;
+    }
+    const videoRelPath = path.join(step5Dir, videoFile);
+    const videoContent = await fs.readFile(path.join(videoDir, videoFile), "utf8");
+    const missingAssets = missingReferenceAssets(requiredReferenceAssets, extractReferenceAssets(videoContent));
+    for (const asset of missingAssets) {
+      pushIssue(issues, {
+        code: "missing-step5-reference-asset",
+        message: `Step 5 prompt must inherit Step 4 reference asset: ${asset.token}`,
+        path: videoRelPath
+      });
+    }
+  }
+}
+
 async function verifyIdeRuntime(projectRoot: string, ide: Ide, issues: VerificationIssue[]): Promise<void> {
   for (const requirement of ideRuntimeRequirements[ide]) {
     if (!(await fs.pathExists(path.join(projectRoot, requirement.path)))) {
@@ -408,6 +458,7 @@ export async function verifyProject({
   await verifyStep2ReferenceAssets(projectRoot, issues);
   await verifyStep4(projectRoot, issues);
   await verifyStep3Step4Traceability(projectRoot, issues);
+  await verifyStep4Step5ReferenceAssets(projectRoot, issues);
   await verifyRelativeMarkdownLinks(projectRoot, issues);
   await verifyIdeRuntime(projectRoot, ide, issues);
   await verifySharedAgentWorkspace(projectRoot, ide, issues);

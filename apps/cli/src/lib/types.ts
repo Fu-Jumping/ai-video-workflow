@@ -21,6 +21,7 @@ export type IssueCode =
   | "missing-scene-reference-image"
   | "missing-storyboard-reference-assets"
   | "missing-step4-reference-asset"
+  | "missing-step5-reference-asset"
   | "invalid-reference-asset-token"
   | "absolute-path-link"
   | "step4-forbidden-text"

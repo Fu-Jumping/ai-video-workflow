@@ -180,6 +180,7 @@ ${embeddedFileForKind(shotFiles, "video-prompt", "视频提示词")}
 
 - 分镜脚本、图片提示词和视频提示词逐镜头对齐。
 - Step 4 已携带本页列出的必带参考资产。
+- Step 5 已延续同镜头 Step 4 的角色三视图和场景图。
 - 执行前打开 [[03_制作看板|制作看板]]。
 
 ${renderShotEditEntry()}
@@ -257,6 +258,7 @@ ${shotHandoffEntries}
 \`\`\`text
 请更新选中镜头的步骤五视频提示词。
 保留步骤四视觉画面，只修改运动、时长、镜头行为或视频专属细节。
+检查 Step 5 是否延续单镜头交接中的全部 \`@xx三视图\` / \`@xx场景图\`。
 不要编辑生成的 Obsidian 观看层文件。
 \`\`\`
 
