@@ -15,6 +15,7 @@ const groups: Record<string, string> = {
   "missing-video-default-platform": "Configuration",
   "missing-step4-section": "Step 4 Contract",
   "step4-forbidden-text": "Step 4 Contract",
+  "missing-step5-platform-execution-setting": "Step 5 Contract",
   "absolute-path-link": "Links",
   "missing-ide-runtime": "IDE Runtime",
   "missing-shared-agent-entry": "Shared Agent Workspace",
@@ -115,6 +116,9 @@ export async function diagnoseProject({
       }
       if (issue.code === "step4-forbidden-text") {
         lines.push("  Replace inherited or context-dependent wording with a self-contained visual prompt.");
+      }
+      if (issue.code === "missing-step5-platform-execution-setting") {
+        lines.push("  在对应 Step 5 文件补 `## 平台执行设置`，写清默认视频平台、输入方式、开场参考、时长上限、画幅和负面约束；不要写密钥、账号、绝对路径或平台缓存。");
       }
       if (issue.code === "missing-ide-runtime") {
         const ide = ideForRuntimeIssue(issue);

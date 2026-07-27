@@ -38,6 +38,20 @@ const requiredRuntimeFileByIde: Record<Ide, string> = {
   trae: ".trae/rules/ai-video-workflow.md"
 };
 
+function step5PlatformExecutionSettings(platform = "veo"): string[] {
+  return [
+    "## 平台执行设置",
+    "",
+    `- 默认视频平台：${platform}`,
+    "- 输入方式：首帧图片 + 文本提示词",
+    "- 开场参考：同镜头已通过关键帧 / 首帧图",
+    "- 时长上限：15 秒",
+    "- 画幅：继承项目目标画幅或本镜头执行计划",
+    "- 负面约束：沿用本文件视频动作链中的避免项",
+    ""
+  ];
+}
+
 afterEach(async () => {
   await Promise.all(tempRoots.splice(0).map((dir) => fs.remove(dir)));
 });
@@ -395,9 +409,66 @@ describe("verifyProject", () => {
         "",
         "- 继承参考资产：@阿岚三视图、@雾塔场景图",
         "",
+        ...step5PlatformExecutionSettings(),
         "## 视频动作链",
         "",
         "以已通过的关键帧作为首帧，延续 @阿岚三视图、@雾塔场景图。阿岚在雾塔门前停顿后抬头。"
+      ].join("\n"),
+      "utf8"
+    );
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  test("requires Step 5 prompts to declare platform execution settings", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-video-platform-settings-missing-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await fs.writeFile(
+      path.join(projectRoot, "05_视频提示词", "镜头-001.md"),
+      [
+        "# 镜头 001 视频提示词",
+        "",
+        "## 视频动作链",
+        "",
+        "以已通过的关键帧作为首帧，阿岚在雾塔门前停顿后抬头。"
+      ].join("\n"),
+      "utf8"
+    );
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "missing-step5-platform-execution-setting", path: path.join("05_视频提示词", "镜头-001.md") })
+      ])
+    );
+  });
+
+  test("accepts Step 5 prompts with platform execution settings", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-video-platform-settings-pass-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await fs.writeFile(
+      path.join(projectRoot, "05_视频提示词", "镜头-001.md"),
+      [
+        "# 镜头 001 视频提示词",
+        "",
+        ...step5PlatformExecutionSettings(),
+        "## 视频动作链",
+        "",
+        "以已通过的关键帧作为首帧，阿岚在雾塔门前停顿后抬头。"
       ].join("\n"),
       "utf8"
     );

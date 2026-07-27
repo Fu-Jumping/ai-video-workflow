@@ -383,6 +383,7 @@ describe("exportObsidianVault", () => {
     expect(handoff).toContain("必带参考资产：@沈安三视图、@小满三视图、@小镇修伞铺场景图");
     expect(handoff).toContain("检查 Step 4 是否携带单镜头交接中的全部 `@xx三视图` / `@xx场景图`。");
     expect(handoff).toContain("检查 Step 5 是否延续单镜头交接中的全部 `@xx三视图` / `@xx场景图`。");
+    expect(handoff).toContain("检查 Step 5 是否写清默认视频平台、输入方式、开场参考、时长上限、画幅和负面约束。");
     expect(handoff).not.toContain("[[镜头/shot-001|shot-001]]");
   });
 
@@ -416,6 +417,7 @@ describe("exportObsidianVault", () => {
     expect(shotReview).toContain("## 6. 视频提示词");
     expect(shotReview).toContain("## 7. 执行检查");
     expect(shotReview).toContain("Step 5 已延续同镜头 Step 4 的角色三视图和场景图。");
+    expect(shotReview).toContain("Step 5 已写清默认视频平台、输入方式、开场参考、时长上限、画幅和负面约束。");
     expect(shotReview).toContain("## 8. 修改入口");
     expect(shotReview).toContain("## 9. 数据视图");
     expect(shotReview).toContain("### 9.1 镜头记录");

@@ -20,7 +20,7 @@ import {
   hasReferenceAssetRequirementSection,
   missingReferenceAssets
 } from "./reference-assets.js";
-import type { Ide, VerificationIssue, VerificationResult } from "./types.js";
+import type { Ide, Platform, VerificationIssue, VerificationResult } from "./types.js";
 
 const step2Dir = STEP_DIR_BY_NUMBER[2];
 const step3Dir = STEP_DIR_BY_NUMBER[3];
@@ -29,6 +29,7 @@ const step5Dir = STEP_DIR_BY_NUMBER[5];
 const step6Dir = STEP_DIR_BY_NUMBER[6];
 const step4RequiredSections = ["快速导读", "中文完整版本", "可复制提示词"];
 const step4ForbiddenText = ["参考前文", "同上", "模型应自行理解剧情", "same as previous"];
+const step5PlatformExecutionMarkers = ["## 平台执行设置", "默认视频平台", "输入方式", "开场参考", "时长上限", "画幅", "负面约束"];
 const ignoredMarkdownDirs = new Set(["node_modules", ".git"]);
 const ignoredGeneratedViewRootDirs = ["_views", ".obsidian"] as const;
 const ignoredRootMarkdownDirs = new Set([...cherryHostSurfaceDirs, ...ignoredGeneratedViewRootDirs]);
@@ -309,6 +310,31 @@ async function verifyStep4Step5ReferenceAssets(projectRoot: string, issues: Veri
   }
 }
 
+async function verifyStep5PlatformExecutionSettings(
+  projectRoot: string,
+  defaultVideoPlatform: Platform,
+  issues: VerificationIssue[]
+): Promise<void> {
+  const videoDir = path.join(projectRoot, step5Dir);
+  if (!(await fs.pathExists(videoDir))) {
+    return;
+  }
+
+  const files = (await fs.readdir(videoDir)).filter((name) => name.endsWith(".md"));
+  for (const file of files) {
+    const relPath = path.join(step5Dir, file);
+    const content = await fs.readFile(path.join(videoDir, file), "utf8");
+    const missingMarker = step5PlatformExecutionMarkers.find((marker) => !content.includes(marker));
+    if (missingMarker || !content.includes(defaultVideoPlatform)) {
+      pushIssue(issues, {
+        code: "missing-step5-platform-execution-setting",
+        message: `Step 5 prompt must declare platform execution settings for default video platform: ${defaultVideoPlatform}`,
+        path: relPath
+      });
+    }
+  }
+}
+
 async function verifyIdeRuntime(projectRoot: string, ide: Ide, issues: VerificationIssue[]): Promise<void> {
   for (const requirement of ideRuntimeRequirements[ide]) {
     if (!(await fs.pathExists(path.join(projectRoot, requirement.path)))) {
@@ -459,6 +485,9 @@ export async function verifyProject({
   await verifyStep4(projectRoot, issues);
   await verifyStep3Step4Traceability(projectRoot, issues);
   await verifyStep4Step5ReferenceAssets(projectRoot, issues);
+  if (config?.platforms.video.default) {
+    await verifyStep5PlatformExecutionSettings(projectRoot, config.platforms.video.default, issues);
+  }
   await verifyRelativeMarkdownLinks(projectRoot, issues);
   await verifyIdeRuntime(projectRoot, ide, issues);
   await verifySharedAgentWorkspace(projectRoot, ide, issues);

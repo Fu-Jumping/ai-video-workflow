@@ -187,6 +187,23 @@ describe("diagnoseProject", () => {
     expect(output).toContain("platforms.video.default");
   });
 
+  test("suggests Step 5 platform execution setting fixes", async () => {
+    const output = await diagnoseProject({
+      issues: [
+        {
+          code: "missing-step5-platform-execution-setting",
+          message: "Step 5 prompt must declare platform execution settings",
+          path: "05_视频提示词/镜头-001.md"
+        }
+      ]
+    });
+
+    expect(output).toContain("Step 5 Contract");
+    expect(output).toContain("平台执行设置");
+    expect(output).toContain("默认视频平台");
+    expect(output).toContain("不要写密钥");
+  });
+
   test("suggests Obsidian projection fixes", async () => {
     const output = await diagnoseProject({
       issues: [
