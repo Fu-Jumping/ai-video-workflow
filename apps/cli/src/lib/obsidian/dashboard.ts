@@ -3,6 +3,8 @@ import { wikiLinkTargetForVaultPath, workflowVaultPath } from "./markdown.js";
 import { shotReviewCanvasPath } from "./canvas.js";
 import { notesIndexLink, notesIndexPath } from "./routes.js";
 import { obsidianProperties, obsidianPropertyValues } from "./properties.js";
+import { formatReferenceAssets } from "../reference-assets.js";
+import type { ReferenceAssetToken } from "../reference-assets.js";
 
 function uniqueShotIds(sourceFiles: ObsidianSourceFile[]): string[] {
   return [...new Set(sourceFiles.map((file) => file.shotId).filter((shotId): shotId is string => Boolean(shotId)))].sort();
@@ -52,23 +54,44 @@ function yesNoProperty(value: boolean): string {
   return value ? obsidianPropertyValues.yes : obsidianPropertyValues.no;
 }
 
+function referenceAssetsForFiles(sourceFiles: ObsidianSourceFile[]): ReferenceAssetToken[] {
+  const seen = new Set<string>();
+  const assets: ReferenceAssetToken[] = [];
+  for (const sourceFile of sourceFiles) {
+    for (const asset of sourceFile.referenceAssets ?? []) {
+      if (seen.has(asset.token)) {
+        continue;
+      }
+      seen.add(asset.token);
+      assets.push(asset);
+    }
+  }
+  return assets;
+}
+
+function referenceAssetsText(sourceFiles: ObsidianSourceFile[]): string {
+  return formatReferenceAssets(referenceAssetsForFiles(sourceFiles));
+}
+
 function renderShotHandoffEntry(shotId: string, shotIndex: number, shotFiles: ObsidianSourceFile[], allSourceFiles: ObsidianSourceFile[]): string {
   const storyboardSourcePath = sourcePathForKind(shotFiles, "storyboard");
   const imagePromptSourcePath = sourcePathForKind(shotFiles, "image-prompt");
   const videoPromptSourcePath = sourcePathForKind(shotFiles, "video-prompt");
   const executionPlanSourcePath = sourcePathForKind(allSourceFiles, "execution-plan");
   const displayName = shotDisplayName(shotId, allSourceFiles);
+  const referenceAssets = referenceAssetsText(shotFiles);
   return `### 2.${shotIndex + 1} [[镜头/${shotId}|${displayName}]]
 
 - 审阅画布：[[${shotReviewCanvasPath(shotId)}|审阅画布]]
 - 分镜脚本源文件：\`${storyboardSourcePath}\`
 - 步骤四图片提示词源文件：\`${imagePromptSourcePath}\`
 - 步骤五视频提示词源文件：\`${videoPromptSourcePath}\`
+- 必带参考资产：${referenceAssets}
 - 执行计划源文件：\`${executionPlanSourcePath}\``;
 }
 
 function renderShotEditEntry(): string {
-  return `## 7. 修改入口
+  return `## 8. 修改入口
 
 - 需要智能体修改源文件时：[[04_智能体交接#2. 单镜头交接|智能体交接]]`;
 }
@@ -82,6 +105,7 @@ function renderShotHub(shotId: string, shotFiles: ObsidianSourceFile[], allSourc
   const storyboard = fileForKind(shotFiles, "storyboard");
   const imagePrompt = fileForKind(shotFiles, "image-prompt");
   const videoPrompt = fileForKind(shotFiles, "video-prompt");
+  const referenceAssets = referenceAssetsText(shotFiles);
   const reviewCanvasPath = shotReviewCanvasPath(shotId);
   return {
     vaultPath: `镜头/${shotId}.md`,
@@ -103,6 +127,7 @@ ${obsidianProperties.agentHandoff}: "[[04_智能体交接#2. 单镜头交接|智
 ${obsidianProperties.hasStoryboard}: ${yesNoProperty(Boolean(storyboard))}
 ${obsidianProperties.hasImagePrompt}: ${yesNoProperty(Boolean(imagePrompt))}
 ${obsidianProperties.hasVideoPrompt}: ${yesNoProperty(Boolean(videoPrompt))}
+${obsidianProperties.referenceAssets}: ${JSON.stringify(referenceAssets)}
 ${obsidianProperties.status}: ${obsidianPropertyValues.ready}
 tags:
   - ai-video/project
@@ -119,6 +144,7 @@ tags:
 - 图片提示词：${linkForKind(shotFiles, "image-prompt", "图片提示词")}
 - 视频提示词：${linkForKind(shotFiles, "video-prompt", "视频提示词")}
 - 执行计划：${linkForKind(allSourceFiles, "execution-plan", "执行计划")}
+- 必带参考资产：${referenceAssets}
 - 审阅画布：[[${reviewCanvasPath}|镜头审阅画布]]
 - 用户审阅笔记：[[笔记/镜头审阅/${shotId}|${displayName} 审阅笔记]]
 
@@ -129,40 +155,46 @@ tags:
 - 审阅地图：[[画布/审阅地图.canvas]]
 ${shotNavigation(shotId, shotIds, allSourceFiles)}
 
-## 3. 源文件序列
+## 3. 参考资产
+
+- 必带参考资产：${referenceAssets}
+- 使用口径：图片提示词中统一写成 \`@xx三视图\` / \`@xx场景图\`。
+
+## 4. 源文件序列
 
 ${embeddedFileForKind(shotFiles, "storyboard", "分镜脚本")}
 
-## 4. 画面连续性
+## 5. 画面连续性
 
 审阅步骤四图片提示词连续性时，以步骤三分镜画面为参照。
 
 ${embeddedFileForKind(shotFiles, "image-prompt", "图片提示词")}
 
-## 5. 视频提示词
+## 6. 视频提示词
 
 检查步骤五视频提示词是否保留步骤四视觉画面，并且只增加运动、时长和镜头行为。
 
 ${embeddedFileForKind(shotFiles, "video-prompt", "视频提示词")}
 
-## 6. 执行检查
+## 7. 执行检查
 
 - 分镜脚本、图片提示词和视频提示词逐镜头对齐。
+- Step 4 已携带本页列出的必带参考资产。
 - 执行前打开 [[03_制作看板|制作看板]]。
 
 ${renderShotEditEntry()}
 
-## 8. 数据视图
+## 9. 数据视图
 
-### 8.1 镜头记录
+### 9.1 镜头记录
 
 ![[数据表/镜头.base#镜头表]]
 
-### 8.2 进度视图
+### 9.2 进度视图
 
 ![[数据表/镜头.base#镜头进度]]
 
-## 9. 审阅画布
+## 10. 审阅画布
 
 ![[${reviewCanvasPath}]]
 `
@@ -216,6 +248,7 @@ ${shotHandoffEntries}
 \`\`\`text
 请更新选中镜头的步骤四图片提示词，使它和步骤三分镜脚本保持逐镜头对齐。
 保持步骤四文件合同完整，避免依赖上下文的模糊写法。
+检查 Step 4 是否携带单镜头交接中的全部 \`@xx三视图\` / \`@xx场景图\`。
 不要编辑生成的 Obsidian 观看层文件。
 \`\`\`
 

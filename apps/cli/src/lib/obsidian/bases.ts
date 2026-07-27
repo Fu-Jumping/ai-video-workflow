@@ -36,6 +36,8 @@ properties:
     displayName: ${obsidianProperties.sourceKind}
   ${obsidianProperties.shotIndex}:
     displayName: ${obsidianProperties.shotIndex}
+  ${obsidianProperties.referenceAssets}:
+    displayName: ${obsidianProperties.referenceAssets}
   ${obsidianProperties.sourcePath}:
     displayName: ${obsidianProperties.sourcePath}
   ${modifiedTimeColumn}:
@@ -113,6 +115,8 @@ properties:
     displayName: ${obsidianProperties.stepName}
   ${obsidianProperties.shotIndex}:
     displayName: ${obsidianProperties.shotIndex}
+  ${obsidianProperties.referenceAssets}:
+    displayName: ${obsidianProperties.referenceAssets}
   ${obsidianProperties.reviewMode}:
     displayName: ${obsidianProperties.reviewMode}
   ${obsidianProperties.reviewCanvas}:
@@ -241,6 +245,8 @@ properties:
     displayName: ${obsidianProperties.sourceKind}
   ${obsidianProperties.shotIndex}:
     displayName: ${obsidianProperties.shotIndex}
+  ${obsidianProperties.referenceAssets}:
+    displayName: ${obsidianProperties.referenceAssets}
   ${obsidianProperties.reviewCanvas}:
     displayName: ${obsidianProperties.reviewCanvas}
   ${obsidianProperties.reviewNote}:

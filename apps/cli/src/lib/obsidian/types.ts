@@ -1,3 +1,5 @@
+import type { ReferenceAssetToken } from "../reference-assets.js";
+
 export type ObsidianSourceKind =
   | "concept"
   | "setting"
@@ -14,6 +16,7 @@ export interface ObsidianSourceFile {
   title: string;
   headingTitle?: string;
   shotId?: string;
+  referenceAssets?: ReferenceAssetToken[];
 }
 
 export interface ObsidianGeneratedFile {

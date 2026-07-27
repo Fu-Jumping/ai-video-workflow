@@ -244,6 +244,7 @@ describe("exportObsidianVault", () => {
     expect(storyboard).toContain("下一步: 审阅镜头画面");
     expect(storyboard).toContain("源文件路径: 03_分镜脚本/镜头-001.md");
     expect(storyboard).toContain("源文件类型: 分镜脚本");
+    expect(storyboard).toContain('参考资产: "@沈安三视图、@小满三视图、@小镇修伞铺场景图"');
     expect(storyboard).toContain("阶段: 镜头审阅");
     expect(storyboard).toContain("审阅状态: 镜头审阅");
     expect(storyboard).toContain("执行状态: 不适用");
@@ -379,6 +380,8 @@ describe("exportObsidianVault", () => {
     expect(handoff).toContain("分镜脚本源文件：`03_分镜脚本/镜头-001.md`");
     expect(handoff).toContain("步骤四图片提示词源文件：`04_图片提示词/镜头-001-关键帧.md`");
     expect(handoff).toContain("步骤五视频提示词源文件：`05_视频提示词/镜头-001.md`");
+    expect(handoff).toContain("必带参考资产：@沈安三视图、@小满三视图、@小镇修伞铺场景图");
+    expect(handoff).toContain("检查 Step 4 是否携带单镜头交接中的全部 `@xx三视图` / `@xx场景图`。");
     expect(handoff).not.toContain("[[镜头/shot-001|shot-001]]");
   });
 
@@ -405,20 +408,22 @@ describe("exportObsidianVault", () => {
     expect(shotReview).not.toContain("agent_handoff:");
     expect(shotReview).toContain("## 1. 快速审阅");
     expect(shotReview).toContain("## 2. 审阅路径");
-    expect(shotReview).toContain("## 3. 源文件序列");
-    expect(shotReview).toContain("## 4. 画面连续性");
-    expect(shotReview).toContain("## 5. 视频提示词");
-    expect(shotReview).toContain("## 6. 执行检查");
-    expect(shotReview).toContain("## 7. 修改入口");
-    expect(shotReview).toContain("## 8. 数据视图");
-    expect(shotReview).toContain("### 8.1 镜头记录");
-    expect(shotReview).toContain("### 8.2 进度视图");
+    expect(shotReview).toContain("## 3. 参考资产");
+    expect(shotReview).toContain("必带参考资产：@沈安三视图、@小满三视图、@小镇修伞铺场景图");
+    expect(shotReview).toContain("## 4. 源文件序列");
+    expect(shotReview).toContain("## 5. 画面连续性");
+    expect(shotReview).toContain("## 6. 视频提示词");
+    expect(shotReview).toContain("## 7. 执行检查");
+    expect(shotReview).toContain("## 8. 修改入口");
+    expect(shotReview).toContain("## 9. 数据视图");
+    expect(shotReview).toContain("### 9.1 镜头记录");
+    expect(shotReview).toContain("### 9.2 进度视图");
     expect(shotReview).toContain("[[04_智能体交接#2. 单镜头交接|智能体交接]]");
     expect(shotReview).not.toContain("## 沉浸式审阅");
     expect(shotReview).not.toContain("## 智能体交接");
     expect(shotReview).not.toContain("可复制提示词");
     expect(shotReview).not.toContain("验证命令");
-    expect(shotReview).toContain("## 9. 审阅画布");
+    expect(shotReview).toContain("## 10. 审阅画布");
     expect(shotReview).toContain("![[流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本]]");
     expect(shotReview).toContain("![[流程/步骤四 - 图片提示词/镜头 001 关键帧 - 图片提示词]]");
     expect(shotReview).toContain("![[流程/步骤五 - 视频提示词/镜头 001 - 视频提示词]]");
@@ -451,6 +456,7 @@ describe("exportObsidianVault", () => {
     expect(shotsBase).toContain("智能体交接:");
     expect(shotsBase).toContain("审阅画布:");
     expect(shotsBase).toContain("审阅笔记:");
+    expect(shotsBase).toContain("参考资产:");
     expect(shotsBase).toContain("file.mtime:");
     expect(shotsBase).toContain("displayName: 最近修改时间");
     expect(shotsBase).toContain("property: 镜头标题");
@@ -587,6 +593,7 @@ describe("exportObsidianVault", () => {
     expect(shotReview.nodes).toEqual(
       expect.arrayContaining([expect.objectContaining({ type: "file", file: "流程/步骤五 - 视频提示词/镜头 001 - 视频提示词.md" })])
     );
+    expect(shotReview.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "text", text: expect.stringContaining("@沈安三视图") })]));
     expect(
       shotReview.nodes
         .filter((node: { type?: string }) => node.type === "file")
@@ -596,6 +603,7 @@ describe("exportObsidianVault", () => {
     const shotReviewStoryboard = shotReview.nodes.find((node: { id?: string }) => node.id === "storyboard");
     const shotReviewImagePrompt = shotReview.nodes.find((node: { id?: string }) => node.id === "image-prompt");
     const shotReviewNotes = shotReview.nodes.find((node: { id?: string }) => node.id === "notes");
+    const shotReviewReferenceAssets = shotReview.nodes.find((node: { id?: string }) => node.id === "reference-assets");
     expect(shotReviewHub.width).toBeGreaterThanOrEqual(500);
     expect(shotReviewHub.height).toBeGreaterThanOrEqual(200);
     expect(shotReviewStoryboard.width).toBeGreaterThanOrEqual(520);
@@ -603,7 +611,10 @@ describe("exportObsidianVault", () => {
     expect(shotReviewStoryboard.x - (shotReviewHub.x + shotReviewHub.width)).toBeGreaterThanOrEqual(280);
     expect(shotReviewImagePrompt.x - (shotReviewStoryboard.x + shotReviewStoryboard.width)).toBeGreaterThanOrEqual(260);
     expect(shotReviewNotes.y - (shotReviewHub.y + shotReviewHub.height)).toBeGreaterThanOrEqual(100);
+    expect(shotReviewReferenceAssets.width).toBeGreaterThanOrEqual(680);
+    expect(shotReviewReferenceAssets.y - (shotReviewHub.y + shotReviewHub.height)).toBeGreaterThanOrEqual(100);
     expect(shotReview.edges).toEqual(expect.arrayContaining([expect.objectContaining({ label: "审阅起点 / 画面" })]));
+    expect(shotReview.edges).toEqual(expect.arrayContaining([expect.objectContaining({ label: "参考资产" })]));
   });
 
   test("preserves user-authored notes during incremental export", async () => {

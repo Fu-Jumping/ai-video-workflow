@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { formatReferenceAssets } from "../reference-assets.js";
 import { sanitizeVaultFileName, toVaultPath } from "./paths.js";
 import { obsidianProperties, obsidianPropertyValues } from "./properties.js";
 import type { ObsidianSourceFile } from "./types.js";
@@ -232,6 +233,9 @@ export function renderFrontmatter(sourceFile: ObsidianSourceFile, projectName: s
     }
     lines.push(`${obsidianProperties.shotTitle}: ${yamlString(shotDisplayName(sourceFile, sourceFiles))}`);
     lines.push(`${obsidianProperties.shotIndex}: "${shotIndexLink(sourceFile, sourceFiles)}"`);
+  }
+  if (sourceFile.referenceAssets?.length) {
+    lines.push(`${obsidianProperties.referenceAssets}: ${yamlString(formatReferenceAssets(sourceFile.referenceAssets))}`);
   }
   lines.push(`${obsidianProperties.status}: ${obsidianPropertyValues.ready}`, `${obsidianProperties.tags}:`);
   for (const tag of renderTags(sourceFile)) {

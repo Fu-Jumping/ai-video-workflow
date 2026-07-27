@@ -2,6 +2,7 @@ import fs from "fs-extra";
 import path from "node:path";
 
 import { WORKFLOW_STEPS } from "../constants.js";
+import { extractReferenceAssets } from "../reference-assets.js";
 import { toVaultPath } from "./paths.js";
 import type { ObsidianSourceFile, ObsidianSourceKind } from "./types.js";
 
@@ -23,8 +24,7 @@ function titleFromFileName(fileName: string): string {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-async function titleFromMarkdownFile(filePath: string, fallback: string): Promise<string> {
-  const content = await fs.readFile(filePath, "utf8");
+function titleFromMarkdownContent(content: string, fallback: string): string {
   const heading = content.split(/\r?\n/).find((line) => line.startsWith("# "));
   const title = heading?.replace(/^#\s+/, "").trim();
   return title || fallback;
@@ -40,13 +40,15 @@ export async function scanProjectForObsidian(projectRoot: string): Promise<Obsid
     const entries = (await fs.readdir(fullDir)).filter((name) => name.endsWith(".md")).sort();
     for (const entry of entries) {
       const filePath = path.join(fullDir, entry);
+      const content = await fs.readFile(filePath, "utf8");
       files.push({
         sourcePath: toVaultPath(path.join(stepDir.dir, entry)),
         sourceKind: stepDir.sourceKind,
         step: stepDir.step,
         title: titleFromFileName(entry),
-        headingTitle: await titleFromMarkdownFile(filePath, titleFromFileName(entry)),
-        shotId: inferShotId(entry)
+        headingTitle: titleFromMarkdownContent(content, titleFromFileName(entry)),
+        shotId: inferShotId(entry),
+        referenceAssets: extractReferenceAssets(content)
       });
     }
   }

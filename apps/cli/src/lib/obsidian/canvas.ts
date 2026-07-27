@@ -1,6 +1,8 @@
 import { workflowVaultPath } from "./markdown.js";
 import { notesIndexPath } from "./routes.js";
 import type { ObsidianGeneratedFile, ObsidianSourceFile } from "./types.js";
+import { formatReferenceAssets } from "../reference-assets.js";
+import type { ReferenceAssetToken } from "../reference-assets.js";
 
 interface CanvasNode {
   id: string;
@@ -66,9 +68,12 @@ const layout = {
     mainHeight: 200,
     fileWidth: 520,
     fileHeight: 250,
+    referenceWidth: 680,
+    referenceHeight: 220,
     columnGap: 800,
     sourceY: -260,
-    notesY: 300
+    notesY: 300,
+    referenceY: 320
   },
   reviewMap: {
     columnGap: 700,
@@ -97,6 +102,21 @@ function shotDisplayName(sourceFiles: ObsidianSourceFile[], shotId: string): str
 
 function shotFileForKind(sourceFiles: ObsidianSourceFile[], shotId: string, sourceKind: ObsidianSourceFile["sourceKind"]): ObsidianSourceFile | undefined {
   return sourceFiles.find((file) => file.shotId === shotId && file.sourceKind === sourceKind);
+}
+
+function referenceAssetsForFiles(sourceFiles: ObsidianSourceFile[]): ReferenceAssetToken[] {
+  const seen = new Set<string>();
+  const assets: ReferenceAssetToken[] = [];
+  for (const sourceFile of sourceFiles) {
+    for (const asset of sourceFile.referenceAssets ?? []) {
+      if (seen.has(asset.token)) {
+        continue;
+      }
+      seen.add(asset.token);
+      assets.push(asset);
+    }
+  }
+  return assets;
 }
 
 function addSourceOrMissingNode({
@@ -269,6 +289,8 @@ export function renderShotPipelineCanvas(sourceFiles: ObsidianSourceFile[]): Obs
 
 export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedFile[] {
   return uniqueShotIds(sourceFiles).map((shotId) => {
+    const shotFiles = sourceFiles.filter((file) => file.shotId === shotId);
+    const referenceAssets = formatReferenceAssets(referenceAssetsForFiles(shotFiles));
     const nodes: CanvasNode[] = [
       {
         id: "shot-review",
@@ -343,6 +365,16 @@ export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): Obs
         width: layout.shotReview.fileWidth,
         height: layout.shotReview.fileHeight,
         color: "5"
+      },
+      {
+        id: "reference-assets",
+        type: "text",
+        text: `参考资产\n${referenceAssets}`,
+        x: layout.shotReview.columnGap * 2,
+        y: layout.shotReview.referenceY,
+        width: layout.shotReview.referenceWidth,
+        height: layout.shotReview.referenceHeight,
+        color: "4"
       }
     );
     edges.push(
@@ -363,6 +395,15 @@ export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): Obs
         toSide: "left",
         toEnd: "arrow",
         label: "笔记"
+      },
+      {
+        id: "shot-reference-assets",
+        fromNode: "shot-review",
+        toNode: "reference-assets",
+        fromSide: "bottom",
+        toSide: "left",
+        toEnd: "arrow",
+        label: "参考资产"
       }
     );
 

@@ -42,13 +42,14 @@ const requiredWorkspacePaths = ["00_项目首页.md", "01_审阅总览.md", "画
 const requiredShotReviewMarkers = [
   "## 1. 快速审阅",
   "## 2. 审阅路径",
-  "## 3. 源文件序列",
-  "## 4. 画面连续性",
-  "## 5. 视频提示词",
-  "## 6. 执行检查",
-  "## 7. 修改入口",
-  "## 8. 数据视图",
-  "## 9. 审阅画布"
+  "## 3. 参考资产",
+  "## 4. 源文件序列",
+  "## 5. 画面连续性",
+  "## 6. 视频提示词",
+  "## 7. 执行检查",
+  "## 8. 修改入口",
+  "## 9. 数据视图",
+  "## 10. 审阅画布"
 ];
 const absoluteLinkPattern = /([A-Za-z]:\\|[A-Za-z]:\/|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
 const unsafeLocalPathStringPattern = /(^|[^A-Za-z])[A-Za-z]:[\\/]|file:\/\/|vscode:\/\//i;
