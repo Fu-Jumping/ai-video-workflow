@@ -13,8 +13,16 @@ import {
 import { STEP6_FILES, STEP_DIR_BY_NUMBER } from "./constants.js";
 import { readProjectConfig } from "./project-config.js";
 import { projectRootIssues } from "./project-root.js";
+import {
+  extractReferenceAssets,
+  findMissingCharacterTriViews,
+  findMissingSceneReferenceImages,
+  hasReferenceAssetRequirementSection,
+  missingReferenceAssets
+} from "./reference-assets.js";
 import type { Ide, VerificationIssue, VerificationResult } from "./types.js";
 
+const step2Dir = STEP_DIR_BY_NUMBER[2];
 const step3Dir = STEP_DIR_BY_NUMBER[3];
 const step4Dir = STEP_DIR_BY_NUMBER[4];
 const step6Dir = STEP_DIR_BY_NUMBER[6];
@@ -165,6 +173,32 @@ async function verifyStep4(projectRoot: string, issues: VerificationIssue[]): Pr
   }
 }
 
+async function verifyStep2ReferenceAssets(projectRoot: string, issues: VerificationIssue[]): Promise<void> {
+  const dir = path.join(projectRoot, step2Dir);
+  if (!(await fs.pathExists(dir))) {
+    return;
+  }
+  const files = (await fs.readdir(dir)).filter((name) => name.endsWith(".md"));
+  for (const file of files) {
+    const relPath = path.join(step2Dir, file);
+    const content = await fs.readFile(path.join(dir, file), "utf8");
+    for (const missing of findMissingCharacterTriViews(content)) {
+      pushIssue(issues, {
+        code: missing.code,
+        message: `Main character ${missing.name} must declare ${missing.expectedToken}`,
+        path: relPath
+      });
+    }
+    for (const missing of findMissingSceneReferenceImages(content)) {
+      pushIssue(issues, {
+        code: missing.code,
+        message: `Special scene ${missing.name} must declare ${missing.expectedToken}`,
+        path: relPath
+      });
+    }
+  }
+}
+
 async function verifyStep3Step4Traceability(projectRoot: string, issues: VerificationIssue[]): Promise<void> {
   const storyboardDir = path.join(projectRoot, step3Dir);
   if (!(await fs.pathExists(storyboardDir))) {
@@ -174,6 +208,14 @@ async function verifyStep3Step4Traceability(projectRoot: string, issues: Verific
   for (const file of files) {
     const relPath = path.join(step3Dir, file);
     const content = await fs.readFile(path.join(storyboardDir, file), "utf8");
+    const requiredReferenceAssets = extractReferenceAssets(content);
+    if (hasReferenceAssetRequirementSection(content) && requiredReferenceAssets.length === 0) {
+      pushIssue(issues, {
+        code: "missing-storyboard-reference-assets",
+        message: "Storyboard reference asset section is empty; declare required @xx三视图 or @xx场景图 assets",
+        path: relPath
+      });
+    }
     const matches = [...content.matchAll(step4LinkPattern)];
     if (matches.length === 0) {
       pushIssue(issues, {
@@ -193,12 +235,25 @@ async function verifyStep3Step4Traceability(projectRoot: string, issues: Verific
         });
         continue;
       }
-      if (!(await fs.pathExists(path.join(projectRoot, step4Dir, target)))) {
+      const targetPath = path.join(projectRoot, step4Dir, target);
+      if (!(await fs.pathExists(targetPath))) {
         pushIssue(issues, {
           code: "broken-step3-step4-link",
           message: `Storyboard file links to missing Step 4 target: ${target}`,
           path: relPath
         });
+        continue;
+      }
+      if (requiredReferenceAssets.length > 0) {
+        const step4Content = await fs.readFile(targetPath, "utf8");
+        const missingAssets = missingReferenceAssets(requiredReferenceAssets, extractReferenceAssets(step4Content));
+        for (const asset of missingAssets) {
+          pushIssue(issues, {
+            code: "missing-step4-reference-asset",
+            message: `Step 4 prompt must include required reference asset: ${asset.token}`,
+            path: path.join(step4Dir, target)
+          });
+        }
       }
     }
   }
@@ -350,6 +405,7 @@ export async function verifyProject({
   }
   await verifyNestedProjects(projectRoot, issues);
   await verifyStep6(projectRoot, issues);
+  await verifyStep2ReferenceAssets(projectRoot, issues);
   await verifyStep4(projectRoot, issues);
   await verifyStep3Step4Traceability(projectRoot, issues);
   await verifyRelativeMarkdownLinks(projectRoot, issues);

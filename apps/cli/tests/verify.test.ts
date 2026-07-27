@@ -164,6 +164,116 @@ describe("verifyProject", () => {
     );
   });
 
+  test("requires main character tri-view and special scene reference assets", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-reference-assets-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await fs.writeFile(path.join(projectRoot, "02_世界设定", "角色设定.md"), "# 角色设定\n\n## 阿岚\n\n- 主角色：是\n- 三视图引用：\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "02_世界设定", "场景设定.md"), "# 场景设定\n\n## 雾塔\n\n- 需要场景图：是\n- 场景图引用：\n", "utf8");
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "missing-character-triview", path: path.join("02_世界设定", "角色设定.md") }),
+        expect.objectContaining({ code: "missing-scene-reference-image", path: path.join("02_世界设定", "场景设定.md") })
+      ])
+    );
+  });
+
+  test("does not treat yes-no placeholders as selected reference asset requirements", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-reference-placeholders-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await fs.writeFile(
+      path.join(projectRoot, "02_世界设定", "角色设定.md"),
+      "# 角色设定\n\n## 角色细节\n\n### 角色一\n\n- 主角色：是 / 否\n- 三视图引用：@角色名三视图\n",
+      "utf8"
+    );
+    await fs.writeFile(
+      path.join(projectRoot, "02_世界设定", "场景设定.md"),
+      "# 场景设定\n\n## 场景细节\n\n### 场景一\n\n- 需要场景图：是 / 否\n- 场景图引用：@场景名场景图\n",
+      "utf8"
+    );
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.issues).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "missing-character-triview" }),
+        expect.objectContaining({ code: "missing-scene-reference-image" })
+      ])
+    );
+  });
+
+  test("requires Step 4 prompts to carry storyboard reference assets", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-reference-trace-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await fs.writeFile(path.join(projectRoot, "02_世界设定", "角色设定.md"), "# 角色设定\n\n## 阿岚\n\n- 主角色：是\n- 三视图引用：@阿岚三视图\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "02_世界设定", "场景设定.md"), "# 场景设定\n\n## 雾塔\n\n- 需要场景图：是\n- 场景图引用：@雾塔场景图\n", "utf8");
+    await fs.writeFile(
+      path.join(projectRoot, "03_分镜脚本", "镜头-001.md"),
+      [
+        "# 镜头 001：雾塔门前",
+        "",
+        "## 镜头目标",
+        "- 对应步骤四：[镜头 001 关键帧图片提示词](../04_图片提示词/镜头-001-关键帧.md)",
+        "",
+        "## 参考资产要求",
+        "",
+        "- 主角色三视图：@阿岚三视图",
+        "- 场景设定图：@雾塔场景图"
+      ].join("\n"),
+      "utf8"
+    );
+    await fs.writeFile(
+      path.join(projectRoot, "04_图片提示词", "镜头-001-关键帧.md"),
+      [
+        "# 镜头 001 关键帧图片提示词",
+        "",
+        "## 快速导读",
+        "",
+        "- 画面内容：阿岚站在雾塔门前。",
+        "",
+        "## 中文完整版本",
+        "",
+        "阿岚站在雾塔门前。",
+        "",
+        "## 可复制提示词",
+        "",
+        "```text",
+        "阿岚站在雾塔门前。",
+        "避免：现代城市。",
+        "```"
+      ].join("\n"),
+      "utf8"
+    );
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "missing-step4-reference-asset", path: path.join("04_图片提示词", "镜头-001-关键帧.md") })
+      ])
+    );
+  });
+
   test.each<Ide>(["codex", "cursor", "claude-code", "trae"])("passes IDE runtime verification for synced %s projects", async (ide) => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-verify-runtime-"));
     tempRoots.push(root);
