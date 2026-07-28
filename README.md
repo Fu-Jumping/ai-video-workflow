@@ -28,6 +28,13 @@ The current recommended focus is the mainline demo loop: non-interactive init, t
 
 Future Obsidian, LibTV, MCP, and agent-platform work should attach as adapters, not as second workflow sources.
 
+## Seedance Video Prompt Contract
+
+- New projects default to Seedance 2.0 all-purpose reference mode.
+- Steps 3-5 use recursive `镜头组-001/` directories. One shot is one video-generation task with a 15-second default and up to four internal storyboard segments.
+- Step 4 keyframes are not limited to first or last frames and use names such as `镜头-001-关键帧-01.md`.
+- Formal Step 5 prompts use the five-section contract and explicitly state `无配乐、无字幕`.
+
 ## Cross-Agent Workspace
 
 `sync --ide codex|cursor|claude-code|trae` initializes a shared agent workspace in each project:

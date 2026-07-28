@@ -32,12 +32,12 @@ describe("official example", () => {
 
     const shotFiles = ["镜头-001.md", "镜头-002.md", "镜头-003.md"];
     for (const file of shotFiles) {
-      const storyboard = await fs.readFile(path.join(projectRoot, "03_分镜脚本", file), "utf8");
-      expect(storyboard).toContain("../04_图片提示词/");
+      const storyboard = await fs.readFile(path.join(projectRoot, "03_分镜脚本", "镜头组-001", file), "utf8");
+      expect(storyboard).toContain("../../04_图片提示词/镜头组-001/");
     }
 
-    for (const file of ["镜头-001-关键帧.md", "镜头-002-关键帧.md", "镜头-003-关键帧.md"]) {
-      const prompt = await fs.readFile(path.join(projectRoot, "04_图片提示词", file), "utf8");
+    for (const file of ["镜头-001-关键帧-01.md", "镜头-002-关键帧-01.md", "镜头-003-关键帧-01.md"]) {
+      const prompt = await fs.readFile(path.join(projectRoot, "04_图片提示词", "镜头组-001", file), "utf8");
       expect(prompt).toContain("快速导读");
       expect(prompt).toContain("中文完整版本");
       expect(prompt).toContain("可复制提示词");
