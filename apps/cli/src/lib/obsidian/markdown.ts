@@ -6,6 +6,7 @@ import { obsidianProperties, obsidianPropertyValues } from "./properties.js";
 import type { ObsidianSourceFile } from "./types.js";
 
 const stepNames: Record<number, string> = {
+  0: "前期研究",
   1: "概念策划",
   2: "世界设定",
   3: "分镜脚本",
@@ -15,6 +16,7 @@ const stepNames: Record<number, string> = {
 };
 
 const stepFolders: Record<number, string> = {
+  0: "步骤零 - 前期研究",
   1: "步骤一 - 概念策划",
   2: "步骤二 - 世界设定",
   3: "步骤三 - 分镜脚本",
@@ -24,6 +26,7 @@ const stepFolders: Record<number, string> = {
 };
 
 const stepTags: Record<number, string> = {
+  0: "ai-video/step/00-research",
   1: "ai-video/step/01-concept",
   2: "ai-video/step/02-setting",
   3: "ai-video/step/03-storyboard",
@@ -37,6 +40,7 @@ type ReviewStatus = keyof typeof obsidianPropertyValues.reviewStatus;
 type ExecutionStatus = keyof typeof obsidianPropertyValues.executionStatus;
 
 const stageGroups: Record<number, StageGroup> = {
+  0: "research",
   1: "foundation",
   2: "foundation",
   3: "shot-review",

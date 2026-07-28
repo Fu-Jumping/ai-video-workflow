@@ -6,5 +6,7 @@ platforms:
   video:
     default: runway
 workflow:
+  research_step:
+    enabled: true
   enhanced_flow:
     enabled: true

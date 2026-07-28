@@ -178,6 +178,118 @@ describe("verifyProject", () => {
     );
   });
 
+  test("does not require Step 0 for legacy configs without research_step", async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-legacy-no-step0-"));
+    tempRoots.push(projectRoot);
+    await fs.writeFile(
+      path.join(projectRoot, "project.config.yaml"),
+      [
+        "pack: official-ai-video",
+        "ide: codex",
+        "platforms:",
+        "  image:",
+        "    default: openai",
+        "  video:",
+        "    default: runway",
+        "workflow:",
+        "  enhanced_flow:",
+        "    enabled: true"
+      ].join("\n"),
+      "utf8"
+    );
+    for (const dir of ["01_概念策划", "02_世界设定", "03_分镜脚本", "04_图片提示词", "05_视频提示词", "06_执行计划"]) {
+      await fs.ensureDir(path.join(projectRoot, dir));
+    }
+    await fs.writeFile(path.join(projectRoot, "06_执行计划", "00_执行计划.md"), "# 计划\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "06_执行计划", "01_图片执行计划.md"), "# 图片\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "06_执行计划", "02_视频执行计划.md"), "# 视频\n", "utf8");
+    await syncProject({
+      repoRoot,
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.issues).not.toEqual(expect.arrayContaining([expect.objectContaining({ code: "missing-step0-file" })]));
+  });
+
+  test("reports missing Step 0 template files when research mode is enabled", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-missing-step0-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await fs.remove(path.join(projectRoot, "00_前期研究", "04_创作简报.md"));
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "missing-step0-file",
+          path: path.join("00_前期研究", "04_创作简报.md")
+        })
+      ])
+    );
+  });
+
+  test("reports invalid research source ID directories", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-invalid-source-id-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await fs.ensureDir(path.join(projectRoot, "00_前期研究", "_资料库", "source-one"));
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "invalid-research-source-id",
+          path: path.join("00_前期研究", "_资料库", "source-one")
+        })
+      ])
+    );
+  });
+
+  test("reports possible auth material in research text files", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-sensitive-research-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    const sourceRoot = path.join(projectRoot, "00_前期研究", "_资料库", "SRC-0001");
+    await fs.ensureDir(sourceRoot);
+    await fs.writeFile(path.join(sourceRoot, "source-card.md"), "# Source\n\naccess_token: should-not-be-saved\n", "utf8");
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "research-sensitive-auth-material",
+          path: path.join("00_前期研究", "_资料库", "SRC-0001", "source-card.md")
+        })
+      ])
+    );
+  });
+
   test("requires main character tri-view and special scene reference assets", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-reference-assets-"));
     tempRoots.push(root);

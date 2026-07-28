@@ -18,7 +18,7 @@
 
 ## 事实源
 
-事实源始终是 `project-step-files`：项目中的 Step 1 到 Step 6 Markdown 文件。
+事实源始终是 `project-step-files`：项目中的已启用步骤 Markdown 文件。研究模式包含 Step 0 到 Step 6，剧本模式包含 Step 1 到 Step 6。
 
 以下内容只属于 adapter 表面：
 

@@ -4,6 +4,21 @@ export type AdapterId = Ide | "obsidian" | "mcp" | "cherry-studio";
 
 export type Platform = "openai" | "veo" | "runway" | "luma" | "minimax";
 
+export type StartFromMode = "research" | "script";
+
+export type ResearchPlatform =
+  | "auto"
+  | "bilibili"
+  | "douyin"
+  | "xiaohongshu"
+  | "weibo"
+  | "kuaishou"
+  | "tieba"
+  | "zhihu"
+  | "web";
+
+export type ResearchRuntime = "auto" | "toolbox" | "ide-inbox";
+
 export type IssueCode =
   | "missing-project-root"
   | "project-root-not-directory"
@@ -13,6 +28,7 @@ export type IssueCode =
   | "nested-project"
   | "invalid-sync-target"
   | "missing-config"
+  | "missing-step0-file"
   | "missing-image-default-platform"
   | "missing-video-default-platform"
   | "missing-step6-file"
@@ -23,6 +39,8 @@ export type IssueCode =
   | "missing-step4-reference-asset"
   | "missing-step5-reference-asset"
   | "missing-step5-platform-execution-setting"
+  | "invalid-research-source-id"
+  | "research-sensitive-auth-material"
   | "invalid-reference-asset-token"
   | "absolute-path-link"
   | "step4-forbidden-text"
@@ -66,6 +84,9 @@ export interface ProjectConfig {
     video: { default: Platform };
   };
   workflow: {
+    research_step?: {
+      enabled: boolean;
+    };
     enhanced_flow: {
       enabled: boolean;
     };
@@ -79,6 +100,7 @@ export interface CreateProjectOptions {
   ide: Ide;
   imagePlatform: Platform;
   videoPlatform: Platform;
+  startFrom?: StartFromMode;
 }
 
 export interface SyncProjectOptions {

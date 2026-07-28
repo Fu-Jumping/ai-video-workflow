@@ -22,7 +22,7 @@ Claude Code should read the root entry first, then follow the mirror and skill b
 
 ## Adapter Contract
 
-- Reads: `packs/official-ai-video/`, `project.config.yaml`, and project Step 1 to Step 6 files.
+- Reads: `packs/official-ai-video/`, `project.config.yaml`, and the enabled project Step files; research mode includes Step 0 through Step 6, while script mode includes Step 1 through Step 6.
 - Writes: `CLAUDE.md`, `.claude/skills/`, `.claude/commands/`, and `.claude/ai-video-workflow/`.
 - Must not write: source Step files, generated Obsidian projection files, user `.obsidian/` config, or absolute links.
 - Sync direction: `runtime-mirror`.

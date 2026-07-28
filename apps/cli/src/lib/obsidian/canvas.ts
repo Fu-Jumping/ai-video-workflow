@@ -34,6 +34,7 @@ interface CanvasFile {
 }
 
 const stepColors: Record<number, string> = {
+  0: "1",
   1: "1",
   2: "2",
   3: "3",
@@ -185,13 +186,16 @@ export function renderWorkflowCanvas(sourceFiles: ObsidianSourceFile[]): Obsidia
   const nodes: CanvasNode[] = [];
   const edges: CanvasEdge[] = [];
   const firstNodeByStep = new Map<number, string>();
+  const steps = [...new Set(sourceFiles.map((file) => file.step))].sort((left, right) => left - right);
+  const stepIndex = new Map(steps.map((step, index) => [step, index]));
 
-  for (let step = 1; step <= 6; step += 1) {
+  for (const step of steps) {
+    const columnIndex = stepIndex.get(step) ?? 0;
     nodes.push({
       id: `step-${step}-group`,
       type: "group",
       label: `步骤 ${step}`,
-      x: (step - 1) * layout.workflow.columnGap,
+      x: columnIndex * layout.workflow.columnGap,
       y: 0,
       width: layout.workflow.groupWidth,
       height: layout.workflow.groupHeight,
@@ -202,11 +206,12 @@ export function renderWorkflowCanvas(sourceFiles: ObsidianSourceFile[]): Obsidia
   sourceFiles.forEach((sourceFile, index) => {
     const nodeId = `file-${index}`;
     const sameStepIndex = sourceFiles.filter((file, fileIndex) => file.step === sourceFile.step && fileIndex < index).length;
+    const columnIndex = stepIndex.get(sourceFile.step) ?? 0;
     nodes.push({
       id: nodeId,
       type: "file",
       file: workflowVaultPath(sourceFile),
-      x: (sourceFile.step - 1) * layout.workflow.columnGap + layout.workflow.fileXOffset,
+      x: columnIndex * layout.workflow.columnGap + layout.workflow.fileXOffset,
       y: layout.workflow.fileYOffset + sameStepIndex * layout.workflow.fileRowGap,
       width: layout.workflow.fileWidth,
       height: layout.workflow.fileHeight,
@@ -217,19 +222,28 @@ export function renderWorkflowCanvas(sourceFiles: ObsidianSourceFile[]): Obsidia
     }
   });
 
-  const labels = ["设定上下文", "拆成镜头", "生成图片提示词", "供给视频提示词", "跟踪执行"];
-  for (let step = 1; step < 6; step += 1) {
+  const labels = new Map<number, string>([
+    [0, "交接创作简报"],
+    [1, "设定上下文"],
+    [2, "拆成镜头"],
+    [3, "生成图片提示词"],
+    [4, "供给视频提示词"],
+    [5, "跟踪执行"]
+  ]);
+  for (let index = 0; index < steps.length - 1; index += 1) {
+    const step = steps[index];
+    const nextStep = steps[index + 1];
     const fromNode = firstNodeByStep.get(step);
-    const toNode = firstNodeByStep.get(step + 1);
+    const toNode = firstNodeByStep.get(nextStep);
     if (fromNode && toNode) {
       edges.push({
-        id: `edge-step-${step}-${step + 1}`,
+        id: `edge-step-${step}-${nextStep}`,
         fromNode,
         toNode,
         fromSide: "right",
         toSide: "left",
         toEnd: "arrow",
-        label: labels[step - 1]
+        label: labels.get(step) ?? "下一步"
       });
     }
   }

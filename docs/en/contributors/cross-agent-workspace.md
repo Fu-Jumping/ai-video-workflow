@@ -18,7 +18,7 @@ Every synced project should have:
 
 ## Source of Truth
 
-The source of truth is always `project-step-files`: Step 1 to Step 6 Markdown files in the project.
+The source of truth is always `project-step-files`: enabled Step Markdown files in the project. Research mode includes Step 0 through Step 6; script mode includes Step 1 through Step 6.
 
 Runtime mirrors are adapter surfaces only:
 

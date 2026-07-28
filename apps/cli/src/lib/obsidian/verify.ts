@@ -1,7 +1,7 @@
 import fs from "fs-extra";
 import path from "node:path";
 
-import { STEP_DIRS } from "../constants.js";
+import { activeStepDirs } from "../constants.js";
 import { readProjectConfig } from "../project-config.js";
 import type { VerificationIssue, VerificationResult } from "../types.js";
 import { projectRootIssues } from "../project-root.js";
@@ -657,7 +657,7 @@ export async function verifyObsidianVault({ projectRoot, vaultRoot }: VerifyObsi
   if (!config) {
     return { ok: false, issues: configIssues };
   }
-  for (const stepDir of STEP_DIRS) {
+  for (const stepDir of activeStepDirs(config)) {
     const stepPath = path.join(resolvedProjectRoot, stepDir);
     if (!(await fs.pathExists(stepPath)) || !(await fs.stat(stepPath)).isDirectory()) {
       return {

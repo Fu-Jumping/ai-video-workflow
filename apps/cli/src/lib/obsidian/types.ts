@@ -1,6 +1,7 @@
 import type { ReferenceAssetToken } from "../reference-assets.js";
 
 export type ObsidianSourceKind =
+  | "research"
   | "concept"
   | "setting"
   | "storyboard"

@@ -4,7 +4,7 @@ The Obsidian vault projection is a reading, creation, and review surface for `ai
 
 ## Role
 
-The source of truth remains `packs/official-ai-video/` and the project Step 1 to Step 6 Markdown files. The Obsidian adapter only projects those files into a vault structure that is easier to browse, connect, review, and visualize in Obsidian.
+The source of truth remains `packs/official-ai-video/` and the enabled project Step Markdown files. Research mode projects Step 0 through Step 6; script mode projects Step 1 through Step 6. The Obsidian adapter only projects those files into a vault structure that is easier to browse, connect, review, and visualize in Obsidian.
 
 ## Recommended In-Project View Layer
 
@@ -12,7 +12,7 @@ The recommended production layout is:
 
 ```text
 project/
-├─ 01_概念策划/ ... 06_执行计划/
+├─ 00_前期研究/ ... 06_执行计划/   # research mode
 └─ _views/
    └─ obsidian/
       ├─ 流程/
@@ -38,7 +38,7 @@ External vault mode remains supported with `--out <vault-path>` and `--vault <va
 
 - Project root
 - `project.config.yaml`
-- Step 1 to Step 6 Markdown files
+- enabled Step Markdown files
 - Templates, quality gates, and file contracts from `official-ai-video`
 
 ## Outputs
@@ -94,7 +94,7 @@ By default, export does not write `.obsidian/`. Use `--include-obsidian-ui` only
 - Graph: show workflow relationships derived from internal links.
 - Search query blocks: can surface review items when needed; default review pages prioritize Bases and Canvas to avoid exposing technical query text.
 - Bases: `.base` files browse review queues, shot progress, execution readiness, modified generated files, shots, files, and production status as tables and cards. Default tables emphasize human-readable fields, while diagnostic views keep source paths and generation markers.
-- Canvas: `.canvas` JSON files show Step 1 to Step 6 relationships, shot pipelines, the project-level review route, each single-shot review route, and the agent handoff entry.
+- Canvas: `.canvas` JSON files show enabled Step relationships, shot pipelines, the project-level review route, each single-shot review route, and the agent handoff entry.
 - Optional Bookmarks and Workspace: `.obsidian` suggestions are opt-in UI state only.
 
 ## Vault QA Checklist

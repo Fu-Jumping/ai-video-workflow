@@ -9,7 +9,7 @@ Read `AGENTS.md` and `文档/智能体工作区/` before using the Codex runtime
 
 ## Adapter Contract
 
-- Reads: `packs/official-ai-video/`, `project.config.yaml`, and project Step 1 to Step 6 files.
+- Reads: `packs/official-ai-video/`, `project.config.yaml`, and the enabled project Step files; research mode includes Step 0 through Step 6, while script mode includes Step 1 through Step 6.
 - Writes: `.codex/ai-video-workflow/` and `.codex/skills/`.
 - Must not write: source Step files, generated Obsidian projection files, user `.obsidian/` config, or absolute links.
 - Sync direction: `runtime-mirror`.

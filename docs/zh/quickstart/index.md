@@ -10,7 +10,7 @@
 4. 运行 `node apps/cli/dist/index.js verify --project <project-path> --ide <ide>`。
 5. 如果校验失败，运行 `node apps/cli/dist/index.js doctor --project <project-path> --ide <ide>`。
 6. 如果缺少 IDE 运行文件，运行 `node apps/cli/dist/index.js sync --project <project-path> --ide <ide>`。
-7. 从 `01_概念策划/故事内核.md` 开始推进项目。
+7. 默认从 `00_前期研究/00_研究总览.md` 开始推进项目；如果已有完整剧本，可初始化时加 `--start-from script`，从 `01_概念策划/故事内核.md` 开始。
 
 交互式初始化：
 
@@ -24,7 +24,20 @@ node apps/cli/dist/index.js init
 node apps/cli/dist/index.js init --name my-ai-video-project --ide codex --image openai --video runway
 ```
 
-默认 pack 是 `official-ai-video`。除非项目显式关闭，否则默认启用增强流程。
+默认 pack 是 `official-ai-video`。新建项目默认启用 Step 0 前期研究和增强流程；已有完整剧本时使用：
+
+```powershell
+node apps/cli/dist/index.js init --name my-script-project --ide codex --image openai --video runway --start-from script
+```
+
+Step 0 资料归档命令：
+
+```powershell
+ai-video-workflow research ingest --project <project-path> --source <url-or-file> --platform auto --with-comments --comment-limit 10
+ai-video-workflow research inbox --project <project-path>
+```
+
+`research ingest` 生成可追溯的 `SRC-xxxx` 来源卡。CLI 不保存 cookie、token、浏览器 profile 或完整评论原始包；这些本地原始材料默认被 `.gitignore` 排除。
 
 ## 导出 Obsidian vault 投影
 
@@ -95,7 +108,7 @@ node apps/cli/dist/index.js clean-view --project <project-path> --dir "流程/�
 node apps/cli/dist/index.js rebuild-view --project <project-path> --property 源文件类型=图片提示词
 ```
 
-可用筛选条件包括 `--kind workflow-notes|shot-pages|canvas|base|dashboard|obsidian-ui`、`--step 1..6`、`--shot shot-002` 或 `--shot 2`、`--dir <vault-relative-path>` 和 `--property 字段=值`。同一条件可重复写，也可以用英文逗号分隔；不同条件会叠加缩小范围。`--dir` 必须是 Obsidian vault 内的相对路径，使用 `/`，不能写绝对路径、反斜杠、`.` 或 `..`。`--property` 只匹配生成 Markdown 的 properties 等值，不会匹配 `.canvas` 或 `.base`。
+可用筛选条件包括 `--kind workflow-notes|shot-pages|canvas|base|dashboard|obsidian-ui`、`--step 0..6`、`--shot shot-002` 或 `--shot 2`、`--dir <vault-relative-path>` 和 `--property 字段=值`。同一条件可重复写，也可以用英文逗号分隔；不同条件会叠加缩小范围。`--dir` 必须是 Obsidian vault 内的相对路径，使用 `/`，不能写绝对路径、反斜杠、`.` 或 `..`。`--property` 只匹配生成 Markdown 的 properties 等值，不会匹配 `.canvas` 或 `.base`。
 
 局部 `clean-view` 会把命中的生成文件从 `投影清单.json` 中移除，适合排查残留或准备局部重建；如果要得到完整可校验的观看层，优先直接运行带筛选条件的 `rebuild-view`。
 

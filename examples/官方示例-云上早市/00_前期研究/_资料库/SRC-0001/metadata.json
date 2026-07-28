@@ -1,0 +1,14 @@
+{
+  "source_id": "SRC-0001",
+  "source": "official-example-synthetic-reference",
+  "source_kind": "local-note",
+  "platform": "web",
+  "runtime": "ide-inbox",
+  "collected_at": "2026-07-28T00:00:00.000Z",
+  "comments_requested": true,
+  "comment_limit": 3,
+  "auth_material_excluded": true,
+  "privacy_policy": "example-only synthetic source; no account material or private messages are stored",
+  "toolbox_command": null,
+  "status": "archived-example-fixture"
+}

@@ -169,6 +169,7 @@ describe("agent adapter contract", () => {
     expect(contract.forbiddenWrites).toEqual(
       expect.arrayContaining([
         "01_概念策划/",
+        "00_前期研究/",
         "02_世界设定/",
         "03_分镜脚本/",
         "04_图片提示词/",

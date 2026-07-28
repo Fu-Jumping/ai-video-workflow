@@ -9,7 +9,7 @@ MCP adapter 的起点是 resources、prompts 和只读 tools。它不能变成�
 这个 adapter 帮助智能体理解项目，而不是猜仓库结构：
 
 - 当前使用哪个 workflow pack
-- 哪些 Step 1 到 Step 6 文件定义了项目
+- 哪些已启用步骤文件定义了项目；研究模式包含 Step 0 到 Step 6，剧本模式包含 Step 1 到 Step 6
 - 项目里有哪些镜头
 - 每个镜头对应哪些 Step 3、Step 4、Step 5 和 Step 6 文件
 - 故事、图像提示词、运动或执行计划修改应该改哪个源文件
@@ -38,6 +38,7 @@ Resources 应该暴露稳定的、项目相对的上下文。建议资源包括�
 - `ai-video-workflow://project/summary`
 - `ai-video-workflow://project/config`
 - `ai-video-workflow://pack/official-ai-video/overview`
+- `ai-video-workflow://workflow/step/0`
 - `ai-video-workflow://workflow/step/1`
 - `ai-video-workflow://workflow/step/2`
 - `ai-video-workflow://workflow/step/3`
@@ -94,6 +95,7 @@ v0.5 tools 应该只读：
 
 MCP adapter 不能写入：
 
+- `00_前期研究/`（启用 Step 0 时）
 - `01_概念策划/`
 - `02_世界设定/`
 - `03_分镜脚本/`
@@ -164,7 +166,7 @@ server 只绑定一个项目路径。每个项目单独启动一个 server。
 
 - 先运行 `ai-video-workflow mcp-context --project <project-path>`，确认它能成功退出
 - 检查项目是否有 `project.config.yaml`
-- 检查 Step 1 到 Step 6 目录是否都存在
+- 检查当前项目已启用步骤目录是否都存在
 - 运行 `ai-video-workflow verify --project <project-path> --ide codex`
 
 如果某个镜头没有出现在 MCP resources 中：

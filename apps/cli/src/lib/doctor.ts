@@ -6,6 +6,9 @@ const groups: Record<string, string> = {
   "project-root-not-directory": "Project Root",
   "invalid-sync-target": "Project Root",
   "nested-project": "Project Root",
+  "missing-step0-file": "Step 0 Research",
+  "invalid-research-source-id": "Step 0 Research",
+  "research-sensitive-auth-material": "Step 0 Research",
   "missing-step6-file": "Structure",
   "missing-config": "Structure",
   "invalid-project-config": "Configuration",
@@ -110,6 +113,15 @@ export async function diagnoseProject({
       }
       if (issue.code === "missing-step6-file") {
         lines.push("  Restore the missing Step 6 execution plan file.");
+      }
+      if (issue.code === "missing-step0-file") {
+        lines.push("  Restore the missing Step 0 research template file, or set `workflow.research_step.enabled: false` only if this project starts from a complete script.");
+      }
+      if (issue.code === "invalid-research-source-id") {
+        lines.push("  Rename the research source directory to the stable `SRC-0001` format.");
+      }
+      if (issue.code === "research-sensitive-auth-material") {
+        lines.push("  Remove cookies, tokens, account data, private messages, or browser login state from project text files. Keep them only in ignored local runtime/profile storage.");
       }
       if (issue.code === "missing-step4-section") {
         lines.push("  恢复步骤四必需段落：`快速导读`、`中文完整版本`、`可复制提示词`，并补齐 `避免：`。");

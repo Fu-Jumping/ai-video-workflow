@@ -10,7 +10,7 @@ Manual setup remains available for advanced and scripted use:
 4. Run `node apps/cli/dist/index.js verify --project <project-path> --ide <ide>`.
 5. If verification fails, run `node apps/cli/dist/index.js doctor --project <project-path> --ide <ide>`.
 6. If IDE runtime files are missing, run `node apps/cli/dist/index.js sync --project <project-path> --ide <ide>`.
-7. Start working from `01_概念策划/故事内核.md`.
+7. By default, start from `00_前期研究/00_研究总览.md`. If you already have a complete script, initialize with `--start-from script` and start from `01_概念策划/故事内核.md`.
 
 Interactive initialization:
 
@@ -24,7 +24,20 @@ Scripted initialization:
 node apps/cli/dist/index.js init --name my-ai-video-project --ide codex --image openai --video runway
 ```
 
-The default pack is `official-ai-video`, and enhanced flow is enabled unless the project explicitly disables it.
+The default pack is `official-ai-video`. New projects enable Step 0 research and enhanced flow by default. For complete-script projects, use:
+
+```powershell
+node apps/cli/dist/index.js init --name my-script-project --ide codex --image openai --video runway --start-from script
+```
+
+Step 0 source archiving:
+
+```powershell
+ai-video-workflow research ingest --project <project-path> --source <url-or-file> --platform auto --with-comments --comment-limit 10
+ai-video-workflow research inbox --project <project-path>
+```
+
+`research ingest` creates traceable `SRC-xxxx` source cards. The CLI does not store cookies, tokens, browser profiles, or complete raw comment packages in project truth; local raw material is gitignored by default.
 
 ## Export an Obsidian Vault Projection
 
@@ -95,7 +108,7 @@ node apps/cli/dist/index.js clean-view --project <project-path> --dir "流程/�
 node apps/cli/dist/index.js rebuild-view --project <project-path> --property 源文件类型=图片提示词
 ```
 
-Supported filters are `--kind workflow-notes|shot-pages|canvas|base|dashboard|obsidian-ui`, `--step 1..6`, `--shot shot-002` or `--shot 2`, `--dir <vault-relative-path>`, and `--property field=value`. You can repeat a filter or comma-separate values. Values within one filter are OR; different filter types combine as AND. `--dir` must be a vault-relative path using `/`, not an absolute path, backslash path, `.`, or `..`. `--property` only matches generated Markdown frontmatter equality and does not match `.canvas` or `.base` files.
+Supported filters are `--kind workflow-notes|shot-pages|canvas|base|dashboard|obsidian-ui`, `--step 0..6`, `--shot shot-002` or `--shot 2`, `--dir <vault-relative-path>`, and `--property field=value`. You can repeat a filter or comma-separate values. Values within one filter are OR; different filter types combine as AND. `--dir` must be a vault-relative path using `/`, not an absolute path, backslash path, `.`, or `..`. `--property` only matches generated Markdown frontmatter equality and does not match `.canvas` or `.base` files.
 
 Partial `clean-view` removes matched generated files from `投影清单.json`, which is useful for inspecting stale output or preparing a local rebuild. To end with a complete verifiable viewing layer, prefer running filtered `rebuild-view` directly.
 

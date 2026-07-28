@@ -1,16 +1,11 @@
 import fs from "fs-extra";
 import path from "node:path";
 
-import { WORKFLOW_STEPS } from "../constants.js";
+import { activeWorkflowSteps } from "../constants.js";
+import { readWorkflowProjectConfig } from "../project-root.js";
 import { extractReferenceAssets } from "../reference-assets.js";
 import { toVaultPath } from "./paths.js";
 import type { ObsidianSourceFile, ObsidianSourceKind } from "./types.js";
-
-const stepDirs: Array<{ dir: string; step: number; sourceKind: ObsidianSourceKind }> = WORKFLOW_STEPS.map((step) => ({
-  dir: step.directory,
-  step: step.step,
-  sourceKind: step.sourceKind
-}));
 
 function inferShotId(fileName: string): string | undefined {
   const match = fileName.match(/(?:shot|镜头)[-_ ]?(\d+)/i);
@@ -32,6 +27,12 @@ function titleFromMarkdownContent(content: string, fallback: string): string {
 
 export async function scanProjectForObsidian(projectRoot: string): Promise<ObsidianSourceFile[]> {
   const files: ObsidianSourceFile[] = [];
+  const config = await readWorkflowProjectConfig(projectRoot);
+  const stepDirs: Array<{ dir: string; step: number; sourceKind: ObsidianSourceKind }> = activeWorkflowSteps(config).map((step) => ({
+    dir: step.directory,
+    step: step.step,
+    sourceKind: step.sourceKind
+  }));
   for (const stepDir of stepDirs) {
     const fullDir = path.join(projectRoot, stepDir.dir);
     if (!(await fs.pathExists(fullDir))) {

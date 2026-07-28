@@ -4,7 +4,7 @@ The agent adapter contract defines how each IDE, agent runtime, vault projection
 
 ## Why This Exists
 
-`ai-video-workflow` is centered on one verifiable workflow: the `official-ai-video` pack and the project Step 1 to Step 6 Markdown files. Agent platforms can make that workflow easier to read, sync, or execute, but they must not reinterpret the workflow independently.
+`ai-video-workflow` is centered on one verifiable workflow: the `official-ai-video` pack and the enabled project Step Markdown files. Research mode includes Step 0 through Step 6, while script mode includes Step 1 through Step 6. Agent platforms can make that workflow easier to read, sync, or execute, but they must not reinterpret the workflow independently.
 
 This contract gives every adapter the same checklist:
 
@@ -54,7 +54,7 @@ The adapter exposes project files as context without writing project or runtime 
 
 ## Source-of-Truth Rules
 
-- Step 1 to Step 6 project Markdown files remain the creative source.
+- enabled project Step Markdown files remain the creative source.
 - `packs/official-ai-video/` remains the workflow pack source.
 - Generated adapter output must point back to source Step files when edits are needed.
 - Execution state can inform status, but it cannot become upstream creative truth.
@@ -89,7 +89,7 @@ Each adapter must have at least one verification path. A good adapter verificati
 
 Adapters must not:
 
-- create another Step 1 to Step 6 workflow
+- create another Step workflow
 - weaken Step 3 to Step 4 frame alignment
 - weaken the Step 4 file contract
 - write absolute local links into docs or generated projection files

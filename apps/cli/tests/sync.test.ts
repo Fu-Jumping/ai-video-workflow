@@ -65,6 +65,7 @@ async function expectSharedAgentWorkspace(projectRoot: string): Promise<void> {
   expect(agents).toContain("ai-video-workflow 共享智能体入口");
   expect(agents).toContain("文档/智能体工作区");
   expect(agents).toContain("project-step-files");
+  expect(agents).toContain("00_前期研究");
   expect(agents).toContain("01_概念策划");
   expect(agents).toContain("06_执行计划");
 
@@ -74,6 +75,7 @@ async function expectSharedAgentWorkspace(projectRoot: string): Promise<void> {
   expect(sharedReadme).toContain("_views/obsidian");
   expect(sharedReadme).toContain("project-step-files");
   expect(sharedReadme).toContain("共享智能体工作区");
+  expect(sharedReadme).toContain("00_前期研究");
   expect(sharedReadme).toContain("01_概念策划");
   expect(sharedReadme).toContain("06_执行计划");
 }
@@ -99,6 +101,8 @@ describe("syncProject", () => {
     expect(gitignore).toContain(gitignoreBlockMarker);
     expect(gitignore).toContain("_views/");
     expect(gitignore).toContain(".obsidian/");
+    expect(gitignore).toContain("00_前期研究/_资料库/*/raw/");
+    expect(gitignore).toContain("00_前期研究/_inbox/cookies/");
     expect(gitignore).toContain("SOUL.md");
     expect(gitignore).toContain("USER.md");
     expect(gitignore).toContain("memory/");
@@ -265,7 +269,7 @@ describe("syncProject", () => {
     expect(claudeEntry).toContain("AGENTS.md");
     expect(claudeEntry).toContain("文档/智能体工作区");
     expect(claudeEntry).toContain("project-step-files");
-    expect(claudeEntry).toContain("步骤一到步骤六文件");
+    expect(claudeEntry).toContain("已启用步骤文件");
     expect(claudeEntry).toContain(".claude/ai-video-workflow/");
 
     const claudeRuntimeRoot = path.join(projectRoot, ".claude");
@@ -321,7 +325,7 @@ describe("syncProject", () => {
     expect(rules).toContain("AGENTS.md");
     expect(rules).toContain("文档/智能体工作区");
     expect(rules).toContain("project-step-files");
-    expect(rules).toContain("步骤一到步骤六文件");
+    expect(rules).toContain("已启用步骤文件");
     expect(rules).toContain(".trae/documents/ai-video-workflow/");
 
     const traeRuntimeRoot = path.join(projectRoot, ".trae");

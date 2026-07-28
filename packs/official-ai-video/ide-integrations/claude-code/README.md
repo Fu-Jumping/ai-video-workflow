@@ -99,7 +99,7 @@ Claude Code 推荐优先转化到项目根下的 `.claude/`。如果团队不使
 
 ## 8. Adapter Contract
 
-- 读取：`packs/official-ai-video/`、`project.config.yaml` 和项目 Step 1 到 Step 6 文件。
+- 读取：`packs/official-ai-video/`、`project.config.yaml` 和项目已启用步骤文件；研究模式包含 Step 0 到 Step 6，剧本模式包含 Step 1 到 Step 6。
 - 写入：`CLAUDE.md` 根入口、`.claude/skills/` 技能入口、`.claude/commands/ai-video-workflow.md` 命令入口和 `.claude/ai-video-workflow/` 完整运行镜像。
 - 运行镜像包括：`WORKFLOW_OVERVIEW.md`、`workflow/`、`skills/`、`skill-bundles/`、`templates/` 和 `indexes/`。
 - 同步方向：`runtime-mirror`。

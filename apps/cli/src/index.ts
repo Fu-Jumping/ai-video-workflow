@@ -7,7 +7,7 @@ import { DEFAULT_PACK, SUPPORTED_IDES, SUPPORTED_PLATFORMS } from "./lib/constan
 import { diagnoseProject } from "./lib/doctor.js";
 import { createProject, renderInitNextSteps } from "./lib/init.js";
 import { runCliAction } from "./lib/cli-errors.js";
-import { parseIde, parsePlatform } from "./lib/cli-options.js";
+import { parseIde, parsePlatform, parseStartFrom } from "./lib/cli-options.js";
 import {
   cleanInProjectObsidianView,
   parseCleanViewFilter,
@@ -22,6 +22,14 @@ import { exportObsidianVault } from "./lib/obsidian/export.js";
 import type { ObsidianExportOperationStatus } from "./lib/obsidian/types.js";
 import { verifyObsidianVault } from "./lib/obsidian/verify.js";
 import { resolveRepoRoot } from "./lib/paths.js";
+import {
+  ingestResearchInbox,
+  ingestResearchSource,
+  parseResearchPlatform,
+  parseResearchRuntime,
+  renderResearchInboxSummary,
+  renderResearchIngestSummary
+} from "./lib/research.js";
 import { syncProject } from "./lib/sync.js";
 import { verifyProject } from "./lib/verify.js";
 import { assertSingleObsidianTarget, resolveInProjectObsidianView } from "./lib/view-layer.js";
@@ -60,6 +68,20 @@ function collectRepeatedOption(value: string, previous: string[] | undefined): s
   return [...(previous ?? []), value];
 }
 
+function parsePositiveInteger(value: string | undefined, label: string, defaultValue: number): number {
+  if (value === undefined) {
+    return defaultValue;
+  }
+  if (!/^\d+$/.test(value)) {
+    throw new Error(`Invalid ${label}: ${value}. Expected a positive integer.`);
+  }
+  const parsed = Number.parseInt(value, 10);
+  if (parsed < 0) {
+    throw new Error(`Invalid ${label}: ${value}. Expected a positive integer.`);
+  }
+  return parsed;
+}
+
 program
   .command("init")
   .description("Create a project with the official AI video workflow starter")
@@ -67,10 +89,12 @@ program
   .option("--ide <ide>", "AI IDE target")
   .option("--image <platform>", "Default image platform")
   .option("--video <platform>", "Default video platform")
+  .option("--start-from <mode>", "Workflow start mode: research or script")
   .action((options) => runCliAction(async () => {
     const parsedIde = parseIde(options.ide);
     const parsedImagePlatform = parsePlatform(options.image, "image platform");
     const parsedVideoPlatform = parsePlatform(options.video, "video platform");
+    const parsedStartFrom = parseStartFrom(options.startFrom);
 
     const projectName = options.name ?? (await input({ message: "Project directory name", default: "my-ai-video-project" }));
     const ide =
@@ -91,15 +115,17 @@ program
         message: "Choose the default video platform",
         choices: SUPPORTED_PLATFORMS.map((value) => ({ name: value, value }))
       }));
+    const startFrom = parsedStartFrom ?? "research";
     const projectRoot = await createProject({
       targetRoot: process.cwd(),
       projectName,
       pack: DEFAULT_PACK,
       ide,
       imagePlatform,
-      videoPlatform
+      videoPlatform,
+      startFrom
     });
-    console.log(renderInitNextSteps({ projectName, projectRoot, ide }));
+    console.log(renderInitNextSteps({ projectName, projectRoot, ide, startFrom }));
   }, () => program.opts<{ debug?: boolean }>().debug === true));
 
 program
@@ -191,6 +217,47 @@ program
     });
   }, () => program.opts<{ debug?: boolean }>().debug === true));
 
+const research = program.command("research").description("Manage Step 0 research sources and local archive cards");
+
+research
+  .command("ingest")
+  .description("Archive a URL or local file into Step 0 research source cards")
+  .requiredOption("--project <path>")
+  .requiredOption("--source <url-or-file>")
+  .option("--platform <platform>", "auto, bilibili, douyin, xiaohongshu, weibo, kuaishou, tieba, zhihu, or web", "auto")
+  .option("--runtime <runtime>", "auto, toolbox, or ide-inbox", "auto")
+  .option("--with-comments", "Create an anonymized comment sample card", false)
+  .option("--comment-limit <n>", "Maximum comment sample count", "10")
+  .option("--dry-run", "Print planned research archive writes without creating files", false)
+  .action((options) => runCliAction(async () => {
+    const platform = parseResearchPlatform(options.platform) ?? "auto";
+    const runtime = parseResearchRuntime(options.runtime) ?? "auto";
+    const commentLimit = parsePositiveInteger(options.commentLimit, "comment-limit", 10);
+    const result = await ingestResearchSource({
+      projectRoot: path.resolve(options.project),
+      source: options.source,
+      platform,
+      runtime,
+      withComments: options.withComments === true,
+      commentLimit,
+      dryRun: options.dryRun === true
+    });
+    console.log(renderResearchIngestSummary(result));
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+research
+  .command("inbox")
+  .description("Normalize manually collected Step 0 inbox files into source cards")
+  .requiredOption("--project <path>")
+  .option("--dry-run", "Print planned inbox archive writes without creating files", false)
+  .action((options) => runCliAction(async () => {
+    const result = await ingestResearchInbox({
+      projectRoot: path.resolve(options.project),
+      dryRun: options.dryRun === true
+    });
+    console.log(renderResearchInboxSummary(result));
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
 program
   .command("export-obsidian")
   .description("Export a project into an Obsidian vault projection")
@@ -260,7 +327,7 @@ program
   .requiredOption("--project <path>")
   .option("--dry-run", "Print planned cleanup operations without deleting files", false)
   .option("--kind <kind>", "Only clean generated files by kind; repeat or comma-separate values", collectRepeatedOption)
-  .option("--step <step>", "Only clean generated files for Step 1-6; repeat or comma-separate values", collectRepeatedOption)
+  .option("--step <step>", "Only clean generated files for Step 0-6; repeat or comma-separate values", collectRepeatedOption)
   .option("--shot <shot>", "Only clean generated files for a shot such as shot-002 or 2; repeat or comma-separate values", collectRepeatedOption)
   .option("--dir <vault-path>", "Only clean generated files under a vault-relative directory; repeat or comma-separate values", collectRepeatedOption)
   .option("--property <field=value>", "Only clean generated Markdown whose frontmatter field equals value; repeat or comma-separate values", collectRepeatedOption)
@@ -293,7 +360,7 @@ program
   .option("--no-plugin-recipes", "Skip optional community plugin recipe notes")
   .option("--skip-sync", "Skip IDE runtime sync before rebuilding the view", false)
   .option("--kind <kind>", "Only rebuild generated files by kind; repeat or comma-separate values", collectRepeatedOption)
-  .option("--step <step>", "Only rebuild generated files for Step 1-6; repeat or comma-separate values", collectRepeatedOption)
+  .option("--step <step>", "Only rebuild generated files for Step 0-6; repeat or comma-separate values", collectRepeatedOption)
   .option("--shot <shot>", "Only rebuild generated files for a shot such as shot-002 or 2; repeat or comma-separate values", collectRepeatedOption)
   .option("--dir <vault-path>", "Only rebuild generated files under a vault-relative directory; repeat or comma-separate values", collectRepeatedOption)
   .option("--property <field=value>", "Only rebuild generated Markdown whose frontmatter field equals value; repeat or comma-separate values", collectRepeatedOption)

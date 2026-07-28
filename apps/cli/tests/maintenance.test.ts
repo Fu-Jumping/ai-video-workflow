@@ -71,14 +71,14 @@ describe("parseCleanViewFilter", () => {
     expect(
       parseCleanViewFilter({
         kinds: ["canvas,base", "dashboard"],
-        steps: ["4", "5"],
+        steps: ["0", "4", "5"],
         shots: ["2", "shot-003", "镜头 002"],
         dirs: ["流程/步骤四 - 图片提示词/"],
         properties: ["源文件类型=图片提示词", "审阅状态=镜头审阅"]
       })
     ).toEqual({
       kinds: ["base", "canvas", "dashboard"],
-      steps: [4, 5],
+      steps: [0, 4, 5],
       shots: ["shot-002", "shot-003"],
       dirs: ["流程/步骤四 - 图片提示词"],
       properties: [
@@ -172,6 +172,22 @@ describe("cleanInProjectObsidianView", () => {
     expect(summary).toContain("next command:");
     expect(summary).toContain("clean-view --project");
     expect(summary).toContain("--step 4");
+  });
+
+  test("dry-run can be scoped to Step 0 research files", async () => {
+    const projectRoot = await seedProject();
+    await exportView(projectRoot);
+
+    const result = await cleanInProjectObsidianView({
+      projectRoot,
+      dryRun: true,
+      filter: parseCleanViewFilter({ steps: ["0"] })
+    });
+
+    const paths = operationPaths(result);
+    expect(paths.length).toBeGreaterThan(0);
+    expect(paths.every((vaultPath) => vaultPath.startsWith("流程/步骤零 - 前期研究/"))).toBe(true);
+    expect(renderCleanViewSummary(result)).toContain("  - step: 0");
   });
 
   test("dry-run can be scoped by shot id", async () => {

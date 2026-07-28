@@ -3,6 +3,7 @@
   "displayName": "Obsidian",
   "inputs": [
     "project.config.yaml",
+    "00_前期研究/",
     "01_概念策划/",
     "02_世界设定/",
     "03_分镜脚本/",

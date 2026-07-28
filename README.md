@@ -61,7 +61,7 @@ The recommended production layout keeps the AI agent working directory at the pr
 project/_views/obsidian/
 ```
 
-Do not open the project root itself as the Obsidian vault for this workflow. `project/_views/obsidian/` contains generated viewing surfaces: `流程/`, `镜头/`, `数据表/`, `画布/`, `00_项目首页.md`, and `投影清单.json`. `笔记/` is user-authored and preserved by incremental export, but it is not the Step source of truth. Files under `01_概念策划/` through `06_执行计划/` remain the only creative source.
+Do not open the project root itself as the Obsidian vault for this workflow. `project/_views/obsidian/` contains generated viewing surfaces: `流程/`, `镜头/`, `数据表/`, `画布/`, `00_项目首页.md`, and `投影清单.json`. `笔记/` is user-authored and preserved by incremental export, but it is not the Step source of truth. In research mode, files under `00_前期研究/` through `06_执行计划/` are the creative source. In script mode for projects that already have a complete script, the source still starts at `01_概念策划/`.
 
 This command exports the official example into the in-project Obsidian view layer and verifies the Chinese dashboards, Bases, Canvas files, projection manifest hashes, and source paths. External vault mode remains supported with `export-obsidian --project <path> --out <vault-path>` and `verify-obsidian --project <path> --vault <vault-path>`.
 
@@ -87,6 +87,25 @@ pnpm example:mcp-context
 For a local MCP client, use the CLI command `ai-video-workflow mcp-server --project <project-path>` after building the CLI. The server is scoped to one project, runs over stdio, and exposes read-only resources, prompts, and tools. Do not use `mcp-server` in scripts that must exit; use `mcp-context` for smoke tests.
 
 See `docs/en/contributors/mcp-adapter.md` for the MCP adapter boundary.
+
+## Step 0 Research
+
+New real-world or prototype-based projects start with `00_前期研究/` by default. Step 0 organizes reports, interviews, historical records, video observations, comment samples, and visual evidence into traceable `SRC-xxxx` sources for Step 1.
+
+If you already have a complete script, initialize with:
+
+```powershell
+ai-video-workflow init --name <project-name> --start-from script
+```
+
+Research archive commands:
+
+```powershell
+ai-video-workflow research ingest --project <path> --source <url-or-file> --platform auto --with-comments
+ai-video-workflow research inbox --project <path>
+```
+
+The project tracks `metadata.json`, `source-card.md`, and anonymized `comment-sample.md` by default. Raw captures, media, full comment dumps, browser profiles, and cookies are ignored by `.gitignore`.
 
 ## Quick Start
 

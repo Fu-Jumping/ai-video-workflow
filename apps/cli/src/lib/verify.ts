@@ -10,7 +10,7 @@ import {
   sharedAgentDocsDir,
   sharedAgentEntryPath
 } from "./agent-workspace.js";
-import { STEP6_FILES, STEP_DIR_BY_NUMBER } from "./constants.js";
+import { STEP0_FILES, STEP6_FILES, STEP_DIR_BY_NUMBER, researchStepEnabled } from "./constants.js";
 import { readProjectConfig } from "./project-config.js";
 import { projectRootIssues } from "./project-root.js";
 import {
@@ -40,6 +40,9 @@ const step4LinkPattern = /\]\((?:\.\.\/)?04_图片提示词\/([^)#]+)(?:#[^)]+)?
 const runtimeTruthConflictPattern =
   /(runtime mirror|运行镜像).{0,40}(source of truth|事实源|project truth)|(source of truth|事实源|project truth).{0,40}(runtime mirror|运行镜像)/i;
 const runtimeTruthNegationPattern = /(not|不是|并非|only|只).{0,80}(source of truth|事实源|project truth)/i;
+const researchSourceIdPattern = /^SRC-\d{4}$/;
+const sensitiveAuthPattern = /(cookie|cookies|token|access[_-]?token|refresh[_-]?token|authorization|bearer|sessionid|手机号|私信)\s*[:=]/i;
+const ignoredResearchArchiveDirs = ["/raw/", "/media/", "/full-comments/", "/browser-profile/", "/cookies/", "/_inbox/"];
 
 interface IdeRuntimeRequirement {
   path: string;
@@ -112,6 +115,29 @@ async function listMarkdownFiles(root: string, current = root): Promise<string[]
   return files;
 }
 
+async function listProjectTextFiles(root: string, extensions: string[], current = root): Promise<string[]> {
+  const entries = await fs.readdir(current, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    if (ignoredMarkdownDirs.has(entry.name)) {
+      continue;
+    }
+    const fullPath = path.join(current, entry.name);
+    if (entry.isDirectory()) {
+      if (current === root && ignoredRootMarkdownDirs.has(entry.name)) {
+        continue;
+      }
+      files.push(...(await listProjectTextFiles(root, extensions, fullPath)));
+    } else if (entry.isFile() && extensions.some((extension) => entry.name.endsWith(extension))) {
+      if (current === root && ignoredRootMarkdownFiles.has(entry.name)) {
+        continue;
+      }
+      files.push(path.relative(root, fullPath));
+    }
+  }
+  return files;
+}
+
 async function verifyRelativeMarkdownLinks(projectRoot: string, issues: VerificationIssue[]): Promise<void> {
   if (!(await fs.pathExists(projectRoot))) {
     return;
@@ -138,6 +164,52 @@ async function verifyStep6(projectRoot: string, issues: VerificationIssue[]): Pr
         code: "missing-step6-file",
         message: `Missing ${file}`,
         path: step6Dir
+      });
+    }
+  }
+}
+
+async function verifyStep0(projectRoot: string, issues: VerificationIssue[]): Promise<void> {
+  const step0Dir = STEP_DIR_BY_NUMBER[0];
+  for (const file of STEP0_FILES) {
+    const fullPath = path.join(projectRoot, step0Dir, file);
+    if (!(await fs.pathExists(fullPath))) {
+      pushIssue(issues, {
+        code: "missing-step0-file",
+        message: `Missing Step 0 file: ${file}`,
+        path: path.join(step0Dir, file)
+      });
+    }
+  }
+  const libraryRoot = path.join(projectRoot, step0Dir, "_资料库");
+  if (await fs.pathExists(libraryRoot)) {
+    const entries = await fs.readdir(libraryRoot, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory() && !researchSourceIdPattern.test(entry.name)) {
+        pushIssue(issues, {
+          code: "invalid-research-source-id",
+          message: `Invalid research source id directory: ${entry.name}`,
+          path: path.join(step0Dir, "_资料库", entry.name)
+        });
+      }
+    }
+  }
+}
+
+async function verifyResearchSensitiveAuthMaterial(projectRoot: string, issues: VerificationIssue[]): Promise<void> {
+  const files = await listMarkdownFiles(projectRoot);
+  const jsonFiles = await listProjectTextFiles(projectRoot, [".json"]);
+  for (const relPath of [...files, ...jsonFiles]) {
+    const normalized = relPath.replace(/\\/g, "/");
+    if (ignoredResearchArchiveDirs.some((dir) => normalized.includes(dir))) {
+      continue;
+    }
+    const content = await fs.readFile(path.join(projectRoot, relPath), "utf8");
+    if (sensitiveAuthPattern.test(content)) {
+      pushIssue(issues, {
+        code: "research-sensitive-auth-material",
+        message: "Found possible auth material in project text file",
+        path: relPath
       });
     }
   }
@@ -352,7 +424,13 @@ function contentHasAllMarkers(content: string, markers: readonly string[]): bool
 }
 
 function contentMentionsProjectTruth(content: string): boolean {
-  return content.includes("project-step-files") || content.includes("Step 1 to Step 6 files") || content.includes("步骤一到步骤六文件");
+  return (
+    content.includes("project-step-files") ||
+    content.includes("enabled Step files") ||
+    content.includes("已启用步骤文件") ||
+    content.includes("Step 1 to Step 6 files") ||
+    content.includes("步骤一到步骤六文件")
+  );
 }
 
 async function verifySharedAgentWorkspace(projectRoot: string, ide: Ide, issues: VerificationIssue[]): Promise<void> {
@@ -480,11 +558,15 @@ export async function verifyProject({
     }
   }
   await verifyNestedProjects(projectRoot, issues);
+  if (config && researchStepEnabled(config)) {
+    await verifyStep0(projectRoot, issues);
+  }
   await verifyStep6(projectRoot, issues);
   await verifyStep2ReferenceAssets(projectRoot, issues);
   await verifyStep4(projectRoot, issues);
   await verifyStep3Step4Traceability(projectRoot, issues);
   await verifyStep4Step5ReferenceAssets(projectRoot, issues);
+  await verifyResearchSensitiveAuthMaterial(projectRoot, issues);
   if (config?.platforms.video.default) {
     await verifyStep5PlatformExecutionSettings(projectRoot, config.platforms.video.default, issues);
   }

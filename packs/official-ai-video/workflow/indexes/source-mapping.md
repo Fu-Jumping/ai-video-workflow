@@ -15,6 +15,7 @@
 | `packs/official-ai-video/workflow/step-map.yaml` | 旧 `workflow.yaml` |
 | `packs/official-ai-video/workflow/indexes/capability-index.md` | 原工作流中的审核、变更传播、修复、模型治理、成本治理、总控等成熟设计，以及后续项目中“局部修改后自动核对上下游并对话回报”的机制提炼 |
 | `packs/official-ai-video/skills-longform/film-workflow.md` | 旧总路由技能、旧规则入口、旧中文 skills 导航 |
+| `packs/official-ai-video/skills-longform/film-researcher.md` | Step 0 前期研究、真实题材资料收集、来源台账、摘录卡片、评论样本匿名化和创作简报规则 |
 | `packs/official-ai-video/skills-longform/film-planner.md` | 旧 Step 1 技能、旧 Step 1 中文文档 |
 | `packs/official-ai-video/skills-longform/film-setter.md` | 旧 Step 2 技能、旧 Step 2 中文文档 |
 | `packs/official-ai-video/skills-longform/film-storyboarder.md` | 旧 Step 3 技能、旧 Step 3 中文文档 |

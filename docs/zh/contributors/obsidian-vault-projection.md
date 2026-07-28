@@ -4,7 +4,7 @@ Obsidian vault 投影是 `ai-video-workflow` 的阅读、创作辅助和审阅�
 
 ## 定位
 
-默认工作流源仍然是 `packs/official-ai-video/` 和项目内 Step 1 到 Step 6 Markdown 文件。Obsidian adapter 只把这些文件投影成更适合 Obsidian 浏览、关联、审阅和可视化管理的 vault 结构。
+默认工作流源仍然是 `packs/official-ai-video/` 和项目内已启用步骤 Markdown 文件。研究模式会投影 Step 0 到 Step 6，剧本模式会投影 Step 1 到 Step 6。Obsidian adapter 只把这些文件投影成更适合 Obsidian 浏览、关联、审阅和可视化管理的 vault 结构。
 
 ## 推荐的项目内观看层
 
@@ -12,7 +12,7 @@ Obsidian vault 投影是 `ai-video-workflow` 的阅读、创作辅助和审阅�
 
 ```text
 project/
-├─ 01_概念策划/ ... 06_执行计划/
+├─ 00_前期研究/ ... 06_执行计划/   # 研究模式
 └─ _views/
    └─ obsidian/
       ├─ 流程/
@@ -38,7 +38,7 @@ ai-video-workflow verify-obsidian --project <path> --in-project-view
 
 - 项目根目录
 - `project.config.yaml`
-- Step 1 到 Step 6 Markdown 文件
+- 已启用步骤 Markdown 文件
 - `official-ai-video` 的模板、质量门槛和文件合同
 
 ## 输出
@@ -94,7 +94,7 @@ v0.7 起，推荐命令路径是 `--in-project-view`。导出器写入 schema ve
 - Graph：根据内部链接展示工作流关系。
 - Search query blocks：在需要时可用于呈现待处理项；默认审阅页优先使用 Bases 和 Canvas，减少技术查询文本。
 - Bases：用 `.base` 文件提供表格和卡片视图，浏览审阅队列、镜头进度、执行就绪、已改动生成文件、镜头、流程文件和制作状态。主视图优先显示人读字段，诊断视图保留源路径和生成标记。
-- Canvas：用 `.canvas` JSON 文件展示 Step 1 到 Step 6 关系、镜头流水线、项目级审阅路线、单镜头审阅路线和智能体交接入口。
+- Canvas：用 `.canvas` JSON 文件展示已启用步骤关系、镜头流水线、项目级审阅路线、单镜头审阅路线和智能体交接入口。
 - 可选 Bookmarks 和 Workspace：`.obsidian` 建议只属于 opt-in UI 状态。
 
 ## Vault QA 清单

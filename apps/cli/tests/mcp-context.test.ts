@@ -11,7 +11,7 @@ afterEach(async () => {
   await Promise.all(tempRoots.splice(0).map((dir) => fs.remove(dir)));
 });
 
-async function createChineseMcpProject(): Promise<string> {
+async function createChineseMcpProject({ research = false }: { research?: boolean } = {}): Promise<string> {
   const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-mcp-cn-"));
   tempRoots.push(projectRoot);
   await fs.writeFile(
@@ -25,13 +25,22 @@ async function createChineseMcpProject(): Promise<string> {
       "  video:",
       "    default: runway",
       "workflow:",
+      ...(research ? ["  research_step:", "    enabled: true"] : []),
       "  enhanced_flow:",
       "    enabled: true"
     ].join("\n"),
     "utf8"
   );
 
-  for (const dir of ["01_概念策划", "02_世界设定", "03_分镜脚本", "04_图片提示词", "05_视频提示词", "06_执行计划"]) {
+  for (const dir of [
+    ...(research ? ["00_前期研究"] : []),
+    "01_概念策划",
+    "02_世界设定",
+    "03_分镜脚本",
+    "04_图片提示词",
+    "05_视频提示词",
+    "06_执行计划"
+  ]) {
     await fs.ensureDir(path.join(projectRoot, dir));
   }
 
@@ -88,6 +97,18 @@ describe("MCP read-only context", () => {
     expect(context.editBoundaries.generated).toContain("_views/obsidian");
     expect(context.editBoundaries.story).toContain("步骤三分镜脚本");
     expect(JSON.stringify(context)).not.toMatch(/[A-Z]:\\|[A-Z]:\/|file:\/\/|vscode:\/\//);
+  });
+
+  test("includes Step 0 in research-mode project context", async () => {
+    const projectRoot = await createChineseMcpProject({ research: true });
+    const context = await buildMcpContext({
+      projectRoot,
+      pack: "official-ai-video"
+    });
+
+    expect(context.steps.map((step) => step.step)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(context.steps[0]).toEqual({ step: 0, label: "前期研究", directory: "00_前期研究" });
+    expect(context.editBoundaries.research).toContain("步骤零前期研究");
   });
 
   test("maps each shot to Step 3, Step 4, Step 5, and Step 6 source files", async () => {

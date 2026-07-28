@@ -46,7 +46,7 @@ function packOverviewMarkdown(context: McpProjectContext): string {
     "",
     `Pack: \`${context.project.pack}\``,
     "",
-    "这个工作流包定义步骤一到步骤六的流程、模板、技能和文件合同。",
+    "这个工作流包定义可配置步骤流程、模板、技能和文件合同；研究模式包含步骤零到步骤六，剧本模式包含步骤一到步骤六。",
     "项目步骤文件仍是事实源。MCP 资源只是只读上下文。",
     "`_views/obsidian/` 是生成的观看层，不应反向作为源文件。"
   ].join("\n");

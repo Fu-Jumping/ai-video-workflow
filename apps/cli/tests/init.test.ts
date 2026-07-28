@@ -215,6 +215,8 @@ describe("createProject", () => {
 
     const projectRoot = path.join(root, "demo-project");
     await expect(fs.pathExists(path.join(projectRoot, "project.config.yaml"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "00_前期研究", "00_研究总览.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "00_前期研究", "04_创作简报.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, "01_概念策划"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, "06_执行计划", "00_执行计划.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, ".codex", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"))).resolves.toBe(true);
@@ -222,9 +224,11 @@ describe("createProject", () => {
 
     const readme = await fs.readFile(path.join(projectRoot, "README.md"), "utf8");
     expect(readme).toContain("这是一个由 `ai-video-workflow` 生成的 AI 视频创作项目");
-    expect(readme).toContain("01_概念策划/故事内核.md");
+    expect(readme).toContain("00_前期研究/00_研究总览.md");
     expect(readme).toContain("_views/obsidian/");
 
+    const researchOverview = await fs.readFile(path.join(projectRoot, "00_前期研究", "00_研究总览.md"), "utf8");
+    expect(researchOverview).toContain("前期研究总览模板");
     const storyKernel = await fs.readFile(path.join(projectRoot, "01_概念策划", "故事内核.md"), "utf8");
     expect(storyKernel).toContain("故事内核模板");
     const executionPlan = await fs.readFile(path.join(projectRoot, "06_执行计划", "00_执行计划.md"), "utf8");
@@ -235,10 +239,39 @@ describe("createProject", () => {
     expect(config).toContain("ide: codex");
     expect(config).toContain("default: openai");
     expect(config).toContain("default: runway");
+    expect(config).toContain("research_step:");
     expect(config).toContain("enabled: true");
 
     const gitignore = await fs.readFile(path.join(projectRoot, ".gitignore"), "utf8");
     expect(gitignore).toContain("ai-video-workflow generated and local surfaces");
     expect(gitignore).toContain("_views/");
+    expect(gitignore).toContain("00_前期研究/_资料库/*/raw/");
+  });
+
+  test("can initialize from a complete script without Step 0", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-init-script-mode-"));
+    tempRoots.push(root);
+
+    await createProject({
+      targetRoot: root,
+      projectName: "script-project",
+      pack: "official-ai-video",
+      ide: "codex",
+      imagePlatform: "openai",
+      videoPlatform: "runway",
+      startFrom: "script"
+    });
+
+    const projectRoot = path.join(root, "script-project");
+    await expect(fs.pathExists(path.join(projectRoot, "00_前期研究"))).resolves.toBe(false);
+    await expect(fs.pathExists(path.join(projectRoot, "01_概念策划", "故事内核.md"))).resolves.toBe(true);
+
+    const readme = await fs.readFile(path.join(projectRoot, "README.md"), "utf8");
+    expect(readme).toContain("01_概念策划/故事内核.md");
+    expect(readme).not.toContain("00_前期研究/00_研究总览.md");
+
+    const config = await fs.readFile(path.join(projectRoot, "project.config.yaml"), "utf8");
+    expect(config).toContain("research_step:");
+    expect(config).toContain("enabled: false");
   });
 });

@@ -1,8 +1,9 @@
 import fs from "fs-extra";
 import path from "node:path";
 
-import { STEP6_FILES, STEP_DIR_BY_NUMBER, WORKFLOW_STEPS } from "../constants.js";
+import { STEP6_FILES, STEP_DIR_BY_NUMBER, activeWorkflowSteps } from "../constants.js";
 import { readWorkflowProjectConfig } from "../project-root.js";
+import type { ProjectConfig } from "../types.js";
 
 export interface BuildMcpContextOptions {
   projectRoot: string;
@@ -48,12 +49,6 @@ const step3Dir = STEP_DIR_BY_NUMBER[3];
 const step4Dir = STEP_DIR_BY_NUMBER[4];
 const step5Dir = STEP_DIR_BY_NUMBER[5];
 const step6Dir = STEP_DIR_BY_NUMBER[6];
-
-const workflowSteps: McpWorkflowStepContext[] = WORKFLOW_STEPS.map((step) => ({
-  step: step.step,
-  label: step.label,
-  directory: step.directory
-}));
 
 const downstreamLinkPattern = /\]\(([^)]+)\)/g;
 
@@ -127,12 +122,17 @@ async function buildShotContext(projectRoot: string, storyboardFileName: string)
   };
 }
 
-async function assertValidProjectShape(projectRoot: string): Promise<void> {
-  await readWorkflowProjectConfig(projectRoot);
+async function assertValidProjectShape(projectRoot: string): Promise<ProjectConfig> {
+  return readWorkflowProjectConfig(projectRoot);
 }
 
 export async function buildMcpContext(options: BuildMcpContextOptions): Promise<McpProjectContext> {
-  await assertValidProjectShape(options.projectRoot);
+  const config = await assertValidProjectShape(options.projectRoot);
+  const workflowSteps: McpWorkflowStepContext[] = activeWorkflowSteps(config).map((step) => ({
+    step: step.step,
+    label: step.label,
+    directory: step.directory
+  }));
 
   const storyboardDir = path.join(options.projectRoot, step3Dir);
   const storyboardFiles = (await fs.pathExists(storyboardDir))
@@ -158,6 +158,7 @@ export async function buildMcpContext(options: BuildMcpContextOptions): Promise<
       "ai-video-workflow mcp-context --project <path>"
     ],
     editBoundaries: {
+      research: "真实资料、来源台账、摘录卡片、主题归纳和创作简报修改写入步骤零前期研究文件。",
       story: "故事和画面叙事修改写入步骤三分镜脚本文件。",
       image: "视觉一致性和图片提示词修改写入步骤四图片提示词文件。",
       motion: "运动和镜头行为修改写入步骤五视频提示词文件。",

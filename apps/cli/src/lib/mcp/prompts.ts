@@ -26,7 +26,7 @@ export function buildMcpPrompts(): McpPromptDefinition[] {
       name: "review_project",
       description: "审阅整个 AI 视频工作流项目，并识别源文件问题。",
       arguments: [{ name: "focus", required: false, description: "可选审阅重点。" }],
-      template: `${boundaryText}\n\n审阅项目上下文，总结风险，并把每条建议指向步骤一到步骤六的源文件。`
+      template: `${boundaryText}\n\n审阅项目上下文，总结风险，并把每条建议指向当前项目已启用步骤的源文件。`
     },
     {
       name: "inspect_shot",

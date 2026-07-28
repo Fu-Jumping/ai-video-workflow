@@ -61,6 +61,7 @@ export const obsidianPropertyValues = {
   no: "否",
   ready: "就绪",
   sourceKind: {
+    research: "前期研究",
     concept: "概念策划",
     setting: "世界设定",
     storyboard: "分镜脚本",
@@ -70,6 +71,7 @@ export const obsidianPropertyValues = {
     index: "索引"
   } satisfies Record<ObsidianSourceKind, string>,
   stageGroup: {
+    research: "前期研究",
     foundation: "基础设定",
     "shot-review": "镜头审阅",
     "prompt-production": "提示词制作",
@@ -90,6 +92,7 @@ export const obsidianPropertyValues = {
     immersive: "沉浸式"
   },
   nextAction: {
+    research: "整理创作简报",
     concept: "完善故事内核",
     setting: "核对设定一致性",
     storyboard: "审阅镜头画面",

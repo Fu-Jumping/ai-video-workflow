@@ -59,7 +59,7 @@ pnpm example:obsidian:in-project
 project/_views/obsidian/
 ```
 
-不要把项目根目录本身作为 Obsidian vault 打开。`project/_views/obsidian/` 内的 `流程/`、`镜头/`、`数据表/`、`画布/`、`00_项目首页.md` 和 `投影清单.json` 都是生成观看表面。`笔记/` 是用户手写笔记区，增量导出会保留它，但它不是 Step 事实源。`01_概念策划/` 到 `06_执行计划/` 文件仍是唯一创作事实源。
+不要把项目根目录本身作为 Obsidian vault 打开。`project/_views/obsidian/` 内的 `流程/`、`镜头/`、`数据表/`、`画布/`、`00_项目首页.md` 和 `投影清单.json` 都是生成观看表面。`笔记/` 是用户手写笔记区，增量导出会保留它，但它不是 Step 事实源。研究模式下 `00_前期研究/` 到 `06_执行计划/` 文件是唯一创作事实源；已有完整剧本的 script 模式下仍从 `01_概念策划/` 到 `06_执行计划/` 开始。
 
 该命令会把官方示例导出到项目内 Obsidian 观看层，并校验中文首页、数据表、画布、投影清单 hash 和来源路径。外部 vault 旧模式仍可用：`export-obsidian --project <path> --out <vault-path>` 与 `verify-obsidian --project <path> --vault <vault-path>`。
 
@@ -85,6 +85,25 @@ pnpm example:mcp-context
 本地 MCP 客户端可以在构建 CLI 后使用 `ai-video-workflow mcp-server --project <project-path>`。该 server 只绑定一个项目，通过 stdio 运行，并暴露只读 resources、prompts 和 tools。不要把 `mcp-server` 放进必须退出的验证脚本；烟测使用 `mcp-context`。
 
 MCP adapter 边界见 `docs/zh/contributors/mcp-adapter.md`。
+
+## Step 0 前期研究
+
+从零开始的真实题材或现实原型项目默认启用 `00_前期研究/`。它用于整理新闻报道、采访、历史资料、其他视频观察、评论样本和视觉细节依据，并通过 `SRC-xxxx` 来源 ID 交接给 Step 1。
+
+如果已经有完整剧本，可以初始化时使用：
+
+```powershell
+ai-video-workflow init --name <project-name> --start-from script
+```
+
+Step 0 采集归档命令：
+
+```powershell
+ai-video-workflow research ingest --project <path> --source <url-or-file> --platform auto --with-comments
+ai-video-workflow research inbox --project <path>
+```
+
+资料库默认只把 `metadata.json`、`source-card.md` 和匿名化 `comment-sample.md` 纳入项目；`raw/`、`media/`、`full-comments/`、`browser-profile/` 和 `cookies/` 会被 `.gitignore` 保护。
 
 ## 快速开始
 

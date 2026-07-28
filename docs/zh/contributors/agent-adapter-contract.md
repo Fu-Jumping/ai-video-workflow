@@ -4,7 +4,7 @@
 
 ## 为什么需要这个合同
 
-`ai-video-workflow` 的中心是一套可验证工作流：`official-ai-video` pack 和项目 Step 1 到 Step 6 Markdown 文件。智能体平台可以让这套工作流更容易阅读、同步或执行，但不能各自重新解释工作流。
+`ai-video-workflow` 的中心是一套可验证工作流：`official-ai-video` pack 和项目已启用步骤 Markdown 文件。研究模式包含 Step 0 到 Step 6，剧本模式包含 Step 1 到 Step 6。智能体平台可以让这套工作流更容易阅读、同步或执行，但不能各自重新解释工作流。
 
 这个合同给每个 adapter 同一张检查表：
 
@@ -54,7 +54,7 @@ adapter 默认只把项目文件暴露为上下文，不写项目文件或运行
 
 ## 事实源规则
 
-- Step 1 到 Step 6 项目 Markdown 文件仍然是创作事实源。
+- 项目已启用步骤 Markdown 文件仍然是创作事实源。
 - `packs/official-ai-video/` 仍然是工作流 pack 源。
 - 生成的 adapter 输出在需要修改时必须指回源 Step 文件。
 - 执行状态可以提供状态参考，但不能变成上游创作事实。
@@ -89,7 +89,7 @@ adapter 默认只把项目文件暴露为上下文，不写项目文件或运行
 
 adapter 不能：
 
-- 创建另一套 Step 1 到 Step 6 工作流
+- 创建另一套 Step 工作流
 - 削弱 Step 3 到 Step 4 的帧级对齐
 - 削弱 Step 4 文件合同
 - 把本地绝对链接写进文档或生成投影

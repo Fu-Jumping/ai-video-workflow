@@ -91,7 +91,7 @@
 
 ## 8. Adapter Contract
 
-- 读取：`packs/official-ai-video/`、`project.config.yaml` 和项目 Step 1 到 Step 6 文件。
+- 读取：`packs/official-ai-video/`、`project.config.yaml` 和项目已启用步骤文件；研究模式包含 Step 0 到 Step 6，剧本模式包含 Step 1 到 Step 6。
 - 写入：`AGENTS.md` 兼容入口、`.trae/skills/` 技能入口、`.trae/rules/ai-video-workflow.md` 规则入口、`.trae/specs/ai-video-workflow/` 规范镜像和 `.trae/documents/ai-video-workflow/` 文档镜像。
 - 文档镜像包括：`WORKFLOW_OVERVIEW.md`、`skills/`、`skill-bundles/`、`templates/` 和 `indexes/`。
 - 同步方向：`runtime-mirror`。

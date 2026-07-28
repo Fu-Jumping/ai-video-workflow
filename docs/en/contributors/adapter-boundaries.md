@@ -8,7 +8,7 @@ The default mother source is `packs/official-ai-video/`.
 
 It defines:
 
-- the Step 1 to Step 6 workflow
+- the enabled Step workflow; research mode includes Step 0 through Step 6, while script mode includes Step 1 through Step 6
 - templates
 - skills
 - quality gates
@@ -31,7 +31,7 @@ Examples:
 
 ## What an Adapter Must Not Do
 
-- Create a second Step 1 to Step 6 workflow.
+- Create a second Step workflow.
 - Promote platform-specific fields into universal pack rules.
 - Bypass Step 3 and Step 4 frame alignment.
 - Weaken the fixed Step 4 file contract.

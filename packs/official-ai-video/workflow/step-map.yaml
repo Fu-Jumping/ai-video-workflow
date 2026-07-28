@@ -1,4 +1,7 @@
 steps:
+  - id: step-00
+    slug: research
+    directory: 00_前期研究
   - id: step-01
     slug: concept
     directory: 01_概念策划

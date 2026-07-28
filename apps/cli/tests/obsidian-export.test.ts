@@ -101,6 +101,7 @@ describe("scanProjectForObsidian", () => {
 
     expect(files).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({ sourceKind: "research", step: 0 }),
         expect.objectContaining({ sourceKind: "concept", step: 1 }),
         expect.objectContaining({ sourceKind: "storyboard", step: 3, shotId: "shot-001", title: "镜头 001", headingTitle: "镜头 001：清晨前的邀请" }),
         expect.objectContaining({ sourceKind: "image-prompt", step: 4, shotId: "shot-001" }),
@@ -268,6 +269,10 @@ describe("exportObsidianVault", () => {
     const imagePrompt = await fs.readFile(path.join(outRoot, "流程", "步骤四 - 图片提示词", "镜头 001 关键帧 - 图片提示词.md"), "utf8");
     expect(imagePrompt).toContain("[[流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本]]");
     expect(imagePrompt).not.toContain("[[../03_分镜脚本/镜头-001.md]]");
+    const researchBrief = await fs.readFile(path.join(outRoot, "流程", "步骤零 - 前期研究", "04 创作简报.md"), "utf8");
+    expect(researchBrief).toContain("源文件类型: 前期研究");
+    expect(researchBrief).toContain("源文件路径: 00_前期研究/04_创作简报.md");
+    expect(researchBrief).toContain("ai-video/step/00-research");
     await expect(fs.pathExists(path.join(outRoot, projectionManifestPath))).resolves.toBe(true);
   });
 

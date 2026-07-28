@@ -177,10 +177,47 @@ describe("built CLI", () => {
     expect(config).toContain("ide: codex");
     expect(config).toContain("default: openai");
     expect(config).toContain("default: runway");
+    expect(config).toContain("research_step:");
+    expect(config).toContain("enabled: true");
     expect(result.stdout).toContain("项目路径：");
     expect(result.stdout).toContain("请在智能体中打开这个目录");
-    expect(result.stdout).toContain("01_概念策划/故事内核.md");
+    expect(result.stdout).toContain("00_前期研究/00_研究总览.md");
     expect(result.stdout).toContain("verify --project");
+  }, 10000);
+
+  test("init supports script mode for complete-script projects", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const targetRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-init-script-mode-"));
+    tempRoots.push(targetRoot);
+
+    await buildCli(cliRoot);
+    const result = await run(
+      process.execPath,
+      [
+        path.join(cliRoot, "dist", "index.js"),
+        "init",
+        "--name",
+        "script-demo",
+        "--ide",
+        "codex",
+        "--image",
+        "openai",
+        "--video",
+        "runway",
+        "--start-from",
+        "script"
+      ],
+      targetRoot
+    );
+
+    const projectRoot = path.join(targetRoot, "script-demo");
+    await expect(fs.pathExists(path.join(projectRoot, "00_前期研究"))).resolves.toBe(false);
+    await expect(fs.pathExists(path.join(projectRoot, "01_概念策划", "故事内核.md"))).resolves.toBe(true);
+
+    const config = await fs.readFile(path.join(projectRoot, "project.config.yaml"), "utf8");
+    expect(config).toContain("enabled: false");
+    expect(result.stdout).toContain("01_概念策划/故事内核.md");
+    expect(result.stdout).not.toContain("00_前期研究/00_研究总览.md");
   });
 
   test("invalid CLI choices use readable errors without default stack traces", async () => {
@@ -604,6 +641,7 @@ describe("built CLI", () => {
 
     expect(stdout).toContain("mcp-context");
     expect(stdout).toContain("mcp-server");
+    expect(stdout).toContain("research");
     expect(stdout).toContain("clean-view");
     expect(stdout).toContain("rebuild-view");
   });

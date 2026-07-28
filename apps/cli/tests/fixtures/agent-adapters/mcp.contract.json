@@ -4,6 +4,7 @@
   "inputs": [
     "packs/official-ai-video/",
     "project.config.yaml",
+    "00_前期研究/",
     "01_概念策划/",
     "02_世界设定/",
     "03_分镜脚本/",
@@ -42,6 +43,7 @@
     "ai-video-workflow verify --project <path> --ide codex"
   ],
   "forbiddenWrites": [
+    "00_前期研究/",
     "01_概念策划/",
     "02_世界设定/",
     "03_分镜脚本/",
