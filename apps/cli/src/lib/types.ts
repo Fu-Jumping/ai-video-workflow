@@ -2,7 +2,7 @@ export type Ide = "codex" | "cursor" | "claude-code" | "trae";
 
 export type AdapterId = Ide | "obsidian" | "mcp" | "cherry-studio";
 
-export type Platform = "openai" | "veo" | "runway" | "luma" | "minimax";
+export type Platform = "openai" | "veo" | "runway" | "luma" | "minimax" | "seedance";
 
 export type StartFromMode = "research" | "script";
 
@@ -39,6 +39,12 @@ export type IssueCode =
   | "missing-step4-reference-asset"
   | "missing-step5-reference-asset"
   | "missing-step5-platform-execution-setting"
+  | "missing-shot-group"
+  | "duplicate-shot-id"
+  | "shot-group-mismatch"
+  | "invalid-storyboard-segment-count"
+  | "invalid-keyframe-mapping"
+  | "invalid-step5-contract"
   | "invalid-research-source-id"
   | "research-sensitive-auth-material"
   | "invalid-reference-asset-token"

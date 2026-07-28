@@ -108,7 +108,7 @@ describe("verifyObsidianVault", () => {
     tempRoots.push(outRoot);
     const projectRoot = officialExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, inProjectView: true });
-    await fs.appendFile(path.join(outRoot, "流程", "步骤三 - 分镜脚本", "镜头 001 - 分镜脚本.md"), "\nManual generated-file edit.\n", "utf8");
+    await fs.appendFile(path.join(outRoot, "流程", "步骤三 - 分镜脚本", "镜头组-001", "镜头 001 - 分镜脚本.md"), "\nManual generated-file edit.\n", "utf8");
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
 
@@ -121,9 +121,9 @@ describe("verifyObsidianVault", () => {
     tempRoots.push(outRoot);
     const projectRoot = officialExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
-    const vaultPath = "流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md";
+    const vaultPath = "流程/步骤三 - 分镜脚本/镜头组-001/镜头 001 - 分镜脚本.md";
     const generatedPath = path.join(outRoot, ...vaultPath.split("/"));
-    const nextContent = `${await fs.readFile(generatedPath, "utf8")}\n[断链](../04_图片提示词/missing.md)\n`;
+    const nextContent = `${await fs.readFile(generatedPath, "utf8")}\n[断链](../../04_图片提示词/missing.md)\n`;
     await fs.writeFile(generatedPath, nextContent, "utf8");
     const manifest = (await readProjectionManifest(outRoot)) as ObsidianProjectionManifest;
     await fs.writeFile(
@@ -197,7 +197,7 @@ describe("verifyObsidianVault", () => {
     tempRoots.push(outRoot);
     const projectRoot = officialExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
-    const generatedPath = path.join(outRoot, "流程", "步骤三 - 分镜脚本", "镜头 001 - 分镜脚本.md");
+    const generatedPath = path.join(outRoot, "流程", "步骤三 - 分镜脚本", "镜头组-001", "镜头 001 - 分镜脚本.md");
     const content = await fs.readFile(generatedPath, "utf8");
     await fs.writeFile(generatedPath, content.replace(/^源文件路径: .*$/m, ""), "utf8");
 
@@ -213,7 +213,7 @@ describe("verifyObsidianVault", () => {
     await fs.copy(officialExampleRoot(), projectRoot);
     const outRoot = path.join(projectRoot, "_views", "obsidian");
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, inProjectView: true });
-    await fs.appendFile(path.join(projectRoot, "03_分镜脚本", "镜头-001.md"), "\nSource changed after projection export.\n", "utf8");
+    await fs.appendFile(path.join(projectRoot, "03_分镜脚本", "镜头组-001", "镜头-001.md"), "\nSource changed after projection export.\n", "utf8");
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
 
@@ -222,7 +222,7 @@ describe("verifyObsidianVault", () => {
       expect.arrayContaining([
         expect.objectContaining({
           code: "obsidian-view-stale",
-          message: expect.stringContaining("03_分镜脚本/镜头-001.md")
+          message: expect.stringContaining("03_分镜脚本/镜头组-001/镜头-001.md")
         })
       ])
     );

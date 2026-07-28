@@ -44,6 +44,7 @@ function expectOnlyDefaultVisibleColumns(baseContent: string, viewNames: string[
   const defaultVisibleColumns = new Set([
     "标题",
     "镜头标题",
+    "镜头组ID",
     "源文件路径",
     "源文件类型",
     "步骤名称",
@@ -103,9 +104,9 @@ describe("scanProjectForObsidian", () => {
       expect.arrayContaining([
         expect.objectContaining({ sourceKind: "research", step: 0 }),
         expect.objectContaining({ sourceKind: "concept", step: 1 }),
-        expect.objectContaining({ sourceKind: "storyboard", step: 3, shotId: "shot-001", title: "镜头 001", headingTitle: "镜头 001：清晨前的邀请" }),
-        expect.objectContaining({ sourceKind: "image-prompt", step: 4, shotId: "shot-001" }),
-        expect.objectContaining({ sourceKind: "video-prompt", step: 5, shotId: "shot-001" }),
+        expect.objectContaining({ sourceKind: "storyboard", step: 3, shotGroupId: "group-001", shotId: "shot-001", title: "镜头 001", headingTitle: "镜头 001：清晨前的邀请" }),
+        expect.objectContaining({ sourceKind: "image-prompt", step: 4, shotGroupId: "group-001", shotId: "shot-001" }),
+        expect.objectContaining({ sourceKind: "video-prompt", step: 5, shotGroupId: "group-001", shotId: "shot-001" }),
         expect.objectContaining({ sourceKind: "execution-plan", step: 6 })
       ])
     );
@@ -203,8 +204,8 @@ describe("exportObsidianVault", () => {
     expect(manifest?.files).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          vaultPath: "流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md",
-          sourcePath: "03_分镜脚本/镜头-001.md",
+          vaultPath: "流程/步骤三 - 分镜脚本/镜头组-001/镜头 001 - 分镜脚本.md",
+          sourcePath: "03_分镜脚本/镜头组-001/镜头-001.md",
           sourceContentHash: expect.any(String)
         })
       ])
@@ -237,13 +238,14 @@ describe("exportObsidianVault", () => {
 
     await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
-    const storyboard = await fs.readFile(path.join(outRoot, "流程", "步骤三 - 分镜脚本", "镜头 001 - 分镜脚本.md"), "utf8");
+    const storyboard = await fs.readFile(path.join(outRoot, "流程", "步骤三 - 分镜脚本", "镜头组-001", "镜头 001 - 分镜脚本.md"), "utf8");
     expect(storyboard).toContain("投影生成: 是");
     expect(storyboard).toContain("工作流包: official-ai-video");
     expect(storyboard).toContain('标题: "镜头 001：清晨前的邀请"');
     expect(storyboard).toContain('镜头标题: "镜头 001：清晨前的邀请"');
     expect(storyboard).toContain("下一步: 审阅镜头画面");
-    expect(storyboard).toContain("源文件路径: 03_分镜脚本/镜头-001.md");
+    expect(storyboard).toContain("源文件路径: 03_分镜脚本/镜头组-001/镜头-001.md");
+    expect(storyboard).toContain("镜头组ID: group-001");
     expect(storyboard).toContain("源文件类型: 分镜脚本");
     expect(storyboard).toContain('参考资产: "@沈安三视图、@小满三视图、@小镇修伞铺场景图"');
     expect(storyboard).toContain("阶段: 镜头审阅");
@@ -252,11 +254,11 @@ describe("exportObsidianVault", () => {
     expect(storyboard).toContain("需要关注: 否");
     expect(storyboard).toContain("镜头顺序: 1");
     expect(storyboard).toContain('镜头索引: "[[镜头/shot-001|镜头 001：清晨前的邀请]]"');
-    expect(storyboard).toContain("> 源文件：`03_分镜脚本/镜头-001.md`");
+    expect(storyboard).toContain("> 源文件：`03_分镜脚本/镜头组-001/镜头-001.md`");
     expect(storyboard).toContain("镜头：[[镜头/shot-001|镜头 001：清晨前的邀请]]");
-    expect(storyboard).toContain("对应步骤四：[[流程/步骤四 - 图片提示词/镜头 001 关键帧 - 图片提示词|镜头 001 关键帧图片提示词]]");
-    expect(storyboard).not.toContain("流程/步骤四 - 图片提示词/镜头 001 关键帧 - 图片提示词.md|镜头 001 关键帧图片提示词");
-    expect(storyboard).not.toContain("](../04_图片提示词/镜头-001-关键帧.md)");
+    expect(storyboard).toContain("对应图片提示词：[[流程/步骤四 - 图片提示词/镜头组-001/镜头 001 关键帧 01 - 图片提示词|镜头 001 关键帧 01]]");
+    expect(storyboard).not.toContain("流程/步骤四 - 图片提示词/镜头组-001/镜头 001 关键帧 01 - 图片提示词.md|镜头 001 关键帧 01");
+    expect(storyboard).not.toContain("](../../04_图片提示词/镜头组-001/镜头-001-关键帧-01.md)");
     expect(storyboard).not.toContain('镜头索引: "[[shot-001]]"');
     expect(storyboard).not.toContain("- 镜头索引：[[shot-001]]");
     expect(storyboard).not.toContain("## Obsidian 导航");
@@ -266,9 +268,9 @@ describe("exportObsidianVault", () => {
     expect(storyboard).toContain("ai-video/step/03-storyboard");
     expect(storyboard).toContain("tags:");
     expect(storyboard).toContain("[[01_审阅总览|审阅总览]]");
-    const imagePrompt = await fs.readFile(path.join(outRoot, "流程", "步骤四 - 图片提示词", "镜头 001 关键帧 - 图片提示词.md"), "utf8");
-    expect(imagePrompt).toContain("[[流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本]]");
-    expect(imagePrompt).not.toContain("[[../03_分镜脚本/镜头-001.md]]");
+    const imagePrompt = await fs.readFile(path.join(outRoot, "流程", "步骤四 - 图片提示词", "镜头组-001", "镜头 001 关键帧 01 - 图片提示词.md"), "utf8");
+    expect(imagePrompt).toContain("[[流程/步骤三 - 分镜脚本/镜头组-001/镜头 001 - 分镜脚本]]");
+    expect(imagePrompt).not.toContain("[[../../03_分镜脚本/镜头组-001/镜头-001.md]]");
     const researchBrief = await fs.readFile(path.join(outRoot, "流程", "步骤零 - 前期研究", "04 创作简报.md"), "utf8");
     expect(researchBrief).toContain("源文件类型: 前期研究");
     expect(researchBrief).toContain("源文件路径: 00_前期研究/04_创作简报.md");
@@ -288,15 +290,17 @@ describe("exportObsidianVault", () => {
     expect(home).toContain("逐镜头检查");
     expect(home).toContain("需要智能体修改");
     expect(home).toContain("## 2. 审阅入口");
-    expect(home).toContain("## 3. 镜头入口");
+    expect(home).toContain("## 3. 镜头组入口");
+    expect(home).toContain("[[镜头组/group-001|镜头组 001：从邀请到出发]]");
+    expect(home).toContain("## 4. 镜头入口");
     expect(home).toContain("[[04_智能体交接|智能体交接]]");
-    expect(home).toContain("## 4. 项目状态");
-    expect(home).toContain("### 4.1 审阅队列");
-    expect(home).toContain("### 4.2 镜头进度");
-    expect(home).toContain("### 4.3 执行就绪");
-    expect(home).toContain("## 5. 画布与数据");
-    expect(home).toContain("### 5.1 画布导航");
-    expect(home).toContain("### 5.2 数据表入口");
+    expect(home).toContain("## 5. 项目状态");
+    expect(home).toContain("### 5.1 审阅队列");
+    expect(home).toContain("### 5.2 镜头进度");
+    expect(home).toContain("### 5.3 执行就绪");
+    expect(home).toContain("## 6. 画布与数据");
+    expect(home).toContain("### 6.1 画布导航");
+    expect(home).toContain("### 6.2 数据表入口");
     expect(home).toContain("![[数据表/流程文件.base#流程文件]]");
     expect(home).toContain("![[数据表/流程文件.base#审阅队列]]");
     expect(home).toContain("![[画布/流程图.canvas]]");
@@ -320,10 +324,11 @@ describe("exportObsidianVault", () => {
     expect(reviewDashboard).not.toContain("智能体交接");
 
     const shotIndex = await fs.readFile(path.join(outRoot, "02_镜头索引.md"), "utf8");
-    expect(shotIndex).toContain("## 1. 镜头入口");
-    expect(shotIndex).toContain("## 2. 镜头表");
-    expect(shotIndex).toContain("## 3. 镜头进度");
-    expect(shotIndex).toContain("## 4. 沉浸式审阅表");
+    expect(shotIndex).toContain("## 1. 镜头组入口");
+    expect(shotIndex).toContain("## 2. 镜头入口");
+    expect(shotIndex).toContain("## 3. 镜头表");
+    expect(shotIndex).toContain("## 4. 镜头进度");
+    expect(shotIndex).toContain("## 5. 沉浸式审阅表");
 
     const productionBoard = await fs.readFile(path.join(outRoot, "03_制作看板.md"), "utf8");
     expect(productionBoard).toContain("## 1. 执行就绪");
@@ -382,9 +387,9 @@ describe("exportObsidianVault", () => {
     expect(handoff).toContain("不要编辑生成的 Obsidian 观看层文件");
     expect(handoff).toContain("node apps/cli/dist/index.js verify --project <project-path> --ide codex");
     expect(handoff).toContain("[[镜头/shot-001|镜头 001：清晨前的邀请]]");
-    expect(handoff).toContain("分镜脚本源文件：`03_分镜脚本/镜头-001.md`");
-    expect(handoff).toContain("步骤四图片提示词源文件：`04_图片提示词/镜头-001-关键帧.md`");
-    expect(handoff).toContain("步骤五视频提示词源文件：`05_视频提示词/镜头-001.md`");
+    expect(handoff).toContain("分镜脚本源文件：`03_分镜脚本/镜头组-001/镜头-001.md`");
+    expect(handoff).toContain("步骤四图片提示词源文件：`04_图片提示词/镜头组-001/镜头-001-关键帧-01.md`");
+    expect(handoff).toContain("步骤五视频提示词源文件：`05_视频提示词/镜头组-001/镜头-001.md`");
     expect(handoff).toContain("必带参考资产：@沈安三视图、@小满三视图、@小镇修伞铺场景图");
     expect(handoff).toContain("检查 Step 4 是否携带单镜头交接中的全部 `@xx三视图` / `@xx场景图`。");
     expect(handoff).toContain("检查 Step 5 是否延续单镜头交接中的全部 `@xx三视图` / `@xx场景图`。");
@@ -433,15 +438,15 @@ describe("exportObsidianVault", () => {
     expect(shotReview).not.toContain("可复制提示词");
     expect(shotReview).not.toContain("验证命令");
     expect(shotReview).toContain("## 10. 审阅画布");
-    expect(shotReview).toContain("![[流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本]]");
-    expect(shotReview).toContain("![[流程/步骤四 - 图片提示词/镜头 001 关键帧 - 图片提示词]]");
-    expect(shotReview).toContain("![[流程/步骤五 - 视频提示词/镜头 001 - 视频提示词]]");
+    expect(shotReview).toContain("![[流程/步骤三 - 分镜脚本/镜头组-001/镜头 001 - 分镜脚本]]");
+    expect(shotReview).toContain("![[流程/步骤四 - 图片提示词/镜头组-001/镜头 001 关键帧 01 - 图片提示词]]");
+    expect(shotReview).toContain("![[流程/步骤五 - 视频提示词/镜头组-001/镜头 001 - 视频提示词]]");
     expect(shotReview).toContain("# 镜头 001：清晨前的邀请");
     expect(shotReview).toContain("[[笔记/镜头审阅/shot-001|镜头 001：清晨前的邀请 审阅笔记]]");
     expect(shotReview).not.toContain("[[笔记/镜头审阅/shot-001|笔记/镜头审阅/shot-001]]");
-    expect(shotReview).toContain("03_分镜脚本/镜头-001.md");
-    expect(shotReview).not.toContain("04_图片提示词/镜头-001-关键帧.md");
-    expect(shotReview).not.toContain("05_视频提示词/镜头-001.md");
+    expect(shotReview).toContain("03_分镜脚本/镜头组-001/镜头-001.md");
+    expect(shotReview).not.toContain("04_图片提示词/镜头组-001/镜头-001-关键帧-01.md");
+    expect(shotReview).not.toContain("05_视频提示词/镜头组-001/镜头-001.md");
     expect(shotReview).not.toContain("不要编辑生成的 Obsidian 观看层文件");
   });
 
@@ -472,6 +477,7 @@ describe("exportObsidianVault", () => {
     expect(baseViewOrder(shotsBase, "镜头表")).toEqual([
       "标题",
       "镜头标题",
+      "镜头组ID",
       "源文件路径",
       "源文件类型",
       "步骤名称",
@@ -482,7 +488,7 @@ describe("exportObsidianVault", () => {
       "审阅笔记",
       "file.mtime"
     ]);
-    expect(baseViewOrder(shotsBase, "镜头卡片")).toEqual(["镜头标题", "标题", "审阅状态", "执行状态", "审阅画布", "审阅笔记", "file.mtime"]);
+    expect(baseViewOrder(shotsBase, "镜头卡片")).toEqual(["镜头标题", "镜头组ID", "标题", "审阅状态", "执行状态", "审阅画布", "审阅笔记", "file.mtime"]);
     expectOnlyDefaultVisibleColumns(shotsBase, ["镜头表", "镜头卡片", "镜头进度", "沉浸式审阅", "智能体交接"]);
     expect(shotsBase).not.toContain("shot_id:");
     expect(shotsBase).not.toContain("agent_handoff");
@@ -561,7 +567,7 @@ describe("exportObsidianVault", () => {
     const workflowStep3Group = workflowMap.nodes.find((node: { label?: string }) => node.label === "步骤 3");
     expect(workflowStep3Group.width).toBeGreaterThanOrEqual(560);
     expect(workflowStep3Group.height).toBeGreaterThanOrEqual(900);
-    const workflowStoryboard = workflowMap.nodes.find((node: { file?: string }) => node.file === "流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md");
+    const workflowStoryboard = workflowMap.nodes.find((node: { file?: string }) => node.file === "流程/步骤三 - 分镜脚本/镜头组-001/镜头 001 - 分镜脚本.md");
     expect(workflowStoryboard.width).toBeGreaterThanOrEqual(480);
     expect(workflowStoryboard.height).toBeGreaterThanOrEqual(170);
 
@@ -571,8 +577,8 @@ describe("exportObsidianVault", () => {
     const shotPipelineGroup = shotPipeline.nodes.find((node: { label?: string }) => node.label === "镜头 001：清晨前的邀请");
     expect(shotPipelineGroup.width).toBeGreaterThanOrEqual(2000);
     expect(shotPipelineGroup.height).toBeGreaterThanOrEqual(520);
-    const pipelineStoryboard = shotPipeline.nodes.find((node: { file?: string }) => node.file === "流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md");
-    const pipelineImagePrompt = shotPipeline.nodes.find((node: { file?: string }) => node.file === "流程/步骤四 - 图片提示词/镜头 001 关键帧 - 图片提示词.md");
+    const pipelineStoryboard = shotPipeline.nodes.find((node: { file?: string }) => node.file === "流程/步骤三 - 分镜脚本/镜头组-001/镜头 001 - 分镜脚本.md");
+    const pipelineImagePrompt = shotPipeline.nodes.find((node: { file?: string }) => node.file === "流程/步骤四 - 图片提示词/镜头组-001/镜头 001 关键帧 01 - 图片提示词.md");
     expect(pipelineStoryboard.width).toBeGreaterThanOrEqual(520);
     expect(pipelineStoryboard.height).toBeGreaterThanOrEqual(200);
     expect(pipelineImagePrompt.x - pipelineStoryboard.x).toBeGreaterThanOrEqual(640);
@@ -594,13 +600,13 @@ describe("exportObsidianVault", () => {
     expect(shotReview.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "03_制作看板.md" })]));
     expect(shotReview.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: "笔记/说明.md" })]));
     expect(shotReview.nodes).toEqual(
-      expect.arrayContaining([expect.objectContaining({ type: "file", file: "流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md" })])
+      expect.arrayContaining([expect.objectContaining({ type: "file", file: "流程/步骤三 - 分镜脚本/镜头组-001/镜头 001 - 分镜脚本.md" })])
     );
     expect(shotReview.nodes).toEqual(
-      expect.arrayContaining([expect.objectContaining({ type: "file", file: "流程/步骤四 - 图片提示词/镜头 001 关键帧 - 图片提示词.md" })])
+      expect.arrayContaining([expect.objectContaining({ type: "file", file: "流程/步骤四 - 图片提示词/镜头组-001/镜头 001 关键帧 01 - 图片提示词.md" })])
     );
     expect(shotReview.nodes).toEqual(
-      expect.arrayContaining([expect.objectContaining({ type: "file", file: "流程/步骤五 - 视频提示词/镜头 001 - 视频提示词.md" })])
+      expect.arrayContaining([expect.objectContaining({ type: "file", file: "流程/步骤五 - 视频提示词/镜头组-001/镜头 001 - 视频提示词.md" })])
     );
     expect(shotReview.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "text", text: expect.stringContaining("@沈安三视图") })]));
     expect(
@@ -644,7 +650,7 @@ describe("exportObsidianVault", () => {
     tempRoots.push(outRoot);
 
     await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
-    const generatedFile = path.join(outRoot, "流程", "步骤三 - 分镜脚本", "镜头 001 - 分镜脚本.md");
+    const generatedFile = path.join(outRoot, "流程", "步骤三 - 分镜脚本", "镜头组-001", "镜头 001 - 分镜脚本.md");
     await fs.appendFile(generatedFile, "\nUser edit inside Obsidian.\n", "utf8");
     const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true });
 
@@ -652,7 +658,7 @@ describe("exportObsidianVault", () => {
       expect.arrayContaining([
         expect.objectContaining({
           status: "skipped-user-modified",
-          vaultPath: "流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md"
+          vaultPath: "流程/步骤三 - 分镜脚本/镜头组-001/镜头 001 - 分镜脚本.md"
         })
       ])
     );
@@ -666,15 +672,15 @@ describe("exportObsidianVault", () => {
     await fs.copy(officialExampleRoot(), projectRoot);
 
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
-    await fs.appendFile(path.join(projectRoot, "03_分镜脚本", "镜头-001.md"), "\nUpdated source beat.\n", "utf8");
+    await fs.appendFile(path.join(projectRoot, "03_分镜脚本", "镜头组-001", "镜头-001.md"), "\nUpdated source beat.\n", "utf8");
     const result = await exportObsidianVault({ projectRoot, outRoot, force: false, includePluginRecipes: true });
-    const generatedFile = path.join(outRoot, "流程", "步骤三 - 分镜脚本", "镜头 001 - 分镜脚本.md");
+    const generatedFile = path.join(outRoot, "流程", "步骤三 - 分镜脚本", "镜头组-001", "镜头 001 - 分镜脚本.md");
 
     expect(result.operations).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           status: "updated",
-          vaultPath: "流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md"
+          vaultPath: "流程/步骤三 - 分镜脚本/镜头组-001/镜头 001 - 分镜脚本.md"
         })
       ])
     );

@@ -16,6 +16,7 @@ export interface ObsidianSourceFile {
   step: number;
   title: string;
   headingTitle?: string;
+  shotGroupId?: string;
   shotId?: string;
   referenceAssets?: ReferenceAssetToken[];
 }

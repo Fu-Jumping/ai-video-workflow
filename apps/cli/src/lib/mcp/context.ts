@@ -1,8 +1,6 @@
-import fs from "fs-extra";
-import path from "node:path";
-
 import { STEP6_FILES, STEP_DIR_BY_NUMBER, activeWorkflowSteps } from "../constants.js";
 import { readWorkflowProjectConfig } from "../project-root.js";
+import { buildShotGraph } from "../shot-graph.js";
 import type { ProjectConfig } from "../types.js";
 
 export interface BuildMcpContextOptions {
@@ -12,10 +10,12 @@ export interface BuildMcpContextOptions {
 
 export interface McpShotContext {
   id: string;
+  groupId: string;
   title: string;
   sourcePaths: {
     storyboard: string;
     imagePrompt: string;
+    imagePrompts: string[];
     videoPrompt: string;
     executionPlan: string[];
   };
@@ -45,81 +45,11 @@ export interface McpProjectContext {
   };
 }
 
-const step3Dir = STEP_DIR_BY_NUMBER[3];
-const step4Dir = STEP_DIR_BY_NUMBER[4];
-const step5Dir = STEP_DIR_BY_NUMBER[5];
 const step6Dir = STEP_DIR_BY_NUMBER[6];
-
-const downstreamLinkPattern = /\]\(([^)]+)\)/g;
-
-function normalizeRelativePath(relPath: string): string {
-  return relPath.split(path.sep).join("/");
-}
-
-function stripAnchor(linkTarget: string): string {
-  return linkTarget.split("#")[0];
-}
-
-function resolveLinkedProjectPath(sourceRelPath: string, linkTarget: string): string {
-  const sourceDir = path.posix.dirname(normalizeRelativePath(sourceRelPath));
-  return path.posix.normalize(path.posix.join(sourceDir, stripAnchor(linkTarget)));
-}
-
-function findDownstreamLink(content: string, sourceRelPath: string, targetDir: string): string | undefined {
-  for (const match of content.matchAll(downstreamLinkPattern)) {
-    const linkedPath = resolveLinkedProjectPath(sourceRelPath, match[1]);
-    if (linkedPath.startsWith(`${targetDir}/`)) {
-      return linkedPath;
-    }
-  }
-  return undefined;
-}
-
-function shotNumberFromId(shotId: string): string | undefined {
-  return shotId.match(/(?:shot|镜头)[-_ ]?(\d+)/i)?.[1];
-}
-
-function canonicalShotId(fileName: string): string {
-  const raw = path.basename(fileName, ".md");
-  const number = shotNumberFromId(raw);
-  return number ? `shot-${number}` : raw;
-}
-
-async function findByShotId(projectRoot: string, dir: string, shotId: string): Promise<string> {
-  const fullDir = path.join(projectRoot, dir);
-  const entries = (await fs.pathExists(fullDir)) ? await fs.readdir(fullDir) : [];
-  const number = shotNumberFromId(shotId);
-  const prefixes = number ? [shotId, `镜头-${number}`, `镜头_${number}`, `镜头${number}`] : [shotId];
-  const match = entries
-    .filter((entry) => entry.endsWith(".md") && prefixes.some((prefix) => entry.startsWith(prefix)))
-    .sort()[0];
-  if (match) {
-    return `${dir}/${match}`;
-  }
-  const fallbackFile = dir === step4Dir && number ? `镜头-${number}-关键帧.md` : number ? `镜头-${number}.md` : `${shotId}.md`;
-  return `${dir}/${fallbackFile}`;
-}
 
 function titleFromMarkdown(content: string, fallback: string): string {
   const heading = content.match(/^#\s+(.+)$/m);
   return heading?.[1]?.trim() || fallback;
-}
-
-async function buildShotContext(projectRoot: string, storyboardFileName: string): Promise<McpShotContext> {
-  const shotId = canonicalShotId(storyboardFileName);
-  const storyboardPath = `${step3Dir}/${storyboardFileName}`;
-  const storyboardContent = await fs.readFile(path.join(projectRoot, storyboardPath), "utf8");
-
-  return {
-    id: shotId,
-    title: titleFromMarkdown(storyboardContent, shotId),
-    sourcePaths: {
-      storyboard: storyboardPath,
-      imagePrompt: findDownstreamLink(storyboardContent, storyboardPath, step4Dir) ?? (await findByShotId(projectRoot, step4Dir, shotId)),
-      videoPrompt: findDownstreamLink(storyboardContent, storyboardPath, step5Dir) ?? (await findByShotId(projectRoot, step5Dir, shotId)),
-      executionPlan: STEP6_FILES.map((file) => `${step6Dir}/${file}`)
-    }
-  };
 }
 
 async function assertValidProjectShape(projectRoot: string): Promise<ProjectConfig> {
@@ -134,15 +64,24 @@ export async function buildMcpContext(options: BuildMcpContextOptions): Promise<
     directory: step.directory
   }));
 
-  const storyboardDir = path.join(options.projectRoot, step3Dir);
-  const storyboardFiles = (await fs.pathExists(storyboardDir))
-    ? (await fs.readdir(storyboardDir)).filter((entry) => entry.endsWith(".md")).sort()
-    : [];
-
-  const shots: McpShotContext[] = [];
-  for (const storyboardFile of storyboardFiles) {
-    shots.push(await buildShotContext(options.projectRoot, storyboardFile));
-  }
+  const graph = await buildShotGraph(options.projectRoot);
+  const shots: McpShotContext[] = graph.shots
+    .filter((shot) => shot.storyboard)
+    .map((shot) => {
+      const imagePrompts = shot.imagePrompts.map((file) => file.relPath);
+      return {
+        id: shot.id,
+        groupId: shot.groupId ?? "ungrouped",
+        title: titleFromMarkdown(shot.storyboard?.content ?? "", shot.id),
+        sourcePaths: {
+          storyboard: shot.storyboard?.relPath ?? "",
+          imagePrompt: imagePrompts[0] ?? "",
+          imagePrompts,
+          videoPrompt: shot.videoPrompt?.relPath ?? "",
+          executionPlan: STEP6_FILES.map((file) => `${step6Dir}/${file}`)
+        }
+      };
+    });
 
   return {
     project: {

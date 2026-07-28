@@ -1,6 +1,7 @@
 import path from "node:path";
 
 import { formatReferenceAssets } from "../reference-assets.js";
+import { shotGroupDirectoryName } from "../shot-graph.js";
 import { sanitizeVaultFileName, toVaultPath } from "./paths.js";
 import { obsidianProperties, obsidianPropertyValues } from "./properties.js";
 import type { ObsidianSourceFile } from "./types.js";
@@ -69,7 +70,8 @@ export function generatedFileName(sourceFile: ObsidianSourceFile): string {
 }
 
 export function workflowVaultPath(sourceFile: ObsidianSourceFile): string {
-  return toVaultPath(path.join("流程", stepFolderName(sourceFile.step), generatedFileName(sourceFile)));
+  const groupDirectory = sourceFile.shotGroupId ? shotGroupDirectoryName(sourceFile.shotGroupId) : undefined;
+  return toVaultPath(path.join("流程", stepFolderName(sourceFile.step), ...(groupDirectory ? [groupDirectory] : []), generatedFileName(sourceFile)));
 }
 
 export function wikiLinkTargetForVaultPath(vaultPath: string): string {
@@ -208,6 +210,9 @@ function renderTags(sourceFile: ObsidianSourceFile): string[] {
   if (sourceFile.shotId) {
     tags.push(`ai-video/shot/${sourceFile.shotId}`);
   }
+  if (sourceFile.shotGroupId) {
+    tags.push(`ai-video/shot-group/${sourceFile.shotGroupId}`);
+  }
   return tags;
 }
 
@@ -237,6 +242,9 @@ export function renderFrontmatter(sourceFile: ObsidianSourceFile, projectName: s
     }
     lines.push(`${obsidianProperties.shotTitle}: ${yamlString(shotDisplayName(sourceFile, sourceFiles))}`);
     lines.push(`${obsidianProperties.shotIndex}: "${shotIndexLink(sourceFile, sourceFiles)}"`);
+  }
+  if (sourceFile.shotGroupId) {
+    lines.push(`${obsidianProperties.shotGroupId}: ${sourceFile.shotGroupId}`);
   }
   if (sourceFile.referenceAssets?.length) {
     lines.push(`${obsidianProperties.referenceAssets}: ${yamlString(formatReferenceAssets(sourceFile.referenceAssets))}`);

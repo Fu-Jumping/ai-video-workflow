@@ -10,6 +10,14 @@ function uniqueShotIds(sourceFiles: ObsidianSourceFile[]): string[] {
   return [...new Set(sourceFiles.map((file) => file.shotId).filter((shotId): shotId is string => Boolean(shotId)))].sort();
 }
 
+function uniqueShotGroupIds(sourceFiles: ObsidianSourceFile[]): string[] {
+  return [...new Set(sourceFiles.map((file) => file.shotGroupId).filter((id): id is string => Boolean(id)))].sort();
+}
+
+function filesForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSourceFile["sourceKind"]): ObsidianSourceFile[] {
+  return sourceFiles.filter((sourceFile) => sourceFile.sourceKind === kind);
+}
+
 function shotDisplayName(shotId: string, sourceFiles: ObsidianSourceFile[]): string {
   const shotFiles = sourceFiles.filter((file) => file.shotId === shotId);
   const storyboard = shotFiles.find((file) => file.sourceKind === "storyboard");
@@ -36,8 +44,19 @@ function embeddedFileForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSo
   return file ? `![[${wikiLinkTargetForVaultPath(workflowVaultPath(file))}]]` : `> ${missingLabel}: 缺失`;
 }
 
+function embeddedFilesForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSourceFile["sourceKind"], missingLabel: string): string {
+  const files = filesForKind(sourceFiles, kind);
+  return files.length > 0
+    ? files.map((file) => `![[${wikiLinkTargetForVaultPath(workflowVaultPath(file))}]]`).join("\n\n")
+    : `> ${missingLabel}: 缺失`;
+}
+
 function sourcePathForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSourceFile["sourceKind"]): string {
   return fileForKind(sourceFiles, kind)?.sourcePath ?? "missing";
+}
+
+function sourcePathsForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSourceFile["sourceKind"]): string {
+  return filesForKind(sourceFiles, kind).map((file) => `\`${file.sourcePath}\``).join(", ") || "missing";
 }
 
 function shotNavigation(shotId: string, shotIds: string[], sourceFiles: ObsidianSourceFile[]): string {
@@ -48,6 +67,52 @@ function shotNavigation(shotId: string, shotIds: string[], sourceFiles: Obsidian
     previousShotId ? `- 上一镜头：[[镜头/${previousShotId}|${shotDisplayName(previousShotId, sourceFiles)}]]` : "- 上一镜头：无",
     nextShotId ? `- 下一镜头：[[镜头/${nextShotId}|${shotDisplayName(nextShotId, sourceFiles)}]]` : "- 下一镜头：无"
   ].join("\n");
+}
+
+function shotGroupDisplayName(groupId: string, sourceFiles: ObsidianSourceFile[]): string {
+  const description = sourceFiles.find((file) => file.shotGroupId === groupId && file.sourceKind === "storyboard" && !file.shotId);
+  return description?.headingTitle?.trim() || description?.title?.trim() || groupId;
+}
+
+function renderShotGroupHub(groupId: string, sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedFile {
+  const groupFiles = sourceFiles.filter((file) => file.shotGroupId === groupId);
+  const groupShotIds = uniqueShotIds(groupFiles);
+  const description = groupFiles.find((file) => file.sourceKind === "storyboard" && !file.shotId);
+  const sourcePath = description?.sourcePath ?? groupFiles[0]?.sourcePath;
+  const sourcePathLine = sourcePath ? `${obsidianProperties.sourcePath}: ${sourcePath}\n` : "";
+  const title = shotGroupDisplayName(groupId, sourceFiles);
+  const shotLinks = groupShotIds.map((shotId) => `- [[镜头/${shotId}|${shotDisplayName(shotId, sourceFiles)}]]`).join("\n") || "- 尚未发现镜头。";
+  return {
+    vaultPath: `镜头组/${groupId}.md`,
+    sourcePath,
+    content: `---
+${obsidianProperties.projectionGenerated}: ${obsidianPropertyValues.yes}
+${obsidianProperties.title}: ${JSON.stringify(title)}
+${obsidianProperties.sourceKind}: ${obsidianPropertyValues.sourceKind.index}
+${sourcePathLine}${obsidianProperties.shotGroupId}: ${groupId}
+${obsidianProperties.status}: ${obsidianPropertyValues.ready}
+tags:
+  - ai-video/project
+  - ai-video/shot-group/${groupId}
+  - ai-video/type/index
+---
+
+# ${title}
+
+## 1. 导航
+
+- [[00_项目首页|首页]]
+- [[02_镜头索引|镜头索引]]
+
+## 2. 组内镜头
+
+${shotLinks}
+
+## 3. 镜头组说明
+
+${description ? `![[${wikiLinkTargetForVaultPath(workflowVaultPath(description))}]]` : "> 镜头组说明：缺失"}
+`
+  };
 }
 
 function yesNoProperty(value: boolean): string {
@@ -75,7 +140,6 @@ function referenceAssetsText(sourceFiles: ObsidianSourceFile[]): string {
 
 function renderShotHandoffEntry(shotId: string, shotIndex: number, shotFiles: ObsidianSourceFile[], allSourceFiles: ObsidianSourceFile[]): string {
   const storyboardSourcePath = sourcePathForKind(shotFiles, "storyboard");
-  const imagePromptSourcePath = sourcePathForKind(shotFiles, "image-prompt");
   const videoPromptSourcePath = sourcePathForKind(shotFiles, "video-prompt");
   const executionPlanSourcePath = sourcePathForKind(allSourceFiles, "execution-plan");
   const displayName = shotDisplayName(shotId, allSourceFiles);
@@ -84,7 +148,7 @@ function renderShotHandoffEntry(shotId: string, shotIndex: number, shotFiles: Ob
 
 - 审阅画布：[[${shotReviewCanvasPath(shotId)}|审阅画布]]
 - 分镜脚本源文件：\`${storyboardSourcePath}\`
-- 步骤四图片提示词源文件：\`${imagePromptSourcePath}\`
+- 步骤四图片提示词源文件：${sourcePathsForKind(shotFiles, "image-prompt")}
 - 步骤五视频提示词源文件：\`${videoPromptSourcePath}\`
 - 必带参考资产：${referenceAssets}
 - 执行计划源文件：\`${executionPlanSourcePath}\``;
@@ -107,6 +171,10 @@ function renderShotHub(shotId: string, shotFiles: ObsidianSourceFile[], allSourc
   const videoPrompt = fileForKind(shotFiles, "video-prompt");
   const referenceAssets = referenceAssetsText(shotFiles);
   const reviewCanvasPath = shotReviewCanvasPath(shotId);
+  const shotGroupId = shotFiles[0]?.shotGroupId;
+  const groupLine = shotGroupId ? `${obsidianProperties.shotGroupId}: ${shotGroupId}\n` : "";
+  const groupTag = shotGroupId ? `  - ai-video/shot-group/${shotGroupId}\n` : "";
+  const groupNavigation = shotGroupId ? `- 镜头组：[[镜头组/${shotGroupId}|${shotGroupDisplayName(shotGroupId, allSourceFiles)}]]\n` : "";
   return {
     vaultPath: `镜头/${shotId}.md`,
     content: `---
@@ -115,7 +183,7 @@ ${obsidianProperties.title}: ${JSON.stringify(displayName)}
 ${obsidianProperties.shotTitle}: ${JSON.stringify(displayName)}
 ${obsidianProperties.nextAction}: ${obsidianPropertyValues.nextAction.index}
 ${obsidianProperties.sourceKind}: ${obsidianPropertyValues.sourceKind.index}
-${sourcePathLine}${obsidianProperties.shotId}: ${shotId}
+${sourcePathLine}${groupLine}${obsidianProperties.shotId}: ${shotId}
 ${shotOrderLine}${obsidianProperties.stageGroup}: ${obsidianPropertyValues.stageGroup["shot-review"]}
 ${obsidianProperties.reviewStatus}: ${obsidianPropertyValues.reviewStatus["shot-review"]}
 ${obsidianProperties.executionStatus}: ${obsidianPropertyValues.executionStatus["prompt-ready"]}
@@ -132,7 +200,7 @@ ${obsidianProperties.status}: ${obsidianPropertyValues.ready}
 tags:
   - ai-video/project
   - ai-video/shot/${shotId}
-  - ai-video/type/index
+${groupTag}  - ai-video/type/index
   - ai-video/status/ready
 ---
 
@@ -141,7 +209,7 @@ tags:
 ## 1. 快速审阅
 
 - 分镜脚本：${linkForKind(shotFiles, "storyboard", "分镜脚本")}
-- 图片提示词：${linkForKind(shotFiles, "image-prompt", "图片提示词")}
+- 图片提示词：${filesForKind(shotFiles, "image-prompt").map((file, index) => `[[${wikiLinkTargetForVaultPath(workflowVaultPath(file))}|关键帧 ${index + 1}]]`).join("、") || "缺失"}
 - 视频提示词：${linkForKind(shotFiles, "video-prompt", "视频提示词")}
 - 执行计划：${linkForKind(allSourceFiles, "execution-plan", "执行计划")}
 - 必带参考资产：${referenceAssets}
@@ -153,7 +221,7 @@ tags:
 - 审阅总览：[[01_审阅总览]]
 - 制作看板：[[03_制作看板]]
 - 审阅地图：[[画布/审阅地图.canvas]]
-${shotNavigation(shotId, shotIds, allSourceFiles)}
+${groupNavigation}${shotNavigation(shotId, shotIds, allSourceFiles)}
 
 ## 3. 参考资产
 
@@ -168,7 +236,7 @@ ${embeddedFileForKind(shotFiles, "storyboard", "分镜脚本")}
 
 审阅步骤四图片提示词连续性时，以步骤三分镜画面为参照。
 
-${embeddedFileForKind(shotFiles, "image-prompt", "图片提示词")}
+${embeddedFilesForKind(shotFiles, "image-prompt", "图片提示词")}
 
 ## 6. 视频提示词
 
@@ -312,9 +380,13 @@ function renderCommunityPluginRecipes(): ObsidianGeneratedFile {
 
 export function renderDashboardFiles(projectName: string, sourceFiles: ObsidianSourceFile[], includePluginRecipes: boolean): ObsidianGeneratedFile[] {
   const shotIds = uniqueShotIds(sourceFiles);
+  const shotGroupIds = uniqueShotGroupIds(sourceFiles);
   const shotLinks = shotIds.length > 0
     ? shotIds.map((shotId) => `- [[镜头/${shotId}|${shotDisplayName(shotId, sourceFiles)}]] - [[${shotReviewCanvasPath(shotId)}|审阅画布]]`).join("\n")
     : "- 尚未发现镜头文件。";
+  const shotGroupLinks = shotGroupIds.length > 0
+    ? shotGroupIds.map((groupId) => `- [[镜头组/${groupId}|${shotGroupDisplayName(groupId, sourceFiles)}]]`).join("\n")
+    : "- 尚未发现镜头组。";
   const files: ObsidianGeneratedFile[] = [
     {
       vaultPath: "说明.md",
@@ -345,51 +417,55 @@ export function renderDashboardFiles(projectName: string, sourceFiles: ObsidianS
 - [[画布/流程图.canvas|流程图]]
 - [[画布/镜头流水线.canvas|镜头流水线]]
 
-## 3. 镜头入口
+## 3. 镜头组入口
+
+${shotGroupLinks}
+
+## 4. 镜头入口
 
 ${shotLinks}
 
-## 4. 项目状态
+## 5. 项目状态
 
-### 4.1 审阅队列
+### 5.1 审阅队列
 
 ![[数据表/流程文件.base#审阅队列]]
 
-### 4.2 镜头进度
+### 5.2 镜头进度
 
 ![[数据表/镜头.base#镜头进度]]
 
-### 4.3 执行就绪
+### 5.3 执行就绪
 
 ![[数据表/制作状态.base#执行就绪]]
 
-## 5. 画布与数据
+## 6. 画布与数据
 
-### 5.1 画布导航
+### 6.1 画布导航
 
 - [[画布/审阅地图.canvas|审阅地图]]
 - [[画布/流程图.canvas|流程图]]
 - [[画布/镜头流水线.canvas|镜头流水线]]
 
-### 5.2 数据表入口
+### 6.2 数据表入口
 
 - [[数据表/流程文件.base|流程文件表]]
 - [[数据表/镜头.base|镜头表]]
 - [[数据表/制作状态.base|制作状态表]]
 
-### 5.3 流程文件
+### 6.3 流程文件
 
 ![[数据表/流程文件.base#流程文件]]
 
-### 5.4 镜头卡片
+### 6.4 镜头卡片
 
 ![[数据表/镜头.base#镜头卡片]]
 
-### 5.5 流程图
+### 6.5 流程图
 
 ![[画布/流程图.canvas]]
 
-### 5.6 镜头流水线
+### 6.6 镜头流水线
 
 ![[画布/镜头流水线.canvas]]
 `
@@ -420,19 +496,23 @@ ${shotLinks}
       vaultPath: "02_镜头索引.md",
       content: `# 镜头索引
 
-## 1. 镜头入口
+## 1. 镜头组入口
+
+${shotGroupLinks}
+
+## 2. 镜头入口
 
 ${shotLinks}
 
-## 2. 镜头表
+## 3. 镜头表
 
 ![[数据表/镜头.base#镜头表]]
 
-## 3. 镜头进度
+## 4. 镜头进度
 
 ![[数据表/镜头.base#镜头进度]]
 
-## 4. 沉浸式审阅表
+## 5. 沉浸式审阅表
 
 ![[数据表/镜头.base#沉浸式审阅]]
 `
@@ -502,6 +582,7 @@ tags:
 `
     },
     renderAgentHandoffPage(shotIds, sourceFiles),
+    ...shotGroupIds.map((groupId) => renderShotGroupHub(groupId, sourceFiles)),
     ...shotIds.map((shotId) => renderShotHub(shotId, sourceFiles.filter((file) => file.shotId === shotId), sourceFiles, shotIds))
   ];
   if (includePluginRecipes) {

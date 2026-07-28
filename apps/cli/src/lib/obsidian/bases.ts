@@ -107,6 +107,8 @@ properties:
     displayName: ${obsidianProperties.nextAction}
   ${obsidianProperties.shotId}:
     displayName: ${obsidianProperties.shotId}
+  ${obsidianProperties.shotGroupId}:
+    displayName: ${obsidianProperties.shotGroupId}
   ${obsidianProperties.shotOrder}:
     displayName: ${obsidianProperties.shotOrder}
   ${obsidianProperties.sourceKind}:
@@ -149,6 +151,7 @@ views:
     order:
       - ${obsidianProperties.title}
       - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.shotGroupId}
       - ${obsidianProperties.sourcePath}
       - ${obsidianProperties.sourceKind}
       - ${obsidianProperties.stepName}
@@ -162,6 +165,7 @@ views:
     name: 镜头卡片
     order:
       - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.shotGroupId}
       - ${obsidianProperties.title}
       - ${obsidianProperties.reviewStatus}
       - ${obsidianProperties.executionStatus}
@@ -176,6 +180,7 @@ views:
     order:
       - ${obsidianProperties.title}
       - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.shotGroupId}
       - ${obsidianProperties.sourcePath}
       - ${obsidianProperties.sourceKind}
       - ${obsidianProperties.stepName}
@@ -190,6 +195,7 @@ views:
     order:
       - ${obsidianProperties.title}
       - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.shotGroupId}
       - ${obsidianProperties.sourcePath}
       - ${obsidianProperties.sourceKind}
       - ${obsidianProperties.stepName}
@@ -241,6 +247,8 @@ properties:
     displayName: ${obsidianProperties.executionStatus}
   ${obsidianProperties.shotId}:
     displayName: ${obsidianProperties.shotId}
+  ${obsidianProperties.shotGroupId}:
+    displayName: ${obsidianProperties.shotGroupId}
   ${obsidianProperties.sourceKind}:
     displayName: ${obsidianProperties.sourceKind}
   ${obsidianProperties.shotIndex}:

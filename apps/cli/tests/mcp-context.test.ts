@@ -23,7 +23,7 @@ async function createChineseMcpProject({ research = false }: { research?: boolea
       "  image:",
       "    default: openai",
       "  video:",
-      "    default: runway",
+      "    default: seedance",
       "workflow:",
       ...(research ? ["  research_step:", "    enabled: true"] : []),
       "  enhanced_flow:",
@@ -43,20 +43,24 @@ async function createChineseMcpProject({ research = false }: { research?: boolea
   ]) {
     await fs.ensureDir(path.join(projectRoot, dir));
   }
+  for (const step of ["03_分镜脚本", "04_图片提示词", "05_视频提示词"]) {
+    await fs.ensureDir(path.join(projectRoot, step, "镜头组-001"));
+  }
+  await fs.writeFile(path.join(projectRoot, "03_分镜脚本", "镜头组-001", "00_镜头组说明.md"), "# 镜头组 001\n", "utf8");
 
   for (const shotNumber of ["001", "002", "003"]) {
     await fs.writeFile(
-      path.join(projectRoot, "03_分镜脚本", `镜头-${shotNumber}.md`),
+      path.join(projectRoot, "03_分镜脚本", "镜头组-001", `镜头-${shotNumber}.md`),
       [
         `# 镜头 ${shotNumber}`,
         "",
-        `- 图片提示词：[镜头-${shotNumber}-关键帧](../04_图片提示词/镜头-${shotNumber}-关键帧.md)`,
-        `- 视频提示词：[镜头-${shotNumber}](../05_视频提示词/镜头-${shotNumber}.md)`
+        `- 图片提示词：[镜头-${shotNumber}-关键帧](../../04_图片提示词/镜头组-001/镜头-${shotNumber}-关键帧-01.md)`,
+        `- 视频提示词：[镜头-${shotNumber}](../../05_视频提示词/镜头组-001/镜头-${shotNumber}.md)`
       ].join("\n"),
       "utf8"
     );
-    await fs.writeFile(path.join(projectRoot, "04_图片提示词", `镜头-${shotNumber}-关键帧.md`), `# 镜头 ${shotNumber} 关键帧\n`, "utf8");
-    await fs.writeFile(path.join(projectRoot, "05_视频提示词", `镜头-${shotNumber}.md`), `# 镜头 ${shotNumber} 视频\n`, "utf8");
+    await fs.writeFile(path.join(projectRoot, "04_图片提示词", "镜头组-001", `镜头-${shotNumber}-关键帧-01.md`), `# 镜头 ${shotNumber} 关键帧\n`, "utf8");
+    await fs.writeFile(path.join(projectRoot, "05_视频提示词", "镜头组-001", `镜头-${shotNumber}.md`), `# 镜头 ${shotNumber} 视频\n`, "utf8");
   }
 
   return projectRoot;
@@ -121,9 +125,11 @@ describe("MCP read-only context", () => {
     expect(context.shots.map((shot) => shot.id)).toEqual(["shot-001", "shot-002", "shot-003"]);
     for (const shot of context.shots) {
       const number = shot.id.replace("shot-", "");
-      expect(shot.sourcePaths.storyboard).toBe(`03_分镜脚本/镜头-${number}.md`);
-      expect(shot.sourcePaths.imagePrompt).toBe(`04_图片提示词/镜头-${number}-关键帧.md`);
-      expect(shot.sourcePaths.videoPrompt).toBe(`05_视频提示词/镜头-${number}.md`);
+      expect(shot.groupId).toBe("group-001");
+      expect(shot.sourcePaths.storyboard).toBe(`03_分镜脚本/镜头组-001/镜头-${number}.md`);
+      expect(shot.sourcePaths.imagePrompt).toBe(`04_图片提示词/镜头组-001/镜头-${number}-关键帧-01.md`);
+      expect(shot.sourcePaths.imagePrompts).toEqual([`04_图片提示词/镜头组-001/镜头-${number}-关键帧-01.md`]);
+      expect(shot.sourcePaths.videoPrompt).toBe(`05_视频提示词/镜头组-001/镜头-${number}.md`);
       expect(shot.sourcePaths.executionPlan).toEqual([
         "06_执行计划/00_执行计划.md",
         "06_执行计划/01_图片执行计划.md",

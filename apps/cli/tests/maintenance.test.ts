@@ -168,7 +168,7 @@ describe("cleanInProjectObsidianView", () => {
     expect(summary).toContain("cleanup risk: low");
     expect(summary).toContain("matched generated files by type:");
     expect(summary).toContain("workflow-notes: 3");
-    expect(summary).toContain("流程/步骤四 - 图片提示词/镜头 002 关键帧 - 图片提示词.md");
+    expect(summary).toContain("流程/步骤四 - 图片提示词/镜头组-001/镜头 002 关键帧 01 - 图片提示词.md");
     expect(summary).toContain("next command:");
     expect(summary).toContain("clean-view --project");
     expect(summary).toContain("--step 4");
@@ -205,8 +205,8 @@ describe("cleanInProjectObsidianView", () => {
       expect.arrayContaining([
         "镜头/shot-002.md",
         "画布/镜头审阅/shot-002.canvas",
-        "流程/步骤三 - 分镜脚本/镜头 002 - 分镜脚本.md",
-        "流程/步骤四 - 图片提示词/镜头 002 关键帧 - 图片提示词.md"
+        "流程/步骤三 - 分镜脚本/镜头组-001/镜头 002 - 分镜脚本.md",
+        "流程/步骤四 - 图片提示词/镜头组-001/镜头 002 关键帧 01 - 图片提示词.md"
       ])
     );
     expect(paths).not.toEqual(expect.arrayContaining(["镜头/shot-001.md", "画布/镜头审阅/shot-001.canvas"]));
@@ -261,7 +261,7 @@ describe("cleanInProjectObsidianView", () => {
     expect(manifest?.files.map((entry) => entry.vaultPath)).not.toEqual(expect.arrayContaining(removedPaths));
     await expect(fs.pathExists(path.join(vaultRoot, projectionManifestPath))).resolves.toBe(true);
     await expect(fs.readFile(userNote, "utf8")).resolves.toContain("局部清理也应该保留");
-    await expect(fs.pathExists(path.join(projectRoot, "04_图片提示词", "镜头-002-关键帧.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "04_图片提示词", "镜头组-001", "镜头-002-关键帧-01.md"))).resolves.toBe(true);
   });
 
   test("filtered clean is a no-op when generated files do not match", async () => {
@@ -389,7 +389,7 @@ describe("rebuildInProjectObsidianView", () => {
   test("filtered rebuild recreates only the matched missing projection files and verifies", async () => {
     const projectRoot = await seedOfficialExampleProject();
     const { vaultRoot } = await exportView(projectRoot);
-    const shotTwoSource = path.join(projectRoot, "04_图片提示词", "镜头-002-关键帧.md");
+    const shotTwoSource = path.join(projectRoot, "04_图片提示词", "镜头组-001", "镜头-002-关键帧-01.md");
     await fs.appendFile(shotTwoSource, "\n局部重建后应该出现在镜头 002 图片提示词观看层。\n", "utf8");
 
     const result = await rebuildInProjectObsidianView({

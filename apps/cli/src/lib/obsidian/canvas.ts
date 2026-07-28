@@ -105,6 +105,10 @@ function shotFileForKind(sourceFiles: ObsidianSourceFile[], shotId: string, sour
   return sourceFiles.find((file) => file.shotId === shotId && file.sourceKind === sourceKind);
 }
 
+function shotFilesForKind(sourceFiles: ObsidianSourceFile[], shotId: string, sourceKind: ObsidianSourceFile["sourceKind"]): ObsidianSourceFile[] {
+  return sourceFiles.filter((file) => file.shotId === shotId && file.sourceKind === sourceKind);
+}
+
 function referenceAssetsForFiles(sourceFiles: ObsidianSourceFile[]): ReferenceAssetToken[] {
   const seen = new Set<string>();
   const assets: ReferenceAssetToken[] = [];
@@ -319,7 +323,7 @@ export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): Obs
     ];
     const edges: CanvasEdge[] = [];
     const storyboard = shotFileForKind(sourceFiles, shotId, "storyboard");
-    const imagePrompt = shotFileForKind(sourceFiles, shotId, "image-prompt");
+    const imagePrompts = shotFilesForKind(sourceFiles, shotId, "image-prompt");
     const videoPrompt = shotFileForKind(sourceFiles, shotId, "video-prompt");
 
     let previousNodeId = addSourceOrMissingNode({
@@ -334,18 +338,36 @@ export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): Obs
       color: "3",
       edgeLabel: "审阅起点 / 画面"
     });
-    previousNodeId = addSourceOrMissingNode({
-      nodes,
-      edges,
-      nodeId: "image-prompt",
-      previousNodeId,
-      sourceFile: imagePrompt,
-      missingText: `${shotId} 缺少图片提示词`,
-      x: layout.shotReview.columnGap * 2,
-      y: layout.shotReview.sourceY,
-      color: "4",
-      edgeLabel: "图片提示词"
-    });
+    if (imagePrompts.length === 0) {
+      previousNodeId = addSourceOrMissingNode({
+        nodes,
+        edges,
+        nodeId: "image-prompt-missing",
+        previousNodeId,
+        sourceFile: undefined,
+        missingText: `${shotId} 缺少图片提示词`,
+        x: layout.shotReview.columnGap * 2,
+        y: layout.shotReview.sourceY,
+        color: "4",
+        edgeLabel: "图片提示词"
+      });
+    } else {
+      imagePrompts.forEach((imagePrompt, index) => {
+        previousNodeId = addSourceOrMissingNode({
+          nodes,
+          edges,
+          nodeId: index === 0 ? "image-prompt" : `image-prompt-${index + 1}`,
+          previousNodeId,
+          sourceFile: imagePrompt,
+          missingText: `${shotId} 缺少关键帧 ${index + 1}`,
+          x: layout.shotReview.columnGap * (2 + index),
+          y: layout.shotReview.sourceY,
+          color: "4",
+          edgeLabel: `关键帧 ${index + 1}`
+        });
+      });
+    }
+    const videoColumn = 2 + Math.max(imagePrompts.length, 1);
     previousNodeId = addSourceOrMissingNode({
       nodes,
       edges,
@@ -353,7 +375,7 @@ export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): Obs
       previousNodeId,
       sourceFile: videoPrompt,
       missingText: `${shotId} 缺少视频提示词`,
-      x: layout.shotReview.columnGap * 3,
+      x: layout.shotReview.columnGap * (videoColumn + 1),
       y: layout.shotReview.sourceY,
       color: "5",
       edgeLabel: "视频提示词"
@@ -364,7 +386,7 @@ export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): Obs
         id: "production-board",
         type: "file",
         file: "03_制作看板.md",
-        x: layout.shotReview.columnGap * 4,
+        x: layout.shotReview.columnGap * (videoColumn + 2),
         y: layout.shotReview.sourceY,
         width: layout.shotReview.fileWidth,
         height: layout.shotReview.fileHeight,

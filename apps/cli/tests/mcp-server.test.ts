@@ -27,7 +27,7 @@ async function createChineseMcpProject(): Promise<string> {
       "  image:",
       "    default: openai",
       "  video:",
-      "    default: runway",
+      "    default: seedance",
       "workflow:",
       "  enhanced_flow:",
       "    enabled: true"
@@ -37,18 +37,22 @@ async function createChineseMcpProject(): Promise<string> {
   for (const dir of ["01_概念策划", "02_世界设定", "03_分镜脚本", "04_图片提示词", "05_视频提示词", "06_执行计划"]) {
     await fs.ensureDir(path.join(projectRoot, dir));
   }
+  for (const step of ["03_分镜脚本", "04_图片提示词", "05_视频提示词"]) {
+    await fs.ensureDir(path.join(projectRoot, step, "镜头组-001"));
+  }
+  await fs.writeFile(path.join(projectRoot, "03_分镜脚本", "镜头组-001", "00_镜头组说明.md"), "# 镜头组 001\n", "utf8");
   await fs.writeFile(
-    path.join(projectRoot, "03_分镜脚本", "镜头-001.md"),
+    path.join(projectRoot, "03_分镜脚本", "镜头组-001", "镜头-001.md"),
     [
       "# 镜头 001",
       "",
-      "- 图片提示词：[镜头-001-关键帧](../04_图片提示词/镜头-001-关键帧.md)",
-      "- 视频提示词：[镜头-001](../05_视频提示词/镜头-001.md)"
+      "- 图片提示词：[镜头-001-关键帧](../../04_图片提示词/镜头组-001/镜头-001-关键帧-01.md)",
+      "- 视频提示词：[镜头-001](../../05_视频提示词/镜头组-001/镜头-001.md)"
     ].join("\n"),
     "utf8"
   );
-  await fs.writeFile(path.join(projectRoot, "04_图片提示词", "镜头-001-关键帧.md"), "# 镜头 001 关键帧\n", "utf8");
-  await fs.writeFile(path.join(projectRoot, "05_视频提示词", "镜头-001.md"), "# 镜头 001 视频\n", "utf8");
+  await fs.writeFile(path.join(projectRoot, "04_图片提示词", "镜头组-001", "镜头-001-关键帧-01.md"), "# 镜头 001 关键帧\n", "utf8");
+  await fs.writeFile(path.join(projectRoot, "05_视频提示词", "镜头组-001", "镜头-001.md"), "# 镜头 001 视频\n", "utf8");
   return projectRoot;
 }
 
@@ -128,8 +132,10 @@ describe("MCP tools", () => {
     await expect(tool?.handler({ shotId: "shot-001" })).resolves.toEqual(
       expect.objectContaining({
         id: "shot-001",
+        groupId: "group-001",
         sourcePaths: expect.objectContaining({
-          imagePrompt: "04_图片提示词/镜头-001-关键帧.md"
+          imagePrompt: "04_图片提示词/镜头组-001/镜头-001-关键帧-01.md",
+          imagePrompts: ["04_图片提示词/镜头组-001/镜头-001-关键帧-01.md"]
         })
       })
     );
