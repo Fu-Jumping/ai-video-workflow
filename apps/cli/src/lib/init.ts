@@ -2,7 +2,7 @@ import fs from "fs-extra";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { STEP0_FILES, STEP6_FILES, STORY_KERNEL_FILE, activeStepDirs } from "./constants.js";
+import { DEFAULT_VIDEO_PLATFORM, STEP0_FILES, STEP6_FILES, STEP_DIR_BY_NUMBER, STORY_KERNEL_FILE, activeStepDirs } from "./constants.js";
 import { copyDirectory, writeFileIfMissing } from "./fs-utils.js";
 import { validateSafeDirectoryName } from "./name-validation.js";
 import { resolveRepoRoot } from "./paths.js";
@@ -24,7 +24,7 @@ async function seedProjectDirectories(repoRoot: string, projectRoot: string, sta
     ide: "codex",
     platforms: {
       image: { default: "openai" },
-      video: { default: "runway" }
+      video: { default: DEFAULT_VIDEO_PLATFORM }
     },
     workflow: {
       research_step: {
@@ -38,6 +38,13 @@ async function seedProjectDirectories(repoRoot: string, projectRoot: string, sta
   for (const dir of activeStepDirs(config)) {
     await fs.ensureDir(path.join(projectRoot, dir));
   }
+  for (const step of [3, 4, 5]) {
+    await fs.ensureDir(path.join(projectRoot, STEP_DIR_BY_NUMBER[step], "镜头组-001"));
+  }
+  await writeFileIfMissing(
+    path.join(projectRoot, STEP_DIR_BY_NUMBER[3], "镜头组-001", "00_镜头组说明.md"),
+    await fs.readFile(path.join(repoRoot, "packs", "official-ai-video", "templates", "03_分镜脚本", "镜头组说明.md"), "utf8")
+  );
   if (startFrom === "research") {
     for (const file of STEP0_FILES) {
       await writeFileIfMissing(

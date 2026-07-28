@@ -33,7 +33,8 @@ export const STEP6_FILES = [
 ] as const;
 
 export const SUPPORTED_IDES: Ide[] = ["codex", "cursor", "claude-code", "trae"];
-export const SUPPORTED_PLATFORMS: Platform[] = ["openai", "veo", "runway", "luma", "minimax"];
+export const SUPPORTED_PLATFORMS: Platform[] = ["openai", "veo", "runway", "luma", "minimax", "seedance"];
+export const DEFAULT_VIDEO_PLATFORM: Platform = "seedance";
 export const DEFAULT_PACK = "official-ai-video";
 
 export function researchStepEnabled(config: ProjectConfig): boolean {

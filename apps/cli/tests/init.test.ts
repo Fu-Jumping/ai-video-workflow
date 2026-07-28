@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 
+import { DEFAULT_VIDEO_PLATFORM, SUPPORTED_PLATFORMS } from "../src/lib/constants.js";
 import { createProject } from "../src/lib/init.js";
 
 const tempRoots: string[] = [];
@@ -12,6 +13,11 @@ afterEach(async () => {
 });
 
 describe("createProject", () => {
+  test("uses Seedance as the supported default video platform", () => {
+    expect(DEFAULT_VIDEO_PLATFORM).toBe("seedance");
+    expect(SUPPORTED_PLATFORMS).toContain("seedance");
+  });
+
   test.each([
     "",
     "   ",
@@ -218,6 +224,9 @@ describe("createProject", () => {
     await expect(fs.pathExists(path.join(projectRoot, "00_前期研究", "00_研究总览.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, "00_前期研究", "04_创作简报.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, "01_概念策划"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "03_分镜脚本", "镜头组-001", "00_镜头组说明.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "04_图片提示词", "镜头组-001"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "05_视频提示词", "镜头组-001"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, "06_执行计划", "00_执行计划.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, ".codex", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, ".codex", "skills", "film-workflow", "SKILL.md"))).resolves.toBe(true);

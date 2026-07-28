@@ -3,7 +3,7 @@ import { Command } from "commander";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { DEFAULT_PACK, SUPPORTED_IDES, SUPPORTED_PLATFORMS } from "./lib/constants.js";
+import { DEFAULT_PACK, DEFAULT_VIDEO_PLATFORM, SUPPORTED_IDES, SUPPORTED_PLATFORMS } from "./lib/constants.js";
 import { diagnoseProject } from "./lib/doctor.js";
 import { createProject, renderInitNextSteps } from "./lib/init.js";
 import { runCliAction } from "./lib/cli-errors.js";
@@ -113,7 +113,8 @@ program
       parsedVideoPlatform ??
       (await select({
         message: "Choose the default video platform",
-        choices: SUPPORTED_PLATFORMS.map((value) => ({ name: value, value }))
+        choices: SUPPORTED_PLATFORMS.map((value) => ({ name: value, value })),
+        default: DEFAULT_VIDEO_PLATFORM
       }));
     const startFrom = parsedStartFrom ?? "research";
     const projectRoot = await createProject({

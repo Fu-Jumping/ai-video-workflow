@@ -117,7 +117,7 @@ describe("diagnoseProject", () => {
         {
           code: "broken-step3-step4-link",
           message: "Storyboard file links to missing Step 4 target: missing.md",
-          path: "03_分镜脚本/镜头-001.md"
+          path: "03_分镜脚本/镜头组-001/镜头-001.md"
         }
       ]
     });
@@ -193,14 +193,14 @@ describe("diagnoseProject", () => {
         {
           code: "missing-step5-platform-execution-setting",
           message: "Step 5 prompt must declare platform execution settings",
-          path: "05_视频提示词/镜头-001.md"
+          path: "05_视频提示词/镜头组-001/镜头-001.md"
         }
       ]
     });
 
     expect(output).toContain("Step 5 Contract");
     expect(output).toContain("平台执行设置");
-    expect(output).toContain("默认视频平台");
+    expect(output).toContain("默认视频平台 `platforms.video.default`");
     expect(output).toContain("不要写密钥");
   });
 
@@ -246,7 +246,7 @@ describe("diagnoseProject", () => {
         {
           code: "obsidian-manifest-hash-mismatch",
           message: "Manifest hash does not match generated file",
-          path: "流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md"
+          path: "流程/步骤三 - 分镜脚本/镜头组-001/镜头 001 - 分镜脚本.md"
         }
       ]
     });
@@ -262,8 +262,8 @@ describe("diagnoseProject", () => {
       issues: [
         {
           code: "obsidian-view-stale",
-          message: "Obsidian projection is stale for source file: 03_分镜脚本/镜头-001.md",
-          path: "流程/步骤三 - 分镜脚本/镜头 001 - 分镜脚本.md"
+          message: "Obsidian projection is stale for source file: 03_分镜脚本/镜头组-001/镜头-001.md",
+          path: "流程/步骤三 - 分镜脚本/镜头组-001/镜头 001 - 分镜脚本.md"
         }
       ]
     });

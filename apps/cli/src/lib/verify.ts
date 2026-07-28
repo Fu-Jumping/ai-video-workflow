@@ -20,23 +20,21 @@ import {
   hasReferenceAssetRequirementSection,
   missingReferenceAssets
 } from "./reference-assets.js";
+import { buildShotGraph, keyframeMappedSegment, linkedStepFiles, type ShotGraph } from "./shot-graph.js";
 import type { Ide, Platform, VerificationIssue, VerificationResult } from "./types.js";
 
 const step2Dir = STEP_DIR_BY_NUMBER[2];
-const step3Dir = STEP_DIR_BY_NUMBER[3];
-const step4Dir = STEP_DIR_BY_NUMBER[4];
-const step5Dir = STEP_DIR_BY_NUMBER[5];
 const step6Dir = STEP_DIR_BY_NUMBER[6];
 const step4RequiredSections = ["快速导读", "中文完整版本", "可复制提示词"];
 const step4ForbiddenText = ["参考前文", "同上", "模型应自行理解剧情", "same as previous"];
-const step5PlatformExecutionMarkers = ["## 平台执行设置", "默认视频平台", "输入方式", "开场参考", "时长上限", "画幅", "负面约束"];
+const step5RequiredSections = ["## 元信息", "## 平台执行设置", "## 参考素材映射", "## 可复制提示词", "## 负面约束"];
+const step5PlatformExecutionMarkers = ["默认视频平台", "目标时长", "画幅", "参考素材", "素材上传顺序", "负面约束"];
 const ignoredMarkdownDirs = new Set(["node_modules", ".git"]);
 const ignoredGeneratedViewRootDirs = ["_views", ".obsidian"] as const;
 const ignoredRootMarkdownDirs = new Set([...cherryHostSurfaceDirs, ...ignoredGeneratedViewRootDirs]);
 const ignoredRootMarkdownFiles = new Set(cherryHostSurfaceFiles);
 const absoluteLinkPattern = /([A-Za-z]:\\|[A-Za-z]:\/|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
 const inlineCodePattern = /`[^`\r\n]*`/g;
-const step4LinkPattern = /\]\((?:\.\.\/)?04_图片提示词\/([^)#]+)(?:#[^)]+)?\)/g;
 const runtimeTruthConflictPattern =
   /(runtime mirror|运行镜像).{0,40}(source of truth|事实源|project truth)|(source of truth|事实源|project truth).{0,40}(runtime mirror|运行镜像)/i;
 const runtimeTruthNegationPattern = /(not|不是|并非|only|只).{0,80}(source of truth|事实源|project truth)/i;
@@ -85,11 +83,6 @@ const ideSharedRuntimeEntryPaths: Record<Ide, string[]> = {
 
 function pushIssue(issues: VerificationIssue[], issue: VerificationIssue): void {
   issues.push(issue);
-}
-
-function shotKeyFromFileName(fileName: string): string | undefined {
-  const match = fileName.match(/(?:shot|镜头)[-_ ]?(\d+)/i);
-  return match ? match[1].padStart(3, "0") : undefined;
 }
 
 async function listMarkdownFiles(root: string, current = root): Promise<string[]> {
@@ -215,15 +208,10 @@ async function verifyResearchSensitiveAuthMaterial(projectRoot: string, issues: 
   }
 }
 
-async function verifyStep4(projectRoot: string, issues: VerificationIssue[]): Promise<void> {
-  const dir = path.join(projectRoot, step4Dir);
-  if (!(await fs.pathExists(dir))) {
-    return;
-  }
-  const files = (await fs.readdir(dir)).filter((name) => name.endsWith(".md"));
-  for (const file of files) {
-    const relPath = path.join(step4Dir, file);
-    const content = await fs.readFile(path.join(dir, file), "utf8");
+async function verifyStep4(graph: ShotGraph, issues: VerificationIssue[]): Promise<void> {
+  for (const file of graph.files.filter((candidate) => candidate.step === 4)) {
+    const relPath = file.relPath;
+    const content = file.content;
     for (const section of step4RequiredSections) {
       if (!content.includes(section)) {
         pushIssue(issues, {
@@ -248,6 +236,98 @@ async function verifyStep4(projectRoot: string, issues: VerificationIssue[]): Pr
           path: relPath
         });
       }
+    }
+  }
+}
+
+function verifyShotGraphContract(graph: ShotGraph, issues: VerificationIssue[]): void {
+  for (const group of graph.groups.filter((candidate) => candidate.shots.length > 0 && !candidate.description)) {
+    pushIssue(issues, {
+      code: "missing-shot-group",
+      message: `Shot group ${group.id} must include 00_镜头组说明.md in Step 3`,
+      path: `${STEP_DIR_BY_NUMBER[3]}/${group.directoryName}`
+    });
+  }
+  for (const file of graph.ungroupedShotFiles) {
+    pushIssue(issues, {
+      code: "missing-shot-group",
+      message: "Shot files must live under a 镜头组-001 directory",
+      path: file.relPath
+    });
+  }
+  for (const duplicate of graph.duplicateShotFiles) {
+    pushIssue(issues, {
+      code: "duplicate-shot-id",
+      message: `Shot id ${duplicate.shotId} appears more than once in Step ${duplicate.step}`,
+      path: duplicate.relPaths.join(", ")
+    });
+  }
+  for (const mismatch of graph.groupMismatches) {
+    pushIssue(issues, {
+      code: "shot-group-mismatch",
+      message: `Shot ${mismatch.shotId} is split across groups: ${mismatch.groupIds.join(", ")}`,
+      path: mismatch.relPaths.join(", ")
+    });
+  }
+  for (const shot of graph.shots) {
+    if (!shot.storyboard) {
+      continue;
+    }
+    const segments = shot.storyboardSegments;
+    const consecutive = segments.every((value, index) => value === index + 1);
+    if (segments.length < 1 || segments.length > 4 || !consecutive) {
+      pushIssue(issues, {
+        code: "invalid-storyboard-segment-count",
+        message: `Storyboard ${shot.id} must declare 1-4 consecutive 分镜 sections`,
+        path: shot.storyboard.relPath
+      });
+    }
+    if (shot.imagePrompts.length < 1 || shot.imagePrompts.length > Math.min(4, Math.max(segments.length, 1))) {
+      pushIssue(issues, {
+        code: "invalid-keyframe-mapping",
+        message: `Shot ${shot.id} must select 1-${Math.min(4, Math.max(segments.length, 1))} keyframes`,
+        path: shot.storyboard.relPath
+      });
+    }
+    for (const imagePrompt of shot.imagePrompts) {
+      const mappedSegment = keyframeMappedSegment(imagePrompt.content);
+      const declaredGroup = imagePrompt.content.match(/镜头组\s*[：:]\s*(group-\d{3})/iu)?.[1]?.toLowerCase();
+      const declaredShot = imagePrompt.content.match(/镜头编号\s*[：:]\s*(shot-\d{3})/iu)?.[1]?.toLowerCase();
+      const hasMoment = /关键时刻\s*[：:]\s*\S+/u.test(imagePrompt.content);
+      if (
+        !imagePrompt.keyframeId ||
+        !mappedSegment ||
+        !segments.includes(mappedSegment) ||
+        declaredGroup !== shot.groupId ||
+        declaredShot !== shot.id ||
+        !hasMoment
+      ) {
+        pushIssue(issues, {
+          code: "invalid-keyframe-mapping",
+          message: `Keyframe must declare matching 镜头组、镜头编号、对应分镜和关键时刻 for ${shot.id}`,
+          path: imagePrompt.relPath
+        });
+      }
+    }
+    if (shot.videoPrompt) {
+      const videoShots = shot.videoPromptShots;
+      const videoConsecutive = videoShots.every((value, index) => value === index + 1);
+      if (videoShots.length < 1 || videoShots.length > 4 || !videoConsecutive || videoShots.length !== segments.length) {
+        pushIssue(issues, {
+          code: "invalid-step5-contract",
+          message: `Step 5 ${shot.id} must contain 1-4 continuous 镜头N sections matching Step 3 分镜 count`,
+          path: shot.videoPrompt.relPath
+        });
+      }
+    }
+  }
+  for (const shot of graph.shots.filter((candidate) => !candidate.storyboard && candidate.imagePrompts.length > 0)) {
+    for (const imagePrompt of shot.imagePrompts) {
+      pushIssue(issues, {
+        code: "invalid-keyframe-mapping",
+        message: `Keyframe cannot map without a Step 3 storyboard for ${shot.id}`,
+        path: imagePrompt.relPath
+      });
     }
   }
 }
@@ -278,15 +358,14 @@ async function verifyStep2ReferenceAssets(projectRoot: string, issues: Verificat
   }
 }
 
-async function verifyStep3Step4Traceability(projectRoot: string, issues: VerificationIssue[]): Promise<void> {
-  const storyboardDir = path.join(projectRoot, step3Dir);
-  if (!(await fs.pathExists(storyboardDir))) {
-    return;
-  }
-  const files = (await fs.readdir(storyboardDir)).filter((name) => name.endsWith(".md"));
-  for (const file of files) {
-    const relPath = path.join(step3Dir, file);
-    const content = await fs.readFile(path.join(storyboardDir, file), "utf8");
+async function verifyStep3Step4Traceability(projectRoot: string, graph: ShotGraph, issues: VerificationIssue[]): Promise<void> {
+  const graphPaths = new Set(graph.files.map((file) => file.relPath));
+  for (const shot of graph.shots) {
+    if (!shot.storyboard) {
+      continue;
+    }
+    const relPath = shot.storyboard.relPath;
+    const content = shot.storyboard.content;
     const requiredReferenceAssets = extractReferenceAssets(content);
     if (hasReferenceAssetRequirementSection(content) && requiredReferenceAssets.length === 0) {
       pushIssue(issues, {
@@ -295,8 +374,8 @@ async function verifyStep3Step4Traceability(projectRoot: string, issues: Verific
         path: relPath
       });
     }
-    const matches = [...content.matchAll(step4LinkPattern)];
-    if (matches.length === 0) {
+    const linkedPaths = linkedStepFiles(shot.storyboard, 4);
+    if (linkedPaths.length === 0) {
       pushIssue(issues, {
         code: "missing-step3-step4-link",
         message: "Storyboard file does not link to a Step 4 image prompt",
@@ -304,24 +383,23 @@ async function verifyStep3Step4Traceability(projectRoot: string, issues: Verific
       });
       continue;
     }
-    for (const match of matches) {
-      const target = match[1];
-      if (!target || target.includes("..")) {
-        pushIssue(issues, {
-          code: "broken-step3-step4-link",
-          message: "Storyboard file links to an invalid Step 4 target",
-          path: relPath
-        });
-        continue;
-      }
-      const targetPath = path.join(projectRoot, step4Dir, target);
-      if (!(await fs.pathExists(targetPath))) {
+    for (const target of linkedPaths) {
+      const targetPath = path.join(projectRoot, ...target.split("/"));
+      if (!graphPaths.has(target) || !(await fs.pathExists(targetPath))) {
         pushIssue(issues, {
           code: "broken-step3-step4-link",
           message: `Storyboard file links to missing Step 4 target: ${target}`,
           path: relPath
         });
         continue;
+      }
+      const linkedFile = graph.files.find((file) => file.relPath === target);
+      if (linkedFile && (linkedFile.shotId !== shot.id || linkedFile.groupId !== shot.groupId)) {
+        pushIssue(issues, {
+          code: "invalid-keyframe-mapping",
+          message: `Storyboard ${shot.id} links a keyframe from another shot or group: ${target}`,
+          path: relPath
+        });
       }
       if (requiredReferenceAssets.length > 0) {
         const step4Content = await fs.readFile(targetPath, "utf8");
@@ -330,48 +408,34 @@ async function verifyStep3Step4Traceability(projectRoot: string, issues: Verific
           pushIssue(issues, {
             code: "missing-step4-reference-asset",
             message: `Step 4 prompt must include required reference asset: ${asset.token}`,
-            path: path.join(step4Dir, target)
+            path: target
           });
         }
+      }
+    }
+    for (const imagePrompt of shot.imagePrompts) {
+      if (!linkedPaths.includes(imagePrompt.relPath)) {
+        pushIssue(issues, {
+          code: "invalid-keyframe-mapping",
+          message: `Storyboard must link selected keyframe: ${imagePrompt.relPath}`,
+          path: relPath
+        });
       }
     }
   }
 }
 
-async function verifyStep4Step5ReferenceAssets(projectRoot: string, issues: VerificationIssue[]): Promise<void> {
-  const imageDir = path.join(projectRoot, step4Dir);
-  const videoDir = path.join(projectRoot, step5Dir);
-  if (!(await fs.pathExists(imageDir)) || !(await fs.pathExists(videoDir))) {
-    return;
-  }
-
-  const videoFiles = (await fs.readdir(videoDir)).filter((name) => name.endsWith(".md"));
-  const videoByShot = new Map<string, string>();
-  for (const file of videoFiles) {
-    const shotKey = shotKeyFromFileName(file);
-    if (shotKey) {
-      videoByShot.set(shotKey, file);
-    }
-  }
-
-  const imageFiles = (await fs.readdir(imageDir)).filter((name) => name.endsWith(".md"));
-  for (const file of imageFiles) {
-    const shotKey = shotKeyFromFileName(file);
-    if (!shotKey) {
+async function verifyStep4Step5ReferenceAssets(graph: ShotGraph, issues: VerificationIssue[]): Promise<void> {
+  for (const shot of graph.shots) {
+    if (!shot.videoPrompt || shot.imagePrompts.length === 0) {
       continue;
     }
-    const videoFile = videoByShot.get(shotKey);
-    if (!videoFile) {
-      continue;
-    }
-    const imageContent = await fs.readFile(path.join(imageDir, file), "utf8");
-    const requiredReferenceAssets = extractReferenceAssets(imageContent);
+    const requiredReferenceAssets = shot.imagePrompts.flatMap((imagePrompt) => extractReferenceAssets(imagePrompt.content));
     if (requiredReferenceAssets.length === 0) {
       continue;
     }
-    const videoRelPath = path.join(step5Dir, videoFile);
-    const videoContent = await fs.readFile(path.join(videoDir, videoFile), "utf8");
-    const missingAssets = missingReferenceAssets(requiredReferenceAssets, extractReferenceAssets(videoContent));
+    const videoRelPath = shot.videoPrompt.relPath;
+    const missingAssets = missingReferenceAssets(requiredReferenceAssets, extractReferenceAssets(shot.videoPrompt.content));
     for (const asset of missingAssets) {
       pushIssue(issues, {
         code: "missing-step5-reference-asset",
@@ -383,24 +447,33 @@ async function verifyStep4Step5ReferenceAssets(projectRoot: string, issues: Veri
 }
 
 async function verifyStep5PlatformExecutionSettings(
-  projectRoot: string,
+  graph: ShotGraph,
   defaultVideoPlatform: Platform,
   issues: VerificationIssue[]
 ): Promise<void> {
-  const videoDir = path.join(projectRoot, step5Dir);
-  if (!(await fs.pathExists(videoDir))) {
-    return;
-  }
-
-  const files = (await fs.readdir(videoDir)).filter((name) => name.endsWith(".md"));
-  for (const file of files) {
-    const relPath = path.join(step5Dir, file);
-    const content = await fs.readFile(path.join(videoDir, file), "utf8");
+  for (const file of graph.files.filter((candidate) => candidate.step === 5)) {
+    const relPath = file.relPath;
+    const content = file.content;
+    const missingSection = step5RequiredSections.find((section) => !content.includes(section));
     const missingMarker = step5PlatformExecutionMarkers.find((marker) => !content.includes(marker));
-    if (missingMarker || !content.includes(defaultVideoPlatform)) {
+    const copyPrompt = content.match(/## 可复制提示词\s*([\s\S]*?)(?=\n## |$)/u)?.[1] ?? "";
+    const seedanceSettingsMissing =
+      defaultVideoPlatform === "seedance" && (!content.includes("Seedance 2.0") || !content.includes("全能参考模式"));
+    const driftingMixedSlot = /\{\{Mixed\s*\d+\}\}/iu.test(content);
+    if (
+      missingSection ||
+      missingMarker ||
+      !content.includes(defaultVideoPlatform) ||
+      seedanceSettingsMissing ||
+      !copyPrompt.includes("无配乐") ||
+      !copyPrompt.includes("无字幕") ||
+      driftingMixedSlot
+    ) {
       pushIssue(issues, {
-        code: "missing-step5-platform-execution-setting",
-        message: `Step 5 prompt must declare platform execution settings for default video platform: ${defaultVideoPlatform}`,
+        code: missingSection || !copyPrompt.includes("无配乐") || !copyPrompt.includes("无字幕") || driftingMixedSlot
+          ? "invalid-step5-contract"
+          : "missing-step5-platform-execution-setting",
+        message: `Step 5 must use the formal prompt contract for ${defaultVideoPlatform}, semantic references, 无配乐 and 无字幕`,
         path: relPath
       });
     }
@@ -563,12 +636,14 @@ export async function verifyProject({
   }
   await verifyStep6(projectRoot, issues);
   await verifyStep2ReferenceAssets(projectRoot, issues);
-  await verifyStep4(projectRoot, issues);
-  await verifyStep3Step4Traceability(projectRoot, issues);
-  await verifyStep4Step5ReferenceAssets(projectRoot, issues);
+  const shotGraph = await buildShotGraph(projectRoot);
+  verifyShotGraphContract(shotGraph, issues);
+  await verifyStep4(shotGraph, issues);
+  await verifyStep3Step4Traceability(projectRoot, shotGraph, issues);
+  await verifyStep4Step5ReferenceAssets(shotGraph, issues);
   await verifyResearchSensitiveAuthMaterial(projectRoot, issues);
   if (config?.platforms.video.default) {
-    await verifyStep5PlatformExecutionSettings(projectRoot, config.platforms.video.default, issues);
+    await verifyStep5PlatformExecutionSettings(shotGraph, config.platforms.video.default, issues);
   }
   await verifyRelativeMarkdownLinks(projectRoot, issues);
   await verifyIdeRuntime(projectRoot, ide, issues);

@@ -19,6 +19,12 @@ const groups: Record<string, string> = {
   "missing-step4-section": "Step 4 Contract",
   "step4-forbidden-text": "Step 4 Contract",
   "missing-step5-platform-execution-setting": "Step 5 Contract",
+  "invalid-step5-contract": "Step 5 Contract",
+  "missing-shot-group": "Shot Graph",
+  "duplicate-shot-id": "Shot Graph",
+  "shot-group-mismatch": "Shot Graph",
+  "invalid-storyboard-segment-count": "Shot Graph",
+  "invalid-keyframe-mapping": "Shot Graph",
   "absolute-path-link": "Links",
   "missing-ide-runtime": "IDE Runtime",
   "missing-shared-agent-entry": "Shared Agent Workspace",
@@ -130,7 +136,22 @@ export async function diagnoseProject({
         lines.push("  Replace inherited or context-dependent wording with a self-contained visual prompt.");
       }
       if (issue.code === "missing-step5-platform-execution-setting") {
-        lines.push("  在对应 Step 5 文件补 `## 平台执行设置`，写清默认视频平台、输入方式、开场参考、时长上限、画幅和负面约束；不要写密钥、账号、绝对路径或平台缓存。");
+        lines.push("  在对应 Step 5 文件的 `平台执行设置` 补齐 Seedance 2.0 全能参考模式、目标时长、画幅、参考素材、素材上传顺序和负面约束，并与 `project.config.yaml` 的默认视频平台 `platforms.video.default` 保持一致；不要写密钥、账号、绝对路径或平台缓存。");
+      }
+      if (issue.code === "invalid-step5-contract") {
+        lines.push("  按 `元信息 / 平台执行设置 / 参考素材映射 / 可复制提示词 / 负面约束` 重建文件；镜头段从 `镜头1：` 连续编号，并在全局收束中显式写 `无配乐、无字幕`。");
+      }
+      if (issue.code === "missing-shot-group") {
+        lines.push("  把 Step 3/4/5 镜头文件移动到匹配的 `镜头组-001/`，并在 Step 3 组目录补 `00_镜头组说明.md`。");
+      }
+      if (issue.code === "duplicate-shot-id" || issue.code === "shot-group-mismatch") {
+        lines.push("  保证镜头编号在项目内全局唯一，并让同一镜头的 Step 3/4/5 文件位于同一个镜头组。");
+      }
+      if (issue.code === "invalid-storyboard-segment-count") {
+        lines.push("  在 Step 3 使用 1-4 个从 `分镜 1` 开始连续编号的分镜；默认 1-2 个，复杂内容最多 4 个。");
+      }
+      if (issue.code === "invalid-keyframe-mapping") {
+        lines.push("  使用 `镜头-001-关键帧-01.md`，在 Step 4 元信息写清镜头组、镜头编号、对应分镜和关键时刻，并让 Step 3 链接全部已选关键帧。");
       }
       if (issue.code === "missing-ide-runtime") {
         const ide = ideForRuntimeIssue(issue);

@@ -364,7 +364,7 @@ describe("built CLI", () => {
     const cliRoot = path.resolve(__dirname, "..");
     const repoRoot = path.resolve(cliRoot, "..", "..");
     const projectRoot = await seedOfficialExampleProject("ai-video-workflow-cli-clean-view-step-");
-    const stepFourProjection = path.join(projectRoot, "_views", "obsidian", "流程", "步骤四 - 图片提示词", "镜头 002 关键帧 - 图片提示词.md");
+    const stepFourProjection = path.join(projectRoot, "_views", "obsidian", "流程", "步骤四 - 图片提示词", "镜头组-001", "镜头 002 关键帧 01 - 图片提示词.md");
 
     await buildCli(cliRoot);
     await exportInProjectView(cliRoot, projectRoot);
@@ -381,7 +381,7 @@ describe("built CLI", () => {
     expect(stdout).toContain("cleanup risk: low");
     expect(stdout).toContain("matched generated files by type:");
     expect(stdout).toContain("workflow-notes: 3");
-    expect(stdout).toContain("流程/步骤四 - 图片提示词/镜头 002 关键帧 - 图片提示词.md");
+    expect(stdout).toContain("流程/步骤四 - 图片提示词/镜头组-001/镜头 002 关键帧 01 - 图片提示词.md");
     expect(stdout).toContain("next command:");
     expect(stdout).toContain("--step 4");
     await expect(fs.pathExists(stepFourProjection)).resolves.toBe(true);
@@ -417,15 +417,15 @@ describe("built CLI", () => {
     const repoRoot = path.resolve(cliRoot, "..", "..");
     const projectRoot = await seedOfficialExampleProject("ai-video-workflow-cli-rebuild-view-shot-");
     const vaultRoot = path.join(projectRoot, "_views", "obsidian");
-    const shotTwoProjection = path.join(vaultRoot, "流程", "步骤四 - 图片提示词", "镜头 002 关键帧 - 图片提示词.md");
-    const shotOneProjection = path.join(vaultRoot, "流程", "步骤四 - 图片提示词", "镜头 001 关键帧 - 图片提示词.md");
+    const shotTwoProjection = path.join(vaultRoot, "流程", "步骤四 - 图片提示词", "镜头组-001", "镜头 002 关键帧 01 - 图片提示词.md");
+    const shotOneProjection = path.join(vaultRoot, "流程", "步骤四 - 图片提示词", "镜头组-001", "镜头 001 关键帧 01 - 图片提示词.md");
     const userNote = path.join(vaultRoot, "笔记", "manual-review.md");
 
     await buildCli(cliRoot);
     await exportInProjectView(cliRoot, projectRoot);
     const shotOneBefore = await fs.readFile(shotOneProjection, "utf8");
     await fs.writeFile(userNote, "# 手写审阅\n\n局部重建也应该保留。\n", "utf8");
-    await fs.appendFile(path.join(projectRoot, "04_图片提示词", "镜头-002-关键帧.md"), "\nCLI 局部重建后应该进入镜头 002。\n", "utf8");
+    await fs.appendFile(path.join(projectRoot, "04_图片提示词", "镜头组-001", "镜头-002-关键帧-01.md"), "\nCLI 局部重建后应该进入镜头 002。\n", "utf8");
     const { stdout } = await run(
       process.execPath,
       [path.join(cliRoot, "dist", "index.js"), "rebuild-view", "--project", projectRoot, "--shot", "2"],
@@ -629,7 +629,7 @@ describe("built CLI", () => {
 
     expect(stdout).toContain("\"shots\"");
     expect(stdout).toContain("\"verificationCommands\"");
-    expect(stdout).toContain("04_图片提示词/镜头-001-关键帧.md");
+    expect(stdout).toContain("04_图片提示词/镜头组-001/镜头-001-关键帧-01.md");
     expect(stdout).not.toMatch(/[A-Z]:\\\\|[A-Z]:\\\/|file:\/\/|vscode:\/\//);
   });
 
