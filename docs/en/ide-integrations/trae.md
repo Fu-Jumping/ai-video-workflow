@@ -24,7 +24,7 @@ Trae should read `AGENTS.md`, then `.trae/rules/ai-video-workflow.md`, then the 
 
 ## Adapter Contract
 
-- Reads: `packs/official-ai-video/`, `project.config.yaml`, and project Step 1 to Step 6 files.
+- Reads: `packs/official-ai-video/`, `project.config.yaml`, and the enabled project Step files; research mode includes Step 0 through Step 6, while script mode includes Step 1 through Step 6.
 - Writes: `AGENTS.md`, `.trae/skills/`, `.trae/rules/`, `.trae/specs/ai-video-workflow/`, and `.trae/documents/ai-video-workflow/`.
 - Must not write: source Step files, generated Obsidian projection files, user `.obsidian/` config, `CLAUDE.md`, or absolute links.
 - Sync direction: `runtime-mirror`.

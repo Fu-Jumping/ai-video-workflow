@@ -1,5 +1,5 @@
 import { SUPPORTED_IDES, SUPPORTED_PLATFORMS } from "./constants.js";
-import type { Ide, Platform } from "./types.js";
+import type { Ide, Platform, StartFromMode } from "./types.js";
 import { CliUserError } from "./cli-errors.js";
 
 function levenshtein(left: string, right: string): number {
@@ -53,4 +53,8 @@ export function parseIde(value: string | undefined): Ide | undefined {
 
 export function parsePlatform(value: string | undefined, label: string): Platform | undefined {
   return parseChoice(value, SUPPORTED_PLATFORMS, label);
+}
+
+export function parseStartFrom(value: string | undefined): StartFromMode | undefined {
+  return parseChoice(value, ["research", "script"] as const, "start-from mode");
 }

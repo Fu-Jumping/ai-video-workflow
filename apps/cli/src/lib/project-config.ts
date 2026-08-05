@@ -18,6 +18,9 @@ const projectConfigSchema = z.object({
     })
   }),
   workflow: z.object({
+    research_step: z.object({
+      enabled: z.boolean()
+    }).optional(),
     enhanced_flow: z.object({
       enabled: z.boolean()
     })

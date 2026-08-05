@@ -1,13 +1,13 @@
 sharedWorkspace:
   rootEntry: "AGENTS.md"
-  docsDir: "docs/ai-workspace"
+  docsDir: "文档/智能体工作区"
   requiredDocs:
-    - "README.md"
-    - "BOUNDARIES.md"
-    - "HANDOFFS.md"
-    - "SECURITY.md"
-    - "PLATFORM_MATRIX.md"
-    - "ENTRYPOINT_RECONCILIATION.md"
+    - "入口说明.md"
+    - "边界说明.md"
+    - "智能体交接.md"
+    - "安全边界.md"
+    - "平台矩阵.md"
+    - "入口协调.md"
 syncTargets:
   codex:
     mirrorDir: ".codex/ai-video-workflow"

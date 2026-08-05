@@ -12,6 +12,7 @@ import {
   renderProjectionManifest
 } from "./manifest.js";
 import { renderGeneratedWorkflowNote, workflowVaultPath } from "./markdown.js";
+import { hasGeneratedFrontmatterMarker } from "./properties.js";
 import { sourcePathToFsPath } from "./paths.js";
 import { scanProjectForObsidian } from "./scan.js";
 import type {
@@ -57,7 +58,7 @@ async function assertSafeOutput(projectRoot: string, outRoot: string, inProjectV
   if (resolvedOut === resolvedProject) {
     throw new CliUserError("Obsidian export output cannot be the project root");
   }
-  if (path.parse(resolvedOut).root === resolvedOut || resolvedProject.startsWith(`${resolvedOut}${path.sep}`)) {
+  if (path.parse(resolvedOut).root === resolvedOut || isInsidePath(resolvedProject, resolvedOut)) {
     throw new CliUserError("Obsidian export output must be a dedicated directory, not a filesystem root or project parent");
   }
   const expectedInProjectView = resolveInProjectObsidianView(resolvedProject);
@@ -84,7 +85,7 @@ async function assertSafeForceOutput(outRoot: string): Promise<void> {
   const entries = await fs.readdir(outRoot);
   const hasManifest = await fs.pathExists(vaultFsPath(outRoot, projectionManifestPath));
   if (entries.length > 0 && !hasManifest) {
-    throw new CliUserError("Refusing to force-remove a non-empty Obsidian output directory without Projection Manifest.json");
+    throw new CliUserError(`Refusing to force-remove a non-empty Obsidian output directory without ${projectionManifestPath}`);
   }
 }
 
@@ -107,7 +108,7 @@ async function isKnownGeneratedFileWithoutManifest(fullPath: string): Promise<bo
     return false;
   }
   const content = await fs.readFile(fullPath, "utf8");
-  return content.startsWith("---\n") && content.includes("\nprojection_generated: true\n");
+  return hasGeneratedFrontmatterMarker(content);
 }
 
 function manifestByVaultPath(manifest: ObsidianProjectionManifest | null): Map<string, ObsidianProjectionManifestEntry> {
@@ -265,7 +266,7 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
     const originalContent = await fs.readFile(sourcePathToFsPath(projectRoot, sourceFile.sourcePath), "utf8");
     workflowFiles.push({
       vaultPath: workflowVaultPath(sourceFile),
-      content: renderGeneratedWorkflowNote(sourceFile, originalContent, projectName),
+      content: renderGeneratedWorkflowNote(sourceFile, originalContent, projectName, sourceFiles),
       sourcePath: sourceFile.sourcePath,
       sourceContent: originalContent
     });

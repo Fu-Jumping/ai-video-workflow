@@ -42,7 +42,7 @@
 `film-workflow` 是总路由技能，用来判断当前请求属于：
 
 - 工作流母包维护
-- 项目级 Step 1 到 Step 6 执行
+- 项目级 Step 0 到 Step 6 执行
 - 已完成步骤中的局部修订与影响分析
 
 ### 解析优先级
@@ -61,18 +61,20 @@
 2. 若属于母包维护，只修改母包与运行镜像，不修改项目交付层。
 3. 若属于项目执行，只进入一个正确步骤，不混写多个步骤。
 4. 若属于已完成步骤中的局部修订，先做影响分析，再决定是否扩散修订。
+5. 若请求涉及真实资料、现实原型、新闻、采访、历史或评论样本，优先路由到 Step 0，除非用户明确已有完整剧本并跳过研究。
 
 ### 全局口径
 
 - Step 3 服务给人理解，允许简短叙事作用，但主描述必须立足可见事实。
 - Step 4 服务给模型看，默认平台为 项目默认图片平台，默认模型为 项目默认模型配置。
-- Step 4 正式文件固定包含 `快速导读`、`中文完整版本`、`English Version (Copy Ready)`。
-- Step 5 默认消费 Step 4 的 `English Version (Copy Ready)`。
+- Step 4 正式文件固定包含 `快速导读`、`中文完整版本`、`可复制提示词`。
+- Step 5 默认消费 Step 4 的 `可复制提示词`，必要时回读 `中文完整版本`。
 - Step 3、Step 4、Step 5 默认分别按一镜头卡、一关键帧文件、一动作链文件组织。
 - 若维护的是官方 pack，修改 `packs/official-ai-video/` 后必须同步 `.codex/ai-video-workflow/`；修改 `packs/official-ai-video/skills/` 后还必须同步 `.codex/skills/`。
 
 ### 路由映射
 
+- Step 0 -> `film-researcher`
 - Step 1 -> `film-planner`
 - Step 2 -> `film-setter`
 - Step 3 -> `film-storyboarder`

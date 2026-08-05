@@ -1,11 +1,14 @@
 import type { VerificationIssue } from "./types.js";
-import { sharedAgentEntryMergeBlock } from "./agent-workspace.js";
+import { sharedAgentDocsDir, sharedAgentEntryMergeBlock } from "./agent-workspace.js";
 
 const groups: Record<string, string> = {
   "missing-project-root": "Project Root",
   "project-root-not-directory": "Project Root",
   "invalid-sync-target": "Project Root",
   "nested-project": "Project Root",
+  "missing-step0-file": "Step 0 Research",
+  "invalid-research-source-id": "Step 0 Research",
+  "research-sensitive-auth-material": "Step 0 Research",
   "missing-step6-file": "Structure",
   "missing-config": "Structure",
   "invalid-project-config": "Configuration",
@@ -15,6 +18,13 @@ const groups: Record<string, string> = {
   "missing-video-default-platform": "Configuration",
   "missing-step4-section": "Step 4 Contract",
   "step4-forbidden-text": "Step 4 Contract",
+  "missing-step5-platform-execution-setting": "Step 5 Contract",
+  "invalid-step5-contract": "Step 5 Contract",
+  "missing-shot-group": "Shot Graph",
+  "duplicate-shot-id": "Shot Graph",
+  "shot-group-mismatch": "Shot Graph",
+  "invalid-storyboard-segment-count": "Shot Graph",
+  "invalid-keyframe-mapping": "Shot Graph",
   "absolute-path-link": "Links",
   "missing-ide-runtime": "IDE Runtime",
   "missing-shared-agent-entry": "Shared Agent Workspace",
@@ -110,11 +120,38 @@ export async function diagnoseProject({
       if (issue.code === "missing-step6-file") {
         lines.push("  Restore the missing Step 6 execution plan file.");
       }
+      if (issue.code === "missing-step0-file") {
+        lines.push("  Restore the missing Step 0 research template file, or set `workflow.research_step.enabled: false` only if this project starts from a complete script.");
+      }
+      if (issue.code === "invalid-research-source-id") {
+        lines.push("  Rename the research source directory to the stable `SRC-0001` format.");
+      }
+      if (issue.code === "research-sensitive-auth-material") {
+        lines.push("  Remove cookies, tokens, account data, private messages, or browser login state from project text files. Keep them only in ignored local runtime/profile storage.");
+      }
       if (issue.code === "missing-step4-section") {
-        lines.push("  Restore the Step 4 sections: `快速导读`, `中文完整版本`, and `English Version (Copy Ready)`, plus `避免:` and `Avoid:`.");
+        lines.push("  恢复步骤四必需段落：`快速导读`、`中文完整版本`、`可复制提示词`，并补齐 `避免：`。");
       }
       if (issue.code === "step4-forbidden-text") {
         lines.push("  Replace inherited or context-dependent wording with a self-contained visual prompt.");
+      }
+      if (issue.code === "missing-step5-platform-execution-setting") {
+        lines.push("  在对应 Step 5 文件的 `平台执行设置` 补齐 Seedance 2.0 全能参考模式、目标时长、画幅、参考素材、素材上传顺序和负面约束，并与 `project.config.yaml` 的默认视频平台 `platforms.video.default` 保持一致；不要写密钥、账号、绝对路径或平台缓存。");
+      }
+      if (issue.code === "invalid-step5-contract") {
+        lines.push("  按 `元信息 / 平台执行设置 / 参考素材映射 / 可复制提示词 / 负面约束` 重建文件；镜头段从 `镜头1：` 连续编号，并在全局收束中显式写 `无配乐、无字幕`。");
+      }
+      if (issue.code === "missing-shot-group") {
+        lines.push("  把 Step 3/4/5 镜头文件移动到匹配的 `镜头组-001/`，并在 Step 3 组目录补 `00_镜头组说明.md`。");
+      }
+      if (issue.code === "duplicate-shot-id" || issue.code === "shot-group-mismatch") {
+        lines.push("  保证镜头编号在项目内全局唯一，并让同一镜头的 Step 3/4/5 文件位于同一个镜头组。");
+      }
+      if (issue.code === "invalid-storyboard-segment-count") {
+        lines.push("  在 Step 3 使用 1-4 个从 `分镜 1` 开始连续编号的分镜；默认 1-2 个，复杂内容最多 4 个。");
+      }
+      if (issue.code === "invalid-keyframe-mapping") {
+        lines.push("  使用 `镜头-001-关键帧-01.md`，在 Step 4 元信息写清镜头组、镜头编号、对应分镜和关键时刻，并让 Step 3 链接全部已选关键帧。");
       }
       if (issue.code === "missing-ide-runtime") {
         const ide = ideForRuntimeIssue(issue);
@@ -137,7 +174,7 @@ export async function diagnoseProject({
         lines.push("  Do not copy Cherry Studio private memory, tokens, local paths, or platform caches into project truth.");
       }
       if (issue.code === "agent-runtime-conflict") {
-        lines.push("  Regenerate the platform runtime mirror with `ai-video-workflow sync --project <path> --ide <id>`, then keep platform-specific rules aligned with `AGENTS.md` and `docs/ai-workspace/`.");
+        lines.push(`  Regenerate the platform runtime mirror with \`ai-video-workflow sync --project <path> --ide <id>\`, then keep platform-specific rules aligned with \`AGENTS.md\` and \`${sharedAgentDocsDir}/\`.`);
       }
       if (issue.code === "missing-step3-step4-link") {
         lines.push("  Add a relative link from the storyboard card to the matching Step 4 image prompt.");
@@ -155,10 +192,10 @@ export async function diagnoseProject({
         lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view`; do not hand-edit generated Canvas JSON.");
       }
       if (issue.code === "invalid-obsidian-shot-review") {
-        lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so each `Shots/` page and `Canvas/Shot Reviews/` canvas matches the current single-shot review format.");
+        lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so each `镜头/` page and `画布/镜头审阅/` canvas matches the current single-shot review format.");
       }
       if (issue.code === "invalid-obsidian-agent-handoff") {
-        lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so `04_Agent_Handoff.md` and each `Shots/` page expose copy-ready agent context. Edit source Step files, not generated projection files.");
+        lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so `04_智能体交接.md` and each `镜头/` page expose copy-ready agent context. Edit source Step files, not generated projection files.");
       }
       if (issue.code === "invalid-obsidian-ui-config") {
         lines.push("  Delete or regenerate `.obsidian/ai-video-workflow-suggested/`; these files are optional UI suggestions, not project truth.");
@@ -167,7 +204,7 @@ export async function diagnoseProject({
         lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view`; do not hand-edit generated `.base` YAML.");
       }
       if (issue.code === "missing-obsidian-source-path" || issue.code === "broken-obsidian-source-path") {
-        lines.push("  Regenerate the projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so each generated note records a valid relative `source_path`.");
+        lines.push("  Regenerate the projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so each generated note records a valid relative `源文件路径`.");
       }
       if (issue.code === "obsidian-absolute-link") {
         lines.push("  Replace the Obsidian projection link with a vault-relative path or regenerate the projection with `ai-video-workflow export-obsidian --project <path> --in-project-view`.");
@@ -176,7 +213,7 @@ export async function diagnoseProject({
         lines.push("  Rerun `ai-video-workflow export-obsidian --project <path> --in-project-view` to refresh the projection manifest, or use `--out <vault>` for an external vault.");
       }
       if (issue.code === "obsidian-manifest-hash-mismatch") {
-        lines.push("  Review the modified generated file, move user notes into `Notes/`, then rerun `ai-video-workflow export-obsidian --project <path> --in-project-view` or use `--force` for a clean rebuild.");
+        lines.push("  Review the modified generated file, move user notes into `笔记/`, then rerun `ai-video-workflow export-obsidian --project <path> --in-project-view` or use `--force` for a clean rebuild.");
       }
       if (issue.code === "obsidian-manifest-source-mismatch") {
         lines.push("  Regenerate the projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` and confirm each manifest `sourcePath` points to a project-relative Step file.");

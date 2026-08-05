@@ -7,13 +7,13 @@ Cherry Studio 在 v0.6 中被视为工作目录型智能体 adapter，不是 `sy
 把 Cherry Studio Agent 的工作目录指向项目根目录。在 Agent prompt 中要求它先读：
 
 1. `AGENTS.md`
-2. `docs/ai-workspace/README.md`
-3. `docs/ai-workspace/BOUNDARIES.md`
+2. `文档/智能体工作区/入口说明.md`
+3. `文档/智能体工作区/边界说明.md`
 4. 源 Step 文件
 
 当需要修改项目事实时，只编辑 Step 文件。
 
-Cherry Studio 可能会在工作目录根部自动创建 `SOUL.md`、`USER.md` 和 `memory/`。这些文件允许存在，但默认不改变 ai-video-workflow 的事实源模型：`AGENTS.md` 和 `docs/ai-workspace/` 仍是跨智能体入口，Step 文件仍是创作事实源。
+Cherry Studio 可能会在工作目录根部自动创建 `SOUL.md`、`USER.md` 和 `memory/`。这些文件允许存在，但默认不改变 ai-video-workflow 的事实源模型：`AGENTS.md` 和 `文档/智能体工作区/` 仍是跨智能体入口，Step 文件仍是创作事实源。
 
 ## 初始化顺序
 
@@ -46,7 +46,7 @@ Cherry Studio 可以与项目共用工作目录，但宿主级记忆仍然在工
 
 ## Adapter Contract
 
-- 读取：`AGENTS.md`、`docs/ai-workspace/`、项目 Step 文件。
+- 读取：`AGENTS.md`、`文档/智能体工作区/`、项目 Step 文件。
 - 写入：v0.6 不生成 Cherry Studio runtime 文件。
 - 同步方向：`read-only-context`。
 - 事实源：`project-step-files`。

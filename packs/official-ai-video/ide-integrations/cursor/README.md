@@ -17,7 +17,7 @@
 
 `.cursor/` 是 Cursor 在当前项目中的原生运行目录。若规则不落到 `.cursor/rules/` 等可识别位置，不能假设 Cursor 会稳定读取这些规则。
 
-跨平台读取时，先读项目根 `AGENTS.md` 和 `docs/ai-workspace/`，再进入 `.cursor/` runtime mirror。
+跨平台读取时，先读项目根 `AGENTS.md` 和 `文档/智能体工作区/`，再进入 `.cursor/` runtime mirror。
 
 ## 3. 检测顺序
 
@@ -45,7 +45,7 @@
 当项目需要更细拆分时，再补：
 
 - 总路由规则
-- Step 1 到 Step 6 的步骤规则
+- 已启用步骤的规则；研究模式包含 Step 0 到 Step 6，剧本模式包含 Step 1 到 Step 6
 - 模板索引规则
 
 ## 5. 落位原则
@@ -57,7 +57,7 @@
 
 ## 5.0 Adapter Contract
 
-- 读取：`packs/official-ai-video/`、`project.config.yaml` 和项目 Step 1 到 Step 6 文件。
+- 读取：`packs/official-ai-video/`、`project.config.yaml` 和项目已启用步骤文件。
 - 写入：`.cursor/rules/` 规则入口、`.cursor/skills/` 技能入口和 `.cursor/ai-video-workflow/` 完整运行镜像。
 - 同步方向：`runtime-mirror`。
 - 事实源：`project-step-files`，而不是 `.cursor/` 运行镜像。

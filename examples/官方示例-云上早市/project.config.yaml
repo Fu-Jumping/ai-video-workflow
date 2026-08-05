@@ -1,0 +1,12 @@
+pack: official-ai-video
+ide: codex
+platforms:
+  image:
+    default: openai
+  video:
+    default: seedance
+workflow:
+  research_step:
+    enabled: true
+  enhanced_flow:
+    enabled: true

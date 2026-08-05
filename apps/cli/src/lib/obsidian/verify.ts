@@ -1,49 +1,55 @@
 import fs from "fs-extra";
 import path from "node:path";
 
-import { STEP_DIRS } from "../constants.js";
+import { activeStepDirs } from "../constants.js";
 import { readProjectConfig } from "../project-config.js";
 import type { VerificationIssue, VerificationResult } from "../types.js";
 import { projectRootIssues } from "../project-root.js";
 import { parseYaml } from "../yaml.js";
 import { hashContent, projectionManifestPath, readProjectionManifest } from "./manifest.js";
+import { frontmatterValue, isGeneratedFrontmatter, obsidianPropertyValues } from "./properties.js";
+import { notesIndexPath } from "./routes.js";
 import type { ObsidianProjectionManifest, ObsidianProjectionManifestEntry } from "./types.js";
 
 const requiredDashboardMarkers: Record<string, string[]> = {
-  "00_Project_Home.md": ["Review Command Center", "Project Health", "Shot Progress", "Execution Readiness", "Graph and Canvas Navigation"],
-  "01_Review_Dashboard.md": ["Needs Attention", "Ready for Execution", "Generated File Conflicts", "Review Map"],
-  "03_Production_Board.md": ["Execution Readiness", "Production Status", "Handoff Links"]
+  "00_项目首页.md": ["## 1. 打开路线", "## 2. 审阅入口", "## 3. 镜头组入口", "## 4. 镜头入口", "## 5. 项目状态", "### 6.1 画布导航"],
+  "01_审阅总览.md": ["## 1. 需要关注", "## 2. 执行就绪", "## 3. 审阅地图", "## 4. 镜头审阅画布"],
+  "02_镜头索引.md": ["## 1. 镜头组入口", "## 2. 镜头入口", "## 3. 镜头表", "## 4. 镜头进度", "## 5. 沉浸式审阅表"],
+  "03_制作看板.md": ["## 1. 执行就绪", "## 2. 制作状态", "## 3. 镜头进度", "## 4. 导航"]
 };
-const requiredBaseFiles = ["Bases/Workflow Files.base", "Bases/Shots.base", "Bases/Production Status.base"];
+const requiredBaseFiles = ["数据表/流程文件.base", "数据表/镜头.base", "数据表/制作状态.base"];
 const requiredBaseViews: Record<string, string[]> = {
-  "Bases/Workflow Files.base": ["Workflow Files", "Review Queue", "Modified Generated Files"],
-  "Bases/Shots.base": ["Shot Table", "Shot Cards", "Shot Progress", "Immersive Review", "Agent Handoff"],
-  "Bases/Production Status.base": ["Production Status", "Execution Readiness"]
+  "数据表/流程文件.base": ["流程文件", "审阅队列", "已改动生成文件"],
+  "数据表/镜头.base": ["镜头表", "镜头卡片", "镜头进度", "沉浸式审阅", "智能体交接"],
+  "数据表/制作状态.base": ["制作状态", "执行就绪"]
 };
-const requiredCanvasFiles = ["Canvas/Workflow Map.canvas", "Canvas/Shot Pipeline.canvas", "Canvas/Review Map.canvas"];
-const agentHandoffPath = "04_Agent_Handoff.md";
-const requiredAgentHandoffMarkers = ["Agent Handoff", "Copy-ready Prompts", "Source Editing Boundary", "Verification Commands"];
+const requiredCanvasFiles = ["画布/流程图.canvas", "画布/镜头流水线.canvas", "画布/审阅地图.canvas"];
+const agentHandoffPath = "04_智能体交接.md";
+const requiredAgentHandoffMarkers = ["## 1. 导航", "## 2. 单镜头交接", "分镜脚本源文件", "## 3. 源文件编辑边界", "## 4. 可复制提示词", "## 5. 验证命令"];
+const requiredShotAgentHandoffLink = "[[04_智能体交接#2. 单镜头交接|智能体交接]]";
 const suggestedUiDir = ".obsidian/ai-video-workflow-suggested";
 const requiredSuggestedUiFiles = ["bookmarks.json", "workspace.json", "core-plugins.json", "appearance.json"];
 const requiredBookmarkPaths = [
-  "00_Project_Home.md",
-  "04_Agent_Handoff.md",
-  "02_Shot_Index.md",
-  "03_Production_Board.md",
-  "Canvas/Review Map.canvas",
-  "Canvas/Shot Pipeline.canvas",
-  "Notes/README.md"
+  "00_项目首页.md",
+  "04_智能体交接.md",
+  "02_镜头索引.md",
+  "03_制作看板.md",
+  "画布/审阅地图.canvas",
+  "画布/镜头流水线.canvas",
+  notesIndexPath
 ];
-const requiredWorkspacePaths = ["00_Project_Home.md", "04_Agent_Handoff.md", "Canvas/Review Map.canvas"];
+const requiredWorkspacePaths = ["00_项目首页.md", "01_审阅总览.md", "画布/审阅地图.canvas"];
 const requiredShotReviewMarkers = [
-  "Immersive Review",
-  "Review Route",
-  "Source Sequence",
-  "Frame Continuity",
-  "Prompt Handoff",
-  "Execution Readiness",
-  "User Notes",
-  "Review Canvas"
+  "## 1. 快速审阅",
+  "## 2. 审阅路径",
+  "## 3. 参考资产",
+  "## 4. 源文件序列",
+  "## 5. 画面连续性",
+  "## 6. 视频提示词",
+  "## 7. 执行检查",
+  "## 8. 修改入口",
+  "## 9. 数据视图",
+  "## 10. 审阅画布"
 ];
 const absoluteLinkPattern = /([A-Za-z]:\\|[A-Za-z]:\/|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
 const unsafeLocalPathStringPattern = /(^|[^A-Za-z])[A-Za-z]:[\\/]|file:\/\/|vscode:\/\//i;
@@ -54,8 +60,20 @@ interface VerifyObsidianOptions {
 }
 
 interface CanvasNode {
+  id?: string;
   type?: string;
   file?: string;
+}
+
+interface CanvasEdge {
+  id?: string;
+  fromNode?: string;
+  toNode?: string;
+}
+
+interface CanvasFile {
+  nodes?: CanvasNode[];
+  edges?: CanvasEdge[];
 }
 
 interface BaseView {
@@ -64,6 +82,11 @@ interface BaseView {
 
 interface BaseFile {
   views?: BaseView[];
+}
+
+interface VaultLinkTarget {
+  target: string;
+  anchor: string;
 }
 
 function pushIssue(issues: VerificationIssue[], issue: VerificationIssue): void {
@@ -76,11 +99,13 @@ function vaultFsPath(vaultRoot: string, vaultPath: string): string {
 
 function isRelativeVaultPath(value: string): boolean {
   return (
+    value.length > 0 &&
+    !value.includes("\\") &&
     !path.isAbsolute(value) &&
     !unsafeLocalPathStringPattern.test(value) &&
     !value.startsWith("../") &&
     !value.includes("/../") &&
-    !value.includes("\\..\\")
+    !value.split("/").some((segment) => segment === "." || segment === ".." || segment.length === 0)
   );
 }
 
@@ -105,6 +130,39 @@ function containsUnsafePathString(value: unknown): boolean {
 
 function containsUnsafeManifestString(value: unknown): boolean {
   return collectJsonStrings(value).some((item) => unsafeLocalPathStringPattern.test(item));
+}
+
+function splitLinkTarget(target: string): { pathPart: string; anchor: string } {
+  const withoutAlias = target.split("|")[0] ?? "";
+  const hashIndex = withoutAlias.indexOf("#");
+  if (hashIndex === -1) {
+    return { pathPart: withoutAlias.trim(), anchor: "" };
+  }
+  return { pathPart: withoutAlias.slice(0, hashIndex).trim(), anchor: withoutAlias.slice(hashIndex + 1).trim() };
+}
+
+function isExternalLink(target: string): boolean {
+  return /^[a-z][a-z0-9+.-]*:/i.test(target);
+}
+
+function vaultLinkTargetCandidates(currentFile: string, target: string, isWikiLink: boolean): VaultLinkTarget[] {
+  const { pathPart, anchor } = splitLinkTarget(target);
+  if (pathPart.length === 0 || isExternalLink(pathPart)) {
+    return [];
+  }
+  if (isWikiLink) {
+    const ext = path.posix.extname(pathPart);
+    return [{ target: ext ? pathPart : `${pathPart}.md`, anchor }];
+  }
+  const ext = path.posix.extname(pathPart);
+  if (![".md", ".canvas", ".base"].includes(ext)) {
+    return [];
+  }
+  return [{ target: path.posix.normalize(path.posix.join(path.posix.dirname(currentFile), pathPart)), anchor }];
+}
+
+function isOptionalUserNoteTarget(target: string): boolean {
+  return target.startsWith("笔记/镜头审阅/");
 }
 
 function sourceFsPath(projectRoot: string, sourcePath: string): string {
@@ -153,6 +211,54 @@ async function listDirectJsonFiles(root: string): Promise<string[]> {
   return entries.filter((entry) => entry.isFile() && entry.name.endsWith(".json")).map((entry) => entry.name);
 }
 
+function decodeAnchor(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function markdownHeadingAnchors(content: string): Set<string> {
+  const headings = new Set<string>();
+  let inFence = false;
+  for (const line of content.split(/\r?\n/)) {
+    if (/^\s*(```|~~~)/.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) {
+      continue;
+    }
+    const match = line.match(/^#{1,6}\s+(.+?)\s*#*\s*$/u);
+    if (match) {
+      headings.add(match[1].trim());
+    }
+  }
+  return headings;
+}
+
+async function markdownHeadingIndex(vaultRoot: string, files: string[]): Promise<Map<string, Set<string>>> {
+  const index = new Map<string, Set<string>>();
+  for (const file of files.filter((filePath) => filePath.endsWith(".md"))) {
+    index.set(file, markdownHeadingAnchors(await fs.readFile(vaultFsPath(vaultRoot, file), "utf8")));
+  }
+  return index;
+}
+
+async function baseViewIndex(vaultRoot: string, files: string[]): Promise<Map<string, Set<string>>> {
+  const index = new Map<string, Set<string>>();
+  for (const file of files.filter((filePath) => filePath.endsWith(".base"))) {
+    try {
+      const base = parseYaml<BaseFile>(await fs.readFile(vaultFsPath(vaultRoot, file), "utf8"));
+      index.set(file, new Set((base.views ?? []).map((view) => view.name).filter((name): name is string => Boolean(name))));
+    } catch {
+      index.set(file, new Set());
+    }
+  }
+  return index;
+}
+
 function readFrontmatter(content: string): Record<string, string> | null {
   if (!content.startsWith("---\n")) {
     return null;
@@ -164,7 +270,7 @@ function readFrontmatter(content: string): Record<string, string> | null {
   const frontmatter = content.slice(4, end);
   const values: Record<string, string> = {};
   for (const line of frontmatter.split(/\r?\n/)) {
-    const match = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+    const match = line.match(/^([^:\r\n]+):\s*(.*)$/u);
     if (match) {
       values[match[1]] = match[2].replace(/^"|"$/g, "");
     }
@@ -221,16 +327,16 @@ async function verifyAgentHandoff(vaultRoot: string, files: string[], issues: Ve
     }
   }
 
-  for (const file of files.filter((filePath) => filePath.startsWith("Shots/") && filePath.endsWith(".md"))) {
+  for (const file of files.filter((filePath) => filePath.startsWith("镜头/") && filePath.endsWith(".md"))) {
     const content = await fs.readFile(vaultFsPath(vaultRoot, file), "utf8");
-    if (!content.includes("## Agent Handoff")) {
-      pushIssue(issues, { code: "invalid-obsidian-agent-handoff", message: `Shot page is missing Agent Handoff section: ${file}`, path: file });
+    if (!content.includes(requiredShotAgentHandoffLink)) {
+      pushIssue(issues, { code: "invalid-obsidian-agent-handoff", message: `镜头页缺少智能体交接入口：${file}`, path: file });
     }
   }
 }
 
 async function verifyCanvasFiles(vaultRoot: string, issues: VerificationIssue[]): Promise<void> {
-  const canvasFiles = [...requiredCanvasFiles, ...(await listVaultFiles(vaultRoot)).filter((file) => file.startsWith("Canvas/Shot Reviews/") && file.endsWith(".canvas"))];
+  const canvasFiles = [...requiredCanvasFiles, ...(await listVaultFiles(vaultRoot)).filter((file) => file.startsWith("画布/镜头审阅/") && file.endsWith(".canvas"))];
   for (const file of canvasFiles) {
     const fullPath = vaultFsPath(vaultRoot, file);
     if (!(await fs.pathExists(fullPath))) {
@@ -238,17 +344,39 @@ async function verifyCanvasFiles(vaultRoot: string, issues: VerificationIssue[])
       continue;
     }
     try {
-      const canvas = (await fs.readJson(fullPath)) as { nodes?: CanvasNode[] };
+      const canvas = (await fs.readJson(fullPath)) as CanvasFile;
       if (!Array.isArray(canvas.nodes)) {
         pushIssue(issues, { code: "invalid-obsidian-canvas-json", message: "Canvas JSON must contain a nodes array", path: file });
         continue;
       }
+      if (!Array.isArray(canvas.edges)) {
+        pushIssue(issues, { code: "invalid-obsidian-canvas-json", message: "Canvas JSON must contain an edges array", path: file });
+        continue;
+      }
+      const nodeIds = new Set<string>();
       for (const node of canvas.nodes) {
+        if (!node.id) {
+          pushIssue(issues, { code: "invalid-obsidian-canvas-json", message: "Canvas node must contain an id", path: file });
+          continue;
+        }
+        if (nodeIds.has(node.id)) {
+          pushIssue(issues, { code: "invalid-obsidian-canvas-json", message: `Canvas node id is duplicated: ${node.id}`, path: file });
+        }
+        nodeIds.add(node.id);
         if (node.type === "file" && (!node.file || !isRelativeVaultPath(node.file))) {
           pushIssue(issues, { code: "invalid-obsidian-canvas-json", message: "Canvas file node must use a relative vault path", path: file });
         }
         if (node.type === "file" && node.file && isRelativeVaultPath(node.file) && !(await fs.pathExists(vaultFsPath(vaultRoot, node.file)))) {
           pushIssue(issues, { code: "invalid-obsidian-canvas-json", message: `Canvas file node target is missing: ${node.file}`, path: file });
+        }
+      }
+      for (const edge of canvas.edges) {
+        if (!edge.fromNode || !nodeIds.has(edge.fromNode) || !edge.toNode || !nodeIds.has(edge.toNode)) {
+          pushIssue(issues, {
+            code: "invalid-obsidian-canvas-json",
+            message: `Canvas edge endpoint is missing: ${edge.id ?? "unnamed-edge"}`,
+            path: file
+          });
         }
       }
     } catch {
@@ -258,11 +386,11 @@ async function verifyCanvasFiles(vaultRoot: string, issues: VerificationIssue[])
 }
 
 async function verifyShotReviewPages(vaultRoot: string, files: string[], issues: VerificationIssue[]): Promise<void> {
-  for (const file of files.filter((filePath) => filePath.startsWith("Shots/") && filePath.endsWith(".md"))) {
+  for (const file of files.filter((filePath) => filePath.startsWith("镜头/") && filePath.endsWith(".md"))) {
     const content = await fs.readFile(vaultFsPath(vaultRoot, file), "utf8");
     const frontmatter = readFrontmatter(content);
-    const shotId = frontmatter?.shot_id ?? path.basename(file, ".md");
-    if (frontmatter?.review_mode !== "immersive") {
+    const shotId = frontmatterValue(frontmatter ?? {}, "shotId") ?? path.basename(file, ".md");
+    if (frontmatterValue(frontmatter ?? {}, "reviewMode") !== obsidianPropertyValues.reviewMode.immersive) {
       pushIssue(issues, { code: "invalid-obsidian-shot-review", message: `Shot review page is missing immersive review mode: ${file}`, path: file });
     }
     for (const marker of requiredShotReviewMarkers) {
@@ -270,7 +398,7 @@ async function verifyShotReviewPages(vaultRoot: string, files: string[], issues:
         pushIssue(issues, { code: "invalid-obsidian-shot-review", message: `Shot review page is missing marker: ${marker}`, path: file });
       }
     }
-    const reviewCanvasPath = `Canvas/Shot Reviews/${shotId}.canvas`;
+    const reviewCanvasPath = `画布/镜头审阅/${shotId}.canvas`;
     if (!content.includes(`[[${reviewCanvasPath}`) || !(await fs.pathExists(vaultFsPath(vaultRoot, reviewCanvasPath)))) {
       pushIssue(issues, { code: "invalid-obsidian-shot-review", message: `Shot review canvas is missing or not linked: ${reviewCanvasPath}`, path: file });
     }
@@ -363,16 +491,16 @@ async function verifyGeneratedMarkdown(
   for (const file of files.filter((filePath) => filePath.endsWith(".md"))) {
     const content = await fs.readFile(vaultFsPath(vaultRoot, file), "utf8");
     const frontmatter = readFrontmatter(content);
-    if (frontmatter?.projection_generated !== "true") {
+    if (!isGeneratedFrontmatter(frontmatter)) {
       continue;
     }
-    const sourcePath = frontmatter.source_path;
+    const sourcePath = frontmatterValue(frontmatter ?? {}, "sourcePath");
     if (!sourcePath) {
-      pushIssue(issues, { code: "missing-obsidian-source-path", message: "Generated Obsidian note is missing source_path", path: file });
+      pushIssue(issues, { code: "missing-obsidian-source-path", message: "Generated Obsidian note is missing 源文件路径", path: file });
       continue;
     }
     if (!isRelativeVaultPath(sourcePath) || !(await fs.pathExists(sourceFsPath(projectRoot, sourcePath)))) {
-      pushIssue(issues, { code: "broken-obsidian-source-path", message: `Generated Obsidian source_path does not resolve: ${sourcePath}`, path: file });
+      pushIssue(issues, { code: "broken-obsidian-source-path", message: `Generated Obsidian 源文件路径 does not resolve: ${sourcePath}`, path: file });
     }
     const manifestEntry = manifestEntries.get(file);
     if (manifestEntry?.sourcePath && manifestEntry.sourcePath !== sourcePath) {
@@ -390,13 +518,73 @@ async function verifyNoAbsoluteLinks(vaultRoot: string, files: string[], issues:
   }
 }
 
-async function verifyOptionalUiConfig(vaultRoot: string, issues: VerificationIssue[]): Promise<void> {
+async function verifyMarkdownLinks(vaultRoot: string, files: string[], issues: VerificationIssue[]): Promise<void> {
+  const existingFiles = new Set(files);
+  const markdownHeadings = await markdownHeadingIndex(vaultRoot, files);
+  const baseViews = await baseViewIndex(vaultRoot, files);
+  const markdownLinkPattern = /(?<!!)\[[^\]\r\n]+\]\(([^)\r\n]+)\)/g;
+  const wikiLinkPattern = /!?\[\[([^\]\r\n]+)\]\]/g;
+  const anchorExists = ({ target, anchor }: VaultLinkTarget): boolean => {
+    if (!anchor || anchor.startsWith("^")) {
+      return true;
+    }
+    const anchors = new Set([anchor, decodeAnchor(anchor)]);
+    if (target.endsWith(".md")) {
+      const headings = markdownHeadings.get(target) ?? new Set();
+      return [...anchors].some((candidate) => headings.has(candidate));
+    }
+    if (target.endsWith(".base")) {
+      const views = baseViews.get(target) ?? new Set();
+      return [...anchors].some((candidate) => views.has(candidate));
+    }
+    return true;
+  };
+  for (const file of files.filter((filePath) => filePath.endsWith(".md"))) {
+    const content = await fs.readFile(vaultFsPath(vaultRoot, file), "utf8");
+    const targets = [
+      ...[...content.matchAll(markdownLinkPattern)].flatMap((match) => vaultLinkTargetCandidates(file, match[1]?.trim() ?? "", false)),
+      ...[...content.matchAll(wikiLinkPattern)].flatMap((match) => vaultLinkTargetCandidates(file, match[1]?.trim() ?? "", true))
+    ];
+    for (const linkTarget of targets) {
+      const { target, anchor } = linkTarget;
+      if (isOptionalUserNoteTarget(target)) {
+        continue;
+      }
+      if (!isRelativeVaultPath(target) || !existingFiles.has(target)) {
+        pushIssue(issues, { code: "broken-obsidian-markdown-link", message: `Obsidian Markdown link target is missing: ${target}`, path: file });
+        continue;
+      }
+      if (!anchorExists(linkTarget)) {
+        pushIssue(issues, { code: "broken-obsidian-markdown-anchor", message: `Obsidian Markdown link anchor is missing: ${target}#${anchor}`, path: file });
+      }
+    }
+  }
+}
+
+function isVaultFilePathString(value: string): boolean {
+  return /\.(md|canvas|base)$/i.test(value);
+}
+
+function verifyJsonVaultPathStrings(vaultPath: string, value: unknown, existingFiles: Set<string>, issues: VerificationIssue[]): void {
+  for (const item of collectJsonStrings(value)) {
+    if (!isVaultFilePathString(item)) {
+      continue;
+    }
+    if (!isRelativeVaultPath(item) || !existingFiles.has(item)) {
+      pushIssue(issues, { code: "invalid-obsidian-ui-config", message: `Optional Obsidian UI config path is missing or unsafe: ${item}`, path: vaultPath });
+    }
+  }
+}
+
+async function verifyOptionalUiConfig(vaultRoot: string, files: string[], issues: VerificationIssue[]): Promise<void> {
+  const existingFiles = new Set(files);
   async function readUiJson(vaultPath: string): Promise<unknown | null> {
     try {
       const value = await fs.readJson(vaultFsPath(vaultRoot, vaultPath));
       if (containsUnsafePathString(value)) {
         pushIssue(issues, { code: "invalid-obsidian-ui-config", message: `Optional Obsidian UI config contains an absolute path: ${vaultPath}`, path: vaultPath });
       }
+      verifyJsonVaultPathStrings(vaultPath, value, existingFiles, issues);
       return value;
     } catch {
       pushIssue(issues, { code: "invalid-obsidian-ui-config", message: `Optional Obsidian UI config JSON is invalid: ${vaultPath}`, path: vaultPath });
@@ -469,7 +657,7 @@ export async function verifyObsidianVault({ projectRoot, vaultRoot }: VerifyObsi
   if (!config) {
     return { ok: false, issues: configIssues };
   }
-  for (const stepDir of STEP_DIRS) {
+  for (const stepDir of activeStepDirs(config)) {
     const stepPath = path.join(resolvedProjectRoot, stepDir);
     if (!(await fs.pathExists(stepPath)) || !(await fs.stat(stepPath)).isDirectory()) {
       return {
@@ -500,6 +688,7 @@ export async function verifyObsidianVault({ projectRoot, vaultRoot }: VerifyObsi
   await verifyShotReviewPages(resolvedVaultRoot, files, issues);
   await verifyGeneratedMarkdown(resolvedProjectRoot, resolvedVaultRoot, files, manifest, issues);
   await verifyNoAbsoluteLinks(resolvedVaultRoot, files, issues);
-  await verifyOptionalUiConfig(resolvedVaultRoot, issues);
+  await verifyMarkdownLinks(resolvedVaultRoot, files, issues);
+  await verifyOptionalUiConfig(resolvedVaultRoot, files, issues);
   return { ok: issues.length === 0, issues };
 }

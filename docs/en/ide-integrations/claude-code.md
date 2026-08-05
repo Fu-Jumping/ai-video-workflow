@@ -2,7 +2,7 @@
 
 Claude Code uses `CLAUDE.md` as the root entrypoint, `.claude/skills/` as adapter-ready skill bundles, `.claude/commands/` as command-style handoff entries, and `.claude/ai-video-workflow/` as the generated runtime mirror.
 
-`CLAUDE.md` is Claude-specific. It should point back to `AGENTS.md` and `docs/ai-workspace/`, which define the cross-agent shared boundary.
+`CLAUDE.md` is Claude-specific. It should point back to `AGENTS.md` and `文档/智能体工作区/`, which define the cross-agent shared boundary.
 
 ## Generated outputs
 
@@ -22,7 +22,7 @@ Claude Code should read the root entry first, then follow the mirror and skill b
 
 ## Adapter Contract
 
-- Reads: `packs/official-ai-video/`, `project.config.yaml`, and project Step 1 to Step 6 files.
+- Reads: `packs/official-ai-video/`, `project.config.yaml`, and the enabled project Step files; research mode includes Step 0 through Step 6, while script mode includes Step 1 through Step 6.
 - Writes: `CLAUDE.md`, `.claude/skills/`, `.claude/commands/`, and `.claude/ai-video-workflow/`.
 - Must not write: source Step files, generated Obsidian projection files, user `.obsidian/` config, or absolute links.
 - Sync direction: `runtime-mirror`.

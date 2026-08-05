@@ -196,7 +196,7 @@
     <text class="small" x="16" y="118">Step 2 + 3</text>
     <text class="label" x="16" y="175">动作</text>
     <text class="small" x="16" y="198">完整画面事实</text>
-    <text class="small" x="16" y="218">中英双版提示词</text>
+    <text class="small" x="16" y="218">中文完整提示词</text>
     <rect class="gate" x="16" y="250" width="133" height="86" rx="10" />
     <text class="label" x="30" y="276">审核</text>
     <text class="micro" x="30" y="300">3 个固定区块</text>
@@ -260,22 +260,22 @@
 
   <rect class="output" x="455" y="918" width="150" height="56" rx="10" />
   <text class="micro" x="470" y="942">故事内核文档</text>
-  <text class="micro" x="470" y="960">01_concept</text>
+  <text class="micro" x="470" y="960">01_概念策划</text>
   <rect class="output" x="630" y="918" width="150" height="56" rx="10" />
   <text class="micro" x="645" y="942">设定素材/一致性锚点</text>
-  <text class="micro" x="645" y="960">02_setting</text>
+  <text class="micro" x="645" y="960">02_世界设定</text>
   <rect class="output" x="805" y="918" width="150" height="56" rx="10" />
   <text class="micro" x="820" y="942">分镜卡 / 总表</text>
-  <text class="micro" x="820" y="960">03_storyboard</text>
+  <text class="micro" x="820" y="960">03_分镜脚本</text>
   <rect class="output" x="980" y="918" width="150" height="56" rx="10" />
   <text class="micro" x="995" y="942">关键帧图片提示词</text>
-  <text class="micro" x="995" y="960">04_image_prompts</text>
+  <text class="micro" x="995" y="960">04_图片提示词</text>
   <rect class="output" x="1155" y="918" width="150" height="56" rx="10" />
   <text class="micro" x="1170" y="942">视频动作提示词</text>
-  <text class="micro" x="1170" y="960">05_video_prompts</text>
+  <text class="micro" x="1170" y="960">05_视频提示词</text>
   <rect class="output" x="1330" y="918" width="150" height="56" rx="10" />
   <text class="micro" x="1345" y="942">生产执行统筹单</text>
-  <text class="micro" x="1345" y="960">06_execution_plan</text>
+  <text class="micro" x="1345" y="960">06_执行计划</text>
 
   <rect class="panel-soft" x="425" y="1055" width="1080" height="320" rx="18" />
   <text class="section-title" x="455" y="1092">生成执行关系</text>

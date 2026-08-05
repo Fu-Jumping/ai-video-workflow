@@ -2,7 +2,22 @@ export type Ide = "codex" | "cursor" | "claude-code" | "trae";
 
 export type AdapterId = Ide | "obsidian" | "mcp" | "cherry-studio";
 
-export type Platform = "openai" | "veo" | "runway" | "luma" | "minimax";
+export type Platform = "openai" | "veo" | "runway" | "luma" | "minimax" | "seedance";
+
+export type StartFromMode = "research" | "script";
+
+export type ResearchPlatform =
+  | "auto"
+  | "bilibili"
+  | "douyin"
+  | "xiaohongshu"
+  | "weibo"
+  | "kuaishou"
+  | "tieba"
+  | "zhihu"
+  | "web";
+
+export type ResearchRuntime = "auto" | "toolbox" | "ide-inbox";
 
 export type IssueCode =
   | "missing-project-root"
@@ -13,10 +28,26 @@ export type IssueCode =
   | "nested-project"
   | "invalid-sync-target"
   | "missing-config"
+  | "missing-step0-file"
   | "missing-image-default-platform"
   | "missing-video-default-platform"
   | "missing-step6-file"
   | "missing-step4-section"
+  | "missing-character-triview"
+  | "missing-scene-reference-image"
+  | "missing-storyboard-reference-assets"
+  | "missing-step4-reference-asset"
+  | "missing-step5-reference-asset"
+  | "missing-step5-platform-execution-setting"
+  | "missing-shot-group"
+  | "duplicate-shot-id"
+  | "shot-group-mismatch"
+  | "invalid-storyboard-segment-count"
+  | "invalid-keyframe-mapping"
+  | "invalid-step5-contract"
+  | "invalid-research-source-id"
+  | "research-sensitive-auth-material"
+  | "invalid-reference-asset-token"
   | "absolute-path-link"
   | "step4-forbidden-text"
   | "missing-ide-runtime"
@@ -40,6 +71,8 @@ export type IssueCode =
   | "missing-obsidian-source-path"
   | "broken-obsidian-source-path"
   | "obsidian-absolute-link"
+  | "broken-obsidian-markdown-link"
+  | "broken-obsidian-markdown-anchor"
   | "missing-obsidian-manifest"
   | "invalid-obsidian-manifest"
   | "missing-obsidian-manifest-file"
@@ -57,6 +90,9 @@ export interface ProjectConfig {
     video: { default: Platform };
   };
   workflow: {
+    research_step?: {
+      enabled: boolean;
+    };
     enhanced_flow: {
       enabled: boolean;
     };
@@ -70,6 +106,7 @@ export interface CreateProjectOptions {
   ide: Ide;
   imagePlatform: Platform;
   videoPlatform: Platform;
+  startFrom?: StartFromMode;
 }
 
 export interface SyncProjectOptions {

@@ -1,4 +1,7 @@
+import type { ReferenceAssetToken } from "../reference-assets.js";
+
 export type ObsidianSourceKind =
+  | "research"
   | "concept"
   | "setting"
   | "storyboard"
@@ -12,7 +15,10 @@ export interface ObsidianSourceFile {
   sourceKind: ObsidianSourceKind;
   step: number;
   title: string;
+  headingTitle?: string;
+  shotGroupId?: string;
   shotId?: string;
+  referenceAssets?: ReferenceAssetToken[];
 }
 
 export interface ObsidianGeneratedFile {

@@ -12,63 +12,63 @@ export interface McpPromptDefinition {
 }
 
 const boundaryText = [
-  "Read the source Step files first.",
-  "Edit only source Step files when changes are needed.",
-  "Treat _views/obsidian as a generated viewing layer.",
-  "Notes/ may contain user observations, but it does not replace Step files.",
-  "Do not edit Obsidian projections under _views/obsidian, IDE runtime mirrors, or MCP resources as source files.",
-  "Run verification after edits."
+  "先读取步骤源文件。",
+  "需要修改时只编辑步骤源文件。",
+  "将 _views/obsidian 视为生成的观看层。",
+  "笔记/ 可以包含用户观察，但不能替代步骤文件。",
+  "不要把 _views/obsidian 下的 Obsidian 投影、IDE 运行镜像或 MCP 资源当作源文件编辑。",
+  "修改后运行验证。"
 ].join(" ");
 
 export function buildMcpPrompts(): McpPromptDefinition[] {
   return [
     {
       name: "review_project",
-      description: "Review the whole AI video workflow project and identify source-file issues.",
-      arguments: [{ name: "focus", required: false, description: "Optional review focus." }],
-      template: `${boundaryText}\n\nReview the project context, summarize risks, and point each recommendation to Step 1 through Step 6 source files.`
+      description: "审阅整个 AI 视频工作流项目，并识别源文件问题。",
+      arguments: [{ name: "focus", required: false, description: "可选审阅重点。" }],
+      template: `${boundaryText}\n\n审阅项目上下文，总结风险，并把每条建议指向当前项目已启用步骤的源文件。`
     },
     {
       name: "inspect_shot",
-      description: "Inspect one shot across storyboard, image prompt, video prompt, and execution context.",
+      description: "跨分镜、图片提示词、视频提示词和执行上下文检查单个镜头。",
       arguments: [
-        { name: "shotId", required: true, description: "Shot id such as shot-001." },
-        { name: "focus", required: false, description: "Optional inspection focus." }
+        { name: "shotId", required: true, description: "镜头 id，例如 shot-001。" },
+        { name: "focus", required: false, description: "可选检查重点。" }
       ],
-      template: `${boundaryText}\n\nInspect {{shotId}} across Step 3, Step 4, Step 5, and Step 6. Report which source file should change for each issue.`
+      template: `${boundaryText}\n\n跨步骤三、步骤四、步骤五和步骤六检查 {{shotId}}。针对每个问题说明应该修改哪个源文件。`
     },
     {
       name: "revise_storyboard",
-      description: "Prepare a source-file edit plan for story or frame changes.",
+      description: "为故事或画面修改准备源文件编辑计划。",
       arguments: [
-        { name: "shotId", required: true, description: "Shot id such as shot-001." },
-        { name: "focus", required: false, description: "Requested story or frame change." }
+        { name: "shotId", required: true, description: "镜头 id，例如 shot-001。" },
+        { name: "focus", required: false, description: "请求的故事或画面修改。" }
       ],
-      template: `${boundaryText}\n\nFor story, continuity, or frame-level changes in {{shotId}}, inspect and edit Step 3 storyboard files. Keep Step 3 and Step 4 frame-aligned.`
+      template: `${boundaryText}\n\n对于 {{shotId}} 的故事、连续性或画面级修改，检查并编辑步骤三分镜脚本文件。保持步骤三和步骤四逐镜头对齐。`
     },
     {
       name: "revise_image_prompt",
-      description: "Prepare a source-file edit plan for Step 4 visual prompt changes.",
+      description: "为步骤四视觉提示词修改准备源文件编辑计划。",
       arguments: [
-        { name: "shotId", required: true, description: "Shot id such as shot-001." },
-        { name: "focus", required: false, description: "Requested visual prompt change." }
+        { name: "shotId", required: true, description: "镜头 id，例如 shot-001。" },
+        { name: "focus", required: false, description: "请求的视觉提示词修改。" }
       ],
-      template: `${boundaryText}\n\nFor visual style, subject consistency, or image prompt changes in {{shotId}}, inspect and edit Step 4 image prompt files. Keep the Step 4 file contract intact.`
+      template: `${boundaryText}\n\n对于 {{shotId}} 的视觉风格、主体一致性或图片提示词修改，检查并编辑步骤四图片提示词文件。保持步骤四文件合同完整。`
     },
     {
       name: "revise_video_prompt",
-      description: "Prepare a source-file edit plan for Step 5 motion and camera changes.",
+      description: "为步骤五运动和镜头修改准备源文件编辑计划。",
       arguments: [
-        { name: "shotId", required: true, description: "Shot id such as shot-001." },
-        { name: "focus", required: false, description: "Requested motion or camera change." }
+        { name: "shotId", required: true, description: "镜头 id，例如 shot-001。" },
+        { name: "focus", required: false, description: "请求的运动或镜头修改。" }
       ],
-      template: `${boundaryText}\n\nFor motion, camera behavior, timing, or animation changes in {{shotId}}, inspect and edit Step 5 video prompt files.`
+      template: `${boundaryText}\n\n对于 {{shotId}} 的运动、镜头行为、时长或动画修改，检查并编辑步骤五视频提示词文件。`
     },
     {
       name: "verify_project",
-      description: "Run or explain verification after source-file edits.",
-      arguments: [{ name: "focus", required: false, description: "Optional verification focus." }],
-      template: `${boundaryText}\n\nRun or request the verification commands from the MCP context. Report issues by source path and do not repair generated adapter surfaces directly.`
+      description: "在源文件修改后运行或解释验证。",
+      arguments: [{ name: "focus", required: false, description: "可选验证重点。" }],
+      template: `${boundaryText}\n\n运行或请求 MCP 上下文中的验证命令。按源路径报告问题，不要直接修复生成的适配器表面。`
     }
   ].sort((a, b) => a.name.localeCompare(b.name));
 }

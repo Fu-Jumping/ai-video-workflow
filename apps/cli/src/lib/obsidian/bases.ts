@@ -1,201 +1,303 @@
 import type { ObsidianGeneratedFile } from "./types.js";
+import { obsidianProperties, obsidianPropertyValues } from "./properties.js";
+
+const modifiedTimeColumn = "file.mtime";
+const modifiedTimeDisplayName = "最近修改时间";
 
 export function renderBaseFiles(): ObsidianGeneratedFile[] {
   return [
     {
-      vaultPath: "Bases/Workflow Files.base",
+      vaultPath: "数据表/流程文件.base",
       content: `filters:
   and:
     - file.hasTag("ai-video/project")
 properties:
-  stage_group:
-    displayName: Stage
-  review_status:
-    displayName: Review
-  execution_status:
-    displayName: Execution
-  needs_attention:
-    displayName: Attention
-  projection_generated:
-    displayName: Generated
-  step:
-    displayName: Step
-  source_kind:
-    displayName: Type
-  status:
-    displayName: Status
-  source_path:
-    displayName: Source
+  ${obsidianProperties.title}:
+    displayName: ${obsidianProperties.title}
+  ${obsidianProperties.shotTitle}:
+    displayName: ${obsidianProperties.shotTitle}
+  ${obsidianProperties.nextAction}:
+    displayName: ${obsidianProperties.nextAction}
+  ${obsidianProperties.stageGroup}:
+    displayName: ${obsidianProperties.stageGroup}
+  ${obsidianProperties.reviewStatus}:
+    displayName: ${obsidianProperties.reviewStatus}
+  ${obsidianProperties.executionStatus}:
+    displayName: ${obsidianProperties.executionStatus}
+  ${obsidianProperties.needsAttention}:
+    displayName: ${obsidianProperties.needsAttention}
+  ${obsidianProperties.projectionGenerated}:
+    displayName: ${obsidianProperties.projectionGenerated}
+  ${obsidianProperties.step}:
+    displayName: ${obsidianProperties.step}
+  ${obsidianProperties.stepName}:
+    displayName: ${obsidianProperties.stepName}
+  ${obsidianProperties.sourceKind}:
+    displayName: ${obsidianProperties.sourceKind}
+  ${obsidianProperties.shotIndex}:
+    displayName: ${obsidianProperties.shotIndex}
+  ${obsidianProperties.referenceAssets}:
+    displayName: ${obsidianProperties.referenceAssets}
+  ${obsidianProperties.sourcePath}:
+    displayName: ${obsidianProperties.sourcePath}
+  ${modifiedTimeColumn}:
+    displayName: ${modifiedTimeDisplayName}
 views:
   - type: table
-    name: Workflow Files
+    name: 流程文件
     order:
-      - file.name
-      - step
-      - source_kind
-      - stage_group
-      - review_status
-      - execution_status
-      - status
-      - source_path
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.sourceKind}
+      - ${obsidianProperties.stepName}
+      - ${obsidianProperties.reviewStatus}
+      - ${obsidianProperties.executionStatus}
+      - ${obsidianProperties.shotIndex}
+      - ${modifiedTimeColumn}
   - type: list
-    name: Review List
+    name: 审阅列表
     order:
-      - file.name
-      - status
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.reviewStatus}
+      - ${obsidianProperties.executionStatus}
   - type: table
-    name: Review Queue
+    name: 审阅队列
     groupBy:
-      property: review_status
+      property: ${obsidianProperties.reviewStatus}
       direction: ASC
     order:
-      - file.name
-      - needs_attention
-      - review_status
-      - stage_group
-      - source_kind
-      - source_path
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.sourceKind}
+      - ${obsidianProperties.stepName}
+      - ${obsidianProperties.reviewStatus}
+      - ${obsidianProperties.executionStatus}
+      - ${obsidianProperties.shotIndex}
+      - ${modifiedTimeColumn}
   - type: table
-    name: Modified Generated Files
+    name: 已改动生成文件
     filters:
       and:
-        - 'projection_generated == true'
+        - '${obsidianProperties.projectionGenerated} == "${obsidianPropertyValues.yes}"'
     order:
-      - file.name
-      - file.mtime
-      - source_path
-      - status
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.sourceKind}
+      - ${obsidianProperties.stepName}
+      - ${obsidianProperties.reviewStatus}
+      - ${obsidianProperties.executionStatus}
+      - ${obsidianProperties.shotIndex}
+      - ${modifiedTimeColumn}
 `
     },
     {
-      vaultPath: "Bases/Shots.base",
+      vaultPath: "数据表/镜头.base",
       content: `filters:
   and:
     - file.hasTag("ai-video/shot")
 properties:
-  shot_id:
-    displayName: Shot
-  shot_order:
-    displayName: Order
-  review_mode:
-    displayName: Review Mode
-  review_canvas:
-    displayName: Review Canvas
-  review_note:
-    displayName: Review Note
-  agent_handoff:
-    displayName: Agent Handoff
-  has_storyboard:
-    displayName: Storyboard
-  has_image_prompt:
-    displayName: Image Prompt
-  has_video_prompt:
-    displayName: Video Prompt
-  review_status:
-    displayName: Review
-  execution_status:
-    displayName: Execution
-  needs_attention:
-    displayName: Attention
-  status:
-    displayName: Status
-  source_path:
-    displayName: Source
+  ${obsidianProperties.title}:
+    displayName: ${obsidianProperties.title}
+  ${obsidianProperties.shotTitle}:
+    displayName: ${obsidianProperties.shotTitle}
+  ${obsidianProperties.nextAction}:
+    displayName: ${obsidianProperties.nextAction}
+  ${obsidianProperties.shotId}:
+    displayName: ${obsidianProperties.shotId}
+  ${obsidianProperties.shotGroupId}:
+    displayName: ${obsidianProperties.shotGroupId}
+  ${obsidianProperties.shotOrder}:
+    displayName: ${obsidianProperties.shotOrder}
+  ${obsidianProperties.sourceKind}:
+    displayName: ${obsidianProperties.sourceKind}
+  ${obsidianProperties.stepName}:
+    displayName: ${obsidianProperties.stepName}
+  ${obsidianProperties.shotIndex}:
+    displayName: ${obsidianProperties.shotIndex}
+  ${obsidianProperties.referenceAssets}:
+    displayName: ${obsidianProperties.referenceAssets}
+  ${obsidianProperties.reviewMode}:
+    displayName: ${obsidianProperties.reviewMode}
+  ${obsidianProperties.reviewCanvas}:
+    displayName: ${obsidianProperties.reviewCanvas}
+  ${obsidianProperties.reviewNote}:
+    displayName: ${obsidianProperties.reviewNote}
+  ${obsidianProperties.agentHandoff}:
+    displayName: ${obsidianProperties.agentHandoff}
+  ${obsidianProperties.hasStoryboard}:
+    displayName: ${obsidianProperties.hasStoryboard}
+  ${obsidianProperties.hasImagePrompt}:
+    displayName: ${obsidianProperties.hasImagePrompt}
+  ${obsidianProperties.hasVideoPrompt}:
+    displayName: ${obsidianProperties.hasVideoPrompt}
+  ${obsidianProperties.reviewStatus}:
+    displayName: ${obsidianProperties.reviewStatus}
+  ${obsidianProperties.executionStatus}:
+    displayName: ${obsidianProperties.executionStatus}
+  ${obsidianProperties.needsAttention}:
+    displayName: ${obsidianProperties.needsAttention}
+  ${obsidianProperties.status}:
+    displayName: ${obsidianProperties.status}
+  ${obsidianProperties.sourcePath}:
+    displayName: ${obsidianProperties.sourcePath}
+  ${modifiedTimeColumn}:
+    displayName: ${modifiedTimeDisplayName}
 views:
   - type: table
-    name: Shot Table
+    name: 镜头表
     order:
-      - file.name
-      - shot_order
-      - shot_id
-      - review_status
-      - execution_status
-      - status
-      - source_path
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.shotGroupId}
+      - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.sourceKind}
+      - ${obsidianProperties.stepName}
+      - ${obsidianProperties.reviewStatus}
+      - ${obsidianProperties.executionStatus}
+      - ${obsidianProperties.shotIndex}
+      - ${obsidianProperties.reviewCanvas}
+      - ${obsidianProperties.reviewNote}
+      - ${modifiedTimeColumn}
   - type: cards
-    name: Shot Cards
+    name: 镜头卡片
     order:
-      - file.name
-      - status
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.shotGroupId}
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.reviewStatus}
+      - ${obsidianProperties.executionStatus}
+      - ${obsidianProperties.reviewCanvas}
+      - ${obsidianProperties.reviewNote}
+      - ${modifiedTimeColumn}
   - type: table
-    name: Shot Progress
+    name: 镜头进度
     groupBy:
-      property: shot_id
+      property: ${obsidianProperties.shotTitle}
       direction: ASC
     order:
-      - shot_order
-      - file.name
-      - review_status
-      - execution_status
-      - needs_attention
-      - source_path
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.shotGroupId}
+      - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.sourceKind}
+      - ${obsidianProperties.stepName}
+      - ${obsidianProperties.reviewStatus}
+      - ${obsidianProperties.executionStatus}
+      - ${obsidianProperties.shotIndex}
+      - ${obsidianProperties.reviewCanvas}
+      - ${obsidianProperties.reviewNote}
+      - ${modifiedTimeColumn}
   - type: table
-    name: Immersive Review
+    name: 沉浸式审阅
     order:
-      - shot_order
-      - file.name
-      - review_mode
-      - review_canvas
-      - review_note
-      - has_storyboard
-      - has_image_prompt
-      - has_video_prompt
-      - execution_status
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.shotGroupId}
+      - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.sourceKind}
+      - ${obsidianProperties.stepName}
+      - ${obsidianProperties.reviewStatus}
+      - ${obsidianProperties.executionStatus}
+      - ${obsidianProperties.shotIndex}
+      - ${obsidianProperties.reviewCanvas}
+      - ${obsidianProperties.reviewNote}
+      - ${modifiedTimeColumn}
   - type: table
-    name: Agent Handoff
+    name: 智能体交接
     order:
-      - shot_order
-      - file.name
-      - agent_handoff
-      - review_canvas
-      - source_path
-      - execution_status
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.sourceKind}
+      - ${obsidianProperties.stepName}
+      - ${obsidianProperties.reviewStatus}
+      - ${obsidianProperties.executionStatus}
+      - ${obsidianProperties.shotIndex}
+      - ${obsidianProperties.reviewCanvas}
+      - ${obsidianProperties.reviewNote}
+      - ${modifiedTimeColumn}
 `
     },
     {
-      vaultPath: "Bases/Production Status.base",
+      vaultPath: "数据表/制作状态.base",
       content: `filters:
   and:
     - file.hasTag("ai-video/status")
 properties:
-  status:
-    displayName: Status
-  step:
-    displayName: Step
-  stage_group:
-    displayName: Stage
-  review_status:
-    displayName: Review
-  execution_status:
-    displayName: Execution
-  shot_id:
-    displayName: Shot
-  source_path:
-    displayName: Source
+  ${obsidianProperties.title}:
+    displayName: ${obsidianProperties.title}
+  ${obsidianProperties.shotTitle}:
+    displayName: ${obsidianProperties.shotTitle}
+  ${obsidianProperties.nextAction}:
+    displayName: ${obsidianProperties.nextAction}
+  ${obsidianProperties.status}:
+    displayName: ${obsidianProperties.status}
+  ${obsidianProperties.step}:
+    displayName: ${obsidianProperties.step}
+  ${obsidianProperties.stepName}:
+    displayName: ${obsidianProperties.stepName}
+  ${obsidianProperties.stageGroup}:
+    displayName: ${obsidianProperties.stageGroup}
+  ${obsidianProperties.reviewStatus}:
+    displayName: ${obsidianProperties.reviewStatus}
+  ${obsidianProperties.executionStatus}:
+    displayName: ${obsidianProperties.executionStatus}
+  ${obsidianProperties.shotId}:
+    displayName: ${obsidianProperties.shotId}
+  ${obsidianProperties.shotGroupId}:
+    displayName: ${obsidianProperties.shotGroupId}
+  ${obsidianProperties.sourceKind}:
+    displayName: ${obsidianProperties.sourceKind}
+  ${obsidianProperties.shotIndex}:
+    displayName: ${obsidianProperties.shotIndex}
+  ${obsidianProperties.referenceAssets}:
+    displayName: ${obsidianProperties.referenceAssets}
+  ${obsidianProperties.reviewCanvas}:
+    displayName: ${obsidianProperties.reviewCanvas}
+  ${obsidianProperties.reviewNote}:
+    displayName: ${obsidianProperties.reviewNote}
+  ${obsidianProperties.sourcePath}:
+    displayName: ${obsidianProperties.sourcePath}
+  ${modifiedTimeColumn}:
+    displayName: ${modifiedTimeDisplayName}
 views:
   - type: table
-    name: Production Status
+    name: 制作状态
     groupBy:
-      property: status
+      property: ${obsidianProperties.executionStatus}
       direction: ASC
     order:
-      - file.name
-      - status
-      - step
-      - shot_id
-      - source_path
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.sourceKind}
+      - ${obsidianProperties.stepName}
+      - ${obsidianProperties.reviewStatus}
+      - ${obsidianProperties.executionStatus}
+      - ${obsidianProperties.shotIndex}
+      - ${obsidianProperties.reviewCanvas}
+      - ${obsidianProperties.reviewNote}
+      - ${modifiedTimeColumn}
   - type: table
-    name: Execution Readiness
+    name: 执行就绪
     groupBy:
-      property: execution_status
+      property: ${obsidianProperties.executionStatus}
       direction: ASC
     order:
-      - file.name
-      - execution_status
-      - review_status
-      - stage_group
-      - shot_id
-      - source_path
+      - ${obsidianProperties.title}
+      - ${obsidianProperties.shotTitle}
+      - ${obsidianProperties.sourcePath}
+      - ${obsidianProperties.sourceKind}
+      - ${obsidianProperties.stepName}
+      - ${obsidianProperties.executionStatus}
+      - ${obsidianProperties.reviewStatus}
+      - ${obsidianProperties.shotIndex}
+      - ${obsidianProperties.reviewCanvas}
+      - ${obsidianProperties.reviewNote}
+      - ${modifiedTimeColumn}
 `
     }
   ];

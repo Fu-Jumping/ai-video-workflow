@@ -1,7 +1,7 @@
 import fs from "fs-extra";
 import path from "node:path";
 
-import { STEP_DIRS } from "./constants.js";
+import { activeStepDirs } from "./constants.js";
 import { CliUserError } from "./cli-errors.js";
 import { readProjectConfig } from "./project-config.js";
 import type { ProjectConfig, VerificationIssue } from "./types.js";
@@ -73,7 +73,7 @@ export async function readWorkflowProjectConfig(projectRoot: string): Promise<Pr
     const issue = issues[0];
     throw new CliUserError(issue?.message ?? `Project root is missing valid project.config.yaml: ${projectRoot}`);
   }
-  for (const stepDir of STEP_DIRS) {
+  for (const stepDir of activeStepDirs(config)) {
     const fullPath = path.join(projectRoot, stepDir);
     if (!(await fs.pathExists(fullPath)) || !(await fs.stat(fullPath)).isDirectory()) {
       throw new CliUserError(`Project root is missing Step directory: ${stepDir}`);

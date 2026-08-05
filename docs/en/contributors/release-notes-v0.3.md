@@ -6,9 +6,9 @@ v0.3 turns the official AI video workflow project into an Obsidian-readable vaul
 
 - Added `export-obsidian` to generate an Obsidian vault projection from project Step files.
 - Added `verify-obsidian` to validate dashboards, Bases, Canvas files, source paths, manifests, and optional UI suggestions.
-- Added safe incremental export with `Projection Manifest.json` and content hashes.
-- Added generated project pages: Project Home, Review Dashboard, Shot Index, Production Board, and Agent Handoff.
-- Added generated `Shots/<shotId>.md` immersive single-shot review pages.
+- Added safe incremental export with `投影清单.json` and content hashes.
+- Added generated project pages: project home, review dashboard, shot index, production board, and agent handoff.
+- Added generated `镜头/<shotId>.md` immersive single-shot review pages.
 - Added JSON Canvas maps for workflow, shot pipeline, review route, and per-shot review.
 - Added Obsidian Bases for workflow files, shot progress, production readiness, review queue, and modified generated files.
 - Added optional `--include-obsidian-ui` suggestions for Bookmarks, Workspace, core plugins, and appearance.
@@ -25,14 +25,14 @@ pnpm example:obsidian:ui
 Direct CLI use:
 
 ```bash
-node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian --force
-node apps/cli/dist/index.js verify-obsidian --project examples/official-mini-film --vault .tmp/official-mini-film-obsidian
+node apps/cli/dist/index.js export-obsidian --project examples/官方示例-云上早市 --out .tmp/官方示例-云上早市-obsidian --force
+node apps/cli/dist/index.js verify-obsidian --project examples/官方示例-云上早市 --vault .tmp/官方示例-云上早市-obsidian
 ```
 
 Optional UI suggestions:
 
 ```bash
-node apps/cli/dist/index.js export-obsidian --project examples/official-mini-film --out .tmp/official-mini-film-obsidian-ui --force --include-obsidian-ui
+node apps/cli/dist/index.js export-obsidian --project examples/官方示例-云上早市 --out .tmp/官方示例-云上早市-obsidian-ui --force --include-obsidian-ui
 ```
 
 ## Source-of-Truth Boundary
@@ -43,9 +43,9 @@ The source of truth remains the project Step 1 to Step 6 Markdown files and the 
 - Edit Step 4 for image prompt and visual consistency changes.
 - Edit Step 5 for video prompt, motion, and camera behavior changes.
 - Use Obsidian generated files for reading, locating context, Canvas/Bases navigation, and copying agent handoff prompts.
-- Keep durable personal review notes under `Notes/`.
+- Keep durable personal review notes under `笔记/`.
 
-Generated `Workflow/`, `Shots/`, `Canvas/`, `Bases/`, and dashboard files are projection output. Do not treat them as source Step files.
+Generated `流程/`, `镜头/`, `画布/`, `数据表/`, and dashboard files are projection output. Do not treat them as source Step files.
 
 ## Known Non-Goals
 
@@ -69,7 +69,7 @@ pnpm example:obsidian
 pnpm example:obsidian:ui
 pnpm verify:v0.2
 git diff --check
-rg -n "\[[^\]]+\]\((https?://|file://|vscode://|[A-Za-z]:|/)" README.md README.zh-CN.md docs examples/official-mini-film
+rg -n "\[[^\]]+\]\((https?://|file://|vscode://|[A-Za-z]:|/)" README.md README.zh-CN.md docs examples/官方示例-云上早市
 ```
 
 The absolute-link scan should only report documented intentional fixtures.

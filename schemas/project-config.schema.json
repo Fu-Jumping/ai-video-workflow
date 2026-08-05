@@ -30,6 +30,13 @@
       "type": "object",
       "required": ["enhanced_flow"],
       "properties": {
+        "research_step": {
+          "type": "object",
+          "required": ["enabled"],
+          "properties": {
+            "enabled": { "type": "boolean" }
+          }
+        },
         "enhanced_flow": {
           "type": "object",
           "required": ["enabled"],

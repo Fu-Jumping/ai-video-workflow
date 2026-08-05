@@ -9,7 +9,7 @@ MCP adapter work starts with resources, prompts, and read-only tools. It must no
 The adapter helps an agent understand the project without guessing the repository layout:
 
 - which workflow pack is active
-- which Step 1 to Step 6 files define the project
+- which enabled Step files define the project; research mode includes Step 0 through Step 6, while script mode includes Step 1 through Step 6
 - which shots exist
 - which Step 3, Step 4, Step 5, and Step 6 files belong to each shot
 - which source file should be edited for story, image prompt, motion, or execution-plan changes
@@ -38,6 +38,7 @@ Resources should expose stable, project-relative context. Suggested resources in
 - `ai-video-workflow://project/summary`
 - `ai-video-workflow://project/config`
 - `ai-video-workflow://pack/official-ai-video/overview`
+- `ai-video-workflow://workflow/step/0`
 - `ai-video-workflow://workflow/step/1`
 - `ai-video-workflow://workflow/step/2`
 - `ai-video-workflow://workflow/step/3`
@@ -69,7 +70,7 @@ Prompt text must tell the agent:
 - read source Step files first
 - edit only source Step files when changes are needed
 - do not edit Obsidian projections, IDE runtime mirrors, or MCP resources as source files
-- treat `_views/obsidian/Notes/` as user observations only; it does not replace Step files
+- treat `_views/obsidian/笔记/` as user observations only; it does not replace Step files
 - run verification after edits
 
 For content changes:
@@ -94,13 +95,14 @@ v0.5 tools should be read-only:
 
 The MCP adapter must not write:
 
-- `01_concept/`
-- `02_setting/`
-- `03_storyboard/`
-- `04_image_prompts/`
-- `05_video_prompts/`
-- `06_execution_plan/`
-- generated Obsidian projection folders under `_views/obsidian/`, including `Workflow/`, `Shots/`, `Canvas/`, `Bases/`, and `Projection Manifest.json`
+- `00_前期研究/` when Step 0 is enabled
+- `01_概念策划/`
+- `02_世界设定/`
+- `03_分镜脚本/`
+- `04_图片提示词/`
+- `05_视频提示词/`
+- `06_执行计划/`
+- generated Obsidian projection folders under `_views/obsidian/`, including `流程/`, `镜头/`, `画布/`, `数据表/`, and `投影清单.json`
 - `.obsidian/`
 - `.codex/`
 - `.cursor/`
@@ -164,12 +166,12 @@ If the client does not show resources, prompts, or tools:
 
 - run `ai-video-workflow mcp-context --project <project-path>` first and confirm it exits successfully
 - check that the project has `project.config.yaml`
-- check that all Step 1 to Step 6 directories exist
+- check that all enabled Step directories exist
 - run `ai-video-workflow verify --project <project-path> --ide codex`
 
 If a shot is missing from MCP resources:
 
-- confirm the shot has a Markdown file under `03_storyboard/`
+- confirm the shot has a Markdown file under `03_分镜脚本/`
 - confirm the Step 3 file links to the Step 4 image prompt and Step 5 video prompt
 - rerun `mcp-context` and inspect the `shots` array
 

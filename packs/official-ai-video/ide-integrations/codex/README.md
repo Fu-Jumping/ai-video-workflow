@@ -24,7 +24,7 @@
 
 `.codex/` 是 Codex 在当前项目中的原生运行目录。若规则不落到 `.codex/` 下的有效入口，不能假设 Codex 会稳定按项目规则运行。
 
-跨平台读取时，先读项目根 `AGENTS.md` 和 `docs/ai-workspace/`，再进入 `.codex/` runtime mirror。
+跨平台读取时，先读项目根 `AGENTS.md` 和 `文档/智能体工作区/`，再进入 `.codex/` runtime mirror。
 
 ## 3. 检测顺序
 
@@ -61,7 +61,7 @@
 
 ## 5.0 Adapter Contract
 
-- 读取：`packs/official-ai-video/`、`project.config.yaml` 和项目 Step 1 到 Step 6 文件。
+- 读取：`packs/official-ai-video/`、`project.config.yaml` 和项目已启用步骤文件；研究模式包含 Step 0 到 Step 6，剧本模式包含 Step 1 到 Step 6。
 - 写入：`.codex/ai-video-workflow/` 完整运行镜像和 `.codex/skills/` 技能入口。
 - 同步方向：`runtime-mirror`。
 - 事实源：`project-step-files`，而不是 `.codex/` 运行镜像。

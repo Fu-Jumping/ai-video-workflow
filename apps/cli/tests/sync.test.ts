@@ -55,22 +55,29 @@ async function listTextRuntimeFiles(root: string, current = root): Promise<strin
 
 async function expectSharedAgentWorkspace(projectRoot: string): Promise<void> {
   await expect(fs.pathExists(path.join(projectRoot, "AGENTS.md"))).resolves.toBe(true);
-  await expect(fs.pathExists(path.join(projectRoot, "docs", "ai-workspace", "README.md"))).resolves.toBe(true);
-  await expect(fs.pathExists(path.join(projectRoot, "docs", "ai-workspace", "BOUNDARIES.md"))).resolves.toBe(true);
-  await expect(fs.pathExists(path.join(projectRoot, "docs", "ai-workspace", "HANDOFFS.md"))).resolves.toBe(true);
-  await expect(fs.pathExists(path.join(projectRoot, "docs", "ai-workspace", "SECURITY.md"))).resolves.toBe(true);
-  await expect(fs.pathExists(path.join(projectRoot, "docs", "ai-workspace", "PLATFORM_MATRIX.md"))).resolves.toBe(true);
+  await expect(fs.pathExists(path.join(projectRoot, "文档", "智能体工作区", "入口说明.md"))).resolves.toBe(true);
+  await expect(fs.pathExists(path.join(projectRoot, "文档", "智能体工作区", "边界说明.md"))).resolves.toBe(true);
+  await expect(fs.pathExists(path.join(projectRoot, "文档", "智能体工作区", "智能体交接.md"))).resolves.toBe(true);
+  await expect(fs.pathExists(path.join(projectRoot, "文档", "智能体工作区", "安全边界.md"))).resolves.toBe(true);
+  await expect(fs.pathExists(path.join(projectRoot, "文档", "智能体工作区", "平台矩阵.md"))).resolves.toBe(true);
 
   const agents = await fs.readFile(path.join(projectRoot, "AGENTS.md"), "utf8");
-  expect(agents).toContain("ai-video-workflow shared agent entry");
-  expect(agents).toContain("docs/ai-workspace");
+  expect(agents).toContain("ai-video-workflow 共享智能体入口");
+  expect(agents).toContain("文档/智能体工作区");
   expect(agents).toContain("project-step-files");
+  expect(agents).toContain("00_前期研究");
+  expect(agents).toContain("01_概念策划");
+  expect(agents).toContain("06_执行计划");
 
-  const sharedReadme = await fs.readFile(path.join(projectRoot, "docs", "ai-workspace", "README.md"), "utf8");
-  expect(sharedReadme).toContain("ai-video-workflow shared agent workspace");
-  expect(sharedReadme).toContain("Platform memory is not project truth");
+  const sharedReadme = await fs.readFile(path.join(projectRoot, "文档", "智能体工作区", "入口说明.md"), "utf8");
+  expect(sharedReadme).toContain("ai-video-workflow 共享智能体工作区");
+  expect(sharedReadme).toContain("平台记忆不是项目事实源");
   expect(sharedReadme).toContain("_views/obsidian");
   expect(sharedReadme).toContain("project-step-files");
+  expect(sharedReadme).toContain("共享智能体工作区");
+  expect(sharedReadme).toContain("00_前期研究");
+  expect(sharedReadme).toContain("01_概念策划");
+  expect(sharedReadme).toContain("06_执行计划");
 }
 
 function countOccurrences(content: string, value: string): number {
@@ -94,6 +101,8 @@ describe("syncProject", () => {
     expect(gitignore).toContain(gitignoreBlockMarker);
     expect(gitignore).toContain("_views/");
     expect(gitignore).toContain(".obsidian/");
+    expect(gitignore).toContain("00_前期研究/_资料库/*/raw/");
+    expect(gitignore).toContain("00_前期研究/_inbox/cookies/");
     expect(gitignore).toContain("SOUL.md");
     expect(gitignore).toContain("USER.md");
     expect(gitignore).toContain("memory/");
@@ -163,10 +172,10 @@ describe("syncProject", () => {
 
     const agentRules = await fs.readFile(path.join(projectRoot, ".codex", "agent-rules.md"), "utf8");
     expect(agentRules).toContain("AGENTS.md");
-    expect(agentRules).toContain("docs/ai-workspace");
+    expect(agentRules).toContain("文档/智能体工作区");
     expect(agentRules).toContain("project-step-files");
-    expect(agentRules).toContain("Keep Step 3 and Step 4 frame-aligned.");
-    expect(agentRules).toContain("Keep `.codex/ai-video-workflow/` as the full runtime mirror");
+    expect(agentRules).toContain("保持步骤三和步骤四逐镜头对齐");
+    expect(agentRules).toContain("保持 `.codex/ai-video-workflow/` 作为完整运行镜像");
 
     const runtimeFiles = await listTextRuntimeFiles(path.join(projectRoot, ".codex"));
     for (const file of runtimeFiles) {
@@ -210,7 +219,7 @@ describe("syncProject", () => {
 
     const rules = await fs.readFile(path.join(projectRoot, ".cursor", "rules", "ai-video-workflow.mdc"), "utf8");
     expect(rules).toContain("AGENTS.md");
-    expect(rules).toContain("docs/ai-workspace");
+    expect(rules).toContain("文档/智能体工作区");
     expect(rules).toContain("project-step-files");
 
     const runtimeFiles = await listTextRuntimeFiles(path.join(projectRoot, ".cursor"));
@@ -258,9 +267,9 @@ describe("syncProject", () => {
 
     const claudeEntry = await fs.readFile(path.join(projectRoot, "CLAUDE.md"), "utf8");
     expect(claudeEntry).toContain("AGENTS.md");
-    expect(claudeEntry).toContain("docs/ai-workspace");
+    expect(claudeEntry).toContain("文档/智能体工作区");
     expect(claudeEntry).toContain("project-step-files");
-    expect(claudeEntry).toContain("Step 1 to Step 6 files");
+    expect(claudeEntry).toContain("已启用步骤文件");
     expect(claudeEntry).toContain(".claude/ai-video-workflow/");
 
     const claudeRuntimeRoot = path.join(projectRoot, ".claude");
@@ -314,9 +323,9 @@ describe("syncProject", () => {
 
     const rules = await fs.readFile(path.join(projectRoot, ".trae", "rules", "ai-video-workflow.md"), "utf8");
     expect(rules).toContain("AGENTS.md");
-    expect(rules).toContain("docs/ai-workspace");
+    expect(rules).toContain("文档/智能体工作区");
     expect(rules).toContain("project-step-files");
-    expect(rules).toContain("Step 1 to Step 6 files");
+    expect(rules).toContain("已启用步骤文件");
     expect(rules).toContain(".trae/documents/ai-video-workflow/");
 
     const traeRuntimeRoot = path.join(projectRoot, ".trae");
@@ -337,10 +346,10 @@ describe("syncProject", () => {
     tempRoots.push(root);
     const projectRoot = path.join(root, "preserve-project");
     await seedWorkflowProject(projectRoot, "claude-code");
-    await fs.ensureDir(path.join(projectRoot, "docs", "ai-workspace"));
+    await fs.ensureDir(path.join(projectRoot, "文档", "智能体工作区"));
     await fs.ensureDir(path.join(projectRoot, ".claude", "commands"));
     await fs.writeFile(path.join(projectRoot, "AGENTS.md"), "# Custom Agents\n", "utf8");
-    await fs.writeFile(path.join(projectRoot, "docs", "ai-workspace", "README.md"), "# Custom AI Docs\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "文档", "智能体工作区", "入口说明.md"), "# Custom AI Docs\n", "utf8");
     await fs.writeFile(path.join(projectRoot, "CLAUDE.md"), "# Custom Claude\n", "utf8");
     await fs.writeFile(path.join(projectRoot, "SOUL.md"), "# Custom Soul\n", "utf8");
     await fs.writeFile(path.join(projectRoot, "USER.md"), "# Custom User\n", "utf8");
@@ -356,16 +365,16 @@ describe("syncProject", () => {
     });
 
     await expect(fs.readFile(path.join(projectRoot, "AGENTS.md"), "utf8")).resolves.toBe("# Custom Agents\n");
-    await expect(fs.readFile(path.join(projectRoot, "docs", "ai-workspace", "README.md"), "utf8")).resolves.toBe("# Custom AI Docs\n");
+    await expect(fs.readFile(path.join(projectRoot, "文档", "智能体工作区", "入口说明.md"), "utf8")).resolves.toBe("# Custom AI Docs\n");
     await expect(fs.readFile(path.join(projectRoot, "CLAUDE.md"), "utf8")).resolves.toBe("# Custom Claude\n");
     await expect(fs.readFile(path.join(projectRoot, "SOUL.md"), "utf8")).resolves.toBe("# Custom Soul\n");
     await expect(fs.readFile(path.join(projectRoot, "USER.md"), "utf8")).resolves.toBe("# Custom User\n");
     await expect(fs.readFile(path.join(projectRoot, "memory", "README.md"), "utf8")).resolves.toBe("# Custom Memory\n");
-    await expect(fs.pathExists(path.join(projectRoot, "docs", "ai-workspace", "BOUNDARIES.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "文档", "智能体工作区", "边界说明.md"))).resolves.toBe(true);
 
     const generatedCommand = await fs.readFile(path.join(projectRoot, ".claude", "commands", "ai-video-workflow.md"), "utf8");
     expect(generatedCommand).toContain("AGENTS.md");
-    expect(generatedCommand).toContain("docs/ai-workspace");
+    expect(generatedCommand).toContain("文档/智能体工作区");
     expect(generatedCommand).toContain("project-step-files");
     expect(generatedCommand).not.toContain("Old Generated Command");
   });
@@ -388,8 +397,8 @@ describe("syncProject", () => {
     });
 
     await expect(fs.readFile(path.join(projectRoot, "AGENTS.md"), "utf8")).resolves.toBe("# Custom Agents\n\nRead SOUL.md first.\n");
-    const reconciliation = await fs.readFile(path.join(projectRoot, "docs", "ai-workspace", "ENTRYPOINT_RECONCILIATION.md"), "utf8");
-    expect(reconciliation).toContain("Marker: ai-video-workflow shared agent workspace.");
+    const reconciliation = await fs.readFile(path.join(projectRoot, "文档", "智能体工作区", "入口协调.md"), "utf8");
+    expect(reconciliation).toContain("标记：ai-video-workflow 共享智能体工作区。");
     expect(reconciliation).toContain("## ai-video-workflow");
     expect(reconciliation).toContain("SOUL.md");
     expect(reconciliation).toContain("USER.md");

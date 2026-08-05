@@ -1,8 +1,7 @@
-import fs from "fs-extra";
-import path from "node:path";
-
-import { STEP6_FILES } from "../constants.js";
+import { STEP6_FILES, STEP_DIR_BY_NUMBER, activeWorkflowSteps } from "../constants.js";
 import { readWorkflowProjectConfig } from "../project-root.js";
+import { buildShotGraph } from "../shot-graph.js";
+import type { ProjectConfig } from "../types.js";
 
 export interface BuildMcpContextOptions {
   projectRoot: string;
@@ -11,10 +10,12 @@ export interface BuildMcpContextOptions {
 
 export interface McpShotContext {
   id: string;
+  groupId: string;
   title: string;
   sourcePaths: {
     storyboard: string;
     imagePrompt: string;
+    imagePrompts: string[];
     videoPrompt: string;
     executionPlan: string[];
   };
@@ -44,85 +45,43 @@ export interface McpProjectContext {
   };
 }
 
-const workflowSteps: McpWorkflowStepContext[] = [
-  { step: 1, label: "Concept", directory: "01_concept" },
-  { step: 2, label: "Setting", directory: "02_setting" },
-  { step: 3, label: "Storyboard", directory: "03_storyboard" },
-  { step: 4, label: "Image prompts", directory: "04_image_prompts" },
-  { step: 5, label: "Video prompts", directory: "05_video_prompts" },
-  { step: 6, label: "Execution plan", directory: "06_execution_plan" }
-];
-
-const downstreamLinkPattern = /\]\(([^)]+)\)/g;
-
-function normalizeRelativePath(relPath: string): string {
-  return relPath.split(path.sep).join("/");
-}
-
-function stripAnchor(linkTarget: string): string {
-  return linkTarget.split("#")[0];
-}
-
-function resolveLinkedProjectPath(sourceRelPath: string, linkTarget: string): string {
-  const sourceDir = path.posix.dirname(normalizeRelativePath(sourceRelPath));
-  return path.posix.normalize(path.posix.join(sourceDir, stripAnchor(linkTarget)));
-}
-
-function findDownstreamLink(content: string, sourceRelPath: string, targetDir: string): string | undefined {
-  for (const match of content.matchAll(downstreamLinkPattern)) {
-    const linkedPath = resolveLinkedProjectPath(sourceRelPath, match[1]);
-    if (linkedPath.startsWith(`${targetDir}/`)) {
-      return linkedPath;
-    }
-  }
-  return undefined;
-}
-
-async function findByPrefix(projectRoot: string, dir: string, shotId: string): Promise<string> {
-  const fullDir = path.join(projectRoot, dir);
-  const entries = (await fs.pathExists(fullDir)) ? await fs.readdir(fullDir) : [];
-  const match = entries.filter((entry) => entry.endsWith(".md") && entry.startsWith(shotId)).sort()[0];
-  return match ? `${dir}/${match}` : `${dir}/${shotId}.md`;
-}
+const step6Dir = STEP_DIR_BY_NUMBER[6];
 
 function titleFromMarkdown(content: string, fallback: string): string {
   const heading = content.match(/^#\s+(.+)$/m);
   return heading?.[1]?.trim() || fallback;
 }
 
-async function buildShotContext(projectRoot: string, storyboardFileName: string): Promise<McpShotContext> {
-  const shotId = path.basename(storyboardFileName, ".md");
-  const storyboardPath = `03_storyboard/${storyboardFileName}`;
-  const storyboardContent = await fs.readFile(path.join(projectRoot, storyboardPath), "utf8");
-
-  return {
-    id: shotId,
-    title: titleFromMarkdown(storyboardContent, shotId),
-    sourcePaths: {
-      storyboard: storyboardPath,
-      imagePrompt: findDownstreamLink(storyboardContent, storyboardPath, "04_image_prompts") ?? (await findByPrefix(projectRoot, "04_image_prompts", shotId)),
-      videoPrompt: findDownstreamLink(storyboardContent, storyboardPath, "05_video_prompts") ?? (await findByPrefix(projectRoot, "05_video_prompts", shotId)),
-      executionPlan: STEP6_FILES.map((file) => `06_execution_plan/${file}`)
-    }
-  };
-}
-
-async function assertValidProjectShape(projectRoot: string): Promise<void> {
-  await readWorkflowProjectConfig(projectRoot);
+async function assertValidProjectShape(projectRoot: string): Promise<ProjectConfig> {
+  return readWorkflowProjectConfig(projectRoot);
 }
 
 export async function buildMcpContext(options: BuildMcpContextOptions): Promise<McpProjectContext> {
-  await assertValidProjectShape(options.projectRoot);
+  const config = await assertValidProjectShape(options.projectRoot);
+  const workflowSteps: McpWorkflowStepContext[] = activeWorkflowSteps(config).map((step) => ({
+    step: step.step,
+    label: step.label,
+    directory: step.directory
+  }));
 
-  const storyboardDir = path.join(options.projectRoot, "03_storyboard");
-  const storyboardFiles = (await fs.pathExists(storyboardDir))
-    ? (await fs.readdir(storyboardDir)).filter((entry) => entry.endsWith(".md")).sort()
-    : [];
-
-  const shots: McpShotContext[] = [];
-  for (const storyboardFile of storyboardFiles) {
-    shots.push(await buildShotContext(options.projectRoot, storyboardFile));
-  }
+  const graph = await buildShotGraph(options.projectRoot);
+  const shots: McpShotContext[] = graph.shots
+    .filter((shot) => shot.storyboard)
+    .map((shot) => {
+      const imagePrompts = shot.imagePrompts.map((file) => file.relPath);
+      return {
+        id: shot.id,
+        groupId: shot.groupId ?? "ungrouped",
+        title: titleFromMarkdown(shot.storyboard?.content ?? "", shot.id),
+        sourcePaths: {
+          storyboard: shot.storyboard?.relPath ?? "",
+          imagePrompt: imagePrompts[0] ?? "",
+          imagePrompts,
+          videoPrompt: shot.videoPrompt?.relPath ?? "",
+          executionPlan: STEP6_FILES.map((file) => `${step6Dir}/${file}`)
+        }
+      };
+    });
 
   return {
     project: {
@@ -138,11 +97,12 @@ export async function buildMcpContext(options: BuildMcpContextOptions): Promise<
       "ai-video-workflow mcp-context --project <path>"
     ],
     editBoundaries: {
-      story: "Edit Step 3 storyboard files.",
-      image: "Edit Step 4 image prompt files.",
-      motion: "Edit Step 5 video prompt files.",
-      execution: "Edit Step 6 execution plan files.",
-      generated: "Do not edit Obsidian projections under _views/obsidian, IDE runtime mirrors, Cherry Studio SOUL/USER/memory host surfaces, or MCP resources as source files."
+      research: "真实资料、来源台账、摘录卡片、主题归纳和创作简报修改写入步骤零前期研究文件。",
+      story: "故事和画面叙事修改写入步骤三分镜脚本文件。",
+      image: "视觉一致性和图片提示词修改写入步骤四图片提示词文件。",
+      motion: "运动和镜头行为修改写入步骤五视频提示词文件。",
+      execution: "执行组织和生产排期修改写入步骤六执行计划文件。",
+      generated: "不要把 _views/obsidian 下的 Obsidian 投影、IDE 运行镜像、Cherry Studio 的 SOUL/USER/memory 宿主表面或 MCP 资源当作源文件编辑。"
     },
     viewLayers: {
       obsidian: {

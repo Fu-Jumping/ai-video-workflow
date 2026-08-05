@@ -12,4 +12,4 @@
 
 涉及 `apps/cli/dist` 的命令需要串行执行。built CLI 测试和示例脚本会重建或读取同一个 `dist` 目录，并行跑容易造成误报。
 
-Obsidian 人工 QA 时，打开 `examples/official-mini-film/_views/obsidian/`，不要打开 `examples/official-mini-film/`。
+Obsidian 人工 QA 时，打开 `examples/官方示例-云上早市/_views/obsidian/`，不要打开 `examples/官方示例-云上早市/`。

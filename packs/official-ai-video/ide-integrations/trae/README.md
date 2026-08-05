@@ -20,7 +20,7 @@
 
 `.trae/` 是 Trae 在当前项目中的原生运行目录。Trae 若要稳定识别技能，核心内容必须进入 `.trae/skills/` 等原生位置。
 
-跨平台读取时，先读项目根 `AGENTS.md` 和 `docs/ai-workspace/`。Trae 专属说明放在 `.trae/rules/`。
+跨平台读取时，先读项目根 `AGENTS.md` 和 `文档/智能体工作区/`。Trae 专属说明放在 `.trae/rules/`。
 
 ## 3. 检测顺序
 
@@ -91,7 +91,7 @@
 
 ## 8. Adapter Contract
 
-- 读取：`packs/official-ai-video/`、`project.config.yaml` 和项目 Step 1 到 Step 6 文件。
+- 读取：`packs/official-ai-video/`、`project.config.yaml` 和项目已启用步骤文件；研究模式包含 Step 0 到 Step 6，剧本模式包含 Step 1 到 Step 6。
 - 写入：`AGENTS.md` 兼容入口、`.trae/skills/` 技能入口、`.trae/rules/ai-video-workflow.md` 规则入口、`.trae/specs/ai-video-workflow/` 规范镜像和 `.trae/documents/ai-video-workflow/` 文档镜像。
 - 文档镜像包括：`WORKFLOW_OVERVIEW.md`、`skills/`、`skill-bundles/`、`templates/` 和 `indexes/`。
 - 同步方向：`runtime-mirror`。

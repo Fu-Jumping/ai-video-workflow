@@ -9,7 +9,7 @@ MCP adapter 的起点是 resources、prompts 和只读 tools。它不能变成�
 这个 adapter 帮助智能体理解项目，而不是猜仓库结构：
 
 - 当前使用哪个 workflow pack
-- 哪些 Step 1 到 Step 6 文件定义了项目
+- 哪些已启用步骤文件定义了项目；研究模式包含 Step 0 到 Step 6，剧本模式包含 Step 1 到 Step 6
 - 项目里有哪些镜头
 - 每个镜头对应哪些 Step 3、Step 4、Step 5 和 Step 6 文件
 - 故事、图像提示词、运动或执行计划修改应该改哪个源文件
@@ -38,6 +38,7 @@ Resources 应该暴露稳定的、项目相对的上下文。建议资源包括�
 - `ai-video-workflow://project/summary`
 - `ai-video-workflow://project/config`
 - `ai-video-workflow://pack/official-ai-video/overview`
+- `ai-video-workflow://workflow/step/0`
 - `ai-video-workflow://workflow/step/1`
 - `ai-video-workflow://workflow/step/2`
 - `ai-video-workflow://workflow/step/3`
@@ -69,7 +70,7 @@ Prompt 文案必须告诉智能体：
 - 先读取源 Step 文件
 - 需要修改时只编辑源 Step 文件
 - 不要把 Obsidian 投影、IDE runtime mirror 或 MCP resources 当作源文件编辑
-- 把 `_views/obsidian/Notes/` 视为用户观察记录；它不能替代 Step 文件
+- 把 `_views/obsidian/笔记/` 视为用户观察记录；它不能替代 Step 文件
 - 修改后运行验证
 
 内容修改边界：
@@ -94,13 +95,14 @@ v0.5 tools 应该只读：
 
 MCP adapter 不能写入：
 
-- `01_concept/`
-- `02_setting/`
-- `03_storyboard/`
-- `04_image_prompts/`
-- `05_video_prompts/`
-- `06_execution_plan/`
-- `_views/obsidian/` 下的生成 Obsidian 投影目录，包括 `Workflow/`、`Shots/`、`Canvas/`、`Bases/` 和 `Projection Manifest.json`
+- `00_前期研究/`（启用 Step 0 时）
+- `01_概念策划/`
+- `02_世界设定/`
+- `03_分镜脚本/`
+- `04_图片提示词/`
+- `05_视频提示词/`
+- `06_执行计划/`
+- `_views/obsidian/` 下的生成 Obsidian 投影目录，包括 `流程/`、`镜头/`、`画布/`、`数据表/` 和 `投影清单.json`
 - `.obsidian/`
 - `.codex/`
 - `.cursor/`
@@ -164,12 +166,12 @@ server 只绑定一个项目路径。每个项目单独启动一个 server。
 
 - 先运行 `ai-video-workflow mcp-context --project <project-path>`，确认它能成功退出
 - 检查项目是否有 `project.config.yaml`
-- 检查 Step 1 到 Step 6 目录是否都存在
+- 检查当前项目已启用步骤目录是否都存在
 - 运行 `ai-video-workflow verify --project <project-path> --ide codex`
 
 如果某个镜头没有出现在 MCP resources 中：
 
-- 确认该镜头在 `03_storyboard/` 下有 Markdown 文件
+- 确认该镜头在 `03_分镜脚本/` 下有 Markdown 文件
 - 确认 Step 3 文件链接到 Step 4 image prompt 和 Step 5 video prompt
 - 重新运行 `mcp-context` 并检查 `shots` 数组
 

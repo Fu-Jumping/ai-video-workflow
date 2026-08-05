@@ -1,5 +1,5 @@
 requiredFiles:
   - project.config.yaml
-  - 06_execution_plan/00_execution_plan.md
-  - 06_execution_plan/01_image_execution_plan.md
-  - 06_execution_plan/02_video_execution_plan.md
+  - 06_执行计划/00_执行计划.md
+  - 06_执行计划/01_图片执行计划.md
+  - 06_执行计划/02_视频执行计划.md
