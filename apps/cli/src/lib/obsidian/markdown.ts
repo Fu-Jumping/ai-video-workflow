@@ -4,6 +4,7 @@ import { formatReferenceAssets } from "../reference-assets.js";
 import { shotGroupDirectoryName } from "../shot-graph.js";
 import { sanitizeVaultFileName, toVaultPath } from "./paths.js";
 import { obsidianProperties, obsidianPropertyValues } from "./properties.js";
+import { stageReviewPath, stepDisplayDirectory } from "./routes.js";
 import type { ObsidianSourceFile } from "./types.js";
 
 const stepNames: Record<number, string> = {
@@ -14,16 +15,6 @@ const stepNames: Record<number, string> = {
   4: "图片提示词",
   5: "视频提示词",
   6: "执行计划"
-};
-
-const stepFolders: Record<number, string> = {
-  0: "步骤零 - 前期研究",
-  1: "步骤一 - 概念策划",
-  2: "步骤二 - 世界设定",
-  3: "步骤三 - 分镜脚本",
-  4: "步骤四 - 图片提示词",
-  5: "步骤五 - 视频提示词",
-  6: "步骤六 - 执行计划"
 };
 
 const stepTags: Record<number, string> = {
@@ -51,7 +42,7 @@ const stageGroups: Record<number, StageGroup> = {
 };
 
 export function stepFolderName(step: number): string {
-  return stepFolders[step] ?? `步骤${step}`;
+  return stepDisplayDirectory(step);
 }
 
 export function generatedFileName(sourceFile: ObsidianSourceFile): string {
@@ -71,7 +62,7 @@ export function generatedFileName(sourceFile: ObsidianSourceFile): string {
 
 export function workflowVaultPath(sourceFile: ObsidianSourceFile): string {
   const groupDirectory = sourceFile.shotGroupId ? shotGroupDirectoryName(sourceFile.shotGroupId) : undefined;
-  return toVaultPath(path.join("流程", stepFolderName(sourceFile.step), ...(groupDirectory ? [groupDirectory] : []), generatedFileName(sourceFile)));
+  return toVaultPath(path.posix.join(stageReviewPath(sourceFile.step), ...(groupDirectory ? [groupDirectory] : []), generatedFileName(sourceFile)));
 }
 
 export function wikiLinkTargetForVaultPath(vaultPath: string): string {

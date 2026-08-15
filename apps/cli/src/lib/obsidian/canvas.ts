@@ -1,8 +1,10 @@
 import { workflowVaultPath } from "./markdown.js";
-import { notesIndexPath } from "./routes.js";
+import { notesIndexPath, shotReviewCanvasPath } from "./routes.js";
 import type { ObsidianGeneratedFile, ObsidianSourceFile } from "./types.js";
 import { formatReferenceAssets } from "../reference-assets.js";
 import type { ReferenceAssetToken } from "../reference-assets.js";
+
+export { shotReviewCanvasPath } from "./routes.js";
 
 interface CanvasNode {
   id: string;
@@ -180,10 +182,6 @@ function addSourceOrMissingNode({
     label: edgeLabel
   });
   return nodeId;
-}
-
-export function shotReviewCanvasPath(shotId: string): string {
-  return `画布/镜头审阅/${shotId}.canvas`;
 }
 
 export function renderWorkflowCanvas(sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedFile {
