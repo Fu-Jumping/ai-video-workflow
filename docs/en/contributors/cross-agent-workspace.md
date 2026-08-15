@@ -27,7 +27,7 @@ Runtime mirrors are adapter surfaces only:
 - `.claude/`
 - `.trae/`
 - `_views/obsidian/` generated Obsidian view layer
-- `_views/obsidian/笔记/` user-authored Obsidian notes, preserved by incremental export but not project truth
+- `_views/obsidian/04_个人笔记/` user-authored Obsidian notes, preserved by incremental export but not project truth
 - MCP resources and prompts
 
 Platform memory is not project truth.

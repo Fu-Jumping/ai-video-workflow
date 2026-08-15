@@ -27,7 +27,7 @@
 - `.claude/`
 - `.trae/`
 - `_views/obsidian/` 生成 Obsidian 观看层
-- `_views/obsidian/笔记/` 用户手写 Obsidian 笔记，增量导出会保留，但不是项目事实源
+- `_views/obsidian/04_个人笔记/` 用户手写 Obsidian 笔记，增量导出会保留，但不是项目事实源
 - MCP resources 和 prompts
 
 平台记忆不是项目事实源。

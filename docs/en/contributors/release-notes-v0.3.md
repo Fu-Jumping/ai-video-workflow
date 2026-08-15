@@ -2,6 +2,8 @@
 
 v0.3 turns the official AI video workflow project into an Obsidian-readable vault projection. The feature is designed for reading, navigation, review, and agent handoff. It does not make Obsidian a second workflow source.
 
+> **Current layout note:** This release note records the v0.3 paths. The current vault uses `00_开始审阅/`, `01_阶段审核/`, `02_按镜头联查/`, `03_审阅工具/`, and `04_个人笔记/`; see [Obsidian Vault Projection](./obsidian-vault-projection.md) for the active contract.
+
 ## What Changed
 
 - Added `export-obsidian` to generate an Obsidian vault projection from project Step files.

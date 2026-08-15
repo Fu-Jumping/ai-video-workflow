@@ -70,7 +70,7 @@ Prompt text must tell the agent:
 - read source Step files first
 - edit only source Step files when changes are needed
 - do not edit Obsidian projections, IDE runtime mirrors, or MCP resources as source files
-- treat `_views/obsidian/笔记/` as user observations only; it does not replace Step files
+- treat `_views/obsidian/04_个人笔记/` as user observations only; it does not replace Step files
 - run verification after edits
 
 For content changes:
@@ -102,7 +102,7 @@ The MCP adapter must not write:
 - `04_图片提示词/`
 - `05_视频提示词/`
 - `06_执行计划/`
-- generated Obsidian projection folders under `_views/obsidian/`, including `流程/`, `镜头/`, `画布/`, `数据表/`, and `投影清单.json`
+- generated Obsidian projection folders under `_views/obsidian/`, including `00_开始审阅/`, `01_阶段审核/`, `02_按镜头联查/`, `03_审阅工具/`, and `投影清单.json`
 - `.obsidian/`
 - `.codex/`
 - `.cursor/`

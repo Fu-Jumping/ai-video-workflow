@@ -72,9 +72,9 @@ node apps/cli/dist/index.js export-obsidian --project examples/官方示例-云�
 node apps/cli/dist/index.js verify-obsidian --project examples/官方示例-云上早市 --vault .tmp/官方示例-云上早市-obsidian
 ```
 
-Default export is safe and incremental. When exporting to the same vault again, the CLI reads `投影清单.json`, updates generated files that have not been user-edited, and preserves user notes created under `笔记/`.
+Default export is safe and incremental. When exporting to the same vault again, the CLI reads `投影清单.json`, updates generated files that have not been user-edited, and preserves user notes created under `04_个人笔记/`. When upgrading a legacy vault, it removes only manifest-proven, unchanged generated files and migrates user notes from the former `笔记/` directory.
 
-The generated vault includes `00_项目首页.md`, `01_审阅总览.md`, `02_镜头索引.md`, `03_制作看板.md`, `04_智能体交接.md`, review queues, shot progress, execution readiness, `画布/流程图.canvas`, `画布/镜头流水线.canvas`, `画布/审阅地图.canvas`, immersive `镜头/<shotId>.md` review pages, and per-shot `画布/镜头审阅/<shotId>.canvas` canvases. Open `00_项目首页.md`, follow the viewing route, inspect a shot, use `04_智能体交接.md` to copy source-file context into an agent conversation, then rerun verification after source Step edits. These are generated views over the Step files, not a second source of truth.
+The vault has five numbered entry areas: `00_开始审阅/`, `01_阶段审核/`, `02_按镜头联查/`, `03_审阅工具/`, and `04_个人笔记/`. Start at `00_开始审阅/00_项目首页.md`, review each production stage in order, then review each stage by shot group and shot order. Use `02_按镜头联查/单镜头/<shotId>.md` only when an inconsistency crosses stages, and use `03_审阅工具/01_智能体交接.md` to copy source-file context into an agent conversation. These are generated views over the Step files, not a second source of truth.
 
 Common options:
 
@@ -96,7 +96,7 @@ node apps/cli/dist/index.js clean-view --project <project-path>
 node apps/cli/dist/index.js rebuild-view --project <project-path>
 ```
 
-`clean-view` only removes generated files recorded in the in-project view manifest `投影清单.json`, and preserves untracked files such as hand-written notes you add under `笔记/`. `rebuild-view` syncs the IDE runtime from the project config by default, cleans the old in-project view, exports a fresh one, and verifies it.
+`clean-view` only removes generated files recorded in the in-project view manifest `投影清单.json`, and preserves untracked files such as hand-written notes you add under `04_个人笔记/`. `rebuild-view` syncs the IDE runtime from the project config by default, cleans the old in-project view, exports a fresh one, and verifies it.
 
 You can also clean or rebuild only part of the generated viewing layer:
 
@@ -104,7 +104,7 @@ You can also clean or rebuild only part of the generated viewing layer:
 node apps/cli/dist/index.js clean-view --project <project-path> --step 4 --dry-run
 node apps/cli/dist/index.js rebuild-view --project <project-path> --shot shot-002
 node apps/cli/dist/index.js clean-view --project <project-path> --kind canvas --dry-run
-node apps/cli/dist/index.js clean-view --project <project-path> --dir "流程/步骤四 - 图片提示词" --dry-run
+node apps/cli/dist/index.js clean-view --project <project-path> --dir "01_阶段审核/04_图片提示词" --dry-run
 node apps/cli/dist/index.js rebuild-view --project <project-path> --property 源文件类型=图片提示词
 ```
 

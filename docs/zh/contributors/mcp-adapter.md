@@ -70,7 +70,7 @@ Prompt 文案必须告诉智能体：
 - 先读取源 Step 文件
 - 需要修改时只编辑源 Step 文件
 - 不要把 Obsidian 投影、IDE runtime mirror 或 MCP resources 当作源文件编辑
-- 把 `_views/obsidian/笔记/` 视为用户观察记录；它不能替代 Step 文件
+- 把 `_views/obsidian/04_个人笔记/` 视为用户观察记录；它不能替代 Step 文件
 - 修改后运行验证
 
 内容修改边界：
@@ -102,7 +102,7 @@ MCP adapter 不能写入：
 - `04_图片提示词/`
 - `05_视频提示词/`
 - `06_执行计划/`
-- `_views/obsidian/` 下的生成 Obsidian 投影目录，包括 `流程/`、`镜头/`、`画布/`、`数据表/` 和 `投影清单.json`
+- `_views/obsidian/` 下的生成 Obsidian 投影目录，包括 `00_开始审阅/`、`01_阶段审核/`、`02_按镜头联查/`、`03_审阅工具/` 和 `投影清单.json`
 - `.obsidian/`
 - `.codex/`
 - `.cursor/`

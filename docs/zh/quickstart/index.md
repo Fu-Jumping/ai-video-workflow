@@ -72,9 +72,9 @@ node apps/cli/dist/index.js export-obsidian --project examples/官方示例-云�
 node apps/cli/dist/index.js verify-obsidian --project examples/官方示例-云上早市 --vault .tmp/官方示例-云上早市-obsidian
 ```
 
-默认导出是安全增量模式。再次导出到同一个 vault 时，CLI 会读取 `投影清单.json`，只更新未被用户改动的生成文件，并保留用户在 `笔记/` 中新增的笔记。
+默认导出是安全增量模式。再次导出到同一个 vault 时，CLI 会读取 `投影清单.json`，只更新未被用户改动的生成文件，并保留用户在 `04_个人笔记/` 中新增的笔记；升级旧布局时，会清理可由清单证明且未修改的旧生成文件，并迁移旧 `笔记/` 中的用户笔记。
 
-生成的 vault 包含 `00_项目首页.md`、`01_审阅总览.md`、`02_镜头索引.md`、`03_制作看板.md`、`04_智能体交接.md`、审阅队列、镜头进度、执行就绪、`画布/流程图.canvas`、`画布/镜头流水线.canvas`、`画布/审阅地图.canvas`、沉浸式 `镜头/<shotId>.md` 单镜头审阅页，以及逐镜头 `画布/镜头审阅/<shotId>.canvas`。打开 `00_项目首页.md` 后，按页面中的观看路线先看项目、进入镜头、用 `04_智能体交接.md` 把源文件上下文复制到智能体对话中，并在源 Step 文件修改后重新校验。这些都是基于 Step 文件生成的审阅视图，不是第二套事实源。
+生成的 vault 以五个编号入口组织：`00_开始审阅/`、`01_阶段审核/`、`02_按镜头联查/`、`03_审阅工具/` 和 `04_个人笔记/`。从 `00_开始审阅/00_项目首页.md` 进入后，默认先按阶段审核；在每个阶段按镜头组与镜头顺序完整审阅。只有发现跨阶段不一致时，才进入 `02_按镜头联查/单镜头/<shotId>.md`，并可使用 `03_审阅工具/01_智能体交接.md` 复制源文件上下文给智能体。这些都是基于 Step 文件生成的审阅视图，不是第二套事实源。
 
 常用选项：
 
@@ -96,7 +96,7 @@ node apps/cli/dist/index.js clean-view --project <project-path>
 node apps/cli/dist/index.js rebuild-view --project <project-path>
 ```
 
-`clean-view` 只清理项目内 `_views/obsidian/` 中由 `投影清单.json` 记录的生成文件，并保留清单外文件，例如你在 `笔记/` 里新增的手写笔记。`rebuild-view` 会默认先同步当前项目配置里的 IDE runtime，再清理旧观看层、重新导出并运行观看层校验。
+`clean-view` 只清理项目内 `_views/obsidian/` 中由 `投影清单.json` 记录的生成文件，并保留清单外文件，例如你在 `04_个人笔记/` 里新增的手写笔记。`rebuild-view` 会默认先同步当前项目配置里的 IDE runtime，再清理旧观看层、重新导出并运行观看层校验。
 
 也可以只清理或重建一部分观看层生成文件：
 
@@ -104,7 +104,7 @@ node apps/cli/dist/index.js rebuild-view --project <project-path>
 node apps/cli/dist/index.js clean-view --project <project-path> --step 4 --dry-run
 node apps/cli/dist/index.js rebuild-view --project <project-path> --shot shot-002
 node apps/cli/dist/index.js clean-view --project <project-path> --kind canvas --dry-run
-node apps/cli/dist/index.js clean-view --project <project-path> --dir "流程/步骤四 - 图片提示词" --dry-run
+node apps/cli/dist/index.js clean-view --project <project-path> --dir "01_阶段审核/04_图片提示词" --dry-run
 node apps/cli/dist/index.js rebuild-view --project <project-path> --property 源文件类型=图片提示词
 ```
 

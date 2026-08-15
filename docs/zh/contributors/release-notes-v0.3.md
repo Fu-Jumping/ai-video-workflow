@@ -2,6 +2,8 @@
 
 v0.3 会把官方 AI 视频工作流项目导出成适合 Obsidian 阅读的 vault 投影。这个功能服务于阅读、导航、审阅和智能体交接，不会把 Obsidian 变成第二套工作流来源。
 
+> **当前目录说明：** 本文记录的是 v0.3 当时的路径。当前 vault 使用 `00_开始审阅/`、`01_阶段审核/`、`02_按镜头联查/`、`03_审阅工具/`、`04_个人笔记/`；请以 [Obsidian Vault 投影](./obsidian-vault-projection.md) 为现行目录合同。
+
 ## 主要变化
 
 - 新增 `export-obsidian`，可以从项目 Step 文件生成 Obsidian vault 投影。

@@ -218,7 +218,7 @@ CLI 初始化会生成项目骨架，并同步共享智能体入口和指定 IDE
 - `verify` 会忽略根 `_views/`、根 `.obsidian/`、Cherry Studio `SOUL.md`、`USER.md` 和 `memory/`，避免本地观看层或宿主记忆污染项目级 Markdown 链接检查。
 - `verify` 能识别自定义 `AGENTS.md` 缺少 ai-video-workflow block 的情况，并要求合并而不是覆盖。
 - `doctor` 对自定义 `AGENTS.md` 会输出可合并 block，并提醒不要复制 Cherry Studio 私有记忆、token、本机路径或平台缓存到项目事实源。
-- Obsidian 默认增量导出会保留 `笔记/` 用户笔记，并跳过用户手改过的生成文件。
+- Obsidian 默认增量导出会保留 `04_个人笔记/` 用户笔记，并跳过用户手改过的生成文件；升级旧布局时会迁移旧 `笔记/` 的未跟踪用户笔记。
 - Obsidian `--force` 会拒绝删除包含 `.git` 的输出目录。
 - Obsidian 导出禁止输出目录等于项目根或项目父目录。
 - Obsidian manifest 和 MCP context 已有“不写本机绝对路径”的测试约束。

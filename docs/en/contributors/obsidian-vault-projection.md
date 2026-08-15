@@ -15,15 +15,15 @@ project/
 ├─ 00_前期研究/ ... 06_执行计划/   # research mode
 └─ _views/
    └─ obsidian/
-      ├─ 流程/
-      ├─ 镜头/
-      ├─ 数据表/
-      ├─ 画布/
-      ├─ 笔记/
+      ├─ 00_开始审阅/
+      ├─ 01_阶段审核/
+      ├─ 02_按镜头联查/
+      ├─ 03_审阅工具/
+      ├─ 04_个人笔记/
       └─ 投影清单.json
 ```
 
-`project/` remains the AI agent working directory and source root. `_views/obsidian/` is the Obsidian vault root. `流程/` inside that vault is generated Markdown for reading and linking back to Step files. Users should open `_views/obsidian/` in Obsidian, not `project/`.
+`project/` remains the AI agent working directory and source root. `_views/obsidian/` is the Obsidian vault root. Start from `00_开始审阅/`; use `01_阶段审核/` as the main stage-by-stage review route, `02_按镜头联查/` only to trace inconsistencies across stages, `03_审阅工具/` for dashboards, handoff, Canvas, Bases, and templates, and `04_个人笔记/` for personal notes. Users should open `_views/obsidian/` in Obsidian, not `project/`.
 
 Run:
 
@@ -45,13 +45,14 @@ External vault mode remains supported with `--out <vault-path>` and `--vault <va
 
 - Generated Obsidian vault directory, recommended at `_views/obsidian/`
 - Projected Markdown files with properties and tags
-- Project home, review dashboard, shot index, and production board with numbered sections
-- Project-level `04_智能体交接.md` page that centralizes source paths, edit boundaries, and copy-ready agent prompts
-- Immersive `镜头/<shotId>.md` single-shot review pages
+- Project home, stage overview, and review dashboard with numbered sections
+- Stage review pages arranged by Step, shot group, and shot order
+- `03_审阅工具/01_智能体交接.md` that centralizes source paths, edit boundaries, and copy-ready agent prompts
+- Immersive cross-stage `02_按镜头联查/单镜头/<shotId>.md` review pages
 - Bases `.base` files with Review Queue, Shot Progress, Execution Readiness, and Modified Generated Files views
-- Canvas `.canvas` files for the workflow map, shot pipeline, review map, and per-shot `画布/镜头审阅/<shotId>.canvas` review canvases
+- Canvas `.canvas` files for the workflow map, shot pipeline, and review map under `03_审阅工具/全局画布/`, plus per-shot review canvases under `02_按镜头联查/逐镜头审阅画布/`
 - `投影清单.json`
-- `笔记/` user-note entry point
+- `04_个人笔记/` user-note entry point
 - Optional community plugin recipes
 
 ## Sync Direction
@@ -62,19 +63,19 @@ Starting in v0.3.1, `export-obsidian` is a safe incremental export by default. W
 
 Use `--force` to clear and rebuild the output directory. Use `--dry-run` to print planned operations without writing files.
 
-Starting in v0.3.2, the generated project home is a review command center. It links to review queues, shot progress, execution readiness, Graph/Canvas routes, Bases, and the user note area. The review map canvas is a spatial route through the project home, review dashboard, shot index, production board, Bases, notes, workflow map, and shot pipeline.
+The current review route is stage-first: start from `00_开始审阅/00_项目首页.md`, open `01_阶段审核/00_阶段总览.md`, then review each stage by shot group and shot order. Enter `02_按镜头联查/` only when an issue crosses stages.
 
-Starting in v0.3.3, each generated `镜头/<shotId>.md` page is an immersive single-shot review hub. It links and embeds the storyboard, Step 4 image prompt, Step 5 video prompt, execution checks, user review note target, and per-shot `画布/镜头审阅/<shotId>.canvas`. Shot pages keep only a short edit entry, and durable human comments belong under `笔记/`.
+Each generated `02_按镜头联查/单镜头/<shotId>.md` page is an immersive cross-stage review hub. It links and embeds the storyboard, Step 4 image prompt, Step 5 video prompt, execution checks, a user review note target, and its per-shot review Canvas. Shot pages keep only a short edit entry, and durable human comments belong under `04_个人笔记/`.
 
-Starting in v0.3.4, `04_智能体交接.md` centralizes copy-ready agent context, per-shot source paths, edit boundaries, and verification commands. Users can inspect the project in Obsidian, then open the handoff page and copy the relevant context to an agent. Shot review pages no longer expand the full agent prompt, keeping agent-facing text out of the main creator review flow.
+`03_审阅工具/01_智能体交接.md` centralizes copy-ready agent context, per-shot source paths, edit boundaries, and verification commands. Users can inspect the project in Obsidian, then open the handoff page and copy the relevant context to an agent. Shot review pages no longer expand the full agent prompt, keeping agent-facing text out of the main creator review flow.
 
-Starting in v0.3.5, the generated project home includes a viewing route for first-time vault use. Optional `--include-obsidian-ui` suggestions bookmark the project home, agent handoff, shot index, review map, shot pipeline, and notes, and open the project home next to the review dashboard in the suggested workspace.
+Optional `--include-obsidian-ui` suggestions bookmark the project home, stage overview, shot lookup, production board, agent handoff, review map, shot pipeline, and personal-note index, and open the start-review and stage-review areas in the suggested workspace.
 
 Starting in v0.3.6, release hardening treats real-vault QA as an explicit gate. `verify-obsidian` validates optional suggested UI JSON when present, including required Bookmarks and Workspace routes. `pnpm example:obsidian:ui` exports the official sample with `--include-obsidian-ui` and verifies the generated vault. Opening the vault in Obsidian remains a human QA step, not an automated CLI action.
 
-Generated view-layer control pages, single-shot pages, agent handoff pages, and templates now use explicit numbered headings, such as `## 1. 打开路线`, `## 5. 视频提示词`, and `### 4.1 单镜头检查`. The numbering supports Obsidian outlines, scanning, and handoff anchors. Projected Step-file bodies under `流程/` still preserve source Markdown headings and are not automatically renumbered.
+Generated view-layer control pages, stage review pages, single-shot pages, agent handoff pages, and templates use explicit numbered headings, such as `## 1. 打开路线`, `## 2. 审核顺序`, `## 5. 视频提示词`, and `### 4.1 单镜头检查`. The numbering supports Obsidian outlines, scanning, and handoff anchors. Projected Step-file bodies under `01_阶段审核/` still preserve source Markdown headings and are not automatically renumbered.
 
-Projected pages under `流程/` rewrite source-relative links that can be mapped to project Step Markdown files into vault-internal links. For example, `../../04_图片提示词/镜头组-001/镜头-002-关键帧-01.md` from a Step 3 shot-group file points to the real projected file under `流程/步骤四 - 图片提示词/镜头组-001/...`, so Obsidian does not try to create a missing path when users click it. Obsidian wiki links that target Markdown notes use native targets without the `.md` suffix; Canvas and Base links still keep their `.canvas` / `.base` extensions.
+Projected pages under `01_阶段审核/` rewrite source-relative links that can be mapped to project Step Markdown files into vault-internal links. For example, `../../04_图片提示词/镜头组-001/镜头-002-关键帧-01.md` from a Step 3 shot-group file points to the real projected file under `01_阶段审核/04_图片提示词/镜头组-001/...`, so Obsidian does not try to create a missing path when users click it. Obsidian wiki links that target Markdown notes use native targets without the `.md` suffix; Canvas and Base links still keep their `.canvas` / `.base` extensions.
 
 `verify-obsidian` also checks these navigation surfaces: Markdown and wiki links must resolve to existing vault files; `#` anchors on Markdown links must land on a real heading; `#` anchors on Base embeds must land on a real view; Canvas file nodes and edge endpoints must resolve; optional `.obsidian` UI suggestions must point at real vault files.
 
@@ -84,7 +85,7 @@ By default, export does not write `.obsidian/`. Use `--include-obsidian-ui` only
 
 ## User Notes
 
-`笔记/` is the user-authored space inside Obsidian. Use it for review notes, meeting notes, research, and temporary ideas. Incremental export does not overwrite new files created under `笔记/`. Source Step files remain the workflow source of truth, and Obsidian notes are supporting material.
+`04_个人笔记/` is the user-authored space inside Obsidian. Use it for review notes, meeting notes, research, and temporary ideas. Incremental export does not overwrite new files created there. When upgrading a legacy vault, untracked user notes under `笔记/` are moved here; if the destination conflicts, the legacy source file is retained. Source Step files remain the workflow source of truth, and Obsidian notes are supporting material.
 
 ## Obsidian Features Used
 
@@ -104,7 +105,7 @@ By default, export does not write `.obsidian/`. Use `--include-obsidian-ui` only
 - Export and verify the optional UI sample with `pnpm example:obsidian:ui`.
 - Export and verify the in-project sample with `pnpm example:obsidian:in-project`.
 - Open `examples/官方示例-云上早市/_views/obsidian/` manually when doing release QA, not `examples/官方示例-云上早市/`.
-- Confirm the project home, agent handoff, shot index, review map, shot pipeline, and notes are easy to reach.
+- Confirm the project home, stage overview, shot lookup, agent handoff, review map, shot pipeline, and personal notes are easy to reach.
 - Confirm generated projection files are used for reading and location only; source edits still happen in Step files.
 - Confirm incremental export preserves user notes and does not overwrite user-owned `.obsidian` files.
 
