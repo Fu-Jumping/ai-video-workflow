@@ -32,6 +32,8 @@ export function stageReviewHubPath(step: number): string {
   return `${stageReviewPath(step)}/00_阶段审核.md`;
 }
 
+export const stageReviewOverviewPath = `${stageReviewDirectory}/00_阶段总览.md`;
+
 export function singleShotPagePath(shotId: string): string {
   return `${shotLookupDirectory}/单镜头/${shotId}.md`;
 }
@@ -44,6 +46,8 @@ export function shotReviewCanvasPath(shotId: string): string {
   return `${shotLookupDirectory}/逐镜头审阅画布/${shotId}.canvas`;
 }
 
+export const shotLookupIndexPath = `${shotLookupDirectory}/00_镜头联查.md`;
+
 export const reviewToolsDashboardDirectory = `${reviewToolsDirectory}/数据看板`;
 export const globalCanvasDirectory = `${reviewToolsDirectory}/全局画布`;
 export const collaborationTemplatesDirectory = `${reviewToolsDirectory}/协作模板`;
@@ -51,6 +55,7 @@ export const shotReviewNotesDirectory = `${userNotesDirectory}/镜头审阅`;
 
 export const projectHomePath = `${startReviewDirectory}/00_项目首页.md`;
 export const reviewOverviewPath = `${startReviewDirectory}/01_审阅总览.md`;
+export const projectionInfoPath = `${startReviewDirectory}/02_观看层说明.md`;
 export const productionBoardPath = `${reviewToolsDirectory}/00_制作看板.md`;
 export const agentHandoffPath = `${reviewToolsDirectory}/01_智能体交接.md`;
 export const workflowBasePath = `${reviewToolsDashboardDirectory}/流程文件.base`;

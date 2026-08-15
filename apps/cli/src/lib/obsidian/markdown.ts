@@ -4,7 +4,7 @@ import { formatReferenceAssets } from "../reference-assets.js";
 import { shotGroupDirectoryName } from "../shot-graph.js";
 import { sanitizeVaultFileName, toVaultPath } from "./paths.js";
 import { obsidianProperties, obsidianPropertyValues } from "./properties.js";
-import { stageReviewPath, stepDisplayDirectory } from "./routes.js";
+import { productionBoardPath, projectHomePath, reviewOverviewPath, singleShotPagePath, stageReviewPath, stepDisplayDirectory } from "./routes.js";
 import type { ObsidianSourceFile } from "./types.js";
 
 const stepNames: Record<number, string> = {
@@ -100,7 +100,7 @@ function shotIndexLink(sourceFile: ObsidianSourceFile, sourceFiles: ObsidianSour
   if (!sourceFile.shotId) {
     return undefined;
   }
-  return `[[镜头/${sourceFile.shotId}|${shotDisplayName(sourceFile, sourceFiles)}]]`;
+  return `[[${singleShotPagePath(sourceFile.shotId)}|${shotDisplayName(sourceFile, sourceFiles)}]]`;
 }
 
 function reviewStatus(sourceFile: ObsidianSourceFile): ReviewStatus {
@@ -256,7 +256,7 @@ export function renderGeneratedWorkflowNote(
 ): string {
   const shotLink = sourceFile.shotId ? ` · 镜头：${shotIndexLink(sourceFile, sourceFiles)}` : "";
   const navigation = [
-    `> 源文件：\`${sourceFile.sourcePath}\` · [[00_项目首页|首页]] · [[01_审阅总览|审阅总览]] · [[03_制作看板|制作看板]]${shotLink}`
+    `> 源文件：\`${sourceFile.sourcePath}\` · [[${projectHomePath}|首页]] · [[${reviewOverviewPath}|审阅总览]] · [[${productionBoardPath}|制作看板]]${shotLink}`
   ];
   const body = rewriteSourceMarkdownLinks(stripFrontmatter(originalContent).trim(), sourceFile, sourceFiles);
 

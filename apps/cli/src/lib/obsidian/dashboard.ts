@@ -1,7 +1,30 @@
 import type { ObsidianGeneratedFile, ObsidianSourceFile } from "./types.js";
 import { wikiLinkTargetForVaultPath, workflowVaultPath } from "./markdown.js";
 import { shotReviewCanvasPath } from "./canvas.js";
-import { notesIndexLink, notesIndexPath } from "./routes.js";
+import {
+  notesIndexLink,
+  notesIndexPath,
+  agentHandoffPath,
+  collaborationTemplatesDirectory,
+  communityPluginRecipesPath,
+  projectHomePath,
+  productionBoardPath,
+  projectionInfoPath,
+  reviewOverviewPath,
+  reviewMapCanvasPath,
+  shotBasePath,
+  shotGroupPagePath,
+  shotLookupIndexPath,
+  singleShotPagePath,
+  stageReviewHubPath,
+  stageReviewOverviewPath,
+  stageReviewPath,
+  shotReviewNotePath,
+  workflowBasePath,
+  workflowCanvasPath,
+  shotPipelineCanvasPath,
+  productionStatusBasePath
+} from "./routes.js";
 import { obsidianProperties, obsidianPropertyValues } from "./properties.js";
 import { formatReferenceAssets } from "../reference-assets.js";
 import type { ReferenceAssetToken } from "../reference-assets.js";
@@ -28,6 +51,78 @@ function shotDisplayName(shotId: string, sourceFiles: ObsidianSourceFile[]): str
 function shotOrder(shotId: string): number | undefined {
   const match = shotId.match(/(\d+)$/);
   return match ? Number.parseInt(match[1], 10) : undefined;
+}
+
+function compareStageFiles(left: ObsidianSourceFile, right: ObsidianSourceFile): number {
+  const group = (left.shotGroupId ?? "").localeCompare(right.shotGroupId ?? "");
+  if (group !== 0) {
+    return group;
+  }
+  const leftOrder = shotOrder(left.shotId ?? "") ?? Number.MAX_SAFE_INTEGER;
+  const rightOrder = shotOrder(right.shotId ?? "") ?? Number.MAX_SAFE_INTEGER;
+  if (leftOrder !== rightOrder) {
+    return leftOrder - rightOrder;
+  }
+  return left.sourcePath.localeCompare(right.sourcePath);
+}
+
+function stageReviewCheckList(step: number): string {
+  if (step === 3) {
+    return "- 画面事实、构图、动作和镜头衔接是否清楚。\n- 每个镜头是否明确需要的关键帧，以及 Step 4 的帧级对应关系。";
+  }
+  if (step === 4) {
+    return "- 每个关键帧是否与对应 Step 3 分镜保持帧级对齐。\n- 图片提示词是否自足、完整，并携带全部必需参考资产。";
+  }
+  return "- 视频提示词是否继承 Step 4 的视觉状态。\n- 运动、时长、平台执行设置和负面约束是否可执行。";
+}
+
+function renderStageReviewHub(step: number, sourceFiles: ObsidianSourceFile[], availableSteps: number[]): ObsidianGeneratedFile {
+  const stageFiles = sourceFiles.filter((file) => file.step === step).sort(compareStageFiles);
+  const groupIds = [...new Set(stageFiles.map((file) => file.shotGroupId).filter((id): id is string => Boolean(id)))].sort();
+  const groupSections = groupIds.map((groupId) => {
+    const links = stageFiles
+      .filter((file) => file.shotGroupId === groupId && file.shotId)
+      .sort(compareStageFiles)
+      .map((file) => `- [[${wikiLinkTargetForVaultPath(workflowVaultPath(file))}|${file.title}]]`)
+      .join("\n");
+    return `### ${groupId}\n\n${links || "- 尚未发现镜头文件。"}`;
+  });
+  const ungrouped = stageFiles
+    .filter((file) => !file.shotGroupId || !file.shotId)
+    .map((file) => `- [[${wikiLinkTargetForVaultPath(workflowVaultPath(file))}|${file.title}]]`)
+    .join("\n");
+  const sequence = [...groupSections, ungrouped ? `### 其他阶段文件\n\n${ungrouped}` : ""].filter(Boolean).join("\n\n") || "- 尚未发现本阶段文件。";
+  const previousStep = [...availableSteps].filter((candidate) => candidate < step).at(-1);
+  const nextStep = availableSteps.find((candidate) => candidate > step);
+  const previous = previousStep === undefined
+    ? "- 上一阶段：无"
+    : `- 上一阶段：[[${stageReviewHubPath(previousStep)}|返回上一阶段]]`;
+  const next = nextStep === undefined
+    ? "- 下一阶段：无"
+    : `- 下一阶段：[[${stageReviewHubPath(nextStep)}|进入下一阶段]]`;
+  return {
+    vaultPath: stageReviewHubPath(step),
+    content: `# ${stageReviewPath(step).split("/").at(-1)}审核
+
+## 1. 本阶段范围
+
+当前阶段按工作流顺序审核；先确认阶段整体成立，再按镜头组和镜头顺序从头到尾检查。
+
+## 2. 审核顺序
+
+${sequence}
+
+## 3. 本阶段检查
+
+${stageReviewCheckList(step)}
+
+## 4. 上下游导航
+
+${previous}
+${next}
+- 异常时按镜头联查：[[${shotLookupIndexPath}|按镜头联查]]
+`
+  };
 }
 
 function linkForKind(sourceFiles: ObsidianSourceFile[], kind: ObsidianSourceFile["sourceKind"], label: string): string {
@@ -64,8 +159,8 @@ function shotNavigation(shotId: string, shotIds: string[], sourceFiles: Obsidian
   const previousShotId = index > 0 ? shotIds[index - 1] : undefined;
   const nextShotId = index >= 0 && index < shotIds.length - 1 ? shotIds[index + 1] : undefined;
   return [
-    previousShotId ? `- 上一镜头：[[镜头/${previousShotId}|${shotDisplayName(previousShotId, sourceFiles)}]]` : "- 上一镜头：无",
-    nextShotId ? `- 下一镜头：[[镜头/${nextShotId}|${shotDisplayName(nextShotId, sourceFiles)}]]` : "- 下一镜头：无"
+    previousShotId ? `- 上一镜头：[[${singleShotPagePath(previousShotId)}|${shotDisplayName(previousShotId, sourceFiles)}]]` : "- 上一镜头：无",
+    nextShotId ? `- 下一镜头：[[${singleShotPagePath(nextShotId)}|${shotDisplayName(nextShotId, sourceFiles)}]]` : "- 下一镜头：无"
   ].join("\n");
 }
 
@@ -81,9 +176,9 @@ function renderShotGroupHub(groupId: string, sourceFiles: ObsidianSourceFile[]):
   const sourcePath = description?.sourcePath ?? groupFiles[0]?.sourcePath;
   const sourcePathLine = sourcePath ? `${obsidianProperties.sourcePath}: ${sourcePath}\n` : "";
   const title = shotGroupDisplayName(groupId, sourceFiles);
-  const shotLinks = groupShotIds.map((shotId) => `- [[镜头/${shotId}|${shotDisplayName(shotId, sourceFiles)}]]`).join("\n") || "- 尚未发现镜头。";
+  const shotLinks = groupShotIds.map((shotId) => `- [[${singleShotPagePath(shotId)}|${shotDisplayName(shotId, sourceFiles)}]]`).join("\n") || "- 尚未发现镜头。";
   return {
-    vaultPath: `镜头组/${groupId}.md`,
+    vaultPath: shotGroupPagePath(groupId),
     sourcePath,
     content: `---
 ${obsidianProperties.projectionGenerated}: ${obsidianPropertyValues.yes}
@@ -101,8 +196,8 @@ tags:
 
 ## 1. 导航
 
-- [[00_项目首页|首页]]
-- [[02_镜头索引|镜头索引]]
+- [[${projectHomePath}|首页]]
+- [[${shotLookupIndexPath}|按镜头联查]]
 
 ## 2. 组内镜头
 
@@ -144,7 +239,7 @@ function renderShotHandoffEntry(shotId: string, shotIndex: number, shotFiles: Ob
   const executionPlanSourcePath = sourcePathForKind(allSourceFiles, "execution-plan");
   const displayName = shotDisplayName(shotId, allSourceFiles);
   const referenceAssets = referenceAssetsText(shotFiles);
-  return `### 2.${shotIndex + 1} [[镜头/${shotId}|${displayName}]]
+  return `### 2.${shotIndex + 1} [[${singleShotPagePath(shotId)}|${displayName}]]
 
 - 审阅画布：[[${shotReviewCanvasPath(shotId)}|审阅画布]]
 - 分镜脚本源文件：\`${storyboardSourcePath}\`
@@ -157,7 +252,7 @@ function renderShotHandoffEntry(shotId: string, shotIndex: number, shotFiles: Ob
 function renderShotEditEntry(): string {
   return `## 8. 修改入口
 
-- 需要智能体修改源文件时：[[04_智能体交接#2. 单镜头交接|智能体交接]]`;
+- 需要智能体修改源文件时：[[${agentHandoffPath}#2. 单镜头交接|智能体交接]]`;
 }
 
 function renderShotHub(shotId: string, shotFiles: ObsidianSourceFile[], allSourceFiles: ObsidianSourceFile[], shotIds: string[]): ObsidianGeneratedFile {
@@ -174,9 +269,9 @@ function renderShotHub(shotId: string, shotFiles: ObsidianSourceFile[], allSourc
   const shotGroupId = shotFiles[0]?.shotGroupId;
   const groupLine = shotGroupId ? `${obsidianProperties.shotGroupId}: ${shotGroupId}\n` : "";
   const groupTag = shotGroupId ? `  - ai-video/shot-group/${shotGroupId}\n` : "";
-  const groupNavigation = shotGroupId ? `- 镜头组：[[镜头组/${shotGroupId}|${shotGroupDisplayName(shotGroupId, allSourceFiles)}]]\n` : "";
+  const groupNavigation = shotGroupId ? `- 镜头组：[[${shotGroupPagePath(shotGroupId)}|${shotGroupDisplayName(shotGroupId, allSourceFiles)}]]\n` : "";
   return {
-    vaultPath: `镜头/${shotId}.md`,
+    vaultPath: singleShotPagePath(shotId),
     content: `---
 ${obsidianProperties.projectionGenerated}: ${obsidianPropertyValues.yes}
 ${obsidianProperties.title}: ${JSON.stringify(displayName)}
@@ -190,8 +285,8 @@ ${obsidianProperties.executionStatus}: ${obsidianPropertyValues.executionStatus[
 ${obsidianProperties.needsAttention}: ${obsidianPropertyValues.no}
 ${obsidianProperties.reviewMode}: ${obsidianPropertyValues.reviewMode.immersive}
 ${obsidianProperties.reviewCanvas}: "[[${reviewCanvasPath}]]"
-${obsidianProperties.reviewNote}: "[[笔记/镜头审阅/${shotId}]]"
-${obsidianProperties.agentHandoff}: "[[04_智能体交接#2. 单镜头交接|智能体交接]]"
+${obsidianProperties.reviewNote}: "[[${shotReviewNotePath(shotId)}]]"
+${obsidianProperties.agentHandoff}: "[[${agentHandoffPath}#2. 单镜头交接|智能体交接]]"
 ${obsidianProperties.hasStoryboard}: ${yesNoProperty(Boolean(storyboard))}
 ${obsidianProperties.hasImagePrompt}: ${yesNoProperty(Boolean(imagePrompt))}
 ${obsidianProperties.hasVideoPrompt}: ${yesNoProperty(Boolean(videoPrompt))}
@@ -214,13 +309,13 @@ ${groupTag}  - ai-video/type/index
 - 执行计划：${linkForKind(allSourceFiles, "execution-plan", "执行计划")}
 - 必带参考资产：${referenceAssets}
 - 审阅画布：[[${reviewCanvasPath}|镜头审阅画布]]
-- 用户审阅笔记：[[笔记/镜头审阅/${shotId}|${displayName} 审阅笔记]]
+- 用户审阅笔记：[[${shotReviewNotePath(shotId)}|${displayName} 审阅笔记]]
 
 ## 2. 审阅路径
 
-- 审阅总览：[[01_审阅总览]]
-- 制作看板：[[03_制作看板]]
-- 审阅地图：[[画布/审阅地图.canvas]]
+- 审阅总览：[[${reviewOverviewPath}|审阅总览]]
+- 制作看板：[[${productionBoardPath}|制作看板]]
+- 审阅地图：[[${reviewMapCanvasPath}|审阅地图]]
 ${groupNavigation}${shotNavigation(shotId, shotIds, allSourceFiles)}
 
 ## 3. 参考资产
@@ -250,7 +345,7 @@ ${embeddedFileForKind(shotFiles, "video-prompt", "视频提示词")}
 - Step 4 已携带本页列出的必带参考资产。
 - Step 5 已延续同镜头 Step 4 的角色三视图和场景图。
 - Step 5 已写清默认视频平台、输入方式、开场参考、时长上限、画幅和负面约束。
-- 执行前打开 [[03_制作看板|制作看板]]。
+- 执行前打开 [[${productionBoardPath}|制作看板]]。
 
 ${renderShotEditEntry()}
 
@@ -258,11 +353,11 @@ ${renderShotEditEntry()}
 
 ### 9.1 镜头记录
 
-![[数据表/镜头.base#镜头表]]
+![[${shotBasePath}#镜头表]]
 
 ### 9.2 进度视图
 
-![[数据表/镜头.base#镜头进度]]
+![[${shotBasePath}#镜头进度]]
 
 ## 10. 审阅画布
 
@@ -276,20 +371,20 @@ function renderAgentHandoffPage(shotIds: string[], sourceFiles: ObsidianSourceFi
     ? shotIds.map((shotId, index) => renderShotHandoffEntry(shotId, index, sourceFiles.filter((file) => file.shotId === shotId), sourceFiles)).join("\n\n")
     : "尚未发现镜头文件。";
   return {
-    vaultPath: "04_智能体交接.md",
+    vaultPath: agentHandoffPath,
     content: `# 智能体交接
 
 这个页面集中放给智能体的源文件路径、编辑边界和提示词。先在审阅页定位问题，再把对应内容复制到智能体对话中。
 
 ## 1. 导航
 
-- 项目首页：[[00_项目首页]]
-- 审阅总览：[[01_审阅总览]]
-- 镜头索引：[[02_镜头索引]]
-- 制作看板：[[03_制作看板]]
-- 流程文件表：[[数据表/流程文件.base]]
-- 镜头表：[[数据表/镜头.base]]
-- 制作状态表：[[数据表/制作状态.base]]
+- 项目首页：[[${projectHomePath}|项目首页]]
+- 审阅总览：[[${reviewOverviewPath}|审阅总览]]
+- 镜头联查：[[${shotLookupIndexPath}|按镜头联查]]
+- 制作看板：[[${productionBoardPath}|制作看板]]
+- 流程文件表：[[${workflowBasePath}|流程文件表]]
+- 镜头表：[[${shotBasePath}|镜头表]]
+- 制作状态表：[[${productionStatusBasePath}|制作状态表]]
 
 ## 2. 单镜头交接
 
@@ -354,7 +449,7 @@ node apps/cli/dist/index.js verify-obsidian --project <project-path> --in-projec
 
 function renderCommunityPluginRecipes(): ObsidianGeneratedFile {
   return {
-    vaultPath: "社区插件配方.md",
+    vaultPath: communityPluginRecipesPath,
     content: `# 社区插件配方
 
 默认 Obsidian 观看层只依赖 Obsidian 核心功能。以下配方都是可选项。
@@ -382,40 +477,55 @@ export function renderDashboardFiles(projectName: string, sourceFiles: ObsidianS
   const shotIds = uniqueShotIds(sourceFiles);
   const shotGroupIds = uniqueShotGroupIds(sourceFiles);
   const shotLinks = shotIds.length > 0
-    ? shotIds.map((shotId) => `- [[镜头/${shotId}|${shotDisplayName(shotId, sourceFiles)}]] - [[${shotReviewCanvasPath(shotId)}|审阅画布]]`).join("\n")
+    ? shotIds.map((shotId) => `- [[${singleShotPagePath(shotId)}|${shotDisplayName(shotId, sourceFiles)}]] - [[${shotReviewCanvasPath(shotId)}|审阅画布]]`).join("\n")
     : "- 尚未发现镜头文件。";
   const shotGroupLinks = shotGroupIds.length > 0
-    ? shotGroupIds.map((groupId) => `- [[镜头组/${groupId}|${shotGroupDisplayName(groupId, sourceFiles)}]]`).join("\n")
+    ? shotGroupIds.map((groupId) => `- [[${shotGroupPagePath(groupId)}|${shotGroupDisplayName(groupId, sourceFiles)}]]`).join("\n")
     : "- 尚未发现镜头组。";
+  const availableSteps = [...new Set(sourceFiles.map((file) => file.step))].sort((left, right) => left - right);
+  const stageReviewHubs = availableSteps.map((step) => renderStageReviewHub(step, sourceFiles, availableSteps));
+  const stageReviewLinks = availableSteps.map((step) => `- [[${stageReviewHubPath(step)}|${stageReviewPath(step).split("/").at(-1)}]]`).join("\n") || "- 尚未发现阶段文件。";
+  const stageReviewOverview: ObsidianGeneratedFile = {
+    vaultPath: stageReviewOverviewPath,
+    content: `# 阶段审核总览
+
+按工作流阶段顺序审核；进入阶段后，再按镜头组和镜头顺序从头到尾检查。
+
+${stageReviewLinks}
+
+发现跨阶段不一致时，再进入 [[${shotLookupIndexPath}|按镜头联查]]。
+`
+  };
   const files: ObsidianGeneratedFile[] = [
     {
-      vaultPath: "说明.md",
+      vaultPath: projectionInfoPath,
       content: `# ${projectName} Obsidian 观看层
 
-打开 vault 后，从 [[00_项目首页]] 开始。检查镜头用 [[02_镜头索引]]，执行准备看 [[03_制作看板]]，长期记录写到 [[${notesIndexLink}]]。需要让智能体修改源文件时，打开 [[04_智能体交接]]。
+打开 vault 后，从 [[${projectHomePath}|项目首页]] 开始。主审阅路线是 [[${stageReviewOverviewPath}|阶段审核]]；发现跨阶段不一致时，再用 [[${shotLookupIndexPath}|按镜头联查]]。执行准备看 [[${productionBoardPath}|制作看板]]，长期记录写到 [[${notesIndexLink}]]。
 `
     },
     {
-      vaultPath: "00_项目首页.md",
+      vaultPath: projectHomePath,
       content: `# 项目首页
 
 ## 1. 打开路线
 
-1. 打开 [[01_审阅总览|审阅总览]] 看项目状态。
-2. 打开 [[02_镜头索引|镜头索引]] 逐镜头检查分镜、图片提示词和视频提示词。
-3. 打开 [[03_制作看板|制作看板]] 确认执行准备。
-4. 审阅意见写到 [[${notesIndexLink}|笔记]]；需要智能体修改时再打开 [[04_智能体交接|智能体交接]]。
+1. 打开 [[${stageReviewOverviewPath}|阶段审核]]，按阶段顺序完成一批产物审核。
+2. 在每个阶段中按镜头组和镜头顺序从头到尾审核。
+3. 只有发现跨阶段不一致时，打开 [[${shotLookupIndexPath}|按镜头联查]]。
+4. 审阅意见写到 [[${notesIndexLink}|笔记]]；需要智能体修改时再打开 [[${agentHandoffPath}|智能体交接]]。
 
 ## 2. 审阅入口
 
-- [[01_审阅总览|审阅总览]]
-- [[02_镜头索引|镜头索引]]
-- [[03_制作看板|制作看板]]
-- [[04_智能体交接|智能体交接]]
+- [[${stageReviewOverviewPath}|阶段审核]]
+- [[${reviewOverviewPath}|审阅总览]]
+- [[${shotLookupIndexPath}|按镜头联查]]
+- [[${productionBoardPath}|制作看板]]
+- [[${agentHandoffPath}|智能体交接]]
 - [[${notesIndexLink}|用户笔记]]
-- [[画布/审阅地图.canvas|审阅地图]]
-- [[画布/流程图.canvas|流程图]]
-- [[画布/镜头流水线.canvas|镜头流水线]]
+- [[${reviewMapCanvasPath}|审阅地图]]
+- [[${workflowCanvasPath}|流程图]]
+- [[${shotPipelineCanvasPath}|镜头流水线]]
 
 ## 3. 镜头组入口
 
@@ -429,62 +539,62 @@ ${shotLinks}
 
 ### 5.1 审阅队列
 
-![[数据表/流程文件.base#审阅队列]]
+![[${workflowBasePath}#审阅队列]]
 
 ### 5.2 镜头进度
 
-![[数据表/镜头.base#镜头进度]]
+![[${shotBasePath}#镜头进度]]
 
 ### 5.3 执行就绪
 
-![[数据表/制作状态.base#执行就绪]]
+![[${productionStatusBasePath}#执行就绪]]
 
 ## 6. 画布与数据
 
 ### 6.1 画布导航
 
-- [[画布/审阅地图.canvas|审阅地图]]
-- [[画布/流程图.canvas|流程图]]
-- [[画布/镜头流水线.canvas|镜头流水线]]
+- [[${reviewMapCanvasPath}|审阅地图]]
+- [[${workflowCanvasPath}|流程图]]
+- [[${shotPipelineCanvasPath}|镜头流水线]]
 
 ### 6.2 数据表入口
 
-- [[数据表/流程文件.base|流程文件表]]
-- [[数据表/镜头.base|镜头表]]
-- [[数据表/制作状态.base|制作状态表]]
+- [[${workflowBasePath}|流程文件表]]
+- [[${shotBasePath}|镜头表]]
+- [[${productionStatusBasePath}|制作状态表]]
 
 ### 6.3 流程文件
 
-![[数据表/流程文件.base#流程文件]]
+![[${workflowBasePath}#流程文件]]
 
 ### 6.4 镜头卡片
 
-![[数据表/镜头.base#镜头卡片]]
+![[${shotBasePath}#镜头卡片]]
 
 ### 6.5 流程图
 
-![[画布/流程图.canvas]]
+![[${workflowCanvasPath}]]
 
 ### 6.6 镜头流水线
 
-![[画布/镜头流水线.canvas]]
+![[${shotPipelineCanvasPath}]]
 `
     },
     {
-      vaultPath: "01_审阅总览.md",
+      vaultPath: reviewOverviewPath,
       content: `# 审阅总览
 
 ## 1. 需要关注
 
-![[数据表/流程文件.base#审阅队列]]
+![[${workflowBasePath}#审阅队列]]
 
 ## 2. 执行就绪
 
-![[数据表/制作状态.base#执行就绪]]
+![[${productionStatusBasePath}#执行就绪]]
 
 ## 3. 审阅地图
 
-![[画布/审阅地图.canvas]]
+![[${reviewMapCanvasPath}]]
 
 ## 4. 镜头审阅画布
 
@@ -493,7 +603,7 @@ ${shotLinks}
 `
     },
     {
-      vaultPath: "02_镜头索引.md",
+      vaultPath: shotLookupIndexPath,
       content: `# 镜头索引
 
 ## 1. 镜头组入口
@@ -506,44 +616,44 @@ ${shotLinks}
 
 ## 3. 镜头表
 
-![[数据表/镜头.base#镜头表]]
+![[${shotBasePath}#镜头表]]
 
 ## 4. 镜头进度
 
-![[数据表/镜头.base#镜头进度]]
+![[${shotBasePath}#镜头进度]]
 
 ## 5. 沉浸式审阅表
 
-![[数据表/镜头.base#沉浸式审阅]]
+![[${shotBasePath}#沉浸式审阅]]
 `
     },
     {
-      vaultPath: "03_制作看板.md",
+      vaultPath: productionBoardPath,
       content: `# 制作看板
 
 ## 1. 执行就绪
 
-![[数据表/制作状态.base#执行就绪]]
+![[${productionStatusBasePath}#执行就绪]]
 
 ## 2. 制作状态
 
-![[数据表/制作状态.base#制作状态]]
+![[${productionStatusBasePath}#制作状态]]
 
 ## 3. 镜头进度
 
-![[数据表/镜头.base#镜头进度]]
+![[${shotBasePath}#镜头进度]]
 
 ## 4. 导航
 
-- 审阅队列：[[01_审阅总览]]
-- 镜头索引：[[02_镜头索引]]
-- 流程图：[[画布/流程图.canvas]]
-- 审阅地图：[[画布/审阅地图.canvas]]
-- 镜头审阅：[[02_镜头索引]]
+- 审阅队列：[[${reviewOverviewPath}|审阅总览]]
+- 按镜头联查：[[${shotLookupIndexPath}|按镜头联查]]
+- 流程图：[[${workflowCanvasPath}]]
+- 审阅地图：[[${reviewMapCanvasPath}]]
+- 阶段审核：[[${stageReviewOverviewPath}|阶段审核]]
 `
     },
     {
-      vaultPath: "模板/审阅笔记模板.md",
+      vaultPath: `${collaborationTemplatesDirectory}/审阅笔记模板.md`,
       content: `---
 tags:
   - ai-video/review
@@ -559,7 +669,7 @@ tags:
 `
     },
     {
-      vaultPath: "模板/镜头跟进模板.md",
+      vaultPath: `${collaborationTemplatesDirectory}/镜头跟进模板.md`,
       content: `---
 tags:
   - ai-video/shot
@@ -581,6 +691,8 @@ tags:
 这个文件夹用于存放审阅意见、会议记录和研究材料。你在这里写的内容会保留在 Obsidian vault 中。
 `
     },
+    stageReviewOverview,
+    ...stageReviewHubs,
     renderAgentHandoffPage(shotIds, sourceFiles),
     ...shotGroupIds.map((groupId) => renderShotGroupHub(groupId, sourceFiles)),
     ...shotIds.map((shotId) => renderShotHub(shotId, sourceFiles.filter((file) => file.shotId === shotId), sourceFiles, shotIds))

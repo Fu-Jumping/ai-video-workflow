@@ -1,5 +1,16 @@
 import type { ObsidianGeneratedFile } from "./types.js";
-import { notesIndexPath } from "./routes.js";
+import {
+  agentHandoffPath,
+  notesIndexPath,
+  productionBoardPath,
+  projectHomePath,
+  reviewMapCanvasPath,
+  reviewOverviewPath,
+  shotLookupIndexPath,
+  shotPipelineCanvasPath,
+  stageReviewOverviewPath,
+  workflowCanvasPath
+} from "./routes.js";
 
 interface SuggestedUiFile {
   fileName: string;
@@ -34,37 +45,43 @@ function suggestedFiles(): SuggestedUiFile[] {
           {
             type: "file",
             ctime: 0,
-            path: "00_项目首页.md",
+            path: projectHomePath,
             title: "项目首页"
           },
           {
             type: "file",
             ctime: 0,
-            path: "04_智能体交接.md",
+            path: agentHandoffPath,
             title: "智能体交接"
           },
           {
             type: "file",
             ctime: 0,
-            path: "02_镜头索引.md",
+            path: stageReviewOverviewPath,
+            title: "阶段审核"
+          },
+          {
+            type: "file",
+            ctime: 0,
+            path: shotLookupIndexPath,
             title: "镜头索引"
           },
           {
             type: "file",
             ctime: 0,
-            path: "03_制作看板.md",
+            path: productionBoardPath,
             title: "制作看板"
           },
           {
             type: "file",
             ctime: 0,
-            path: "画布/审阅地图.canvas",
+            path: reviewMapCanvasPath,
             title: "审阅地图"
           },
           {
             type: "file",
             ctime: 0,
-            path: "画布/镜头流水线.canvas",
+            path: shotPipelineCanvasPath,
             title: "镜头流水线"
           },
           {
@@ -89,7 +106,7 @@ function suggestedFiles(): SuggestedUiFile[] {
               state: {
                 type: "markdown",
                 state: {
-                  file: "00_项目首页.md",
+                  file: projectHomePath,
                   mode: "preview",
                   source: false
                 }
@@ -101,7 +118,7 @@ function suggestedFiles(): SuggestedUiFile[] {
               state: {
                 type: "markdown",
                 state: {
-                  file: "01_审阅总览.md",
+                  file: reviewOverviewPath,
                   mode: "preview",
                   source: false
                 }
@@ -125,7 +142,7 @@ function suggestedFiles(): SuggestedUiFile[] {
           width: 300
         },
         active: "ai-video-workflow-home-leaf",
-        lastOpenFiles: ["00_项目首页.md", "01_审阅总览.md", "02_镜头索引.md", "03_制作看板.md", "画布/审阅地图.canvas", "画布/镜头流水线.canvas"]
+        lastOpenFiles: [projectHomePath, stageReviewOverviewPath, reviewOverviewPath, shotLookupIndexPath, productionBoardPath, reviewMapCanvasPath, workflowCanvasPath, shotPipelineCanvasPath]
       })
     },
     {

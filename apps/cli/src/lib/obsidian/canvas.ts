@@ -1,5 +1,20 @@
 import { workflowVaultPath } from "./markdown.js";
-import { notesIndexPath, shotReviewCanvasPath } from "./routes.js";
+import {
+  agentHandoffPath,
+  notesIndexPath,
+  productionBoardPath,
+  productionStatusBasePath,
+  projectHomePath,
+  reviewMapCanvasPath,
+  reviewOverviewPath,
+  shotBasePath,
+  shotLookupIndexPath,
+  shotReviewCanvasPath,
+  singleShotPagePath,
+  workflowBasePath,
+  workflowCanvasPath,
+  shotPipelineCanvasPath
+} from "./routes.js";
 import type { ObsidianGeneratedFile, ObsidianSourceFile } from "./types.js";
 import { formatReferenceAssets } from "../reference-assets.js";
 import type { ReferenceAssetToken } from "../reference-assets.js";
@@ -250,7 +265,7 @@ export function renderWorkflowCanvas(sourceFiles: ObsidianSourceFile[]): Obsidia
     }
   }
 
-  return { vaultPath: "画布/流程图.canvas", content: canvasJson({ nodes, edges }) };
+  return { vaultPath: workflowCanvasPath, content: canvasJson({ nodes, edges }) };
 }
 
 export function renderShotPipelineCanvas(sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedFile {
@@ -300,7 +315,7 @@ export function renderShotPipelineCanvas(sourceFiles: ObsidianSourceFile[]): Obs
     });
   });
 
-  return { vaultPath: "画布/镜头流水线.canvas", content: canvasJson({ nodes, edges }) };
+  return { vaultPath: shotPipelineCanvasPath, content: canvasJson({ nodes, edges }) };
 }
 
 export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedFile[] {
@@ -311,7 +326,7 @@ export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): Obs
       {
         id: "shot-review",
         type: "file",
-        file: `镜头/${shotId}.md`,
+        file: singleShotPagePath(shotId),
         x: 0,
         y: 0,
         width: layout.shotReview.mainWidth,
@@ -383,7 +398,7 @@ export function renderShotReviewCanvases(sourceFiles: ObsidianSourceFile[]): Obs
       {
         id: "production-board",
         type: "file",
-        file: "03_制作看板.md",
+        file: productionBoardPath,
         x: layout.shotReview.columnGap * (videoColumn + 2),
         y: layout.shotReview.sourceY,
         width: layout.shotReview.fileWidth,
@@ -450,7 +465,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "home",
       type: "file",
-      file: "00_项目首页.md",
+      file: projectHomePath,
       x: 0,
       y: 0,
       width: layout.reviewMap.fileWidth,
@@ -460,7 +475,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "review-dashboard",
       type: "file",
-      file: "01_审阅总览.md",
+      file: reviewOverviewPath,
       x: layout.reviewMap.columnGap,
       y: -layout.reviewMap.rowGap,
       width: layout.reviewMap.fileWidth,
@@ -470,7 +485,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "shot-index",
       type: "file",
-      file: "02_镜头索引.md",
+      file: shotLookupIndexPath,
       x: layout.reviewMap.columnGap,
       y: 0,
       width: layout.reviewMap.fileWidth,
@@ -480,7 +495,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "production-board",
       type: "file",
-      file: "03_制作看板.md",
+      file: productionBoardPath,
       x: layout.reviewMap.columnGap,
       y: layout.reviewMap.rowGap,
       width: layout.reviewMap.fileWidth,
@@ -490,7 +505,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "agent-handoff",
       type: "file",
-      file: "04_智能体交接.md",
+      file: agentHandoffPath,
       x: layout.reviewMap.columnGap,
       y: layout.reviewMap.rowGap * 2,
       width: layout.reviewMap.fileWidth,
@@ -510,7 +525,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "workflow-base",
       type: "file",
-      file: "数据表/流程文件.base",
+      file: workflowBasePath,
       x: layout.reviewMap.columnGap * 2,
       y: -layout.reviewMap.rowGap - 80,
       width: layout.reviewMap.baseWidth,
@@ -520,7 +535,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "shots-base",
       type: "file",
-      file: "数据表/镜头.base",
+      file: shotBasePath,
       x: layout.reviewMap.columnGap * 2,
       y: 0,
       width: layout.reviewMap.baseWidth,
@@ -530,7 +545,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "production-base",
       type: "file",
-      file: "数据表/制作状态.base",
+      file: productionStatusBasePath,
       x: layout.reviewMap.columnGap * 2,
       y: layout.reviewMap.rowGap + 80,
       width: layout.reviewMap.baseWidth,
@@ -540,7 +555,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "workflow-map",
       type: "file",
-      file: "画布/流程图.canvas",
+      file: workflowCanvasPath,
       x: layout.reviewMap.columnGap * 3,
       y: -layout.reviewMap.rowGap / 2,
       width: layout.reviewMap.baseWidth,
@@ -550,7 +565,7 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     {
       id: "shot-pipeline",
       type: "file",
-      file: "画布/镜头流水线.canvas",
+      file: shotPipelineCanvasPath,
       x: layout.reviewMap.columnGap * 3,
       y: layout.reviewMap.rowGap / 2,
       width: layout.reviewMap.baseWidth,
@@ -660,5 +675,5 @@ export function renderReviewMapCanvas(): ObsidianGeneratedFile {
     }
   ];
 
-  return { vaultPath: "画布/审阅地图.canvas", content: canvasJson({ nodes, edges }) };
+  return { vaultPath: reviewMapCanvasPath, content: canvasJson({ nodes, edges }) };
 }

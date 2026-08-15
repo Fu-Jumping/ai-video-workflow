@@ -24,12 +24,12 @@ describe("official example Obsidian projection", () => {
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
 
     expect(result.ok).toBe(true);
-    await expect(fs.pathExists(path.join(outRoot, "00_项目首页.md"))).resolves.toBe(true);
-    await expect(fs.pathExists(path.join(outRoot, "数据表", "镜头.base"))).resolves.toBe(true);
-    await expect(fs.pathExists(path.join(outRoot, "画布", "镜头流水线.canvas"))).resolves.toBe(true);
-    await expect(fs.pathExists(path.join(outRoot, "镜头", "shot-001.md"))).resolves.toBe(true);
-    await expect(fs.pathExists(path.join(outRoot, "镜头", "shot-002.md"))).resolves.toBe(true);
-    await expect(fs.pathExists(path.join(outRoot, "镜头", "shot-003.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, "00_开始审阅", "00_项目首页.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, "03_审阅工具", "数据看板", "镜头.base"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, "03_审阅工具", "全局画布", "镜头流水线.canvas"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, "02_按镜头联查", "单镜头", "shot-001.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, "02_按镜头联查", "单镜头", "shot-002.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, "02_按镜头联查", "单镜头", "shot-003.md"))).resolves.toBe(true);
   });
 
   test("exports and verifies the in-project Obsidian view layer", async () => {
@@ -48,9 +48,9 @@ describe("official example Obsidian projection", () => {
 
     expect(obsidianResult.ok).toBe(true);
     expect(projectResult.ok).toBe(true);
-    await expect(fs.pathExists(path.join(outRoot, "00_项目首页.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, "00_开始审阅", "00_项目首页.md"))).resolves.toBe(true);
 
-    const manualNote = path.join(outRoot, "笔记", "manual.md");
+    const manualNote = path.join(outRoot, "04_个人笔记", "manual.md");
     await fs.writeFile(manualNote, "# Manual Note\n\nKeep this review observation.\n", "utf8");
     await exportObsidianVault({ projectRoot, outRoot, force: false, includePluginRecipes: true, inProjectView: true });
 

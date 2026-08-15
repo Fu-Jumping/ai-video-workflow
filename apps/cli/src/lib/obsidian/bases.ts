@@ -1,4 +1,5 @@
 import type { ObsidianGeneratedFile } from "./types.js";
+import { productionStatusBasePath, shotBasePath, workflowBasePath } from "./routes.js";
 import { obsidianProperties, obsidianPropertyValues } from "./properties.js";
 
 const modifiedTimeColumn = "file.mtime";
@@ -7,7 +8,7 @@ const modifiedTimeDisplayName = "最近修改时间";
 export function renderBaseFiles(): ObsidianGeneratedFile[] {
   return [
     {
-      vaultPath: "数据表/流程文件.base",
+      vaultPath: workflowBasePath,
       content: `filters:
   and:
     - file.hasTag("ai-video/project")
@@ -94,7 +95,7 @@ views:
 `
     },
     {
-      vaultPath: "数据表/镜头.base",
+      vaultPath: shotBasePath,
       content: `filters:
   and:
     - file.hasTag("ai-video/shot")
@@ -222,7 +223,7 @@ views:
 `
     },
     {
-      vaultPath: "数据表/制作状态.base",
+      vaultPath: productionStatusBasePath,
       content: `filters:
   and:
     - file.hasTag("ai-video/status")

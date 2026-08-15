@@ -30,6 +30,9 @@ import { readProjectConfig } from "../project-config.js";
 import { assertExistingDirectory } from "../project-root.js";
 import { verifyProject } from "../verify.js";
 
+const legacyUserNotesDirectory = "笔记";
+const userNotesDirectory = "04_个人笔记";
+
 function isInsidePath(child: string, parent: string): boolean {
   const relative = path.relative(path.resolve(parent), path.resolve(child));
   return relative.length > 0 && !relative.startsWith("..") && !path.isAbsolute(relative);
@@ -128,6 +131,102 @@ function sameFsPath(left: string, right: string): boolean {
   return resolvedLeft === resolvedRight;
 }
 
+interface UserNoteBackup {
+  sourcePath: string;
+  destinationPath: string;
+  content: string;
+}
+
+async function listMarkdownFiles(root: string, current = root): Promise<string[]> {
+  if (!(await fs.pathExists(current))) {
+    return [];
+  }
+  const entries = await fs.readdir(current, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    if (entry.name === ".git" || entry.name === "node_modules") {
+      continue;
+    }
+    const fullPath = path.join(current, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...await listMarkdownFiles(root, fullPath));
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      files.push(path.relative(root, fullPath).replace(/\\/g, "/"));
+    }
+  }
+  return files;
+}
+
+async function collectUserNoteBackups(outRoot: string, previousManifest: ObsidianProjectionManifest | null): Promise<UserNoteBackup[]> {
+  const tracked = new Set((previousManifest?.files ?? []).map((entry) => entry.vaultPath));
+  const backups: UserNoteBackup[] = [];
+  for (const directory of [userNotesDirectory, legacyUserNotesDirectory]) {
+    for (const relativePath of await listMarkdownFiles(vaultFsPath(outRoot, directory))) {
+      const sourcePath = `${directory}/${relativePath}`;
+      if (tracked.has(sourcePath)) {
+        continue;
+      }
+      const fullPath = vaultFsPath(outRoot, sourcePath);
+      const content = await fs.readFile(fullPath, "utf8");
+      if (relativePath === "说明.md" && content.includes("这个文件夹用于存放审阅意见")) {
+        continue;
+      }
+      const destinationPath = directory === legacyUserNotesDirectory
+        ? `${userNotesDirectory}/${relativePath}`
+        : sourcePath;
+      backups.push({ sourcePath, destinationPath, content });
+    }
+  }
+  return backups;
+}
+
+async function restoreUserNoteBackups(
+  outRoot: string,
+  backups: UserNoteBackup[],
+  dryRun: boolean,
+  operations: ObsidianExportOperation[]
+): Promise<void> {
+  const restoredDestinations = new Set<string>();
+  for (const backup of backups) {
+    const sourceFullPath = vaultFsPath(outRoot, backup.sourcePath);
+    const destinationFullPath = vaultFsPath(outRoot, backup.destinationPath);
+    const destinationWasRestored = restoredDestinations.has(backup.destinationPath);
+    if (backup.sourcePath !== backup.destinationPath && (destinationWasRestored || await fs.pathExists(destinationFullPath))) {
+      operations.push({
+        status: "skipped-user-modified",
+        vaultPath: backup.sourcePath,
+        reason: `user note migration target already exists: ${backup.destinationPath}`
+      });
+      if (!dryRun) {
+        await fs.ensureDir(path.dirname(sourceFullPath));
+        await fs.writeFile(sourceFullPath, backup.content, "utf8");
+      }
+      continue;
+    }
+    if (dryRun) {
+      continue;
+    }
+    await fs.ensureDir(path.dirname(destinationFullPath));
+    await fs.writeFile(destinationFullPath, backup.content, "utf8");
+    restoredDestinations.add(backup.destinationPath);
+    if (backup.sourcePath !== backup.destinationPath && await fs.pathExists(sourceFullPath)) {
+      await fs.remove(sourceFullPath);
+    }
+  }
+}
+
+async function removeSafeOrphanedGeneratedFiles(outRoot: string, operations: ObsidianExportOperation[], dryRun: boolean): Promise<void> {
+  if (dryRun) {
+    return;
+  }
+  for (const operation of operations.filter((candidate) => candidate.status === "orphaned-generated")) {
+    const fullPath = vaultFsPath(outRoot, operation.vaultPath);
+    if (await fs.pathExists(fullPath)) {
+      await fs.remove(fullPath);
+    }
+  }
+}
+
 async function planGeneratedFiles(
   outRoot: string,
   files: ObsidianGeneratedFile[],
@@ -188,6 +287,16 @@ async function planGeneratedFiles(
 
   for (const entry of previousEntries.values()) {
     if (!nextPaths.has(entry.vaultPath)) {
+      const currentHash = assumeCleanOutput ? entry.contentHash : await currentFileHash(vaultFsPath(outRoot, entry.vaultPath));
+      if (currentHash !== null && currentHash !== entry.contentHash) {
+        operations.push({
+          status: "skipped-user-modified",
+          vaultPath: entry.vaultPath,
+          sourcePath: entry.sourcePath,
+          reason: "old generated file was modified and is retained for manual migration"
+        });
+        continue;
+      }
       operations.push({
         status: "orphaned-generated",
         vaultPath: entry.vaultPath,
@@ -217,12 +326,11 @@ function createManifest(
   previousManifest: ObsidianProjectionManifest | null
 ): ObsidianProjectionManifest {
   const skippedPaths = new Set(operations.filter((operation) => operation.status === "skipped-user-modified").map((operation) => operation.vaultPath));
-  const orphanedPaths = new Set(operations.filter((operation) => operation.status === "orphaned-generated").map((operation) => operation.vaultPath));
   const previousEntries = manifestByVaultPath(previousManifest);
   const nextEntries = files
     .filter((file) => !skippedPaths.has(file.vaultPath) && !isDirectObsidianUiConfigPath(file.vaultPath))
     .map((file) => manifestEntryForFile(file));
-  for (const vaultPath of [...skippedPaths, ...orphanedPaths]) {
+  for (const vaultPath of skippedPaths) {
     const previousEntry = previousEntries.get(vaultPath);
     if (previousEntry) {
       nextEntries.push(previousEntry);
@@ -246,6 +354,8 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
   const outRoot = path.resolve(options.outRoot);
   await assertExportableProject(projectRoot);
   await assertSafeOutput(projectRoot, outRoot, options.inProjectView === true);
+  const previousManifest = await readProjectionManifest(outRoot);
+  const userNoteBackups = await collectUserNoteBackups(outRoot, previousManifest);
   if (options.force) {
     await assertSafeForceOutput(outRoot);
   }
@@ -282,12 +392,16 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
     renderReviewMapCanvas(),
     ...(options.includeObsidianUi ? renderObsidianUiConfigFiles() : [])
   ];
-  const previousManifest = options.force ? null : await readProjectionManifest(outRoot);
-  const operations = await planGeneratedFiles(outRoot, files, previousManifest, Boolean(options.force));
+  const planningManifest = options.force ? null : previousManifest;
+  const operations = await planGeneratedFiles(outRoot, files, planningManifest, Boolean(options.force));
   const manifest = createManifest(projectRoot, outRoot, projectName, files, operations, previousManifest);
   if (!options.dryRun) {
     await writeGeneratedFiles(outRoot, files, operations);
+    await removeSafeOrphanedGeneratedFiles(outRoot, operations, false);
+    await restoreUserNoteBackups(outRoot, userNoteBackups, false, operations);
     await fs.writeFile(vaultFsPath(outRoot, projectionManifestPath), renderProjectionManifest(manifest), "utf8");
+  } else {
+    await restoreUserNoteBackups(outRoot, userNoteBackups, true, operations);
   }
   return { vaultRoot: outRoot, manifestPath: projectionManifestPath, files, operations };
 }
