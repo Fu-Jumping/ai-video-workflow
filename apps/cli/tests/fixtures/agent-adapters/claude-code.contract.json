@@ -25,7 +25,7 @@
     "_views/obsidian/"
   ],
   "userOwnedSurfaces": [
-    "_views/obsidian/笔记/"
+    "_views/obsidian/04_个人笔记/"
   ],
   "privateRuntimeSurfaces": [
     ".claude/",
@@ -44,16 +44,16 @@
     "ai-video-workflow verify --project <path> --ide claude-code"
   ],
   "forbiddenWrites": [
-    "_views/obsidian/流程/",
-    "_views/obsidian/镜头/",
-    "_views/obsidian/数据表/",
-    "_views/obsidian/画布/",
+    "_views/obsidian/01_阶段审核/",
+    "_views/obsidian/02_按镜头联查/",
+    "_views/obsidian/03_审阅工具/",
+    "_views/obsidian/04_个人笔记/",
     "_views/obsidian/投影清单.json",
     "_views/obsidian/.obsidian/",
-    "流程/",
-    "镜头/",
-    "画布/",
-    "数据表/",
+    "01_阶段审核/",
+    "02_按镜头联查/",
+    "03_审阅工具/",
+    "04_个人笔记/",
     ".obsidian/",
     "platform cache directories",
     "absolute links"

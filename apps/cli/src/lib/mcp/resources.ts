@@ -23,7 +23,7 @@ function projectHandoffMarkdown(context: McpProjectContext): string {
     "- 运动和镜头行为修改：步骤五视频提示词文件。",
     "- 执行组织：步骤六执行计划文件。",
     "- `_views/obsidian/` 是生成的 Obsidian 观看层；修改源文件后要刷新它。",
-    "- `_views/obsidian/笔记/` 可以存放用户观察，但不能替代步骤文件。",
+    "- `_views/obsidian/04_个人笔记/` 可以存放用户观察，但不能替代步骤文件。",
     "- 不要把 Obsidian 投影、IDE 运行镜像或 MCP 资源当作源文件编辑。",
     "",
     "刷新命令：",

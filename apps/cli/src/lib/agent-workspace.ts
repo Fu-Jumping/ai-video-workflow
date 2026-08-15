@@ -127,7 +127,7 @@ export const sharedAiWorkspaceDocs: Record<string, string> = {
     "- `.trae/` 运行镜像",
     "- Cherry Studio 创建的 `SOUL.md`、`USER.md`、`soul.md`、`user.md` 和根目录 `memory/`",
     "- `_views/obsidian/` 生成的 Obsidian 观看层",
-    "- `_views/obsidian/笔记/` 用户手写 Obsidian 笔记，增量导出会保留，但它不是项目事实源",
+    "- `_views/obsidian/04_个人笔记/` 用户手写 Obsidian 笔记，增量导出会保留，但它不是项目事实源",
     "- `_views/obsidian/.obsidian/` 本地 Obsidian UI 状态",
     "- MCP 资源和提示词",
     "",

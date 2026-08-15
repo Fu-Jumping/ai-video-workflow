@@ -4,9 +4,9 @@ import path from "node:path";
 import { CliUserError } from "./cli-errors.js";
 import { STEP_DIR_BY_NUMBER } from "./constants.js";
 import { exportObsidianVault } from "./obsidian/export.js";
-import { stepFolderName } from "./obsidian/markdown.js";
 import { projectionManifestPath, readProjectionManifest, renderProjectionManifest } from "./obsidian/manifest.js";
 import { frontmatterValue } from "./obsidian/properties.js";
+import { shotLookupDirectory, stageReviewPath, userNotesDirectory } from "./obsidian/routes.js";
 import type { ObsidianExportResult, ObsidianProjectionManifest, ObsidianProjectionManifestEntry } from "./obsidian/types.js";
 import { readWorkflowProjectConfig } from "./project-root.js";
 import { syncProject } from "./sync.js";
@@ -342,13 +342,13 @@ function kindForVaultPath(vaultPath: string): CleanViewKind | undefined {
   if (vaultPath.startsWith(".obsidian/")) {
     return "obsidian-ui";
   }
-  if (vaultPath.startsWith("流程/") && vaultPath.endsWith(".md")) {
+  if (vaultPath.startsWith("01_阶段审核/") && vaultPath.endsWith(".md")) {
     return "workflow-notes";
   }
-  if (vaultPath.startsWith("镜头/") && vaultPath.endsWith(".md")) {
+  if (vaultPath.startsWith(`${shotLookupDirectory}/单镜头/`) && vaultPath.endsWith(".md")) {
     return "shot-pages";
   }
-  if (vaultPath.endsWith(".md") && !vaultPath.startsWith("笔记/")) {
+  if (vaultPath.endsWith(".md") && !vaultPath.startsWith(`${userNotesDirectory}/`)) {
     return "dashboard";
   }
   return undefined;
@@ -381,7 +381,7 @@ function entryMatchesStep(entry: ObsidianProjectionManifestEntry, step: number):
   const sourceDir = STEP_DIR_BY_NUMBER[step];
   return Boolean(
     (sourceDir && entry.sourcePath?.startsWith(`${sourceDir}/`)) ||
-      entry.vaultPath.startsWith(`流程/${stepFolderName(step)}/`)
+      entry.vaultPath.startsWith(`${stageReviewPath(step)}/`)
   );
 }
 

@@ -73,14 +73,14 @@ describe("parseCleanViewFilter", () => {
         kinds: ["canvas,base", "dashboard"],
         steps: ["0", "4", "5"],
         shots: ["2", "shot-003", "镜头 002"],
-        dirs: ["流程/步骤四 - 图片提示词/"],
+      dirs: ["01_阶段审核/04_图片提示词/"],
         properties: ["源文件类型=图片提示词", "审阅状态=镜头审阅"]
       })
     ).toEqual({
       kinds: ["base", "canvas", "dashboard"],
       steps: [0, 4, 5],
       shots: ["shot-002", "shot-003"],
-      dirs: ["流程/步骤四 - 图片提示词"],
+      dirs: ["01_阶段审核/04_图片提示词"],
       properties: [
         { key: "源文件类型", value: "图片提示词" },
         { key: "审阅状态", value: "镜头审阅" }
@@ -102,13 +102,13 @@ describe("cleanInProjectObsidianView", () => {
   test("removes manifest-tracked generated files while preserving user-authored notes", async () => {
     const projectRoot = await seedProject();
     const { vaultRoot, storyProjectionPath } = await exportView(projectRoot);
-    const userNote = path.join(vaultRoot, "笔记", "manual-review.md");
+    const userNote = path.join(vaultRoot, "04_个人笔记", "manual-review.md");
     await fs.writeFile(userNote, "# 手写审阅\n\n这条笔记应该保留。\n", "utf8");
 
     const result = await cleanInProjectObsidianView({ projectRoot });
 
     expect(result.operations).toEqual(expect.arrayContaining([expect.objectContaining({ status: "removed", vaultPath: storyProjectionPath })]));
-    expect(result.preservedUntrackedFiles).toContain("笔记/manual-review.md");
+    expect(result.preservedUntrackedFiles).toContain("04_个人笔记/manual-review.md");
     await expect(fs.pathExists(path.join(vaultRoot, storyProjectionPath))).resolves.toBe(false);
     await expect(fs.pathExists(path.join(vaultRoot, projectionManifestPath))).resolves.toBe(false);
     await expect(fs.readFile(userNote, "utf8")).resolves.toContain("这条笔记应该保留");
@@ -138,16 +138,16 @@ describe("cleanInProjectObsidianView", () => {
 
     const paths = operationPaths(result);
     expect(paths.length).toBeGreaterThan(0);
-    expect(paths).toEqual(expect.arrayContaining(["画布/流程图.canvas", "画布/镜头审阅/shot-002.canvas"]));
+    expect(paths).toEqual(expect.arrayContaining(["03_审阅工具/全局画布/流程图.canvas", "02_按镜头联查/逐镜头审阅画布/shot-002.canvas"]));
     expect(paths.every((vaultPath) => vaultPath.endsWith(".canvas"))).toBe(true);
-    expect(paths).not.toContain("00_项目首页.md");
+    expect(paths).not.toContain("00_开始审阅/00_项目首页.md");
     const summary = renderCleanViewSummary(result);
     expect(summary).toContain("cleanup risk: low");
     expect(summary).toContain("matched generated files by type:");
     expect(summary).toContain("canvas:");
-    expect(summary).toContain("画布/流程图.canvas");
-    expect(summary).not.toContain("00_项目首页.md");
-    await expect(fs.pathExists(path.join(vaultRoot, "画布", "流程图.canvas"))).resolves.toBe(true);
+    expect(summary).toContain("03_审阅工具/全局画布/流程图.canvas");
+    expect(summary).not.toContain("00_开始审阅/00_项目首页.md");
+    await expect(fs.pathExists(path.join(vaultRoot, "03_审阅工具", "全局画布", "流程图.canvas"))).resolves.toBe(true);
   });
 
   test("dry-run can be scoped by workflow step", async () => {
@@ -162,13 +162,13 @@ describe("cleanInProjectObsidianView", () => {
 
     const paths = operationPaths(result);
     expect(paths.length).toBeGreaterThan(0);
-    expect(paths.every((vaultPath) => vaultPath.startsWith("流程/步骤四 - 图片提示词/"))).toBe(true);
-    expect(paths).not.toEqual(expect.arrayContaining([expect.stringContaining("步骤三 - 分镜脚本")]));
+    expect(paths.every((vaultPath) => vaultPath.startsWith("01_阶段审核/04_图片提示词/"))).toBe(true);
+    expect(paths).not.toEqual(expect.arrayContaining([expect.stringContaining("03_分镜脚本")]));
     const summary = renderCleanViewSummary(result);
     expect(summary).toContain("cleanup risk: low");
     expect(summary).toContain("matched generated files by type:");
-    expect(summary).toContain("workflow-notes: 3");
-    expect(summary).toContain("流程/步骤四 - 图片提示词/镜头组-001/镜头 002 关键帧 01 - 图片提示词.md");
+    expect(summary).toContain("workflow-notes: 4");
+    expect(summary).toContain("01_阶段审核/04_图片提示词/镜头组-001/镜头 002 关键帧 01 - 图片提示词.md");
     expect(summary).toContain("next command:");
     expect(summary).toContain("clean-view --project");
     expect(summary).toContain("--step 4");
@@ -186,7 +186,7 @@ describe("cleanInProjectObsidianView", () => {
 
     const paths = operationPaths(result);
     expect(paths.length).toBeGreaterThan(0);
-    expect(paths.every((vaultPath) => vaultPath.startsWith("流程/步骤零 - 前期研究/"))).toBe(true);
+    expect(paths.every((vaultPath) => vaultPath.startsWith("01_阶段审核/00_前期研究/"))).toBe(true);
     expect(renderCleanViewSummary(result)).toContain("  - step: 0");
   });
 
@@ -203,13 +203,13 @@ describe("cleanInProjectObsidianView", () => {
     const paths = operationPaths(result);
     expect(paths).toEqual(
       expect.arrayContaining([
-        "镜头/shot-002.md",
-        "画布/镜头审阅/shot-002.canvas",
-        "流程/步骤三 - 分镜脚本/镜头组-001/镜头 002 - 分镜脚本.md",
-        "流程/步骤四 - 图片提示词/镜头组-001/镜头 002 关键帧 01 - 图片提示词.md"
+        "02_按镜头联查/单镜头/shot-002.md",
+        "02_按镜头联查/逐镜头审阅画布/shot-002.canvas",
+        "01_阶段审核/03_分镜脚本/镜头组-001/镜头 002 - 分镜脚本.md",
+        "01_阶段审核/04_图片提示词/镜头组-001/镜头 002 关键帧 01 - 图片提示词.md"
       ])
     );
-    expect(paths).not.toEqual(expect.arrayContaining(["镜头/shot-001.md", "画布/镜头审阅/shot-001.canvas"]));
+    expect(paths).not.toEqual(expect.arrayContaining(["02_按镜头联查/单镜头/shot-001.md", "02_按镜头联查/逐镜头审阅画布/shot-001.canvas"]));
   });
 
   test("dry-run can be scoped by vault directory", async () => {
@@ -219,12 +219,12 @@ describe("cleanInProjectObsidianView", () => {
     const result = await cleanInProjectObsidianView({
       projectRoot,
       dryRun: true,
-      filter: parseCleanViewFilter({ dirs: ["流程/步骤四 - 图片提示词"] })
+      filter: parseCleanViewFilter({ dirs: ["01_阶段审核/04_图片提示词"] })
     });
 
     const paths = operationPaths(result);
     expect(paths.length).toBeGreaterThan(0);
-    expect(paths.every((vaultPath) => vaultPath.startsWith("流程/步骤四 - 图片提示词/"))).toBe(true);
+    expect(paths.every((vaultPath) => vaultPath.startsWith("01_阶段审核/04_图片提示词/"))).toBe(true);
   });
 
   test("dry-run can be scoped by generated Markdown property", async () => {
@@ -239,14 +239,14 @@ describe("cleanInProjectObsidianView", () => {
 
     const paths = operationPaths(result);
     expect(paths.length).toBeGreaterThan(0);
-    expect(paths.every((vaultPath) => vaultPath.startsWith("流程/步骤四 - 图片提示词/") && vaultPath.endsWith(".md"))).toBe(true);
-    expect(paths).not.toContain("镜头/shot-002.md");
+    expect(paths.every((vaultPath) => vaultPath.startsWith("01_阶段审核/04_图片提示词/") && vaultPath.endsWith(".md"))).toBe(true);
+    expect(paths).not.toContain("02_按镜头联查/单镜头/shot-002.md");
   });
 
   test("filtered clean updates the manifest and preserves untracked notes", async () => {
     const projectRoot = await seedOfficialExampleProject();
     const { vaultRoot } = await exportView(projectRoot);
-    const userNote = path.join(vaultRoot, "笔记", "manual-review.md");
+    const userNote = path.join(vaultRoot, "04_个人笔记", "manual-review.md");
     await fs.writeFile(userNote, "# 手写审阅\n\n局部清理也应该保留。\n", "utf8");
 
     const result = await cleanInProjectObsidianView({
@@ -336,7 +336,7 @@ describe("rebuildInProjectObsidianView", () => {
   test("cleans, exports, verifies, and preserves untracked user notes", async () => {
     const projectRoot = await seedOfficialExampleProject();
     const { vaultRoot, storyProjectionPath } = await exportView(projectRoot);
-    const userNote = path.join(vaultRoot, "笔记", "manual-review.md");
+    const userNote = path.join(vaultRoot, "04_个人笔记", "manual-review.md");
     await fs.writeFile(userNote, "# 手写审阅\n\n这条笔记应该保留。\n", "utf8");
     await fs.appendFile(path.join(projectRoot, "01_概念策划", "故事内核.md"), "\n重建后应该出现在观看层。\n", "utf8");
 

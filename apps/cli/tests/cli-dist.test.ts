@@ -282,9 +282,9 @@ describe("built CLI", () => {
       repoRoot
     );
 
-    await expect(fs.pathExists(path.join(outRoot, "00_项目首页.md"))).resolves.toBe(true);
-    await expect(fs.pathExists(path.join(outRoot, "画布", "流程图.canvas"))).resolves.toBe(true);
-    await expect(fs.pathExists(path.join(outRoot, "数据表", "镜头.base"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, "00_开始审阅", "00_项目首页.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, "03_审阅工具", "全局画布", "流程图.canvas"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, "03_审阅工具", "数据看板", "镜头.base"))).resolves.toBe(true);
   });
 
   test("export-obsidian and verify-obsidian support in-project view targets", async () => {
@@ -311,7 +311,7 @@ describe("built CLI", () => {
     expect(exportResult.stdout).toContain("_views");
     expect(exportResult.stdout).toContain("obsidian");
     expect(verifyResult.stdout).toContain("Obsidian projection verification passed");
-    await expect(fs.pathExists(path.join(projectRoot, "_views", "obsidian", "00_项目首页.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "_views", "obsidian", "00_开始审阅", "00_项目首页.md"))).resolves.toBe(true);
 
     const conflictingTarget = await runExpectFailure(
       process.execPath,
@@ -342,7 +342,7 @@ describe("built CLI", () => {
     const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-clean-view-"));
     tempRoots.push(tempRoot);
     const projectRoot = path.join(tempRoot, "官方示例-云上早市");
-    const homePath = path.join(projectRoot, "_views", "obsidian", "00_项目首页.md");
+    const homePath = path.join(projectRoot, "_views", "obsidian", "00_开始审阅", "00_项目首页.md");
     await fs.copy(path.join(repoRoot, "examples", "官方示例-云上早市"), projectRoot);
     await fs.remove(path.join(projectRoot, "_views"));
 
@@ -364,7 +364,7 @@ describe("built CLI", () => {
     const cliRoot = path.resolve(__dirname, "..");
     const repoRoot = path.resolve(cliRoot, "..", "..");
     const projectRoot = await seedOfficialExampleProject("ai-video-workflow-cli-clean-view-step-");
-    const stepFourProjection = path.join(projectRoot, "_views", "obsidian", "流程", "步骤四 - 图片提示词", "镜头组-001", "镜头 002 关键帧 01 - 图片提示词.md");
+    const stepFourProjection = path.join(projectRoot, "_views", "obsidian", "01_阶段审核", "04_图片提示词", "镜头组-001", "镜头 002 关键帧 01 - 图片提示词.md");
 
     await buildCli(cliRoot);
     await exportInProjectView(cliRoot, projectRoot);
@@ -380,8 +380,8 @@ describe("built CLI", () => {
     expect(stdout).toContain("would remove generated files");
     expect(stdout).toContain("cleanup risk: low");
     expect(stdout).toContain("matched generated files by type:");
-    expect(stdout).toContain("workflow-notes: 3");
-    expect(stdout).toContain("流程/步骤四 - 图片提示词/镜头组-001/镜头 002 关键帧 01 - 图片提示词.md");
+    expect(stdout).toContain("workflow-notes: 4");
+    expect(stdout).toContain("01_阶段审核/04_图片提示词/镜头组-001/镜头 002 关键帧 01 - 图片提示词.md");
     expect(stdout).toContain("next command:");
     expect(stdout).toContain("--step 4");
     await expect(fs.pathExists(stepFourProjection)).resolves.toBe(true);
@@ -394,8 +394,8 @@ describe("built CLI", () => {
     tempRoots.push(tempRoot);
     const projectRoot = path.join(tempRoot, "官方示例-云上早市");
     const vaultRoot = path.join(projectRoot, "_views", "obsidian");
-    const storyProjection = path.join(vaultRoot, "流程", "步骤一 - 概念策划", "故事内核.md");
-    const userNote = path.join(vaultRoot, "笔记", "manual-review.md");
+    const storyProjection = path.join(vaultRoot, "01_阶段审核", "01_概念策划", "故事内核.md");
+    const userNote = path.join(vaultRoot, "04_个人笔记", "manual-review.md");
     await fs.copy(path.join(repoRoot, "examples", "官方示例-云上早市"), projectRoot);
     await fs.remove(path.join(projectRoot, "_views"));
 
@@ -417,9 +417,9 @@ describe("built CLI", () => {
     const repoRoot = path.resolve(cliRoot, "..", "..");
     const projectRoot = await seedOfficialExampleProject("ai-video-workflow-cli-rebuild-view-shot-");
     const vaultRoot = path.join(projectRoot, "_views", "obsidian");
-    const shotTwoProjection = path.join(vaultRoot, "流程", "步骤四 - 图片提示词", "镜头组-001", "镜头 002 关键帧 01 - 图片提示词.md");
-    const shotOneProjection = path.join(vaultRoot, "流程", "步骤四 - 图片提示词", "镜头组-001", "镜头 001 关键帧 01 - 图片提示词.md");
-    const userNote = path.join(vaultRoot, "笔记", "manual-review.md");
+    const shotTwoProjection = path.join(vaultRoot, "01_阶段审核", "04_图片提示词", "镜头组-001", "镜头 002 关键帧 01 - 图片提示词.md");
+    const shotOneProjection = path.join(vaultRoot, "01_阶段审核", "04_图片提示词", "镜头组-001", "镜头 001 关键帧 01 - 图片提示词.md");
+    const userNote = path.join(vaultRoot, "04_个人笔记", "manual-review.md");
 
     await buildCli(cliRoot);
     await exportInProjectView(cliRoot, projectRoot);
@@ -553,7 +553,7 @@ describe("built CLI", () => {
 
     expect(stdout).toContain("Obsidian export operations:");
     expect(stdout).toContain("Dry run complete");
-    await expect(fs.pathExists(path.join(outRoot, "00_项目首页.md"))).resolves.toBe(false);
+    await expect(fs.pathExists(path.join(outRoot, "00_开始审阅", "00_项目首页.md"))).resolves.toBe(false);
   });
 
   test("export-obsidian can include optional Obsidian UI suggestions", async () => {

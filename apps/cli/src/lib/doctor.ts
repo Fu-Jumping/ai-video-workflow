@@ -192,10 +192,10 @@ export async function diagnoseProject({
         lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view`; do not hand-edit generated Canvas JSON.");
       }
       if (issue.code === "invalid-obsidian-shot-review") {
-        lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so each `镜头/` page and `画布/镜头审阅/` canvas matches the current single-shot review format.");
+        lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so each `02_按镜头联查/单镜头/` page and `02_按镜头联查/逐镜头审阅画布/` canvas matches the current single-shot review format.");
       }
       if (issue.code === "invalid-obsidian-agent-handoff") {
-        lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so `04_智能体交接.md` and each `镜头/` page expose copy-ready agent context. Edit source Step files, not generated projection files.");
+        lines.push("  Regenerate the Obsidian projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` so `03_审阅工具/01_智能体交接.md` and each `02_按镜头联查/单镜头/` page expose copy-ready agent context. Edit source Step files, not generated projection files.");
       }
       if (issue.code === "invalid-obsidian-ui-config") {
         lines.push("  Delete or regenerate `.obsidian/ai-video-workflow-suggested/`; these files are optional UI suggestions, not project truth.");
@@ -213,7 +213,7 @@ export async function diagnoseProject({
         lines.push("  Rerun `ai-video-workflow export-obsidian --project <path> --in-project-view` to refresh the projection manifest, or use `--out <vault>` for an external vault.");
       }
       if (issue.code === "obsidian-manifest-hash-mismatch") {
-        lines.push("  Review the modified generated file, move user notes into `笔记/`, then rerun `ai-video-workflow export-obsidian --project <path> --in-project-view` or use `--force` for a clean rebuild.");
+        lines.push("  Review the modified generated file, move user notes into `04_个人笔记/`, then rerun `ai-video-workflow export-obsidian --project <path> --in-project-view` or use `--force` for a clean rebuild.");
       }
       if (issue.code === "obsidian-manifest-source-mismatch") {
         lines.push("  Regenerate the projection with `ai-video-workflow export-obsidian --project <path> --in-project-view` and confirm each manifest `sourcePath` points to a project-relative Step file.");

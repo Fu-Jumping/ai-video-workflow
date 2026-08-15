@@ -108,7 +108,7 @@ describe("verifyObsidianVault", () => {
     tempRoots.push(outRoot);
     const projectRoot = officialExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, inProjectView: true });
-    await fs.appendFile(path.join(outRoot, "流程", "步骤三 - 分镜脚本", "镜头组-001", "镜头 001 - 分镜脚本.md"), "\nManual generated-file edit.\n", "utf8");
+    await fs.appendFile(path.join(outRoot, "01_阶段审核", "03_分镜脚本", "镜头组-001", "镜头 001 - 分镜脚本.md"), "\nManual generated-file edit.\n", "utf8");
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
 
@@ -121,7 +121,7 @@ describe("verifyObsidianVault", () => {
     tempRoots.push(outRoot);
     const projectRoot = officialExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
-    const vaultPath = "流程/步骤三 - 分镜脚本/镜头组-001/镜头 001 - 分镜脚本.md";
+    const vaultPath = "01_阶段审核/03_分镜脚本/镜头组-001/镜头 001 - 分镜脚本.md";
     const generatedPath = path.join(outRoot, ...vaultPath.split("/"));
     const nextContent = `${await fs.readFile(generatedPath, "utf8")}\n[断链](../../04_图片提示词/missing.md)\n`;
     await fs.writeFile(generatedPath, nextContent, "utf8");
@@ -142,7 +142,7 @@ describe("verifyObsidianVault", () => {
       expect.arrayContaining([
         expect.objectContaining({
           code: "broken-obsidian-markdown-link",
-          message: expect.stringContaining("流程/04_图片提示词/missing.md")
+          message: expect.stringContaining("01_阶段审核/04_图片提示词/missing.md")
         })
       ])
     );
@@ -153,8 +153,8 @@ describe("verifyObsidianVault", () => {
     tempRoots.push(outRoot);
     const projectRoot = officialExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
-    const vaultPath = "镜头/shot-001.md";
-    await fs.appendFile(path.join(outRoot, ...vaultPath.split("/")), "\n[[04_智能体交接#不存在段落|坏标题锚点]]\n", "utf8");
+    const vaultPath = "02_按镜头联查/单镜头/shot-001.md";
+    await fs.appendFile(path.join(outRoot, ...vaultPath.split("/")), "\n[[03_审阅工具/01_智能体交接.md#不存在段落|坏标题锚点]]\n", "utf8");
     await refreshManifestEntryHash(outRoot, vaultPath);
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
@@ -164,7 +164,7 @@ describe("verifyObsidianVault", () => {
       expect.arrayContaining([
         expect.objectContaining({
           code: "broken-obsidian-markdown-anchor",
-          message: expect.stringContaining("04_智能体交接.md#不存在段落")
+          message: expect.stringContaining("03_审阅工具/01_智能体交接.md#不存在段落")
         })
       ])
     );
@@ -175,8 +175,8 @@ describe("verifyObsidianVault", () => {
     tempRoots.push(outRoot);
     const projectRoot = officialExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
-    const vaultPath = "00_项目首页.md";
-    await fs.appendFile(path.join(outRoot, ...vaultPath.split("/")), "\n![[数据表/镜头.base#不存在视图]]\n", "utf8");
+    const vaultPath = "00_开始审阅/00_项目首页.md";
+    await fs.appendFile(path.join(outRoot, ...vaultPath.split("/")), "\n![[03_审阅工具/数据看板/镜头.base#不存在视图]]\n", "utf8");
     await refreshManifestEntryHash(outRoot, vaultPath);
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
@@ -186,7 +186,7 @@ describe("verifyObsidianVault", () => {
       expect.arrayContaining([
         expect.objectContaining({
           code: "broken-obsidian-markdown-anchor",
-          message: expect.stringContaining("数据表/镜头.base#不存在视图")
+          message: expect.stringContaining("03_审阅工具/数据看板/镜头.base#不存在视图")
         })
       ])
     );
@@ -197,7 +197,7 @@ describe("verifyObsidianVault", () => {
     tempRoots.push(outRoot);
     const projectRoot = officialExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
-    const generatedPath = path.join(outRoot, "流程", "步骤三 - 分镜脚本", "镜头组-001", "镜头 001 - 分镜脚本.md");
+    const generatedPath = path.join(outRoot, "01_阶段审核", "03_分镜脚本", "镜头组-001", "镜头 001 - 分镜脚本.md");
     const content = await fs.readFile(generatedPath, "utf8");
     await fs.writeFile(generatedPath, content.replace(/^源文件路径: .*$/m, ""), "utf8");
 
@@ -275,7 +275,7 @@ describe("verifyObsidianVault", () => {
     tempRoots.push(outRoot);
     const projectRoot = officialExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
-    await fs.remove(path.join(outRoot, "画布", "审阅地图.canvas"));
+    await fs.remove(path.join(outRoot, "03_审阅工具", "全局画布", "审阅地图.canvas"));
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
 
@@ -291,7 +291,7 @@ describe("verifyObsidianVault", () => {
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
     await fs.writeFile(path.join(root, "outside.md"), "# Outside vault\n", "utf8");
 
-    const reviewMapPath = path.join(outRoot, "画布", "审阅地图.canvas");
+    const reviewMapPath = path.join(outRoot, "03_审阅工具", "全局画布", "审阅地图.canvas");
     const reviewMap = (await fs.readJson(reviewMapPath)) as { nodes: Array<Record<string, unknown>> };
     reviewMap.nodes.push({
       id: "escape-node",
@@ -316,7 +316,7 @@ describe("verifyObsidianVault", () => {
     const projectRoot = officialExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
 
-    const reviewMapPath = path.join(outRoot, "画布", "审阅地图.canvas");
+    const reviewMapPath = path.join(outRoot, "03_审阅工具", "全局画布", "审阅地图.canvas");
     const reviewMap = (await fs.readJson(reviewMapPath)) as { edges: Array<Record<string, unknown>> };
     reviewMap.edges.push({
       id: "broken-edge",
@@ -344,7 +344,7 @@ describe("verifyObsidianVault", () => {
     tempRoots.push(outRoot);
     const projectRoot = officialExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
-    const workflowBase = path.join(outRoot, "数据表", "流程文件.base");
+    const workflowBase = path.join(outRoot, "03_审阅工具", "数据看板", "流程文件.base");
     const content = await fs.readFile(workflowBase, "utf8");
     await fs.writeFile(workflowBase, content.replace("审阅队列", "审阅队列已移除"), "utf8");
 
@@ -374,7 +374,7 @@ describe("verifyObsidianVault", () => {
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, includeObsidianUi: true });
     const bookmarksPath = path.join(outRoot, ".obsidian", "ai-video-workflow-suggested", "bookmarks.json");
     const bookmarks = await fs.readJson(bookmarksPath) as { items: Array<{ path?: string }> };
-    bookmarks.items = bookmarks.items.filter((item) => item.path !== "04_智能体交接.md");
+    bookmarks.items = bookmarks.items.filter((item) => item.path !== "03_审阅工具/01_智能体交接.md");
     await fs.writeJson(bookmarksPath, bookmarks, { spaces: 2 });
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
@@ -384,7 +384,7 @@ describe("verifyObsidianVault", () => {
       expect.arrayContaining([
         expect.objectContaining({
           code: "invalid-obsidian-ui-config",
-          message: expect.stringContaining("04_智能体交接.md")
+          message: expect.stringContaining("03_审阅工具/01_智能体交接.md")
         })
       ])
     );
@@ -431,7 +431,7 @@ describe("verifyObsidianVault", () => {
     tempRoots.push(outRoot);
     const projectRoot = officialExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
-    const shotReviewPath = path.join(outRoot, "镜头", "shot-001.md");
+    const shotReviewPath = path.join(outRoot, "02_按镜头联查", "单镜头", "shot-001.md");
     const content = await fs.readFile(shotReviewPath, "utf8");
     const nextContent = content.replace("## 6. 视频提示词", "## 6. 提示词桥接");
     await fs.writeFile(shotReviewPath, nextContent, "utf8");
@@ -440,7 +440,7 @@ describe("verifyObsidianVault", () => {
       path.join(outRoot, projectionManifestPath),
       renderProjectionManifest({
         ...manifest,
-        files: manifest.files.map((entry) => entry.vaultPath === "镜头/shot-001.md" ? { ...entry, contentHash: hashContent(nextContent) } : entry)
+        files: manifest.files.map((entry) => entry.vaultPath === "02_按镜头联查/单镜头/shot-001.md" ? { ...entry, contentHash: hashContent(nextContent) } : entry)
       }),
       "utf8"
     );
@@ -456,7 +456,7 @@ describe("verifyObsidianVault", () => {
     tempRoots.push(outRoot);
     const projectRoot = officialExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
-    await fs.remove(path.join(outRoot, "画布", "镜头审阅", "shot-001.canvas"));
+    await fs.remove(path.join(outRoot, "02_按镜头联查", "逐镜头审阅画布", "shot-001.canvas"));
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
 
@@ -469,7 +469,7 @@ describe("verifyObsidianVault", () => {
     tempRoots.push(outRoot);
     const projectRoot = officialExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
-    await fs.remove(path.join(outRoot, "04_智能体交接.md"));
+    await fs.remove(path.join(outRoot, "03_审阅工具", "01_智能体交接.md"));
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
 
@@ -482,9 +482,9 @@ describe("verifyObsidianVault", () => {
     tempRoots.push(outRoot);
     const projectRoot = officialExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
-    const shotReviewPath = path.join(outRoot, "镜头", "shot-001.md");
+    const shotReviewPath = path.join(outRoot, "02_按镜头联查", "单镜头", "shot-001.md");
     const content = await fs.readFile(shotReviewPath, "utf8");
-    await fs.writeFile(shotReviewPath, content.replaceAll("[[04_智能体交接#2. 单镜头交接|智能体交接]]", "[[04_智能体交接|智能体交接]]"), "utf8");
+    await fs.writeFile(shotReviewPath, content.replaceAll("[[03_审阅工具/01_智能体交接.md#2. 单镜头交接|智能体交接]]", "[[03_审阅工具/01_智能体交接.md|智能体交接]]"), "utf8");
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
 

@@ -1250,8 +1250,8 @@ describe("verifyProject", () => {
     const outRoot = path.join(projectRoot, "_views", "obsidian");
 
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, inProjectView: true });
-    await fs.writeFile(path.join(outRoot, "笔记", "manual.md"), "[local](G:\\private\\note.md)\n", "utf8");
-    await fs.writeFile(path.join(outRoot, "流程", "manual-generated.md"), "[local](file:///C:/private/generated.md)\n", "utf8");
+    await fs.writeFile(path.join(outRoot, "04_个人笔记", "manual.md"), "[local](G:\\private\\note.md)\n", "utf8");
+    await fs.writeFile(path.join(outRoot, "01_阶段审核", "manual-generated.md"), "[local](file:///C:/private/generated.md)\n", "utf8");
 
     const result = await verifyProject({
       projectRoot,

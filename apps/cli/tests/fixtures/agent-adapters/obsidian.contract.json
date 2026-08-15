@@ -12,10 +12,9 @@
     "06_执行计划/"
   ],
   "outputs": [
-    "_views/obsidian/流程/",
-    "_views/obsidian/镜头/",
-    "_views/obsidian/数据表/",
-    "_views/obsidian/画布/",
+    "_views/obsidian/01_阶段审核/",
+    "_views/obsidian/02_按镜头联查/",
+    "_views/obsidian/03_审阅工具/",
     "_views/obsidian/投影清单.json"
   ],
   "syncDirection": "one-way-project-to-adapter",
@@ -29,30 +28,30 @@
     "_views/obsidian/"
   ],
   "userOwnedSurfaces": [
-    "_views/obsidian/笔记/"
+    "_views/obsidian/04_个人笔记/"
   ],
   "privateRuntimeSurfaces": [
     ".obsidian/",
     "_views/obsidian/.obsidian/"
   ],
   "handoffSurfaces": [
-    "_views/obsidian/04_智能体交接.md",
-    "_views/obsidian/镜头/",
-    "_views/obsidian/画布/"
+    "_views/obsidian/03_审阅工具/01_智能体交接.md",
+    "_views/obsidian/02_按镜头联查/",
+    "_views/obsidian/03_审阅工具/"
   ],
   "verificationCommands": [
     "ai-video-workflow export-obsidian --project <path> --in-project-view",
     "ai-video-workflow verify-obsidian --project <path> --in-project-view"
   ],
   "forbiddenWrites": [
-    "_views/obsidian/流程/",
-    "_views/obsidian/镜头/",
-    "_views/obsidian/数据表/",
-    "_views/obsidian/画布/",
+    "_views/obsidian/01_阶段审核/",
+    "_views/obsidian/02_按镜头联查/",
+    "_views/obsidian/03_审阅工具/",
+    "_views/obsidian/04_个人笔记/",
     "_views/obsidian/投影清单.json",
     "_views/obsidian/.obsidian/",
     ".obsidian/",
     "absolute links"
   ],
-  "failureBehavior": "Refresh the generated view from Step source files; preserve user notes under _views/obsidian/笔记/ and never reverse-sync generated projection files into project truth."
+  "failureBehavior": "Refresh the generated view from Step source files; preserve user notes under _views/obsidian/04_个人笔记/ and never reverse-sync generated projection files into project truth."
 }

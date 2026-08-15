@@ -94,10 +94,10 @@ describe("agent adapter contract", () => {
       expect(contract.generatedSurfaces, `${fixtureName} generatedSurfaces`).toEqual(expect.arrayContaining(["_views/obsidian/"]));
       expect(contract.forbiddenWrites, `${fixtureName} generated Obsidian forbiddenWrites`).toEqual(
         expect.arrayContaining([
-          "_views/obsidian/流程/",
-          "_views/obsidian/镜头/",
-          "_views/obsidian/数据表/",
-          "_views/obsidian/画布/",
+          "_views/obsidian/01_阶段审核/",
+          "_views/obsidian/02_按镜头联查/",
+          "_views/obsidian/03_审阅工具/",
+          "_views/obsidian/04_个人笔记/",
           "_views/obsidian/投影清单.json",
           "_views/obsidian/.obsidian/"
         ])
@@ -126,8 +126,8 @@ describe("agent adapter contract", () => {
 
     expect(contract.outputs).toEqual(expect.arrayContaining([".cursor/rules/", ".cursor/ai-video-workflow/", ".cursor/skills/"]));
     expect(contract.generatedSurfaces).toEqual(expect.arrayContaining([".cursor/", "_views/obsidian/"]));
-    expect(contract.userOwnedSurfaces).toEqual(expect.arrayContaining(["_views/obsidian/笔记/"]));
-    expect(contract.forbiddenWrites).toEqual(expect.arrayContaining(["_views/obsidian/流程/", ".obsidian/", "absolute links"]));
+    expect(contract.userOwnedSurfaces).toEqual(expect.arrayContaining(["_views/obsidian/04_个人笔记/"]));
+    expect(contract.forbiddenWrites).toEqual(expect.arrayContaining(["_views/obsidian/01_阶段审核/", ".obsidian/", "absolute links"]));
   });
 
   test("documents Claude Code adapter output locations", async () => {
@@ -175,16 +175,16 @@ describe("agent adapter contract", () => {
         "04_图片提示词/",
         "05_视频提示词/",
         "06_执行计划/",
-        "_views/obsidian/流程/",
-        "_views/obsidian/镜头/",
-        "_views/obsidian/数据表/",
-        "_views/obsidian/画布/",
+        "_views/obsidian/01_阶段审核/",
+        "_views/obsidian/02_按镜头联查/",
+        "_views/obsidian/03_审阅工具/",
+        "_views/obsidian/04_个人笔记/",
         "_views/obsidian/投影清单.json",
         "_views/obsidian/.obsidian/",
-        "流程/",
-        "镜头/",
-        "画布/",
-        "数据表/",
+        "01_阶段审核/",
+        "02_按镜头联查/",
+        "03_审阅工具/",
+        "04_个人笔记/",
         ".obsidian/",
         ".codex/",
         ".cursor/",
@@ -201,8 +201,8 @@ describe("agent adapter contract", () => {
     expect(contract.adapterId).toBe("obsidian");
     expect(contract.syncDirection).toBe("one-way-project-to-adapter");
     expect(contract.sourceOfTruth).toBe("project-step-files");
-    expect(contract.outputs).toEqual(expect.arrayContaining(["_views/obsidian/流程/", "_views/obsidian/投影清单.json"]));
-    expect(contract.userOwnedSurfaces).toEqual(expect.arrayContaining(["_views/obsidian/笔记/"]));
+    expect(contract.outputs).toEqual(expect.arrayContaining(["_views/obsidian/01_阶段审核/", "_views/obsidian/投影清单.json"]));
+    expect(contract.userOwnedSurfaces).toEqual(expect.arrayContaining(["_views/obsidian/04_个人笔记/"]));
     expect(contract.privateRuntimeSurfaces).toEqual(expect.arrayContaining(["_views/obsidian/.obsidian/", ".obsidian/"]));
     expect(contract.verificationCommands).toEqual(
       expect.arrayContaining([

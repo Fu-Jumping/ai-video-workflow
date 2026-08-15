@@ -210,7 +210,7 @@ describe("diagnoseProject", () => {
         {
           code: "invalid-obsidian-canvas-json",
           message: "Canvas JSON is invalid",
-          path: "画布/流程图.canvas"
+          path: "03_审阅工具/全局画布/流程图.canvas"
         }
       ]
     });
@@ -226,7 +226,7 @@ describe("diagnoseProject", () => {
         {
           code: "missing-obsidian-base-view",
           message: "Obsidian base is missing view: 审阅队列",
-          path: "数据表/流程文件.base"
+          path: "03_审阅工具/数据看板/流程文件.base"
         },
         {
           code: "invalid-obsidian-ui-config",
@@ -246,13 +246,13 @@ describe("diagnoseProject", () => {
         {
           code: "obsidian-manifest-hash-mismatch",
           message: "Manifest hash does not match generated file",
-          path: "流程/步骤三 - 分镜脚本/镜头组-001/镜头 001 - 分镜脚本.md"
+          path: "01_阶段审核/03_分镜脚本/镜头组-001/镜头 001 - 分镜脚本.md"
         }
       ]
     });
 
     expect(output).toContain("Obsidian Projection");
-    expect(output).toContain("笔记/");
+    expect(output).toContain("04_个人笔记/");
     expect(output).toContain("--force");
     expect(output).toContain("--in-project-view");
   });
@@ -263,7 +263,7 @@ describe("diagnoseProject", () => {
         {
           code: "obsidian-view-stale",
           message: "Obsidian projection is stale for source file: 03_分镜脚本/镜头组-001/镜头-001.md",
-          path: "流程/步骤三 - 分镜脚本/镜头组-001/镜头 001 - 分镜脚本.md"
+          path: "01_阶段审核/03_分镜脚本/镜头组-001/镜头 001 - 分镜脚本.md"
         }
       ]
     });
@@ -278,15 +278,15 @@ describe("diagnoseProject", () => {
       issues: [
         {
           code: "invalid-obsidian-shot-review",
-          message: "Shot review canvas is missing or not linked: 画布/镜头审阅/shot-001.canvas",
-          path: "镜头/shot-001.md"
+          message: "Shot review canvas is missing or not linked: 02_按镜头联查/逐镜头审阅画布/shot-001.canvas",
+          path: "02_按镜头联查/单镜头/shot-001.md"
         }
       ]
     });
 
     expect(output).toContain("Obsidian Projection");
     expect(output).toContain("single-shot review format");
-    expect(output).toContain("画布/镜头审阅/");
+    expect(output).toContain("02_按镜头联查/逐镜头审阅画布/");
   });
 
   test("suggests Obsidian agent handoff fixes", async () => {
@@ -294,14 +294,14 @@ describe("diagnoseProject", () => {
       issues: [
         {
           code: "invalid-obsidian-agent-handoff",
-          message: "Missing Obsidian agent handoff page: 04_智能体交接.md",
-          path: "04_智能体交接.md"
+          message: "Missing Obsidian agent handoff page: 03_审阅工具/01_智能体交接.md",
+          path: "03_审阅工具/01_智能体交接.md"
         }
       ]
     });
 
     expect(output).toContain("Obsidian Projection");
-    expect(output).toContain("04_智能体交接.md");
+    expect(output).toContain("03_审阅工具/01_智能体交接.md");
     expect(output).toContain("copy-ready agent context");
     expect(output).toContain("--in-project-view");
     expect(output).toContain("source Step files");
