@@ -1,7 +1,8 @@
 # ai-video-workflow 修复计划
 
 - 制定日期：2026-08-17
-- **执行状态：全部完成（2026-08-17）**——F1~F13 全部处理，`pnpm verify:v0.2` 全绿（build + 259 测试 + example:verify），两轮测试项目手工验收通过（9 卡与 18 卡项目 export/verify-obsidian 全通过）。
+- **执行状态：全部完成（2026-08-17）**——F1~F13 全部处理，`pnpm verify:v0.2` 全绿（build + 261 测试 + example:verify），两轮测试项目手工验收通过（9 卡与 18 卡项目 export/verify-obsidian 全通过）。
+- **第三轮真实环境复测（2026-08-17，r3）**：隔离子代理以真实创作者身份走查（克隆→创作→Obsidian→换人/改时长/整体重写→质量把关），开箱验证一次通过、10 张来源卡零丢失、模板直接可用、分步校验可用、质量把关命中内容问题；走查发现的 3 项跟进问题已修复（见状态表 G1/G2/G4）。产物 `G:\avw-r3-e2e-20260817\`。
 - 依据：两轮隔离端到端测试（2026-08-17）
   - 第一轮（主链路）：`G:\avw-e2e-test-20260817\REPORT.md` / `测试报告.md`
   - 第二轮（审核与修改链路）：`G:\avw-r2-e2e-20260817\REPORT.md` / `测试报告.md`
@@ -12,21 +13,25 @@
 
 | 编号 | 问题 | 状态 | 说明 |
 | --- | --- | --- | --- |
-| F1 | `pnpm verify:v0.2` 开箱必失败 | ✅ 已修 | vitest globalSetup 自动 sync 官方示例；根因修正为"vitest 阶段未 sync"（非 example:verify 脚本） |
-| F2 | Obsidian 来源卡投影同名冲突 | ✅ 已修 | scan.ts 按 `SRC-xxxx 来源卡` 投影 + export.ts 碰撞防御报错；9 卡/18 卡项目均验收通过 |
+| F1 | `pnpm verify:v0.2` 开箱必失败 | ✅ 已修 | vitest globalSetup 自动 sync 官方示例；r3 真实环境复测开箱一次通过 |
+| F2 | Obsidian 来源卡投影同名冲突 | ✅ 已修 | scan.ts 按 `SRC-xxxx 来源卡` 投影 + export.ts 碰撞防御报错；9/18/10 卡项目均验收通过 |
 | F3 | Step 4 模板自检残句被误判为资产 | ✅ 已修 | 模板文案重写 + reference-assets.ts 提取时剔除自检区块（双保险） |
 | F4 | Step 2 模板结构与校验器冲突 | ✅ 已修 | 模板平铺化为 `## 角色一/场景一` 并写明结构约束；quality-gates §1.2 补约束说明 |
-| F5 | verify 无分步校验能力 | ✅ 已修 | `verify --step <0-6>`（含 Step 3 预期中间态降级）；quickstart 新文档说明 |
-| F6 | 内容级门槛无机器执行 | ✅ 已修（A 档） | 新增 3 项规则化检查：避免双前缀 / 快速导读元语言词 / 负面约束按镜定制底线；quality-gates §1.3 声明机器/人工边界 |
-| F7 | init 不播种 Step 2/4/5 模板 | ✅ 已修 | init 播种 02 设定 + 04/05 模板参考；新项目 verify 一次通过 |
-| F8 | 平台枚举不含 midjourney | ✅ 已修 | constants/types 增加 midjourney，`--image midjourney` 可登记 |
-| F9 | raw/ 文件泄漏进 Obsidian 投影 | ✅ 已修 | scan.ts 排除归档目录（raw/media 等）；回归测试覆盖 |
-| F10 | sync 镜像目录命名漂移 | ✅ 已修（文档口径） | WORKFLOW_OVERVIEW §2.4/§9 与 workflow-spec 改为"固定映射同步"，映射表写清 |
-| F11 | WORKFLOW_OVERVIEW §5 英文版口径 | ✅ 已修 | §5 改为与模板一致的三段合同（无英文版） |
-| F12 | git CRLF 噪音 | ✅ 已修 | 新增 .gitattributes（text=auto + md/json/yaml/ts/js LF） |
-| F13 | verify 偶发进程崩溃 | 🔭 观察项 | 未复现，未投入；按第二轮描述上下文若再复现再修 |
+| F5 | verify 无分步校验能力 | ✅ 已修 | `verify --step <0-6>`（含 Step 3 预期中间态降级）；r3 实际使用确认 |
+| F6 | 内容级门槛无机器执行 | ✅ 已修（A 档） | 避免双前缀 / 快速导读元语言词 / 负面约束按镜定制底线；r3 质量把关确认命中 |
+| F7 | init 不播种 Step 2/4/5 模板 | ✅ 已修 | init 播种 02 设定 + 04/05 模板参考；r3 直接填写无坑 |
+| F8 | 平台枚举不含 midjourney | ✅ 已修 | constants/types 增加 midjourney |
+| F9 | raw/ 文件泄漏进 Obsidian 投影 | ✅ 已修 | scan.ts 排除归档目录；r3 确认 raw 不进观看层 |
+| F10 | sync 镜像目录命名漂移 | ✅ 已修（文档口径） | WORKFLOW_OVERVIEW §2.4/§9 与 workflow-spec 改为"固定映射同步" |
+| F11 | WORKFLOW_OVERVIEW §5 英文版口径 | ✅ 已修 | §5 改为与模板一致的三段合同 |
+| F12 | git CRLF 噪音 | ✅ 已修 | .gitattributes |
+| F13 | verify 偶发进程崩溃 | 🔭 观察项 | 未复现，未投入 |
+| G1 | 03 分镜卡模板条目格式与校验器标题格式不符（r3 新发现） | ✅ 已修 | 模板改为 `### 分镜 N` 标题 + 模板合规断言守护 |
+| G2 | 负面约束检查逐字匹配可绕过（r3 新发现） | ✅ 已修 | 归一化增强（全半角引号/反引号/空白），变体用例守护 |
+| G3 | 注入脚本静默失败造成漏检假象（r3） | ℹ️ 操作不当 | 非工具缺陷，不修 |
+| G4 | Step 0 基线"15 秒"口径漂移无兜底（r3） | ✅ 已修（文档） | 影响面排查手册补充 Step 0 口径检查项 |
 
-**新增回归测试（13 个用例）**：template-compliance（模板与校验器契约守护）、obsidian-multisource（多来源卡投影 + raw 排除）、verify-step（分步校验 + 三项内容检查）。**新增 CI**（.github/workflows/ci.yml）。**新增文档**：verify-and-iterate.md、impact-analysis.md、rewrite-handbook.md。
+**新增回归测试（15 个用例）**：template-compliance（02/03/04 模板与校验器契约守护）、obsidian-multisource（多来源卡投影 + raw 排除）、verify-step（分步校验 + 内容检查 + 变体命中）。**新增 CI**（.github/workflows/ci.yml）。**新增文档**：verify-and-iterate.md、impact-analysis.md、rewrite-handbook.md。
 
 ---
 
