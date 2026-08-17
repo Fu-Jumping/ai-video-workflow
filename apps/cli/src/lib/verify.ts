@@ -45,7 +45,13 @@ const step5GenericNegativeDefaults = [
 const step5GenericNegativeNormalized = new Set(step5GenericNegativeDefaults.map(normalizeNegativeLine));
 
 function normalizeNegativeLine(line: string): string {
-  return line.replace(/\s+/g, "").replace(/[。；;]$/u, "").toLowerCase();
+  return line
+    .replace(/[“”]/gu, '"')
+    .replace(/[‘’]/gu, "'")
+    .replace(/`/gu, "")
+    .replace(/\s+/gu, "")
+    .replace(/[。；;]$/u, "")
+    .toLowerCase();
 }
 
 /** Returns the body of the markdown section whose heading line equals `headingText`, or "". */

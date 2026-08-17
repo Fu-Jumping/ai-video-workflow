@@ -232,6 +232,24 @@ describe("Step 5 content gates", () => {
     );
   });
 
+  test("rejects generic-only negatives even with punctuation variants", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-generic-negative-variant-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root);
+    await seedStoryboard(projectRoot);
+    await seedKeyframe(projectRoot, "");
+    await seedVideoPrompt(projectRoot, [
+      "不得超过15秒",
+      "不得把 {{Mixed n}} 槽位号写成事实源引用。",
+      "不得使用\"同上\"\"保持一致\"替代具体可见事实。"
+    ]);
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video", step: 5 });
+    expect(result.issues).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "step5-generic-negative-only" })])
+    );
+  });
+
   test("accepts shot-specific negative constraints", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-custom-negative-"));
     tempRoots.push(root);

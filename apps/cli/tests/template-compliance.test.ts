@@ -56,6 +56,12 @@ describe("template compliance", () => {
     expect(scenes).toContain("@场景一场景图");
   });
 
+  test("Step 3 storyboard card template declares segments as ### 分镜 N headings", async () => {
+    const storyboard = await fs.readFile(path.join(packTemplatesRoot, "03_分镜脚本", "分镜卡.md"), "utf8");
+    expect(storyboard).toMatch(/^###\s*分镜 1\s*$/mu);
+    expect(storyboard).not.toMatch(/^-\s*分镜 \d+[：:]/mu);
+  });
+
   test("unfilled Step 2 templates produce no missing-asset false positives", async () => {
     const characters = await fs.readFile(path.join(packTemplatesRoot, "02_世界设定", "角色设定.md"), "utf8");
     const scenes = await fs.readFile(path.join(packTemplatesRoot, "02_世界设定", "场景设定.md"), "utf8");
