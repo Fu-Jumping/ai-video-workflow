@@ -1,0 +1,9 @@
+# Normalize line endings across the repository. Markdown and config files are checked in with
+# LF even on Windows; binary and platform-specific files keep their own endings.
+* text=auto
+*.md text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.ts text eol=lf
+*.js text eol=lf

@@ -48,7 +48,7 @@
 ### 2.4 `.codex/ai-video-workflow`
 
 `.codex/ai-video-workflow/` 是 Codex 运行镜像，不是另一套规则来源。
-它必须完整镜像母包中当前有效的规则、模板和索引。
+它按固定映射同步母包中当前有效的内容：`workflow/indexes` → `indexes/`、`templates` → `templates/`、`skills-longform` → `skills/`、`skills` → `skill-bundles/`（同一套映射也用于 `.cursor/`、`.claude/`、`.trae/` 的对应镜像目录）。同步内容保持一致，但目录名不是逐字镜像，以 `sync` 命令生成的映射为准。
 
 ### 2.5 `.codex/skills`
 
@@ -56,7 +56,7 @@
 它和 `.codex/ai-video-workflow/` 不是同一层：
 
 - `.codex/skills/` 负责可识别 skill 包
-- `.codex/ai-video-workflow/` 负责完整镜像、长文规则和模板参考
+- `.codex/ai-video-workflow/` 负责运行镜像（长文规则、模板与索引）
 
 ## 3. 步骤职责
 
@@ -126,15 +126,15 @@ Step 4 正式维护对象默认是 Markdown 交付层。
 
 - `快速导读`
 - `中文完整版本`
-- `English Version (Copy Ready)`
+- `可复制提示词`
 
 正文写法固定为：
 
 - `快速导读` 只写纯视觉事实。
 - 中文正文写成 1 到 2 段连续自然语言，末尾单列 `避免:`
-- 英文正文写成 1 到 2 段连续自然语言，末尾单列 `Avoid:`
+- 可复制提示词与中文完整版本保持同一画面事实，末尾单列 `避免:`
 
-Step 5 继续默认消费 Step 4 的英文版，不直接消费任何中间格式。
+Step 5 继续默认消费 Step 4 的 `可复制提示词`，不直接消费任何中间格式。
 
 ## 6. 通用锚点能力
 
@@ -184,7 +184,7 @@ Step 6 的核心执行文档默认包括：
 ## 9. 维护规则
 
 - `packs/official-ai-video/` 是母版源。
-- `.codex/ai-video-workflow/` 是完整运行镜像。
+- `.codex/ai-video-workflow/` 是按固定映射同步的运行镜像（见 2.4）。
 - `.codex/skills/` 是 Codex 的 skill 运行入口。
 - 任何规则、模板、索引、平台口径、skill 打包接口或质量门槛改动后，都必须同步镜像。
 - 若某项目确需引入结构化中间层，必须在项目级另行设计，不能作为母包默认。

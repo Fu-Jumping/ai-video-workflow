@@ -153,15 +153,25 @@ program
   .description("Verify project structure and workflow contracts")
   .requiredOption("--project <path>")
   .requiredOption("--ide <ide>")
+  .option("--step <n>", "Verify only completed steps up to N (0-6); skips checks that require artifacts from later steps")
   .action((options) => runCliAction(async () => {
     const ide = parseIde(options.ide);
     if (!ide) {
       throw new Error("Missing --ide");
     }
+    let step: number | undefined;
+    if (options.step !== undefined) {
+      const parsed = Number.parseInt(options.step, 10);
+      if (!/^\d+$/.test(options.step) || parsed < 0 || parsed > 6) {
+        throw new Error(`Invalid --step: ${options.step}. Expected 0-6.`);
+      }
+      step = parsed;
+    }
     const result = await verifyProject({
       projectRoot: path.resolve(options.project),
       ide,
-      pack: DEFAULT_PACK
+      pack: DEFAULT_PACK,
+      step
     });
     if (!result.ok) {
       for (const issue of result.issues) {

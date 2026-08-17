@@ -53,7 +53,9 @@ See `docs/en/contributors/cross-agent-workspace.md` and `docs/en/ide-integration
 pnpm verify:v0.2
 ```
 
-This command builds the CLI and docs site, runs tests, and verifies the official example project.
+This command builds the CLI and docs site, runs tests (the test suite bootstraps the official example's IDE runtime mirror, so a clean clone can run it directly), and verifies the official example project.
+
+Supported image/video platforms: `openai`, `veo`, `runway`, `luma`, `minimax`, `seedance`, `midjourney` (`midjourney` is config registration only; image generation still happens on the platform itself).
 
 ## Obsidian Vault Projection
 

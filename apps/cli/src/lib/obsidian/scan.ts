@@ -15,6 +15,19 @@ function titleFromFileName(fileName: string): string {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+// Source cards live under `_资料库/SRC-xxxx/source-card.md`. Projecting them by file name alone
+// would map every card to the same "Source Card" title (and vault path), silently overwriting all
+// but the last card. Keep the SRC id in the title so each card gets its own projection.
+const sourceCardEntryPattern = /^_资料库\/(SRC-\d{4})\/source-card\.md$/;
+
+function titleForEntry(entry: string): string {
+  const sourceCardMatch = entry.match(sourceCardEntryPattern);
+  if (sourceCardMatch) {
+    return `${sourceCardMatch[1]} 来源卡`;
+  }
+  return titleFromFileName(entry);
+}
+
 function titleFromMarkdownContent(content: string, fallback: string): string {
   const heading = content.split(/\r?\n/).find((line) => line.startsWith("# "));
   const title = heading?.replace(/^#\s+/, "").trim();
@@ -43,8 +56,8 @@ export async function scanProjectForObsidian(projectRoot: string): Promise<Obsid
         sourcePath,
         sourceKind: stepDir.sourceKind,
         step: stepDir.step,
-        title: titleFromFileName(entry),
-        headingTitle: titleFromMarkdownContent(content, titleFromFileName(entry)),
+        title: titleForEntry(entry),
+        headingTitle: titleFromMarkdownContent(content, titleForEntry(entry)),
         shotGroupId: shotGroupIdFromPath(sourcePath),
         shotId: shotIdFromFileName(entry),
         referenceAssets: extractReferenceAssets(content)
@@ -54,12 +67,19 @@ export async function scanProjectForObsidian(projectRoot: string): Promise<Obsid
   return files;
 }
 
+// Research archive subdirectories (raw extracts, media, comment samples, browser profiles) are
+// gitignored and must not be projected into the Obsidian viewing layer.
+const ignoredScanDirectories = new Set(["raw", "media", "full-comments", "browser-profile", "cookies", "_inbox"]);
+
 async function walkMarkdownFiles(root: string, current = root): Promise<string[]> {
   const entries = await fs.readdir(current, { withFileTypes: true });
   const files: string[] = [];
   for (const entry of entries) {
     const fullPath = path.join(current, entry.name);
     if (entry.isDirectory()) {
+      if (ignoredScanDirectories.has(entry.name)) {
+        continue;
+      }
       files.push(...(await walkMarkdownFiles(root, fullPath)));
     } else if (entry.isFile() && entry.name.endsWith(".md")) {
       files.push(toVaultPath(path.relative(root, fullPath)));

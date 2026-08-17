@@ -10,6 +10,9 @@
 
 - [快速开始](./quickstart/index.md)
 - [新手：让智能体代跑 CLI](./quickstart/beginner-agent-init.md)
+- [校验、审核与迭代（分步校验 / 内容审核预期 / init 播种范围）](./quickstart/verify-and-iterate.md)
+- [影响面排查手册](./workflow/impact-analysis.md)
+- [源层重写操作手册](./workflow/rewrite-handbook.md)
 - [新手启动与初始化体验记录](./contributors/onboarding-initialization-notes.md)
 - [工作流系统图](./contributors/workflow-system-map.md)
 - [Adapter 边界](./contributors/adapter-boundaries.md)

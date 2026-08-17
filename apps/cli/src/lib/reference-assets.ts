@@ -21,6 +21,9 @@ const referenceAssetPattern = /@([^@\s，。、；;：:（）()【】\[\]<>《�
 const levelTwoHeadingPattern = /^##\s+(.+?)\s*#*\s*$/gmu;
 const mainCharacterPattern = /^\s*[-*]?\s*(?:主角色|角色类型|类型)\s*[：:]\s*(?:是|主角色)\s*$/mu;
 const specialScenePattern = /^\s*[-*]?\s*(?:需要场景(?:设定)?图|特殊场景|特殊区域|特殊布景)\s*[：:]\s*是\s*$/mu;
+// Self-check blocks carry illustrative tokens such as `@xx三视图` that must not be read as
+// declared reference assets. Strip them before extraction so templates can keep a self-check.
+const selfCheckSectionPattern = /^##\s*中文?自检\s*#*\s*[\s\S]*$/mu;
 
 function uniqueReferenceAssets(tokens: ReferenceAssetToken[]): ReferenceAssetToken[] {
   const seen = new Set<string>();
@@ -49,7 +52,8 @@ function markdownSections(content: string): MarkdownSection[] {
 }
 
 export function extractReferenceAssets(content: string): ReferenceAssetToken[] {
-  const tokens = [...content.matchAll(referenceAssetPattern)].map((match) => {
+  const searchable = content.replace(selfCheckSectionPattern, "");
+  const tokens = [...searchable.matchAll(referenceAssetPattern)].map((match) => {
     const name = match[1] ?? "";
     const suffix = match[2] ?? "";
     return {

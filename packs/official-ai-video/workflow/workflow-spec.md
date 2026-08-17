@@ -20,7 +20,7 @@
 - 母版源：`packs/official-ai-video/`
 - 运行镜像：目标 AI IDE 的原生目录或原生入口文件
 
-对于 Codex，`.codex/ai-video-workflow/` 是完整运行镜像。
+对于 Codex，`.codex/ai-video-workflow/` 是按固定映射同步的运行镜像（映射关系见仓库 `WORKFLOW_OVERVIEW.md` §2.4）。
 它必须和当前 pack 保持同步，不能长期漂移。
 
 ## 2.1 Skill 的双层来源

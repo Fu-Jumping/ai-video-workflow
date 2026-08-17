@@ -372,10 +372,20 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
     throw new CliUserError("Project has no Step markdown source files to export to Obsidian.");
   }
   const workflowFiles: ObsidianGeneratedFile[] = [];
+  const vaultPathOwners = new Map<string, string>();
   for (const sourceFile of sourceFiles) {
     const originalContent = await fs.readFile(sourcePathToFsPath(projectRoot, sourceFile.sourcePath), "utf8");
+    const vaultPath = workflowVaultPath(sourceFile);
+    const previousOwner = vaultPathOwners.get(vaultPath);
+    if (previousOwner !== undefined) {
+      throw new CliUserError(
+        `Obsidian projection collision: ${vaultPath} is generated from both ${previousOwner} and ${sourceFile.sourcePath}. ` +
+          "Rename one of the source files so each source file projects to a unique vault path."
+      );
+    }
+    vaultPathOwners.set(vaultPath, sourceFile.sourcePath);
     workflowFiles.push({
-      vaultPath: workflowVaultPath(sourceFile),
+      vaultPath,
       content: renderGeneratedWorkflowNote(sourceFile, originalContent, projectName, sourceFiles),
       sourcePath: sourceFile.sourcePath,
       sourceContent: originalContent

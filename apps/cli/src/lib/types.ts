@@ -2,7 +2,7 @@ export type Ide = "codex" | "cursor" | "claude-code" | "trae";
 
 export type AdapterId = Ide | "obsidian" | "mcp" | "cherry-studio";
 
-export type Platform = "openai" | "veo" | "runway" | "luma" | "minimax" | "seedance";
+export type Platform = "openai" | "veo" | "runway" | "luma" | "minimax" | "seedance" | "midjourney";
 
 export type StartFromMode = "research" | "script";
 
@@ -50,6 +50,9 @@ export type IssueCode =
   | "invalid-reference-asset-token"
   | "absolute-path-link"
   | "step4-forbidden-text"
+  | "step4-avoid-double-prefix"
+  | "step4-quick-guide-meta-language"
+  | "step5-generic-negative-only"
   | "missing-ide-runtime"
   | "missing-shared-agent-entry"
   | "shared-agent-entry-needs-merge"

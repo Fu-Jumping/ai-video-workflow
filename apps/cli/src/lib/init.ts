@@ -45,6 +45,25 @@ async function seedProjectDirectories(repoRoot: string, projectRoot: string, sta
     path.join(projectRoot, STEP_DIR_BY_NUMBER[3], "镜头组-001", "00_镜头组说明.md"),
     await fs.readFile(path.join(repoRoot, "packs", "official-ai-video", "templates", "03_分镜脚本", "镜头组说明.md"), "utf8")
   );
+  // Step 2 世界设定 templates are seeded directly: the character/scene setting files are the
+  // deliverables themselves, filled in place rather than copied per shot.
+  for (const file of ["角色设定.md", "场景设定.md"]) {
+    await writeFileIfMissing(
+      path.join(projectRoot, STEP_DIR_BY_NUMBER[2], file),
+      await fs.readFile(path.join(repoRoot, "packs", "official-ai-video", "templates", "02_世界设定", file), "utf8")
+    );
+  }
+  // Step 4/5 templates are seeded inside the first shot group as ready-to-copy references for
+  // each per-shot prompt file. Both templates satisfy the Step 4/5 contracts, so a freshly
+  // initialized project still passes `verify`.
+  await writeFileIfMissing(
+    path.join(projectRoot, STEP_DIR_BY_NUMBER[4], "镜头组-001", "图片提示词.md"),
+    await fs.readFile(path.join(repoRoot, "packs", "official-ai-video", "templates", "04_图片提示词", "图片提示词.md"), "utf8")
+  );
+  await writeFileIfMissing(
+    path.join(projectRoot, STEP_DIR_BY_NUMBER[5], "镜头组-001", "视频提示词.md"),
+    await fs.readFile(path.join(repoRoot, "packs", "official-ai-video", "templates", "05_视频提示词", "视频提示词.md"), "utf8")
+  );
   if (startFrom === "research") {
     for (const file of STEP0_FILES) {
       await writeFileIfMissing(

@@ -27,8 +27,43 @@ const step2Dir = STEP_DIR_BY_NUMBER[2];
 const step6Dir = STEP_DIR_BY_NUMBER[6];
 const step4RequiredSections = ["快速导读", "中文完整版本", "可复制提示词"];
 const step4ForbiddenText = ["参考前文", "同上", "模型应自行理解剧情", "same as previous"];
+// Quick-guide blocks must stay pure visual facts; these markers indicate maintenance or director
+// meta-language that belongs in the review conversation, not in the prompt file.
+const step4QuickGuideMetaMarkers = ["导演解释", "导演意图", "镜头设计意图", "画面设计意图"];
 const step5RequiredSections = ["## 元信息", "## 平台执行设置", "## 参考素材映射", "## 可复制提示词", "## 负面约束"];
 const step5PlatformExecutionMarkers = ["默认视频平台", "目标时长", "画幅", "参考素材", "素材上传顺序", "负面约束"];
+// Template-generic negative constraints. A Step 5 file must add at least one shot-specific
+// constraint beyond these defaults, otherwise the negative block is not per-shot customized.
+const step5GenericNegativeDefaults = [
+  "不得超过 15 秒。",
+  "不得超过 4 个连续编号的镜头段。",
+  "不得丢失 Step 4 已选关键帧和语义参考素材。",
+  "不得把 `{{Mixed n}}` 槽位号写成事实源引用。",
+  "不得加入配乐或字幕；无字幕不禁止场景内真实招牌、木牌等叙事文字。",
+  "不得使用“同上”“保持一致”替代具体可见事实。"
+];
+const step5GenericNegativeNormalized = new Set(step5GenericNegativeDefaults.map(normalizeNegativeLine));
+
+function normalizeNegativeLine(line: string): string {
+  return line.replace(/\s+/g, "").replace(/[。；;]$/u, "").toLowerCase();
+}
+
+/** Returns the body of the markdown section whose heading line equals `headingText`, or "". */
+function sectionAfterHeading(content: string, headingText: string): string {
+  const lines = content.split(/\r?\n/);
+  const headingIndex = lines.findIndex((line) => line.trim().replace(/#+\s*$/u, "").trim() === headingText);
+  if (headingIndex === -1) {
+    return "";
+  }
+  const body: string[] = [];
+  for (const line of lines.slice(headingIndex + 1)) {
+    if (/^#{1,6}\s/u.test(line)) {
+      break;
+    }
+    body.push(line);
+  }
+  return body.join("\n");
+}
 const ignoredMarkdownDirs = new Set(["node_modules", ".git"]);
 const ignoredGeneratedViewRootDirs = ["_views", ".obsidian"] as const;
 const ignoredRootMarkdownDirs = new Set([...cherryHostSurfaceDirs, ...ignoredGeneratedViewRootDirs]);
@@ -228,6 +263,22 @@ async function verifyStep4(graph: ShotGraph, issues: VerificationIssue[]): Promi
         path: relPath
       });
     }
+    if (/避免[：:]\s*避免[：:]/u.test(content)) {
+      pushIssue(issues, {
+        code: "step4-avoid-double-prefix",
+        message: "Found duplicated `避免：` prefix in Step 4 contract",
+        path: relPath
+      });
+    }
+    const quickGuide = sectionAfterHeading(content, "## 快速导读");
+    const metaMarker = step4QuickGuideMetaMarkers.find((marker) => quickGuide.includes(marker));
+    if (metaMarker) {
+      pushIssue(issues, {
+        code: "step4-quick-guide-meta-language",
+        message: `Step 4 快速导读 must stay pure visual facts; found meta-language marker: ${metaMarker}`,
+        path: relPath
+      });
+    }
     for (const forbidden of step4ForbiddenText) {
       if (content.includes(forbidden)) {
         pushIssue(issues, {
@@ -240,7 +291,26 @@ async function verifyStep4(graph: ShotGraph, issues: VerificationIssue[]): Promi
   }
 }
 
-function verifyShotGraphContract(graph: ShotGraph, issues: VerificationIssue[]): void {
+async function verifyStep5NegativeConstraints(graph: ShotGraph, issues: VerificationIssue[]): Promise<void> {
+  for (const file of graph.files.filter((candidate) => candidate.step === 5 && candidate.shotId !== undefined)) {
+    const relPath = file.relPath;
+    const negativeBlock = sectionAfterHeading(file.content, "## 负面约束");
+    const lines = negativeBlock
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^\s*[-*]\s*/, "").trim())
+      .filter((line) => line.length > 0);
+    const customLines = lines.filter((line) => !step5GenericNegativeNormalized.has(normalizeNegativeLine(line)));
+    if (lines.length > 0 && customLines.length === 0) {
+      pushIssue(issues, {
+        code: "step5-generic-negative-only",
+        message: "Step 5 负面约束 must include at least one shot-specific constraint beyond the template defaults",
+        path: relPath
+      });
+    }
+  }
+}
+
+function verifyShotGraphContract(graph: ShotGraph, issues: VerificationIssue[], requireKeyframes: boolean): void {
   for (const group of graph.groups.filter((candidate) => candidate.shots.length > 0 && !candidate.description)) {
     pushIssue(issues, {
       code: "missing-shot-group",
@@ -282,12 +352,15 @@ function verifyShotGraphContract(graph: ShotGraph, issues: VerificationIssue[]):
         path: shot.storyboard.relPath
       });
     }
-    if (shot.imagePrompts.length < 1 || shot.imagePrompts.length > Math.min(4, Math.max(segments.length, 1))) {
+    if (requireKeyframes && (shot.imagePrompts.length < 1 || shot.imagePrompts.length > Math.min(4, Math.max(segments.length, 1)))) {
       pushIssue(issues, {
         code: "invalid-keyframe-mapping",
         message: `Shot ${shot.id} must select 1-${Math.min(4, Math.max(segments.length, 1))} keyframes`,
         path: shot.storyboard.relPath
       });
+    }
+    if (!requireKeyframes || shot.imagePrompts.length < 1) {
+      continue;
     }
     for (const imagePrompt of shot.imagePrompts) {
       const mappedSegment = keyframeMappedSegment(imagePrompt.content);
@@ -451,7 +524,7 @@ async function verifyStep5PlatformExecutionSettings(
   defaultVideoPlatform: Platform,
   issues: VerificationIssue[]
 ): Promise<void> {
-  for (const file of graph.files.filter((candidate) => candidate.step === 5)) {
+  for (const file of graph.files.filter((candidate) => candidate.step === 5 && candidate.shotId !== undefined)) {
     const relPath = file.relPath;
     const content = file.content;
     const missingSection = step5RequiredSections.find((section) => !content.includes(section));
@@ -598,11 +671,18 @@ async function verifyNestedProjects(projectRoot: string, issues: VerificationIss
 
 export async function verifyProject({
   projectRoot,
-  ide
+  ide,
+  step
 }: {
   projectRoot: string;
   ide: Ide;
   pack: string;
+  /**
+   * Optional step filter 0-6: verify only what has been completed so far. Checks that require
+   * artifacts from later steps (for example Step 3 keyframe mapping before Step 4 files exist)
+   * are skipped, turning the command into a per-step gate.
+   */
+  step?: number;
 }): Promise<VerificationResult> {
   const issues: VerificationIssue[] = [];
   const rootIssues = await projectRootIssues(projectRoot);
@@ -631,20 +711,32 @@ export async function verifyProject({
     }
   }
   await verifyNestedProjects(projectRoot, issues);
-  if (config && researchStepEnabled(config)) {
-    await verifyStep0(projectRoot, issues);
+  if (step === undefined || step >= 0) {
+    if (config && researchStepEnabled(config)) {
+      await verifyStep0(projectRoot, issues);
+    }
   }
-  await verifyStep6(projectRoot, issues);
-  await verifyStep2ReferenceAssets(projectRoot, issues);
+  if (step === undefined || step >= 2) {
+    await verifyStep2ReferenceAssets(projectRoot, issues);
+  }
   const shotGraph = await buildShotGraph(projectRoot);
-  verifyShotGraphContract(shotGraph, issues);
-  await verifyStep4(shotGraph, issues);
-  await verifyStep3Step4Traceability(projectRoot, shotGraph, issues);
-  await verifyStep4Step5ReferenceAssets(shotGraph, issues);
-  await verifyResearchSensitiveAuthMaterial(projectRoot, issues);
-  if (config?.platforms.video.default) {
-    await verifyStep5PlatformExecutionSettings(shotGraph, config.platforms.video.default, issues);
+  const requireKeyframes = step === undefined || step >= 4;
+  verifyShotGraphContract(shotGraph, issues, requireKeyframes);
+  if (step === undefined || step >= 4) {
+    await verifyStep4(shotGraph, issues);
+    await verifyStep3Step4Traceability(projectRoot, shotGraph, issues);
   }
+  if (step === undefined || step >= 5) {
+    await verifyStep4Step5ReferenceAssets(shotGraph, issues);
+    await verifyStep5NegativeConstraints(shotGraph, issues);
+    if (config?.platforms.video.default) {
+      await verifyStep5PlatformExecutionSettings(shotGraph, config.platforms.video.default, issues);
+    }
+  }
+  if (step === undefined || step >= 6) {
+    await verifyStep6(projectRoot, issues);
+  }
+  await verifyResearchSensitiveAuthMaterial(projectRoot, issues);
   await verifyRelativeMarkdownLinks(projectRoot, issues);
   await verifyIdeRuntime(projectRoot, ide, issues);
   await verifySharedAgentWorkspace(projectRoot, ide, issues);
