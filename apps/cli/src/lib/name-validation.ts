@@ -39,7 +39,7 @@ export function validateSafeDirectoryName(name: string, label: string): string {
     throw new CliUserError(`${label} cannot start or end with whitespace and cannot be only whitespace.`);
   }
   if (name === "." || name === "..") {
-    throw new CliUserError(`${label} must be a directory name, not ${name}.`);
+    throw new CliUserError(`${label} must be a directory name, not "${name}".`);
   }
   if (pathSeparatorPattern.test(name)) {
     throw new CliUserError(`${label} must not contain path separators. Choose a parent directory separately.`);

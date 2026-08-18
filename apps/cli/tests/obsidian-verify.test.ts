@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 
+import { createProject } from "../src/lib/init.js";
 import { exportObsidianVault } from "../src/lib/obsidian/export.js";
 import { hashContent, projectionManifestPath, readProjectionManifest, renderProjectionManifest } from "../src/lib/obsidian/manifest.js";
 import { verifyObsidianVault } from "../src/lib/obsidian/verify.js";
@@ -78,6 +79,27 @@ describe("verifyObsidianVault", () => {
 
     const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
     expect(result.ok).toBe(true);
+  });
+
+  test("passes for a freshly seeded project without storyboard cards", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-seeded-"));
+    tempRoots.push(root);
+    const projectRoot = await createProject({
+      targetRoot: root,
+      projectName: "seeded-script-project",
+      pack: "official-ai-video",
+      ide: "codex",
+      imagePlatform: "openai",
+      videoPlatform: "seedance",
+      startFrom: "script"
+    });
+    const outRoot = path.join(root, "seeded-vault");
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+
+    expect(result.ok).toBe(true);
+    expect(result.issues).toEqual([]);
   });
 
   test("passes for exported official example with optional Obsidian UI suggestions", async () => {

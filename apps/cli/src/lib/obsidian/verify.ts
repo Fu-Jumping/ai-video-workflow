@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { activeStepDirs } from "../constants.js";
 import { readProjectConfig } from "../project-config.js";
+import { listStepMarkdownFiles } from "../shot-graph.js";
 import type { VerificationIssue, VerificationResult } from "../types.js";
 import { projectRootIssues } from "../project-root.js";
 import { parseYaml } from "../yaml.js";
@@ -370,13 +371,19 @@ async function verifyStageReviewHubs(vaultRoot: string, files: string[], issues:
   }
 }
 
-async function verifyAgentHandoff(vaultRoot: string, files: string[], issues: VerificationIssue[]): Promise<void> {
+async function verifyAgentHandoff(projectRoot: string, vaultRoot: string, files: string[], issues: VerificationIssue[]): Promise<void> {
   const fullPath = vaultFsPath(vaultRoot, agentHandoffPath);
   if (!(await fs.pathExists(fullPath))) {
     pushIssue(issues, { code: "invalid-obsidian-agent-handoff", message: `Missing Obsidian agent handoff page: ${agentHandoffPath}`, path: agentHandoffPath });
   } else {
     const content = await fs.readFile(fullPath, "utf8");
-    for (const marker of requiredAgentHandoffMarkers) {
+    // Shot-specific markers (for example 分镜脚本源文件) only exist in per-shot handoff
+    // entries. A freshly seeded project without any storyboard cards exports a placeholder
+    // ("尚未发现镜头文件。") instead, so these markers must not be required in that case.
+    const step3Files = await listStepMarkdownFiles(projectRoot, 3);
+    const hasStoryboardShots = step3Files.some((file) => file.shotId !== undefined);
+    const markers = hasStoryboardShots ? requiredAgentHandoffMarkers : requiredAgentHandoffMarkers.filter((marker) => marker !== "分镜脚本源文件");
+    for (const marker of markers) {
       if (!content.includes(marker)) {
         pushIssue(issues, { code: "invalid-obsidian-agent-handoff", message: `Obsidian agent handoff page is missing marker: ${marker}`, path: agentHandoffPath });
       }
@@ -741,7 +748,7 @@ export async function verifyObsidianVault({ projectRoot, vaultRoot }: VerifyObsi
   const manifest = await verifyManifest(resolvedProjectRoot, resolvedVaultRoot, issues);
   const files = await listVaultFiles(resolvedVaultRoot);
   await verifyStageReviewHubs(resolvedVaultRoot, files, issues);
-  await verifyAgentHandoff(resolvedVaultRoot, files, issues);
+  await verifyAgentHandoff(resolvedProjectRoot, resolvedVaultRoot, files, issues);
   await verifyShotReviewPages(resolvedVaultRoot, files, issues);
   await verifyGeneratedMarkdown(resolvedProjectRoot, resolvedVaultRoot, files, manifest, issues);
   await verifyNoAbsoluteLinks(resolvedVaultRoot, files, issues);
