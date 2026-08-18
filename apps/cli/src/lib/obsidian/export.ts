@@ -425,7 +425,11 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
   await assertSafeOutput(projectRoot, outRoot, options.inProjectView === true);
   await assertVaultOwnership(projectRoot, outRoot, options.inProjectView === true);
   const projectName = path.basename(projectRoot);
-  const releaseLock = options.dryRun ? async () => {} : await acquireExportLock(outRoot, projectName);
+  // The concurrency lock guards EXTERNAL vault exports, where multiple projects may target one
+  // shared output directory. In-project views are per-project and deterministic, so no lock is
+  // needed (and a shared lock path would let unrelated concurrent exports interfere).
+  const inProjectView = options.inProjectView === true;
+  const releaseLock = options.dryRun || inProjectView ? async () => {} : await acquireExportLock(outRoot, projectName);
   try {
     const previousManifest = await readProjectionManifest(outRoot);
     const userNoteBackups = await collectUserNoteBackups(outRoot, previousManifest);
