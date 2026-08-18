@@ -203,6 +203,42 @@ describe("exportObsidianVault", () => {
     await expect(fs.pathExists(path.join(plainVault, "manual.md"))).resolves.toBe(true);
   });
 
+  test("refuses to export into a vault owned by another project", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-ownership-"));
+    tempRoots.push(outRoot);
+    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true });
+
+    const otherProject = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-other-project-"));
+    tempRoots.push(otherProject);
+    await fs.copy(officialExampleRoot(), otherProject);
+
+    await expect(exportObsidianVault({ projectRoot: otherProject, outRoot, force: false, includePluginRecipes: true })).rejects.toThrow(
+      "owned by another project"
+    );
+    await expect(exportObsidianVault({ projectRoot: otherProject, outRoot, force: true, includePluginRecipes: true })).rejects.toThrow(
+      "owned by another project"
+    );
+  });
+
+  test("refuses to export while another export lock is active and removes its own lock afterwards", async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-lock-project-"));
+    tempRoots.push(projectRoot);
+    await fs.copy(officialExampleRoot(), projectRoot);
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-lock-"));
+    tempRoots.push(outRoot);
+    const lockPath = `${outRoot}.ai-video-workflow-export.lock`;
+    await fs.writeFile(lockPath, JSON.stringify({ projectName: "some-other-project", pid: 999999, startedAt: "2026-08-18T00:00:00Z" }), "utf8");
+    tempRoots.push(lockPath);
+
+    await expect(exportObsidianVault({ projectRoot, outRoot, force: false, includePluginRecipes: true })).rejects.toThrow(
+      "Another Obsidian export is already running"
+    );
+
+    await fs.remove(lockPath);
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    await expect(fs.pathExists(lockPath)).resolves.toBe(false);
+  });
+
   test("writes a privacy-safe schema v2 manifest for in-project view exports", async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-in-project-manifest-"));
     tempRoots.push(projectRoot);

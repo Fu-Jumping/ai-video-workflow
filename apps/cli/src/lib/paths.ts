@@ -20,3 +20,7 @@ export function resolveRepoRoot(fromDir: string): string {
 export function resolvePackRoot(repoRoot: string, pack = "official-ai-video"): string {
   return path.join(repoRoot, "packs", pack);
 }
+
+export function packRootExists(repoRoot: string, pack: string): boolean {
+  return fs.existsSync(path.join(repoRoot, "packs", pack, "pack.yaml"));
+}

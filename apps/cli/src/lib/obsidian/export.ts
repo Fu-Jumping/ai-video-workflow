@@ -92,6 +92,75 @@ async function assertSafeForceOutput(outRoot: string): Promise<void> {
   }
 }
 
+const currentVaultTopDirectories = ["00_开始审阅", "01_阶段审核", "02_按镜头联查", "03_审阅工具", "04_个人笔记"] as const;
+
+function isCurrentVaultLayout(manifest: ObsidianProjectionManifest | null): boolean {
+  return (manifest?.files ?? []).some((entry) =>
+    currentVaultTopDirectories.some(
+      (dir) => entry.vaultPath === dir || entry.vaultPath.startsWith(`${dir}/`)
+    )
+  );
+}
+
+async function assertVaultOwnership(projectRoot: string, outRoot: string, inProjectView: boolean): Promise<void> {
+  // The in-project view is owned by the project itself by construction.
+  if (inProjectView) {
+    return;
+  }
+  const manifest = await readProjectionManifest(outRoot);
+  // Only block cross-project reuse of a CURRENT-layout vault. Legacy-layout vaults (旧目录
+  // like 流程/ or 笔记/) are an explicit migration path and may carry a stale projectName.
+  if (
+    manifest?.projectName &&
+    manifest.projectName !== path.basename(projectRoot) &&
+    isCurrentVaultLayout(manifest)
+  ) {
+    throw new CliUserError(
+      `Refusing to export into an Obsidian vault owned by another project (${manifest.projectName}). ` +
+        "Choose a dedicated output directory for each project."
+    );
+  }
+}
+
+function exportLockPath(outRoot: string): string {
+  return path.join(path.dirname(path.resolve(outRoot)), `${path.basename(outRoot)}.ai-video-workflow-export.lock`);
+}
+
+async function acquireExportLock(outRoot: string, projectName: string): Promise<() => Promise<void>> {
+  const lockPath = exportLockPath(outRoot);
+  await fs.ensureDir(path.dirname(lockPath));
+  try {
+    const handle = await fs.promises.open(lockPath, "wx");
+    try {
+      await handle.writeFile(JSON.stringify({ projectName, pid: process.pid, startedAt: new Date().toISOString() }), "utf8");
+    } finally {
+      await handle.close();
+    }
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "EEXIST") {
+      let owner = "";
+      try {
+        owner = (JSON.parse(await fs.readFile(lockPath, "utf8")) as { projectName?: string }).projectName ?? "";
+      } catch {
+        // lock file unreadable or not JSON; still treat as an active lock
+      }
+      throw new CliUserError(
+        `Another Obsidian export is already running for this output directory${owner ? ` (project ${owner})` : ""}. ` +
+          `If no export is running, remove the stale lock file: ${lockPath}`
+      );
+    }
+    throw error;
+  }
+  return async () => {
+    try {
+      await fs.remove(lockPath);
+    } catch {
+      // ignore cleanup failures
+    }
+  };
+}
+
 function vaultFsPath(outRoot: string, vaultPath: string): string {
   return path.join(outRoot, ...vaultPath.split("/"));
 }
@@ -354,64 +423,70 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
   const outRoot = path.resolve(options.outRoot);
   await assertExportableProject(projectRoot);
   await assertSafeOutput(projectRoot, outRoot, options.inProjectView === true);
-  const previousManifest = await readProjectionManifest(outRoot);
-  const userNoteBackups = await collectUserNoteBackups(outRoot, previousManifest);
-  if (options.force) {
-    await assertSafeForceOutput(outRoot);
-  }
-  if (options.force && !options.dryRun) {
-    await fs.remove(outRoot);
-  }
-  if (!options.dryRun) {
-    await fs.ensureDir(outRoot);
-  }
-
+  await assertVaultOwnership(projectRoot, outRoot, options.inProjectView === true);
   const projectName = path.basename(projectRoot);
-  const sourceFiles = await scanProjectForObsidian(projectRoot);
-  if (sourceFiles.length === 0) {
-    throw new CliUserError("Project has no Step markdown source files to export to Obsidian.");
-  }
-  const workflowFiles: ObsidianGeneratedFile[] = [];
-  const vaultPathOwners = new Map<string, string>();
-  for (const sourceFile of sourceFiles) {
-    const originalContent = await fs.readFile(sourcePathToFsPath(projectRoot, sourceFile.sourcePath), "utf8");
-    const vaultPath = workflowVaultPath(sourceFile);
-    const previousOwner = vaultPathOwners.get(vaultPath);
-    if (previousOwner !== undefined) {
-      throw new CliUserError(
-        `Obsidian projection collision: ${vaultPath} is generated from both ${previousOwner} and ${sourceFile.sourcePath}. ` +
-          "Rename one of the source files so each source file projects to a unique vault path."
-      );
+  const releaseLock = options.dryRun ? async () => {} : await acquireExportLock(outRoot, projectName);
+  try {
+    const previousManifest = await readProjectionManifest(outRoot);
+    const userNoteBackups = await collectUserNoteBackups(outRoot, previousManifest);
+    if (options.force) {
+      await assertSafeForceOutput(outRoot);
     }
-    vaultPathOwners.set(vaultPath, sourceFile.sourcePath);
-    workflowFiles.push({
-      vaultPath,
-      content: renderGeneratedWorkflowNote(sourceFile, originalContent, projectName, sourceFiles),
-      sourcePath: sourceFile.sourcePath,
-      sourceContent: originalContent
-    });
-  }
+    if (options.force && !options.dryRun) {
+      await fs.remove(outRoot);
+    }
+    if (!options.dryRun) {
+      await fs.ensureDir(outRoot);
+    }
 
-  const files = [
-    ...workflowFiles,
-    ...renderDashboardFiles(projectName, sourceFiles, options.includePluginRecipes),
-    ...renderBaseFiles(),
-    renderWorkflowCanvas(sourceFiles),
-    renderShotPipelineCanvas(sourceFiles),
-    ...renderShotReviewCanvases(sourceFiles),
-    renderReviewMapCanvas(),
-    ...(options.includeObsidianUi ? renderObsidianUiConfigFiles() : [])
-  ];
-  const planningManifest = options.force ? null : previousManifest;
-  const operations = await planGeneratedFiles(outRoot, files, planningManifest, Boolean(options.force));
-  const manifest = createManifest(projectRoot, outRoot, projectName, files, operations, previousManifest);
-  if (!options.dryRun) {
-    await writeGeneratedFiles(outRoot, files, operations);
-    await removeSafeOrphanedGeneratedFiles(outRoot, operations, false);
-    await restoreUserNoteBackups(outRoot, userNoteBackups, false, operations);
-    await fs.writeFile(vaultFsPath(outRoot, projectionManifestPath), renderProjectionManifest(manifest), "utf8");
-  } else {
-    await restoreUserNoteBackups(outRoot, userNoteBackups, true, operations);
+    const sourceFiles = await scanProjectForObsidian(projectRoot);
+    if (sourceFiles.length === 0) {
+      throw new CliUserError("Project has no Step markdown source files to export to Obsidian.");
+    }
+    const workflowFiles: ObsidianGeneratedFile[] = [];
+    const vaultPathOwners = new Map<string, string>();
+    for (const sourceFile of sourceFiles) {
+      const originalContent = await fs.readFile(sourcePathToFsPath(projectRoot, sourceFile.sourcePath), "utf8");
+      const vaultPath = workflowVaultPath(sourceFile);
+      const previousOwner = vaultPathOwners.get(vaultPath);
+      if (previousOwner !== undefined) {
+        throw new CliUserError(
+          `Obsidian projection collision: ${vaultPath} is generated from both ${previousOwner} and ${sourceFile.sourcePath}. ` +
+            "Rename one of the source files so each source file projects to a unique vault path."
+        );
+      }
+      vaultPathOwners.set(vaultPath, sourceFile.sourcePath);
+      workflowFiles.push({
+        vaultPath,
+        content: renderGeneratedWorkflowNote(sourceFile, originalContent, projectName, sourceFiles),
+        sourcePath: sourceFile.sourcePath,
+        sourceContent: originalContent
+      });
+    }
+
+    const files = [
+      ...workflowFiles,
+      ...renderDashboardFiles(projectName, sourceFiles, options.includePluginRecipes),
+      ...renderBaseFiles(),
+      renderWorkflowCanvas(sourceFiles),
+      renderShotPipelineCanvas(sourceFiles),
+      ...renderShotReviewCanvases(sourceFiles),
+      renderReviewMapCanvas(),
+      ...(options.includeObsidianUi ? renderObsidianUiConfigFiles() : [])
+    ];
+    const planningManifest = options.force ? null : previousManifest;
+    const operations = await planGeneratedFiles(outRoot, files, planningManifest, Boolean(options.force));
+    const manifest = createManifest(projectRoot, outRoot, projectName, files, operations, previousManifest);
+    if (!options.dryRun) {
+      await writeGeneratedFiles(outRoot, files, operations);
+      await removeSafeOrphanedGeneratedFiles(outRoot, operations, false);
+      await restoreUserNoteBackups(outRoot, userNoteBackups, false, operations);
+      await fs.writeFile(vaultFsPath(outRoot, projectionManifestPath), renderProjectionManifest(manifest), "utf8");
+    } else {
+      await restoreUserNoteBackups(outRoot, userNoteBackups, true, operations);
+    }
+    return { vaultRoot: outRoot, manifestPath: projectionManifestPath, files, operations };
+  } finally {
+    await releaseLock();
   }
-  return { vaultRoot: outRoot, manifestPath: projectionManifestPath, files, operations };
 }

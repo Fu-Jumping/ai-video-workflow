@@ -421,7 +421,7 @@ function verifyShotGraphContract(graph: ShotGraph, issues: VerificationIssue[], 
     if (segments.length < 1 || segments.length > 4 || !consecutive) {
       pushIssue(issues, {
         code: "invalid-storyboard-segment-count",
-        message: `Storyboard ${shot.id} must declare 1-4 consecutive 分镜 sections`,
+        message: `Storyboard ${shot.id} must declare 1-4 consecutive 分镜 sections — use \`### 分镜 N\` headings numbered 1..4 (entry-style \`- 分镜 1：...\` lines are not supported)`,
         path: shot.storyboard.relPath
       });
     }
@@ -490,14 +490,14 @@ async function verifyStep2ReferenceAssets(projectRoot: string, issues: Verificat
     for (const missing of findMissingCharacterTriViews(content)) {
       pushIssue(issues, {
         code: missing.code,
-        message: `Main character ${missing.name} must declare ${missing.expectedToken}`,
+        message: `Main character ${missing.name} must declare ${missing.expectedToken} — each character must be its own flat \`## <角色名>\` section with \`主角色：是\` and the tri-view reference in the same section (nested layouts like \`## 角色细节\` + \`### 角色一\` are not supported)`,
         path: relPath
       });
     }
     for (const missing of findMissingSceneReferenceImages(content)) {
       pushIssue(issues, {
         code: missing.code,
-        message: `Special scene ${missing.name} must declare ${missing.expectedToken}`,
+        message: `Special scene ${missing.name} must declare ${missing.expectedToken} — each scene must be its own flat \`## <场景名>\` section with \`需要场景图：是\` and the scene image reference in the same section (nested layouts like \`## 场景细节\` + \`### 场景一\` are not supported)`,
         path: relPath
       });
     }

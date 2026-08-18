@@ -2,10 +2,11 @@ import fs from "fs-extra";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { DEFAULT_VIDEO_PLATFORM, STEP0_FILES, STEP6_FILES, STEP_DIR_BY_NUMBER, STORY_KERNEL_FILE, activeStepDirs } from "./constants.js";
-import { copyDirectory, writeFileIfMissing } from "./fs-utils.js";
+import { DEFAULT_PACK, DEFAULT_VIDEO_PLATFORM, STEP0_FILES, STEP6_FILES, STEP_DIR_BY_NUMBER, STORY_KERNEL_FILE, activeStepDirs } from "./constants.js";
+import { CliUserError } from "./cli-errors.js";
+import { copyDirectory } from "./fs-utils.js";
 import { validateSafeDirectoryName } from "./name-validation.js";
-import { resolveRepoRoot } from "./paths.js";
+import { packRootExists, resolvePackRoot, resolveRepoRoot } from "./paths.js";
 import { assertCanInitializeProject } from "./project-root.js";
 import { sharedAgentDocsReadmePath } from "./agent-workspace.js";
 import { syncProject } from "./sync.js";
@@ -18,7 +19,25 @@ function normalizeStartFrom(startFrom: StartFromMode | undefined): StartFromMode
   return startFrom ?? "research";
 }
 
-async function seedProjectDirectories(repoRoot: string, projectRoot: string, startFrom: StartFromMode): Promise<void> {
+// Pack templates are authoritative over the starter skeleton: write them even if the starter
+// already provided the same file, so a custom pack can override individual templates.
+async function writeSeededFile(filePath: string, content: string): Promise<void> {
+  await fs.ensureDir(path.dirname(filePath));
+  await fs.writeFile(filePath, content, "utf8");
+}
+
+async function readPackTemplate(repoRoot: string, pack: string, templateRelPath: string): Promise<string> {
+  const customPath = path.join(resolvePackRoot(repoRoot, pack), "templates", templateRelPath);
+  if (await fs.pathExists(customPath)) {
+    return fs.readFile(customPath, "utf8");
+  }
+  // A partial custom pack may override only some templates; fall back to the official pack for
+  // anything it does not provide so a custom-pack project still seeds a working skeleton.
+  const officialPath = path.join(resolvePackRoot(repoRoot, DEFAULT_PACK), "templates", templateRelPath);
+  return fs.readFile(officialPath, "utf8");
+}
+
+async function seedProjectDirectories(repoRoot: string, projectRoot: string, startFrom: StartFromMode, pack: string): Promise<void> {
   const config: ProjectConfig = {
     pack: "official-ai-video",
     ide: "codex",
@@ -41,45 +60,45 @@ async function seedProjectDirectories(repoRoot: string, projectRoot: string, sta
   for (const step of [3, 4, 5]) {
     await fs.ensureDir(path.join(projectRoot, STEP_DIR_BY_NUMBER[step], "镜头组-001"));
   }
-  await writeFileIfMissing(
+  await writeSeededFile(
     path.join(projectRoot, STEP_DIR_BY_NUMBER[3], "镜头组-001", "00_镜头组说明.md"),
-    await fs.readFile(path.join(repoRoot, "packs", "official-ai-video", "templates", "03_分镜脚本", "镜头组说明.md"), "utf8")
+    await readPackTemplate(repoRoot, pack, path.join("03_分镜脚本", "镜头组说明.md"))
   );
   // Step 2 世界设定 templates are seeded directly: the character/scene setting files are the
   // deliverables themselves, filled in place rather than copied per shot.
   for (const file of ["角色设定.md", "场景设定.md"]) {
-    await writeFileIfMissing(
+    await writeSeededFile(
       path.join(projectRoot, STEP_DIR_BY_NUMBER[2], file),
-      await fs.readFile(path.join(repoRoot, "packs", "official-ai-video", "templates", "02_世界设定", file), "utf8")
+      await readPackTemplate(repoRoot, pack, path.join("02_世界设定", file))
     );
   }
   // Step 4/5 templates are seeded inside the first shot group as ready-to-copy references for
   // each per-shot prompt file. Both templates satisfy the Step 4/5 contracts, so a freshly
   // initialized project still passes `verify`.
-  await writeFileIfMissing(
+  await writeSeededFile(
     path.join(projectRoot, STEP_DIR_BY_NUMBER[4], "镜头组-001", "图片提示词.md"),
-    await fs.readFile(path.join(repoRoot, "packs", "official-ai-video", "templates", "04_图片提示词", "图片提示词.md"), "utf8")
+    await readPackTemplate(repoRoot, pack, path.join("04_图片提示词", "图片提示词.md"))
   );
-  await writeFileIfMissing(
+  await writeSeededFile(
     path.join(projectRoot, STEP_DIR_BY_NUMBER[5], "镜头组-001", "视频提示词.md"),
-    await fs.readFile(path.join(repoRoot, "packs", "official-ai-video", "templates", "05_视频提示词", "视频提示词.md"), "utf8")
+    await readPackTemplate(repoRoot, pack, path.join("05_视频提示词", "视频提示词.md"))
   );
   if (startFrom === "research") {
     for (const file of STEP0_FILES) {
-      await writeFileIfMissing(
+      await writeSeededFile(
         path.join(projectRoot, "00_前期研究", file),
-        await fs.readFile(path.join(repoRoot, "packs", "official-ai-video", "templates", "00_前期研究", file), "utf8")
+        await readPackTemplate(repoRoot, pack, path.join("00_前期研究", file))
       );
     }
   }
-  await writeFileIfMissing(
+  await writeSeededFile(
     path.join(projectRoot, "01_概念策划", STORY_KERNEL_FILE),
-    await fs.readFile(path.join(repoRoot, "packs", "official-ai-video", "templates", "01_概念策划", STORY_KERNEL_FILE), "utf8")
+    await readPackTemplate(repoRoot, pack, path.join("01_概念策划", STORY_KERNEL_FILE))
   );
   for (const file of STEP6_FILES) {
-    await writeFileIfMissing(
+    await writeSeededFile(
       path.join(projectRoot, "06_执行计划", file),
-      await fs.readFile(path.join(repoRoot, "packs", "official-ai-video", "templates", "06_执行计划", file), "utf8")
+      await readPackTemplate(repoRoot, pack, path.join("06_执行计划", file))
     );
   }
 }
@@ -105,8 +124,11 @@ async function writeProjectConfig(projectRoot: string, options: CreateProjectOpt
   await fs.writeFile(path.join(projectRoot, "project.config.yaml"), stringifyYaml(config), "utf8");
 }
 
-async function seedStarterFiles(repoRoot: string, projectRoot: string): Promise<void> {
-  const starterRoot = path.join(repoRoot, "packs", "official-ai-video", "starters", "solo-director-project");
+async function seedStarterFiles(repoRoot: string, projectRoot: string, pack: string): Promise<void> {
+  const customStarter = path.join(resolvePackRoot(repoRoot, pack), "starters", "solo-director-project");
+  const starterRoot = (await fs.pathExists(customStarter))
+    ? customStarter
+    : path.join(resolvePackRoot(repoRoot, DEFAULT_PACK), "starters", "solo-director-project");
   await copyDirectory(starterRoot, projectRoot);
 }
 
@@ -179,9 +201,12 @@ export async function createProject(options: CreateProjectOptions): Promise<stri
   const projectName = validateSafeDirectoryName(options.projectName, "Project name");
   const projectRoot = await assertCanInitializeProject(options.targetRoot, projectName);
   const repoRoot = resolveRepoRoot(moduleDir);
+  if (!packRootExists(repoRoot, options.pack)) {
+    throw new CliUserError(`Pack not found: ${options.pack} (expected at ${path.join(repoRoot, "packs", options.pack)}).`);
+  }
   await fs.ensureDir(projectRoot);
-  await seedStarterFiles(repoRoot, projectRoot);
-  await seedProjectDirectories(repoRoot, projectRoot, startFrom);
+  await seedStarterFiles(repoRoot, projectRoot, options.pack);
+  await seedProjectDirectories(repoRoot, projectRoot, startFrom, options.pack);
   await writeProjectConfig(projectRoot, options);
   await fs.writeFile(path.join(projectRoot, "README.md"), renderProjectReadme(projectName, options.ide, startFrom), "utf8");
   await syncProject({

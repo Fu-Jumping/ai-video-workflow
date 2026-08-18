@@ -6,8 +6,19 @@ import { DEFAULT_PACK, SUPPORTED_IDES, SUPPORTED_PLATFORMS } from "./constants.j
 import type { ProjectConfig, VerificationIssue } from "./types.js";
 import { parseYaml } from "./yaml.js";
 
+// Pack names must be a single safe path segment (no separators, not "." or "..") so the CLI can
+// resolve them under the repository `packs/` directory without path traversal. Any name matching
+// this is accepted so custom packs can be consumed via `init --pack` / project config.
+const packNameSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (value) => !value.includes("/") && !value.includes("\\") && value !== "." && value !== ".." && !value.startsWith("."),
+    { message: "must be a single safe directory name under packs/" }
+  );
+
 const projectConfigSchema = z.object({
-  pack: z.literal(DEFAULT_PACK),
+  pack: packNameSchema,
   ide: z.enum(SUPPORTED_IDES as [typeof SUPPORTED_IDES[number], ...typeof SUPPORTED_IDES]),
   platforms: z.object({
     image: z.object({

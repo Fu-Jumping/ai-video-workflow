@@ -10,6 +10,8 @@ import {
   sharedAiWorkspaceDocs
 } from "./agent-workspace.js";
 import { copyDirectory, writeFileIfMissing } from "./fs-utils.js";
+import { CliUserError } from "./cli-errors.js";
+import { DEFAULT_PACK } from "./constants.js";
 import { assertCanSyncProject } from "./project-root.js";
 import type { Ide, SyncProjectOptions } from "./types.js";
 
@@ -42,14 +44,28 @@ async function writeGeneratedRuntimeFile(filePath: string, content: string): Pro
   await fs.writeFile(filePath, content, "utf8");
 }
 
+async function copyPackDirectoryIfExists(packRoot: string, relSubpath: string, dest: string): Promise<void> {
+  const source = path.join(packRoot, ...relSubpath.split("/").filter(Boolean));
+  if (await fs.pathExists(source)) {
+    await copyDirectory(source, dest);
+    return;
+  }
+  // A partial custom pack may omit some runtime surfaces; fall back to the official pack so a
+  // custom-pack project still gets a complete, verify-passing IDE runtime mirror.
+  const officialSource = path.join(packRoot, "..", DEFAULT_PACK, ...relSubpath.split("/").filter(Boolean));
+  if (await fs.pathExists(officialSource)) {
+    await copyDirectory(officialSource, dest);
+  }
+}
+
 async function syncCodex(repoRoot: string, projectRoot: string, packRoot: string): Promise<void> {
   const codexRoot = path.join(projectRoot, ".codex");
   await fs.ensureDir(codexRoot);
-  await copyDirectory(path.join(packRoot, "skills"), path.join(codexRoot, "skills"));
-  await copyDirectory(path.join(packRoot, "skills-longform"), path.join(codexRoot, "ai-video-workflow", "skills"));
-  await copyDirectory(path.join(packRoot, "skills"), path.join(codexRoot, "ai-video-workflow", "skill-bundles"));
-  await copyDirectory(path.join(packRoot, "templates"), path.join(codexRoot, "ai-video-workflow", "templates"));
-  await copyDirectory(path.join(packRoot, "workflow", "indexes"), path.join(codexRoot, "ai-video-workflow", "indexes"));
+  await copyPackDirectoryIfExists(packRoot, "skills", path.join(codexRoot, "skills"));
+  await copyPackDirectoryIfExists(packRoot, "skills-longform", path.join(codexRoot, "ai-video-workflow", "skills"));
+  await copyPackDirectoryIfExists(packRoot, "skills", path.join(codexRoot, "ai-video-workflow", "skill-bundles"));
+  await copyPackDirectoryIfExists(packRoot, "templates", path.join(codexRoot, "ai-video-workflow", "templates"));
+  await copyPackDirectoryIfExists(packRoot, "workflow/indexes", path.join(codexRoot, "ai-video-workflow", "indexes"));
   await writeGeneratedRuntimeFile(
     path.join(codexRoot, "ai-video-workflow", "WORKFLOW_OVERVIEW.md"),
     await fs.readFile(path.join(repoRoot, "WORKFLOW_OVERVIEW.md"), "utf8")
@@ -96,11 +112,11 @@ async function syncCodex(repoRoot: string, projectRoot: string, packRoot: string
 }
 
 async function syncCursor(projectRoot: string, packRoot: string): Promise<void> {
-  await copyDirectory(path.join(packRoot, "skills"), path.join(projectRoot, ".cursor", "skills"));
-  await copyDirectory(path.join(packRoot, "skills-longform"), path.join(projectRoot, ".cursor", "ai-video-workflow", "skills"));
-  await copyDirectory(path.join(packRoot, "skills"), path.join(projectRoot, ".cursor", "ai-video-workflow", "skill-bundles"));
-  await copyDirectory(path.join(packRoot, "templates"), path.join(projectRoot, ".cursor", "ai-video-workflow", "templates"));
-  await copyDirectory(path.join(packRoot, "workflow", "indexes"), path.join(projectRoot, ".cursor", "ai-video-workflow", "indexes"));
+  await copyPackDirectoryIfExists(packRoot, "skills", path.join(projectRoot, ".cursor", "skills"));
+  await copyPackDirectoryIfExists(packRoot, "skills-longform", path.join(projectRoot, ".cursor", "ai-video-workflow", "skills"));
+  await copyPackDirectoryIfExists(packRoot, "skills", path.join(projectRoot, ".cursor", "ai-video-workflow", "skill-bundles"));
+  await copyPackDirectoryIfExists(packRoot, "templates", path.join(projectRoot, ".cursor", "ai-video-workflow", "templates"));
+  await copyPackDirectoryIfExists(packRoot, "workflow/indexes", path.join(projectRoot, ".cursor", "ai-video-workflow", "indexes"));
   await writeGeneratedRuntimeFile(
     path.join(projectRoot, ".cursor", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"),
     await fs.readFile(path.resolve(packRoot, "..", "..", "WORKFLOW_OVERVIEW.md"), "utf8")
@@ -129,12 +145,12 @@ async function syncCursor(projectRoot: string, packRoot: string): Promise<void> 
 }
 
 async function syncClaudeCode(repoRoot: string, projectRoot: string, packRoot: string): Promise<void> {
-  await copyDirectory(path.join(packRoot, "skills"), path.join(projectRoot, ".claude", "skills"));
-  await copyDirectory(path.join(packRoot, "workflow"), path.join(projectRoot, ".claude", "ai-video-workflow", "workflow"));
-  await copyDirectory(path.join(packRoot, "skills-longform"), path.join(projectRoot, ".claude", "ai-video-workflow", "skills"));
-  await copyDirectory(path.join(packRoot, "skills"), path.join(projectRoot, ".claude", "ai-video-workflow", "skill-bundles"));
-  await copyDirectory(path.join(packRoot, "templates"), path.join(projectRoot, ".claude", "ai-video-workflow", "templates"));
-  await copyDirectory(path.join(packRoot, "workflow", "indexes"), path.join(projectRoot, ".claude", "ai-video-workflow", "indexes"));
+  await copyPackDirectoryIfExists(packRoot, "skills", path.join(projectRoot, ".claude", "skills"));
+  await copyPackDirectoryIfExists(packRoot, "workflow", path.join(projectRoot, ".claude", "ai-video-workflow", "workflow"));
+  await copyPackDirectoryIfExists(packRoot, "skills-longform", path.join(projectRoot, ".claude", "ai-video-workflow", "skills"));
+  await copyPackDirectoryIfExists(packRoot, "skills", path.join(projectRoot, ".claude", "ai-video-workflow", "skill-bundles"));
+  await copyPackDirectoryIfExists(packRoot, "templates", path.join(projectRoot, ".claude", "ai-video-workflow", "templates"));
+  await copyPackDirectoryIfExists(packRoot, "workflow/indexes", path.join(projectRoot, ".claude", "ai-video-workflow", "indexes"));
   await writeGeneratedRuntimeFile(
     path.join(projectRoot, ".claude", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"),
     await fs.readFile(path.join(repoRoot, "WORKFLOW_OVERVIEW.md"), "utf8")
@@ -191,12 +207,12 @@ async function syncClaudeCode(repoRoot: string, projectRoot: string, packRoot: s
 }
 
 async function syncTrae(repoRoot: string, projectRoot: string, packRoot: string): Promise<void> {
-  await copyDirectory(path.join(packRoot, "skills"), path.join(projectRoot, ".trae", "skills"));
-  await copyDirectory(path.join(packRoot, "workflow"), path.join(projectRoot, ".trae", "specs", "ai-video-workflow"));
-  await copyDirectory(path.join(packRoot, "skills-longform"), path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "skills"));
-  await copyDirectory(path.join(packRoot, "skills"), path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "skill-bundles"));
-  await copyDirectory(path.join(packRoot, "templates"), path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "templates"));
-  await copyDirectory(path.join(packRoot, "workflow", "indexes"), path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "indexes"));
+  await copyPackDirectoryIfExists(packRoot, "skills", path.join(projectRoot, ".trae", "skills"));
+  await copyPackDirectoryIfExists(packRoot, "workflow", path.join(projectRoot, ".trae", "specs", "ai-video-workflow"));
+  await copyPackDirectoryIfExists(packRoot, "skills-longform", path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "skills"));
+  await copyPackDirectoryIfExists(packRoot, "skills", path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "skill-bundles"));
+  await copyPackDirectoryIfExists(packRoot, "templates", path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "templates"));
+  await copyPackDirectoryIfExists(packRoot, "workflow/indexes", path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "indexes"));
   await writeGeneratedRuntimeFile(
     path.join(projectRoot, ".trae", "documents", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"),
     await fs.readFile(path.join(repoRoot, "WORKFLOW_OVERVIEW.md"), "utf8")
@@ -252,6 +268,11 @@ async function syncIde(repoRoot: string, projectRoot: string, packRoot: string, 
 
 export async function syncProject(options: SyncProjectOptions): Promise<void> {
   const packRoot = path.join(options.repoRoot, "packs", options.pack);
+  if (!(await fs.pathExists(path.join(packRoot, "pack.yaml")))) {
+    throw new CliUserError(
+      `Pack not found: ${options.pack} (expected at ${packRoot}). Check the project's project.config.yaml pack field or run init with --pack <name>.`
+    );
+  }
   await assertCanSyncProject(options.projectRoot, options.repoRoot);
   await ensureSharedAgentWorkspace(options.projectRoot);
   await ensureProjectGitignore(options.projectRoot);

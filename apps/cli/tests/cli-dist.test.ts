@@ -185,6 +185,78 @@ describe("built CLI", () => {
     expect(result.stdout).toContain("verify --project");
   }, 10000);
 
+  test("init accepts --pack and seeds templates from the custom pack with official fallback", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const repoRoot = path.resolve(cliRoot, "..", "..");
+    const targetRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-init-pack-"));
+    tempRoots.push(targetRoot);
+    const customPackRoot = path.join(repoRoot, "packs", "r3-test-pack");
+    tempRoots.push(customPackRoot);
+    await fs.ensureDir(path.join(customPackRoot, "templates", "06_执行计划"));
+    await fs.writeFile(path.join(customPackRoot, "pack.yaml"), "name: r3-test-pack\nversion: 0.1.0\ndisplayName: R3 Test\n", "utf8");
+    await fs.writeFile(path.join(customPackRoot, "templates", "06_执行计划", "00_执行计划.md"), "# custom-pack-marker\n", "utf8");
+
+    await buildCli(cliRoot);
+    const result = await run(
+      process.execPath,
+      [
+        path.join(cliRoot, "dist", "index.js"),
+        "init",
+        "--name",
+        "custom-pack-demo",
+        "--ide",
+        "codex",
+        "--image",
+        "openai",
+        "--video",
+        "runway",
+        "--start-from",
+        "script",
+        "--pack",
+        "r3-test-pack"
+      ],
+      targetRoot
+    );
+
+    const projectRoot = path.join(targetRoot, "custom-pack-demo");
+    const config = await fs.readFile(path.join(projectRoot, "project.config.yaml"), "utf8");
+    expect(config).toContain("pack: r3-test-pack");
+    await expect(fs.readFile(path.join(projectRoot, "06_执行计划", "00_执行计划.md"), "utf8")).resolves.toContain("custom-pack-marker");
+    // Official fallback for templates the custom pack does not provide
+    await expect(fs.pathExists(path.join(projectRoot, "01_概念策划", "故事内核.md"))).resolves.toBe(true);
+  }, 20000);
+
+  test("init --pack rejects an unknown pack with a readable error", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const targetRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-init-badpack-"));
+    tempRoots.push(targetRoot);
+
+    await buildCli(cliRoot);
+    const result = await runExpectFailure(
+      process.execPath,
+      [
+        path.join(cliRoot, "dist", "index.js"),
+        "init",
+        "--name",
+        "bad-pack-demo",
+        "--ide",
+        "codex",
+        "--image",
+        "openai",
+        "--video",
+        "runway",
+        "--start-from",
+        "script",
+        "--pack",
+        "no-such-pack"
+      ],
+      targetRoot
+    );
+
+    expect(result.stdout + result.stderr).toContain("Pack not found: no-such-pack");
+    await expect(fs.pathExists(path.join(targetRoot, "bad-pack-demo"))).resolves.toBe(false);
+  }, 20000);
+
   test("init supports script mode for complete-script projects", async () => {
     const cliRoot = path.resolve(__dirname, "..");
     const targetRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-init-script-mode-"));

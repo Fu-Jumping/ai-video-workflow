@@ -593,6 +593,43 @@ describe("verifyProject", () => {
     );
   });
 
+test("accepts a custom pack name in project.config.yaml", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-custom-pack-config-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "custom-pack-proj");
+    await fs.ensureDir(projectRoot);
+    await fs.writeFile(
+      path.join(projectRoot, "project.config.yaml"),
+      [
+        "pack: my-custom-pack",
+        "ide: codex",
+        "platforms:",
+        "  image:",
+        "    default: openai",
+        "  video:",
+        "    default: veo",
+        "workflow:",
+        "  research_step:",
+        "    enabled: false",
+        "  enhanced_flow:",
+        "    enabled: true"
+      ].join("\n"),
+      "utf8"
+    );
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.issues).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "invalid-project-config" })
+      ])
+    );
+  });
+
   test("requires Step 4 prompts to carry storyboard reference assets", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-reference-trace-"));
     tempRoots.push(root);

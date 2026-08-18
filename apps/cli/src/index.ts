@@ -38,6 +38,11 @@ import { assertSingleObsidianTarget, resolveInProjectObsidianView } from "./lib/
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
+async function readProjectPack(projectRoot: string): Promise<string> {
+  const { config } = await readProjectConfig(projectRoot);
+  return config?.pack ?? DEFAULT_PACK;
+}
+
 const program = new Command();
 program.name("ai-video-workflow").description("AI video workflow CLI");
 program.option("--debug", "Print internal stack traces for CLI errors", false);
@@ -91,6 +96,7 @@ program
   .option("--ide <ide>", "AI IDE target")
   .option("--image <platform>", "Default image platform")
   .option("--video <platform>", "Default video platform")
+  .option("--pack <pack>", "Workflow pack name under packs/ (default: official-ai-video)", DEFAULT_PACK)
   .option("--start-from <mode>", "Workflow start mode: research or script")
   .action((options) => runCliAction(async () => {
     const parsedIde = parseIde(options.ide);
@@ -122,7 +128,7 @@ program
     const projectRoot = await createProject({
       targetRoot: process.cwd(),
       projectName,
-      pack: DEFAULT_PACK,
+      pack: options.pack,
       ide,
       imagePlatform,
       videoPlatform,
@@ -144,7 +150,7 @@ program
     await syncProject({
       repoRoot: resolveRepoRoot(moduleDir),
       projectRoot: path.resolve(options.project),
-      pack: DEFAULT_PACK,
+      pack: await readProjectPack(path.resolve(options.project)),
       ide
     });
     console.log("Sync complete");
@@ -172,7 +178,7 @@ program
     const result = await verifyProject({
       projectRoot: path.resolve(options.project),
       ide,
-      pack: DEFAULT_PACK,
+      pack: await readProjectPack(path.resolve(options.project)),
       step
     });
     if (!result.ok) {
@@ -198,7 +204,7 @@ program
     const result = await verifyProject({
       projectRoot: path.resolve(options.project),
       ide,
-      pack: DEFAULT_PACK
+      pack: await readProjectPack(path.resolve(options.project))
     });
     const { config } = await readProjectConfig(path.resolve(options.project));
     console.log(await diagnoseProject({ issues: result.issues, defaultVideoPlatform: config?.platforms.video.default }));
@@ -214,7 +220,7 @@ program
   .action((options) => runCliAction(async () => {
     const context = await buildMcpContext({
       projectRoot: path.resolve(options.project),
-      pack: DEFAULT_PACK
+      pack: await readProjectPack(path.resolve(options.project))
     });
     console.log(JSON.stringify(context, null, 2));
   }, () => program.opts<{ debug?: boolean }>().debug === true));
@@ -226,7 +232,7 @@ program
   .action((options) => runCliAction(async () => {
     await startMcpServer({
       projectRoot: path.resolve(options.project),
-      pack: DEFAULT_PACK,
+      pack: await readProjectPack(path.resolve(options.project)),
       ide: "codex"
     });
   }, () => program.opts<{ debug?: boolean }>().debug === true));
