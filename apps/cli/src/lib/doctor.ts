@@ -29,6 +29,7 @@ const groups: Record<string, string> = {
   "invalid-storyboard-segment-count": "Shot Graph",
   "invalid-keyframe-mapping": "Shot Graph",
   "absolute-path-link": "Links",
+  "broken-relative-link": "Links",
   "missing-ide-runtime": "IDE Runtime",
   "missing-shared-agent-entry": "Shared Agent Workspace",
   "invalid-shared-agent-entry": "Shared Agent Workspace",
@@ -38,6 +39,7 @@ const groups: Record<string, string> = {
   "agent-runtime-conflict": "Shared Agent Workspace",
   "missing-step3-step4-link": "Traceability",
   "broken-step3-step4-link": "Traceability",
+  "undeclared-reference-asset": "Traceability",
   "missing-obsidian-dashboard": "Obsidian Projection",
   "invalid-obsidian-dashboard": "Obsidian Projection",
   "missing-obsidian-base": "Obsidian Projection",
@@ -74,9 +76,11 @@ function ideForRuntimeIssue(issue: VerificationIssue): string {
 }
 
 export async function diagnoseProject({
-  issues
+  issues,
+  defaultVideoPlatform = "seedance"
 }: {
   issues: VerificationIssue[];
+  defaultVideoPlatform?: string;
 }): Promise<string> {
   const byGroup = new Map<string, VerificationIssue[]>();
   for (const issue of issues) {
@@ -120,6 +124,12 @@ export async function diagnoseProject({
       if (issue.code === "absolute-path-link") {
         lines.push("  Replace the link with a relative path.");
       }
+      if (issue.code === "broken-relative-link") {
+        lines.push("  Fix the Markdown link so its target exists relative to the referencing file, or use a backtick path text instead of a Markdown link.");
+      }
+      if (issue.code === "undeclared-reference-asset") {
+        lines.push("  Align the Step 3/4/5 reference asset name with the Step 2 declaration (角色设定/场景设定): rename the @xx三视图/@xx场景图 token or update Step 2 to declare the same name.");
+      }
       if (issue.code === "missing-step6-file") {
         lines.push("  Restore the missing Step 6 execution plan file.");
       }
@@ -139,7 +149,11 @@ export async function diagnoseProject({
         lines.push("  Replace inherited or context-dependent wording with a self-contained visual prompt.");
       }
       if (issue.code === "missing-step5-platform-execution-setting") {
-        lines.push("  在对应 Step 5 文件的 `平台执行设置` 补齐 Seedance 2.0 全能参考模式、目标时长、画幅、参考素材、素材上传顺序和负面约束，并与 `project.config.yaml` 的默认视频平台 `platforms.video.default` 保持一致；不要写密钥、账号、绝对路径或平台缓存。");
+        if (defaultVideoPlatform === "seedance") {
+          lines.push("  在对应 Step 5 文件的 `平台执行设置` 补齐 Seedance 2.0 全能参考模式、目标时长、画幅、参考素材、素材上传顺序和负面约束，并与 `project.config.yaml` 的默认视频平台 `platforms.video.default` 保持一致；不要写密钥、账号、绝对路径或平台缓存。");
+        } else {
+          lines.push(`  在对应 Step 5 文件的 \`平台执行设置\` 补齐默认视频平台名（${defaultVideoPlatform}，与 \`project.config.yaml\` 的 \`platforms.video.default\` 一致）、目标时长、画幅、参考素材、素材上传顺序和负面约束；非 seedance 平台不需要写 \`Seedance 2.0\` 或 \`全能参考模式\`。不要写密钥、账号、绝对路径或平台缓存。`);
+        }
       }
       if (issue.code === "invalid-step5-contract") {
         lines.push("  按 `元信息 / 平台执行设置 / 参考素材映射 / 可复制提示词 / 负面约束` 重建文件；镜头段从 `镜头1：` 连续编号，并在全局收束中显式写 `无配乐、无字幕`。");

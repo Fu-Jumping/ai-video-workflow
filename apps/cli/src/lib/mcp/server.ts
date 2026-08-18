@@ -1,6 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import type { CallToolResult, GetPromptResult, ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
+import fs from "fs-extra";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 import type { Ide } from "../types.js";
@@ -13,6 +16,37 @@ export interface CreateAiVideoMcpServerOptions {
   projectRoot: string;
   pack: string;
   ide: Ide;
+}
+
+const FALLBACK_VERSION = "0.1.0";
+
+let cachedVersion: string | undefined;
+
+async function readCliVersion(): Promise<string> {
+  if (cachedVersion) {
+    return cachedVersion;
+  }
+  try {
+    let dir = path.dirname(fileURLToPath(import.meta.url));
+    for (let depth = 0; depth < 6; depth += 1) {
+      const packageJsonPath = path.join(dir, "package.json");
+      if (await fs.pathExists(packageJsonPath)) {
+        const packageJson = (await fs.readJson(packageJsonPath)) as { version?: string };
+        if (packageJson.version) {
+          cachedVersion = packageJson.version;
+          return cachedVersion;
+        }
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir) {
+        break;
+      }
+      dir = parent;
+    }
+  } catch {
+    // ignore and fall back to the constant below
+  }
+  return FALLBACK_VERSION;
 }
 
 function textResourceResult(resource: McpResourceDefinition): ReadResourceResult {
@@ -110,7 +144,7 @@ export async function createAiVideoMcpServer(options: CreateAiVideoMcpServerOpti
   const context = await buildMcpContext({ projectRoot: options.projectRoot, pack: options.pack });
   const server = new McpServer({
     name: "ai-video-workflow",
-    version: "0.5.0"
+    version: await readCliVersion()
   });
 
   registerResources(server, buildMcpResources(context));

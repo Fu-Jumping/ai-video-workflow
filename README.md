@@ -122,6 +122,7 @@ The project tracks `metadata.json`, `source-card.md`, and anonymized `comment-sa
 2. For manual setup, install dependencies with `pnpm install`.
 3. Build the CLI and docs with `pnpm build`.
 4. Run `node apps/cli/dist/index.js init` or the scripted CLI form from [Quickstart](docs/en/quickstart/index.md).
+5. To make the `ai-video-workflow` command form (used across docs and `init` output) globally available, run `npm install -g apps/cli` after building; then `ai-video-workflow <command>` is equivalent to `node apps/cli/dist/index.js <command>`.
 
 ## Product Shape
 

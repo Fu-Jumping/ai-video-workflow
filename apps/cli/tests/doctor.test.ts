@@ -204,6 +204,26 @@ describe("diagnoseProject", () => {
     expect(output).toContain("不要写密钥");
   });
 
+  test("suggests non-seedance Step 5 fixes without Seedance-specific markers", async () => {
+    const output = await diagnoseProject({
+      defaultVideoPlatform: "veo",
+      issues: [
+        {
+          code: "missing-step5-platform-execution-setting",
+          message: "Step 5 prompt must declare platform execution settings",
+          path: "05_视频提示词/镜头组-001/镜头-001.md"
+        }
+      ]
+    });
+
+    expect(output).toContain("Step 5 Contract");
+    expect(output).toContain("默认视频平台名（veo");
+    expect(output).toContain("非 seedance 平台不需要写");
+    expect(output).toContain("Seedance 2.0");
+    expect(output).toContain("全能参考模式");
+    expect(output).not.toContain("补齐 Seedance 2.0 全能参考模式");
+  });
+
   test("suggests Obsidian projection fixes", async () => {
     const output = await diagnoseProject({
       issues: [

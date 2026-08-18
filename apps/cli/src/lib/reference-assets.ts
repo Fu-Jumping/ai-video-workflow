@@ -113,3 +113,28 @@ export function findMissingSceneReferenceImages(content: string): MissingReferen
   }
   return missing;
 }
+
+// Reference assets a Step 2 file genuinely declares: main characters (主角色：是) and special
+// scenes (需要场景图：是) each anchor an expected `@<heading>三视图` / `@<heading>场景图` token.
+// Seeded template placeholders (主角色：是 / 否) never match, so they are not treated as real
+// declarations.
+export function declaredReferenceAssetTokens(content: string): ReferenceAssetToken[] {
+  const declared: ReferenceAssetToken[] = [];
+  for (const section of markdownSections(content)) {
+    if (mainCharacterPattern.test(section.body)) {
+      declared.push({
+        token: `@${section.heading}三视图`,
+        name: section.heading,
+        kind: "character-triview"
+      });
+    }
+    if (specialScenePattern.test(section.body)) {
+      declared.push({
+        token: `@${section.heading}场景图`,
+        name: section.heading,
+        kind: "scene-image"
+      });
+    }
+  }
+  return uniqueReferenceAssets(declared);
+}

@@ -539,6 +539,60 @@ describe("verifyProject", () => {
     );
   });
 
+  test("flags downstream reference assets that Step 2 does not declare after a rename", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-undeclared-asset-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await fs.writeFile(
+      path.join(projectRoot, "02_世界设定", "角色设定.md"),
+      "# 角色设定\n\n## 驿卒阿远\n\n- 主角色：是\n- 三视图引用：@驿卒阿远三视图\n",
+      "utf8"
+    );
+    await fs.writeFile(
+      path.join(projectRoot, "03_分镜脚本", shotGroupDir, "镜头-001.md"),
+      [
+        "# 镜头 001",
+        "",
+        "## 镜头组与目标",
+        "",
+        "- 镜头组：group-001",
+        "- 镜头编号：shot-001",
+        "- 目标时长：15 秒",
+        "",
+        "## 分镜编排",
+        "",
+        "### 分镜 1",
+        "",
+        "主体停步抬头。",
+        "",
+        "## 关键帧选择",
+        "",
+        "- 关键帧 01：对应分镜 1 的时刻。",
+        "",
+        "## 参考资产要求",
+        "",
+        "- 必带参考资产：@驿卒三视图"
+      ].join("\n"),
+      "utf8"
+    );
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "undeclared-reference-asset",
+          path: "03_分镜脚本/镜头组-001/镜头-001.md"
+        })
+      ])
+    );
+  });
+
   test("requires Step 4 prompts to carry storyboard reference assets", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-reference-trace-"));
     tempRoots.push(root);
@@ -1212,6 +1266,68 @@ describe("verifyProject", () => {
         expect.objectContaining({
           code: "absolute-path-link",
           path: path.join("01_概念策划", "story.md")
+        })
+      ])
+    );
+  });
+
+  test("finds broken relative Markdown link targets in Step 6 files", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-relative-link-checks-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+
+    await fs.writeFile(
+      path.join(projectRoot, "06_执行计划", "00_执行计划.md"),
+      "# 计划\n\n[不存在的关键帧](04_图片提示词/镜头组-001/镜头-001-不存在.md)\n",
+      "utf8"
+    );
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "broken-relative-link",
+          path: "06_执行计划/00_执行计划.md"
+        })
+      ])
+    );
+  });
+
+  test("accepts valid relative Markdown links and backtick paths", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-relative-link-ok-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+
+    await fs.ensureDir(path.join(projectRoot, "04_图片提示词", "镜头组-001"));
+    await fs.writeFile(
+      path.join(projectRoot, "04_图片提示词", "镜头组-001", "镜头-001-关键帧-01.md"),
+      "# 关键帧\n",
+      "utf8"
+    );
+    await fs.writeFile(
+      path.join(projectRoot, "06_执行计划", "00_执行计划.md"),
+      "# 计划\n\n[已有文件](../04_图片提示词/镜头组-001/镜头-001-关键帧-01.md)\n\n`../04_图片提示词/镜头组-001/镜头-001-关键帧-01.md`\n",
+      "utf8"
+    );
+    await fs.writeFile(path.join(projectRoot, "06_执行计划", "01_图片执行计划.md"), "# 图片\n", "utf8");
+    await fs.writeFile(path.join(projectRoot, "06_执行计划", "02_视频执行计划.md"), "# 视频\n", "utf8");
+
+    const result = await verifyProject({
+      projectRoot,
+      ide: "codex",
+      pack: "official-ai-video"
+    });
+
+    expect(result.issues).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "broken-relative-link"
         })
       ])
     );

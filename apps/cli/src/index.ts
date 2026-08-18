@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { input, select } from "@inquirer/prompts";
 import { Command } from "commander";
 import path from "node:path";
@@ -22,6 +23,7 @@ import { exportObsidianVault } from "./lib/obsidian/export.js";
 import type { ObsidianExportOperationStatus } from "./lib/obsidian/types.js";
 import { verifyObsidianVault } from "./lib/obsidian/verify.js";
 import { resolveRepoRoot } from "./lib/paths.js";
+import { readProjectConfig } from "./lib/project-config.js";
 import {
   ingestResearchInbox,
   ingestResearchSource,
@@ -198,7 +200,8 @@ program
       ide,
       pack: DEFAULT_PACK
     });
-    console.log(await diagnoseProject({ issues: result.issues }));
+    const { config } = await readProjectConfig(path.resolve(options.project));
+    console.log(await diagnoseProject({ issues: result.issues, defaultVideoPlatform: config?.platforms.video.default }));
     if (!result.ok) {
       process.exitCode = 1;
     }

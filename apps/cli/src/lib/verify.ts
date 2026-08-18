@@ -14,6 +14,7 @@ import { STEP0_FILES, STEP6_FILES, STEP_DIR_BY_NUMBER, researchStepEnabled } fro
 import { readProjectConfig } from "./project-config.js";
 import { projectRootIssues } from "./project-root.js";
 import {
+  declaredReferenceAssetTokens,
   extractReferenceAssets,
   findMissingCharacterTriViews,
   findMissingSceneReferenceImages,
@@ -186,6 +187,72 @@ async function verifyRelativeMarkdownLinks(projectRoot: string, issues: Verifica
         message: "Found absolute path link",
         path: relPath
       });
+    }
+  }
+}
+
+const relativeMarkdownLinkPattern = /(?<!!)\[[^\]\r\n]+\]\(([^)\r\n]+)\)/g;
+
+function stripLinkFragmentAndQuery(target: string): string {
+  return target.split(/[?#]/, 1)[0]?.trim() ?? "";
+}
+
+function normalizeProjectRelPath(value: string): string {
+  return value.replace(/\\/g, "/");
+}
+
+function isExternalOrAbsoluteLink(target: string): boolean {
+  return /^(https?|mailto|tel|file|vscode):/i.test(target) || target.startsWith("/") || /^[A-Za-z]:[\\/]/.test(target);
+}
+
+function stepDirNamesByNumber(): Map<string, number> {
+  const byDir: Map<string, number> = new Map();
+  for (const [number, dirName] of Object.entries(STEP_DIR_BY_NUMBER)) {
+    byDir.set(dirName, Number(number));
+  }
+  return byDir;
+}
+
+async function verifyRelativeMarkdownLinkTargets(projectRoot: string, issues: VerificationIssue[], step?: number): Promise<void> {
+  if (!(await fs.pathExists(projectRoot))) {
+    return;
+  }
+  const stepByDir = stepDirNamesByNumber();
+  const files = await listMarkdownFiles(projectRoot);
+  for (const relPath of files) {
+    const fullPath = path.join(projectRoot, relPath);
+    const content = await fs.readFile(fullPath, "utf8");
+    const searchableContent = content.replace(inlineCodePattern, "");
+    for (const match of searchableContent.matchAll(relativeMarkdownLinkPattern)) {
+      const rawTarget = match[1]?.trim() ?? "";
+      const target = stripLinkFragmentAndQuery(rawTarget);
+      if (target === "" || isExternalOrAbsoluteLink(target)) {
+        continue;
+      }
+      const resolved = path.resolve(path.dirname(fullPath), target);
+      const projectRelative = normalizeProjectRelPath(path.relative(projectRoot, resolved));
+      if (projectRelative.startsWith("..")) {
+        pushIssue(issues, {
+          code: "broken-relative-link",
+          message: `Markdown link escapes the project root: ${rawTarget}`,
+          path: normalizeProjectRelPath(relPath)
+        });
+        continue;
+      }
+      // Step-scoped verification must not demand downstream files that are not due yet
+      // (for example `verify --step 3` may link to Step 4 keyframes created later).
+      const targetStepDir = projectRelative.split("/")[0] ?? "";
+      const targetStep = stepByDir.get(targetStepDir);
+      if (step !== undefined && targetStep !== undefined && targetStep > step) {
+        continue;
+      }
+      if (!(await fs.pathExists(resolved))) {
+        pushIssue(issues, {
+          code: "broken-relative-link",
+          message: `Markdown link target does not exist: ${rawTarget}`,
+          path: normalizeProjectRelPath(relPath)
+        });
+      }
     }
   }
 }
@@ -433,6 +500,38 @@ async function verifyStep2ReferenceAssets(projectRoot: string, issues: Verificat
         message: `Special scene ${missing.name} must declare ${missing.expectedToken}`,
         path: relPath
       });
+    }
+  }
+}
+
+async function verifyStep2DeclaredAssetUsage(projectRoot: string, graph: ShotGraph, issues: VerificationIssue[]): Promise<void> {
+  const step2FullDir = path.join(projectRoot, step2Dir);
+  if (!(await fs.pathExists(step2FullDir))) {
+    return;
+  }
+  const step2Files = (await fs.readdir(step2FullDir)).filter((name) => name.endsWith(".md"));
+  const declaredTokens = new Set<string>();
+  for (const file of step2Files) {
+    const content = await fs.readFile(path.join(step2FullDir, file), "utf8");
+    for (const asset of declaredReferenceAssetTokens(content)) {
+      declaredTokens.add(asset.token);
+    }
+  }
+  if (declaredTokens.size === 0) {
+    return;
+  }
+  for (const file of graph.files) {
+    if (file.step < 3 || file.step > 5 || file.shotId === undefined) {
+      continue;
+    }
+    for (const asset of extractReferenceAssets(file.content)) {
+      if (!declaredTokens.has(asset.token)) {
+        pushIssue(issues, {
+          code: "undeclared-reference-asset",
+          message: `Reference asset ${asset.token} is used in Step ${file.step} but not declared in Step 2 (${asset.name})`,
+          path: file.relPath
+        });
+      }
     }
   }
 }
@@ -728,6 +827,9 @@ export async function verifyProject({
   const shotGraph = await buildShotGraph(projectRoot);
   const requireKeyframes = step === undefined || step >= 4;
   verifyShotGraphContract(shotGraph, issues, requireKeyframes);
+  if (step === undefined || step >= 3) {
+    await verifyStep2DeclaredAssetUsage(projectRoot, shotGraph, issues);
+  }
   if (step === undefined || step >= 4) {
     await verifyStep4(shotGraph, issues);
     await verifyStep3Step4Traceability(projectRoot, shotGraph, issues);
@@ -744,6 +846,7 @@ export async function verifyProject({
   }
   await verifyResearchSensitiveAuthMaterial(projectRoot, issues);
   await verifyRelativeMarkdownLinks(projectRoot, issues);
+  await verifyRelativeMarkdownLinkTargets(projectRoot, issues, step);
   await verifyIdeRuntime(projectRoot, ide, issues);
   await verifySharedAgentWorkspace(projectRoot, ide, issues);
   return { ok: issues.length === 0, issues };

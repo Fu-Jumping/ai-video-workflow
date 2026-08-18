@@ -3,6 +3,9 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+
 import { buildMcpContext } from "../src/lib/mcp/context.js";
 import { buildMcpPrompts } from "../src/lib/mcp/prompts.js";
 import { buildMcpResources } from "../src/lib/mcp/resources.js";
@@ -155,4 +158,23 @@ describe("MCP server", () => {
     expect(server.server).toBeDefined();
     expect(server.isConnected()).toBe(false);
   });
+
+  test("reports the CLI package version as the MCP server version", async () => {
+    const projectRoot = await createChineseMcpProject();
+    const server = await createAiVideoMcpServer({
+      projectRoot,
+      pack: "official-ai-video",
+      ide: "codex"
+    });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: "test-client", version: "1.0.0" }, { capabilities: {} });
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+
+    const serverInfo = await client.getServerVersion();
+    expect(serverInfo.name).toBe("ai-video-workflow");
+    expect(serverInfo.version).toBe("0.1.0");
+
+    await client.close();
+  }, 20000);
 });

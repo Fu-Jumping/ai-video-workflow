@@ -120,6 +120,7 @@ ai-video-workflow research inbox --project <path>
 2. 手动使用时，运行 `pnpm install` 安装依赖。
 3. 运行 `pnpm build` 构建 CLI 与文档站。
 4. 使用 `node apps/cli/dist/index.js init` 或 [快速开始](docs/zh/quickstart/index.md) 中的脚本化命令生成项目。
+5. 想让文档与 `init` 输出中的 `ai-video-workflow` 命令形式全局可用时，构建后执行 `npm install -g apps/cli`；此后可直接运行 `ai-video-workflow <command>`，与 `node apps/cli/dist/index.js <command>` 等价。
 
 ## 仓库结构
 
