@@ -91,4 +91,22 @@ describe("template compliance", () => {
     const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
     expect(result).toEqual({ ok: true, issues: [] });
   });
+
+  test("a freshly initialized midjourney project passes full verification", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-template-compliance-mj-"));
+    tempRoots.push(root);
+    await createProject({
+      targetRoot: root,
+      projectName: "compliance-mj-project",
+      pack: "official-ai-video",
+      ide: "codex",
+      imagePlatform: "midjourney",
+      videoPlatform: "seedance",
+      startFrom: "script"
+    });
+    const projectRoot = path.join(root, "compliance-mj-project");
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    expect(result).toEqual({ ok: true, issues: [] });
+  });
 });

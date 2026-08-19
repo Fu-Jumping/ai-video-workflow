@@ -396,10 +396,11 @@ async function verifyStep4PlatformExecutionSettings(
   for (const file of graph.files.filter((candidate) => candidate.step === 4)) {
     const relPath = file.relPath;
     const content = file.content;
-    const missingHeading = !/^##\s*平台执行参数\s*$/mu.test(content);
-    const missingMarker = missingHeading
+    const hasHeading = /^##\s*平台执行参数\s*$/mu.test(content);
+    const platformSection = hasHeading ? sectionAfterHeading(content, "## 平台执行参数") : "";
+    const missingMarker = !hasHeading
       ? "## 平台执行参数"
-      : step4PlatformExecutionMarkers.slice(1).find((marker) => !content.includes(marker));
+      : step4PlatformExecutionMarkers.slice(1).find((marker) => !platformSection.includes(marker));
     if (missingMarker) {
       pushIssue(issues, {
         code: "missing-step4-platform-execution-setting",
@@ -417,10 +418,14 @@ async function verifyStep4PlatformExecutionSettings(
         path: relPath
       });
     }
+    // Scan only the actual content sections (platform execution parameters and the copyable
+    // prompt), not the self-check checklist. The template self-check may describe forbidden
+    // parameters in prose without making the file itself invalid.
+    const scannableContent = `${platformSection}\n${promptBlock}`;
     const forbidden = step4MidjourneyForbiddenParameters.find((parameter) =>
-      parameter === "--cw" ? /\B--cw\b/u.test(content) : content.includes(parameter)
+      parameter === "--cw" ? /\B--cw\b/u.test(scannableContent) : scannableContent.includes(parameter)
     );
-    if (/\b--q\b/u.test(content) || forbidden) {
+    if (/\b--q\b/u.test(scannableContent) || forbidden) {
       pushIssue(issues, {
         code: "invalid-step4-midjourney-parameter",
         message: "Step 4 midjourney prompt uses parameters unsupported in V8 (--cref / --cw / --q / ::)",

@@ -333,6 +333,40 @@ describe("built CLI", () => {
     expect(output).not.toContain("at Command");
   });
 
+  test("verify --step 7 is accepted by the built CLI", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const targetRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-step7-"));
+    tempRoots.push(targetRoot);
+
+    await buildCli(cliRoot);
+    await run(
+      process.execPath,
+      [
+        path.join(cliRoot, "dist", "index.js"),
+        "init",
+        "--name",
+        "step7-demo",
+        "--ide",
+        "codex",
+        "--image",
+        "openai",
+        "--video",
+        "runway",
+        "--start-from",
+        "script"
+      ],
+      targetRoot
+    );
+    const projectRoot = path.join(targetRoot, "step7-demo");
+    const result = await run(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "verify", "--project", projectRoot, "--ide", "codex", "--step", "7"],
+      targetRoot
+    );
+
+    expect(result.stdout).toContain("Verification passed");
+  });
+
   test("export-obsidian creates a vault projection from the official example", async () => {
     const cliRoot = path.resolve(__dirname, "..");
     const repoRoot = path.resolve(cliRoot, "..", "..");

@@ -123,11 +123,11 @@ function isCleanViewKind(value: string): value is CleanViewKind {
 
 function normalizeStep(value: string): number {
   if (!/^\d+$/.test(value.trim())) {
-    throw new CliUserError(`Invalid clean-view step: ${value}. Expected a number from 0 to 6.`);
+    throw new CliUserError(`Invalid clean-view step: ${value}. Expected a number from 0 to 7.`);
   }
   const step = Number.parseInt(value, 10);
-  if (step < 0 || step > 6) {
-    throw new CliUserError(`Invalid clean-view step: ${value}. Expected a number from 0 to 6.`);
+  if (step < 0 || step > 7) {
+    throw new CliUserError(`Invalid clean-view step: ${value}. Expected a number from 0 to 7.`);
   }
   return step;
 }

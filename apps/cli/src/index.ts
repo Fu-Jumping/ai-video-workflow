@@ -161,7 +161,7 @@ program
   .description("Verify project structure and workflow contracts")
   .requiredOption("--project <path>")
   .requiredOption("--ide <ide>")
-  .option("--step <n>", "Verify only completed steps up to N (0-6); skips checks that require artifacts from later steps")
+  .option("--step <n>", "Verify only completed steps up to N (0-7); skips checks that require artifacts from later steps")
   .action((options) => runCliAction(async () => {
     const ide = parseIde(options.ide);
     if (!ide) {
@@ -170,8 +170,8 @@ program
     let step: number | undefined;
     if (options.step !== undefined) {
       const parsed = Number.parseInt(options.step, 10);
-      if (!/^\d+$/.test(options.step) || parsed < 0 || parsed > 6) {
-        throw new Error(`Invalid --step: ${options.step}. Expected 0-6.`);
+      if (!/^\d+$/.test(options.step) || parsed < 0 || parsed > 7) {
+        throw new Error(`Invalid --step: ${options.step}. Expected 0-7.`);
       }
       step = parsed;
     }
@@ -347,7 +347,7 @@ program
   .requiredOption("--project <path>")
   .option("--dry-run", "Print planned cleanup operations without deleting files", false)
   .option("--kind <kind>", "Only clean generated files by kind; repeat or comma-separate values", collectRepeatedOption)
-  .option("--step <step>", "Only clean generated files for Step 0-6; repeat or comma-separate values", collectRepeatedOption)
+  .option("--step <step>", "Only clean generated files for Step 0-7; repeat or comma-separate values", collectRepeatedOption)
   .option("--shot <shot>", "Only clean generated files for a shot such as shot-002 or 2; repeat or comma-separate values", collectRepeatedOption)
   .option("--dir <vault-path>", "Only clean generated files under a vault-relative directory; repeat or comma-separate values", collectRepeatedOption)
   .option("--property <field=value>", "Only clean generated Markdown whose frontmatter field equals value; repeat or comma-separate values", collectRepeatedOption)
@@ -380,7 +380,7 @@ program
   .option("--no-plugin-recipes", "Skip optional community plugin recipe notes")
   .option("--skip-sync", "Skip IDE runtime sync before rebuilding the view", false)
   .option("--kind <kind>", "Only rebuild generated files by kind; repeat or comma-separate values", collectRepeatedOption)
-  .option("--step <step>", "Only rebuild generated files for Step 0-6; repeat or comma-separate values", collectRepeatedOption)
+  .option("--step <step>", "Only rebuild generated files for Step 0-7; repeat or comma-separate values", collectRepeatedOption)
   .option("--shot <shot>", "Only rebuild generated files for a shot such as shot-002 or 2; repeat or comma-separate values", collectRepeatedOption)
   .option("--dir <vault-path>", "Only rebuild generated files under a vault-relative directory; repeat or comma-separate values", collectRepeatedOption)
   .option("--property <field=value>", "Only rebuild generated Markdown whose frontmatter field equals value; repeat or comma-separate values", collectRepeatedOption)

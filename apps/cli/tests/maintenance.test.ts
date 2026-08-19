@@ -71,14 +71,14 @@ describe("parseCleanViewFilter", () => {
     expect(
       parseCleanViewFilter({
         kinds: ["canvas,base", "dashboard"],
-        steps: ["0", "4", "5"],
+        steps: ["0", "4", "5", "7"],
         shots: ["2", "shot-003", "镜头 002"],
       dirs: ["01_阶段审核/04_图片提示词/"],
         properties: ["源文件类型=图片提示词", "审阅状态=镜头审阅"]
       })
     ).toEqual({
       kinds: ["base", "canvas", "dashboard"],
-      steps: [0, 4, 5],
+      steps: [0, 4, 5, 7],
       shots: ["shot-002", "shot-003"],
       dirs: ["01_阶段审核/04_图片提示词"],
       properties: [
@@ -90,7 +90,7 @@ describe("parseCleanViewFilter", () => {
 
   test("rejects invalid filter values with readable errors", () => {
     expect(() => parseCleanViewFilter({ kinds: ["unknown"] })).toThrow("Invalid clean-view kind");
-    expect(() => parseCleanViewFilter({ steps: ["7"] })).toThrow("Invalid clean-view step");
+    expect(() => parseCleanViewFilter({ steps: ["8"] })).toThrow("Invalid clean-view step");
     expect(() => parseCleanViewFilter({ shots: ["shot-zero"] })).toThrow("Invalid clean-view shot");
     expect(() => parseCleanViewFilter({ dirs: ["../流程"] })).toThrow("Invalid clean-view dir");
     expect(() => parseCleanViewFilter({ dirs: ["流程\\步骤四"] })).toThrow("Invalid clean-view dir");
