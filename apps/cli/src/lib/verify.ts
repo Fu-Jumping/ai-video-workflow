@@ -10,7 +10,7 @@ import {
   sharedAgentDocsDir,
   sharedAgentEntryPath
 } from "./agent-workspace.js";
-import { STEP0_FILES, STEP6_FILES, STEP_DIR_BY_NUMBER, researchStepEnabled } from "./constants.js";
+import { STEP0_FILES, STEP6_FILES, STEP7_FILES, STEP_DIR_BY_NUMBER, researchStepEnabled } from "./constants.js";
 import { readProjectConfig } from "./project-config.js";
 import { projectRootIssues } from "./project-root.js";
 import {
@@ -265,6 +265,24 @@ async function verifyStep6(projectRoot: string, issues: VerificationIssue[]): Pr
         code: "missing-step6-file",
         message: `Missing ${file}`,
         path: step6Dir
+      });
+    }
+  }
+}
+
+async function verifyStep7(projectRoot: string, issues: VerificationIssue[]): Promise<void> {
+  const step7Dir = "07_发布物料";
+  const fullDir = path.join(projectRoot, step7Dir);
+  if (!(await fs.pathExists(fullDir))) {
+    return;
+  }
+  for (const file of STEP7_FILES) {
+    const fullPath = path.join(fullDir, file);
+    if (!(await fs.pathExists(fullPath))) {
+      pushIssue(issues, {
+        code: "missing-step7-file",
+        message: `Missing Step 7 file: ${file}`,
+        path: path.join(step7Dir, file)
       });
     }
   }
@@ -783,7 +801,7 @@ export async function verifyProject({
   ide: Ide;
   pack: string;
   /**
-   * Optional step filter 0-6: verify only what has been completed so far. Checks that require
+   * Optional step filter 0-7: verify only what has been completed so far. Checks that require
    * artifacts from later steps (for example Step 3 keyframe mapping before Step 4 files exist)
    * are skipped, turning the command into a per-step gate.
    */
@@ -843,6 +861,9 @@ export async function verifyProject({
   }
   if (step === undefined || step >= 6) {
     await verifyStep6(projectRoot, issues);
+  }
+  if (step === undefined || step >= 7) {
+    await verifyStep7(projectRoot, issues);
   }
   await verifyResearchSensitiveAuthMaterial(projectRoot, issues);
   await verifyRelativeMarkdownLinks(projectRoot, issues);

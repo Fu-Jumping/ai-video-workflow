@@ -32,6 +32,7 @@ export type IssueCode =
   | "missing-image-default-platform"
   | "missing-video-default-platform"
   | "missing-step6-file"
+  | "missing-step7-file"
   | "missing-step4-section"
   | "missing-character-triview"
   | "missing-scene-reference-image"
