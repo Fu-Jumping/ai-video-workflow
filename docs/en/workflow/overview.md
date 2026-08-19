@@ -1,6 +1,6 @@
 # Workflow Overview
 
-The default research workflow has seven steps:
+The default research workflow has eight steps:
 
 0. Research
 1. Concept
