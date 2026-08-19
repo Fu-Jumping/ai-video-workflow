@@ -720,9 +720,13 @@ export async function verifyObsidianVault({ projectRoot, vaultRoot }: VerifyObsi
   if (!config) {
     return { ok: false, issues: configIssues };
   }
+  const optionalStepDirs = new Set(["07_发布物料"]);
   for (const stepDir of activeStepDirs(config)) {
     const stepPath = path.join(resolvedProjectRoot, stepDir);
     if (!(await fs.pathExists(stepPath)) || !(await fs.stat(stepPath)).isDirectory()) {
+      if (!(await fs.pathExists(stepPath)) && optionalStepDirs.has(stepDir)) {
+        continue;
+      }
       return {
         ok: false,
         issues: [{ code: "invalid-export-project", message: `Source project is missing Step directory: ${stepDir}`, path: stepDir }]

@@ -73,9 +73,13 @@ export async function readWorkflowProjectConfig(projectRoot: string): Promise<Pr
     const issue = issues[0];
     throw new CliUserError(issue?.message ?? `Project root is missing valid project.config.yaml: ${projectRoot}`);
   }
+  const optionalStepDirs = new Set(["07_发布物料"]);
   for (const stepDir of activeStepDirs(config)) {
     const fullPath = path.join(projectRoot, stepDir);
     if (!(await fs.pathExists(fullPath)) || !(await fs.stat(fullPath)).isDirectory()) {
+      if (!(await fs.pathExists(fullPath)) && optionalStepDirs.has(stepDir)) {
+        continue;
+      }
       throw new CliUserError(`Project root is missing Step directory: ${stepDir}`);
     }
   }
