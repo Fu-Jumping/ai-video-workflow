@@ -8,6 +8,7 @@ export type ObsidianSourceKind =
   | "image-prompt"
   | "video-prompt"
   | "execution-plan"
+  | "publish"
   | "index";
 
 export interface ObsidianSourceFile {

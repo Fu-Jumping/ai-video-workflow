@@ -14,7 +14,8 @@ const stepNames: Record<number, string> = {
   3: "分镜脚本",
   4: "图片提示词",
   5: "视频提示词",
-  6: "执行计划"
+  6: "执行计划",
+  7: "发布物料"
 };
 
 const stepTags: Record<number, string> = {
@@ -24,7 +25,8 @@ const stepTags: Record<number, string> = {
   3: "ai-video/step/03-storyboard",
   4: "ai-video/step/04-image-prompt",
   5: "ai-video/step/05-video-prompt",
-  6: "ai-video/step/06-execution"
+  6: "ai-video/step/06-execution",
+  7: "ai-video/step/07-publish"
 };
 
 type StageGroup = keyof typeof obsidianPropertyValues.stageGroup;
@@ -38,7 +40,8 @@ const stageGroups: Record<number, StageGroup> = {
   3: "shot-review",
   4: "prompt-production",
   5: "prompt-production",
-  6: "execution"
+  6: "execution",
+  7: "execution"
 };
 
 export function stepFolderName(step: number): string {
@@ -104,7 +107,7 @@ function shotIndexLink(sourceFile: ObsidianSourceFile, sourceFiles: ObsidianSour
 }
 
 function reviewStatus(sourceFile: ObsidianSourceFile): ReviewStatus {
-  if (sourceFile.step === 6) {
+  if (sourceFile.step >= 6) {
     return "execution-review";
   }
   if (sourceFile.step >= 3) {
@@ -114,7 +117,7 @@ function reviewStatus(sourceFile: ObsidianSourceFile): ReviewStatus {
 }
 
 function executionStatus(sourceFile: ObsidianSourceFile): ExecutionStatus {
-  if (sourceFile.step === 6) {
+  if (sourceFile.step >= 6) {
     return "ready-for-execution";
   }
   if (sourceFile.step >= 4) {

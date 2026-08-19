@@ -70,6 +70,7 @@ export const obsidianPropertyValues = {
     "image-prompt": "图片提示词",
     "video-prompt": "视频提示词",
     "execution-plan": "执行计划",
+    publish: "发布物料",
     index: "索引"
   } satisfies Record<ObsidianSourceKind, string>,
   stageGroup: {
@@ -101,6 +102,7 @@ export const obsidianPropertyValues = {
     "image-prompt": "检查图片提示词",
     "video-prompt": "检查视频提示词",
     "execution-plan": "执行前检查",
+    publish: "核对发布物料",
     index: "检查镜头对齐"
   }
 } as const;

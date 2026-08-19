@@ -17,7 +17,8 @@ export const stepDisplayDirectories: Readonly<Record<number, string>> = Object.f
   3: "03_分镜脚本",
   4: "04_图片提示词",
   5: "05_视频提示词",
-  6: "06_执行计划"
+  6: "06_执行计划",
+  7: "07_发布物料"
 });
 
 export function stepDisplayDirectory(step: number): string {
