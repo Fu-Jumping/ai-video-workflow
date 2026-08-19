@@ -44,7 +44,7 @@
 ### 2.3 project-binding
 
 `scaffolds/` or project-level config 只负责把逻辑步骤绑定到当前项目目录。
-它不改写 Step 0 到 Step 6 的职责。若项目已有完整剧本，可关闭 `workflow.research_step.enabled`，直接从 Step 1 开始。
+它不改写 Step 0 到 Step 7 的职责。若项目已有完整剧本，可关闭 `workflow.research_step.enabled`，直接从 Step 1 开始。
 
 ### 2.4 `.codex/ai-video-workflow`
 

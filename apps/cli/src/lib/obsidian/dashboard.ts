@@ -67,13 +67,31 @@ function compareStageFiles(left: ObsidianSourceFile, right: ObsidianSourceFile):
 }
 
 function stageReviewCheckList(step: number): string {
+  if (step === 0) {
+    return "- 研究资料是否有可追溯来源，摘录是否保留原文语义。\n- 创作简报是否提炼出可执行的主题、风格、规格与制作链路。";
+  }
+  if (step === 1) {
+    return "- 故事内核是否给出清晰主题、冲突、人物动机与结局落点。\n- 是否与 Step 0 研究结论一致，且不编造事实。";
+  }
+  if (step === 2) {
+    return "- 角色与场景设定是否完整、一致，并为 Step 3/4 提供明确参考资产。\n- 设定是否支撑故事内核并避免内部代号。";
+  }
   if (step === 3) {
     return "- 画面事实、构图、动作和镜头衔接是否清楚。\n- 每个镜头是否明确需要的关键帧，以及 Step 4 的帧级对应关系。";
   }
   if (step === 4) {
     return "- 每个关键帧是否与对应 Step 3 分镜保持帧级对齐。\n- 图片提示词是否自足、完整，并携带全部必需参考资产。";
   }
-  return "- 视频提示词是否继承 Step 4 的视觉状态。\n- 运动、时长、平台执行设置和负面约束是否可执行。";
+  if (step === 5) {
+    return "- 视频提示词是否继承 Step 4 的视觉状态。\n- 运动、时长、平台执行设置和负面约束是否可执行。";
+  }
+  if (step === 6) {
+    return "- 执行计划是否覆盖全部镜头、素材、顺序、依赖与风险。\n- 未锁版或未放行的镜头是否没有被当作已成片。";
+  }
+  if (step === 7) {
+    return "- 发布物料是否基于 Step 1 故事内核与 Step 3 分镜高光。\n- 平台分区、来源亮点、避免项与发布总表是否一致，且无编造成片卖点。";
+  }
+  return "- 本阶段文件是否完整，并与上下游保持一致。";
 }
 
 function renderStageReviewHub(step: number, sourceFiles: ObsidianSourceFile[], availableSteps: number[]): ObsidianGeneratedFile {

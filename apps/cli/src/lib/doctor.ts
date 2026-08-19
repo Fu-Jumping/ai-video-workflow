@@ -11,6 +11,10 @@ const groups: Record<string, string> = {
   "research-sensitive-auth-material": "Step 0 Research",
   "missing-step6-file": "Structure",
   "missing-step7-file": "Structure",
+  "missing-step7-source-highlights": "Step 7 Contract",
+  "missing-step7-platform-section": "Step 7 Contract",
+  "missing-step7-avoid-section": "Step 7 Contract",
+  "invalid-step7-overview": "Step 7 Contract",
   "missing-config": "Structure",
   "invalid-project-config": "Configuration",
   "invalid-project-config-yaml": "Configuration",
@@ -21,7 +25,15 @@ const groups: Record<string, string> = {
   "step4-forbidden-text": "Step 4 Contract",
   "step4-avoid-double-prefix": "Step 4 Contract",
   "step4-quick-guide-meta-language": "Step 4 Contract",
+  "missing-step4-platform-execution-setting": "Step 4 Midjourney",
+  "invalid-step4-midjourney-parameter": "Step 4 Midjourney",
+  "step4-midjourney-prompt-too-long": "Step 4 Midjourney",
+  "invalid-step4-midjourney-style-parameter": "Step 4 Midjourney",
+  "invalid-step4-midjourney-stylize-range": "Step 4 Midjourney",
+  "invalid-step4-midjourney-chinese-length": "Step 4 Midjourney",
+  "invalid-step4-midjourney-copyable-language": "Step 4 Midjourney",
   "step5-generic-negative-only": "Step 5 Contract",
+  "step5-forbidden-image-platform-parameter": "Step 5 Contract",
   "missing-step5-platform-execution-setting": "Step 5 Contract",
   "invalid-step5-contract": "Step 5 Contract",
   "missing-shot-group": "Shot Graph",
@@ -137,6 +149,18 @@ export async function diagnoseProject({
       if (issue.code === "missing-step7-file") {
         lines.push("  Restore the missing Step 7 publish material file, or remove the 07_发布物料 directory if this project does not do multi-platform publishing.");
       }
+      if (issue.code === "missing-step7-source-highlights") {
+        lines.push("  在 Step 7 物料文件补 `## 来源亮点`，用相对路径引用 Step 1 故事内核与 Step 3 分镜高光。");
+      }
+      if (issue.code === "missing-step7-platform-section") {
+        lines.push("  在 Step 7 物料文件补至少一个 `## 平台名` 区块（抖音/快手、B站、小红书、视频号、YouTube）。");
+      }
+      if (issue.code === "missing-step7-avoid-section") {
+        lines.push("  在 Step 7 物料文件末尾补 `## 避免:` / `## 避免：`，列出不得出现的内部代号与编造卖点。");
+      }
+      if (issue.code === "invalid-step7-overview") {
+        lines.push("  在 `00_发布总表.md` 补齐 `## 一、平台清单与规格` 与 `## 四、发布前核对清单`。");
+      }
       if (issue.code === "missing-step0-file") {
         lines.push("  Restore the missing Step 0 research template file, or set `workflow.research_step.enabled: false` only if this project starts from a complete script.");
       }
@@ -151,6 +175,30 @@ export async function diagnoseProject({
       }
       if (issue.code === "step4-forbidden-text") {
         lines.push("  Replace inherited or context-dependent wording with a self-contained visual prompt.");
+      }
+      if (issue.code === "missing-step4-platform-execution-setting") {
+        lines.push("  在 Step 4 文件补齐 `## 平台执行参数`，并显式写入 `midjourney`、`--v 8.2`、`--ar` 及 `--style raw`。");
+      }
+      if (issue.code === "invalid-step4-midjourney-parameter") {
+        lines.push("  从 Step 4 可复制提示词和平台执行参数中移除 V8 不支持的参数：`--cref`、`--cw`、`--q`、`::`。");
+      }
+      if (issue.code === "step4-midjourney-prompt-too-long") {
+        lines.push("  将 Step 4 可复制提示词正文（去掉 `避免` 段后）压缩到 1024 字符以内。");
+      }
+      if (issue.code === "invalid-step4-midjourney-style-parameter") {
+        lines.push("  在 Step 4 `平台执行参数` 的 `风格参数` 使用 `--style raw`（工作区统一写法），不要写 `--style rawx` 等变体。");
+      }
+      if (issue.code === "invalid-step4-midjourney-stylize-range") {
+        lines.push("  将 Step 4 `平台执行参数` 的 stylize 数值调整到 0-1000 范围内。");
+      }
+      if (issue.code === "invalid-step4-midjourney-chinese-length") {
+        lines.push("  将 Step 4 `中文完整版本` 正文扩充到至少 180 个非空白字符。");
+      }
+      if (issue.code === "invalid-step4-midjourney-copyable-language") {
+        lines.push("  将 Step 4 `可复制提示词` 改为英文正文；中文完整版本保留中文，二者语义保持一致。");
+      }
+      if (issue.code === "step5-forbidden-image-platform-parameter") {
+        lines.push("  从 Step 5 文件中移除图片平台参数（如 `--v 8.2`、`--ar`、`--style raw`、`--stylize`）；Step 5 只写视频平台执行设置。");
       }
       if (issue.code === "missing-step5-platform-execution-setting") {
         if (defaultVideoPlatform === "seedance") {

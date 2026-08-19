@@ -13,14 +13,14 @@ const step6Files = [
 const step6TemplateDir = "06_执行计划";
 
 const step7Files = [
-  "00_publish_overview.md",
-  "01_titles.md",
-  "02_descriptions.md",
-  "03_hashtags.md",
-  "04_cover_copy.md"
+  "00_发布总表.md",
+  "01_标题.md",
+  "02_简介正文.md",
+  "03_话题标签.md",
+  "04_封面文案.md"
 ];
 
-const step7TemplateDir = "07_publish_materials";
+const step7TemplateDir = "07_发布物料";
 
 export async function createPackScaffold({
   targetRoot,

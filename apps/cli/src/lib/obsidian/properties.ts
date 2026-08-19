@@ -79,15 +79,18 @@ export const obsidianPropertyValues = {
     "shot-review": "镜头审阅",
     "prompt-production": "提示词制作",
     execution: "执行",
+    publish: "发布",
     other: "其他"
   },
   reviewStatus: {
     "execution-review": "执行审阅",
+    "publish-review": "发布审阅",
     "shot-review": "镜头审阅",
     reference: "参考"
   },
   executionStatus: {
     "ready-for-execution": "可执行",
+    "ready-for-publish": "可发布",
     "prompt-ready": "提示词就绪",
     "not-applicable": "不适用"
   },

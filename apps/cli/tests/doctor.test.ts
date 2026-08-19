@@ -343,4 +343,32 @@ describe("diagnoseProject", () => {
     expect(output).toContain(".git");
     expect(output).toContain("incremental export");
   });
+
+  test("suggests Step 4 Midjourney remediation with grouped guidance", async () => {
+    const output = await diagnoseProject({
+      issues: [
+        {
+          code: "missing-step4-platform-execution-setting",
+          message: "Step 4 must include 平台执行参数 with --v 8.2 for midjourney",
+          path: "04_图片提示词/镜头组-001/镜头-001-关键帧-01.md"
+        },
+        {
+          code: "invalid-step4-midjourney-parameter",
+          message: "Step 4 midjourney prompt uses parameters unsupported in V8",
+          path: "04_图片提示词/镜头组-001/镜头-001-关键帧-01.md"
+        },
+        {
+          code: "step5-forbidden-image-platform-parameter",
+          message: "Step 5 must not include image platform parameter: --v 8.2",
+          path: "05_视频提示词/镜头组-001/镜头-001.md"
+        }
+      ]
+    });
+
+    expect(output).toContain("Step 4 Midjourney");
+    expect(output).toContain("## 平台执行参数");
+    expect(output).toContain("V8 不支持的参数");
+    expect(output).toContain("Step 5 Contract");
+    expect(output).toContain("图片平台参数");
+  });
 });

@@ -41,7 +41,7 @@ const stageGroups: Record<number, StageGroup> = {
   4: "prompt-production",
   5: "prompt-production",
   6: "execution",
-  7: "execution"
+  7: "publish"
 };
 
 export function stepFolderName(step: number): string {
@@ -107,6 +107,9 @@ function shotIndexLink(sourceFile: ObsidianSourceFile, sourceFiles: ObsidianSour
 }
 
 function reviewStatus(sourceFile: ObsidianSourceFile): ReviewStatus {
+  if (sourceFile.step === 7) {
+    return "publish-review";
+  }
   if (sourceFile.step >= 6) {
     return "execution-review";
   }
@@ -117,6 +120,9 @@ function reviewStatus(sourceFile: ObsidianSourceFile): ReviewStatus {
 }
 
 function executionStatus(sourceFile: ObsidianSourceFile): ExecutionStatus {
+  if (sourceFile.step === 7) {
+    return "ready-for-publish";
+  }
   if (sourceFile.step >= 6) {
     return "ready-for-execution";
   }

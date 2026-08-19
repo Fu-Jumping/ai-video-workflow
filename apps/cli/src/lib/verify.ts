@@ -36,6 +36,12 @@ const step5PlatformExecutionMarkers = ["默认视频平台", "目标时长", "�
 const step4PlatformExecutionMarkers = ["## 平台执行参数", "midjourney", "--v 8.2", "--ar"];
 const step4MidjourneyForbiddenParameters = ["--cref", "--cw", "::"];
 const step4MidjourneyPromptMaxLength = 1024;
+const step4MidjourneyMinChineseLength = 180;
+const step4MidjourneyStylizeMax = 1000;
+const step5ForbiddenImagePlatformParameters = ["--v 8.2", "--ar", "--style raw", "--stylize"];
+const step7ContentFiles = ["01_标题.md", "02_简介正文.md", "03_话题标签.md", "04_封面文案.md"];
+const step7PlatformHeadingPattern = /^##\s*(抖音\/快手|B站|小红书|视频号|YouTube)\s*$/mu;
+const step7AvoidHeadingPattern = /^##\s*避免[：:]\s*$/mu;
 // Template-generic negative constraints. A Step 5 file must add at least one shot-specific
 // constraint beyond these defaults, otherwise the negative block is not per-shot customized.
 const step5GenericNegativeDefaults = [
@@ -287,6 +293,40 @@ async function verifyStep7(projectRoot: string, issues: VerificationIssue[]): Pr
         message: `Missing Step 7 file: ${file}`,
         path: path.join(step7Dir, file)
       });
+      continue;
+    }
+    const content = await fs.readFile(fullPath, "utf8");
+    const relPath = path.join(step7Dir, file);
+    if (file === "00_发布总表.md") {
+      if (!content.includes("## 一、平台清单与规格") || !content.includes("## 四、发布前核对清单")) {
+        pushIssue(issues, {
+          code: "invalid-step7-overview",
+          message: "Step 7 发布总表 must include 平台清单与规格 and 发布前核对清单",
+          path: relPath
+        });
+      }
+      continue;
+    }
+    if (!content.includes("## 来源亮点")) {
+      pushIssue(issues, {
+        code: "missing-step7-source-highlights",
+        message: `Step 7 publish material must include 来源亮点: ${file}`,
+        path: relPath
+      });
+    }
+    if (!step7PlatformHeadingPattern.test(content)) {
+      pushIssue(issues, {
+        code: "missing-step7-platform-section",
+        message: `Step 7 publish material must include at least one ## 平台 section: ${file}`,
+        path: relPath
+      });
+    }
+    if (!step7AvoidHeadingPattern.test(content)) {
+      pushIssue(issues, {
+        code: "missing-step7-avoid-section",
+        message: `Step 7 publish material must include ## 避免: section: ${file}`,
+        path: relPath
+      });
     }
   }
 }
@@ -415,6 +455,41 @@ async function verifyStep4PlatformExecutionSettings(
       pushIssue(issues, {
         code: "step4-midjourney-prompt-too-long",
         message: `Step 4 midjourney prompt body exceeds ${step4MidjourneyPromptMaxLength} characters`,
+        path: relPath
+      });
+    }
+    const styleLine = platformSection.split(/\r?\n/).find((line) => line.includes("风格参数")) ?? "";
+    const validStyle = /(?:^|\W)--style raw(?:\s|$)/u.test(styleLine) || /(?:^|\W)--raw(?:\s|$)/u.test(styleLine);
+    if (styleLine && !validStyle) {
+      pushIssue(issues, {
+        code: "invalid-step4-midjourney-style-parameter",
+        message: "Step 4 midjourney 平台执行参数 must use --style raw (or --raw)",
+        path: relPath
+      });
+    }
+    const stylizeLine = platformSection.split(/\r?\n/).find((line) => /stylize/i.test(line)) ?? "";
+    const stylizeNumber = stylizeLine.match(/(\d+)/)?.[1];
+    if (stylizeNumber && Number.parseInt(stylizeNumber, 10) > step4MidjourneyStylizeMax) {
+      pushIssue(issues, {
+        code: "invalid-step4-midjourney-stylize-range",
+        message: `Step 4 midjourney stylize must be 0-${step4MidjourneyStylizeMax}`,
+        path: relPath
+      });
+    }
+    const chineseBlock = sectionAfterHeading(content, "## 中文完整版本");
+    const chineseBody = chineseBlock.replace(/```text|```/gu, "").replace(/避免[：:][\s\S]*$/u, "").trim();
+    if (chineseBody.replace(/\s+/gu, "").length < step4MidjourneyMinChineseLength) {
+      pushIssue(issues, {
+        code: "invalid-step4-midjourney-chinese-length",
+        message: `Step 4 midjourney Chinese full prompt must be at least ${step4MidjourneyMinChineseLength} non-whitespace characters`,
+        path: relPath
+      });
+    }
+    const cjkPattern = /[\u4e00-\u9fff]/u;
+    if (cjkPattern.test(promptBody)) {
+      pushIssue(issues, {
+        code: "invalid-step4-midjourney-copyable-language",
+        message: "Step 4 midjourney copyable prompt must be English",
         path: relPath
       });
     }
@@ -723,6 +798,14 @@ async function verifyStep5PlatformExecutionSettings(
           ? "invalid-step5-contract"
           : "missing-step5-platform-execution-setting",
         message: `Step 5 must use the formal prompt contract for ${defaultVideoPlatform}, semantic references, 无配乐 and 无字幕`,
+        path: relPath
+      });
+    }
+    const forbiddenImageParameter = step5ForbiddenImagePlatformParameters.find((parameter) => content.includes(parameter));
+    if (forbiddenImageParameter) {
+      pushIssue(issues, {
+        code: "step5-forbidden-image-platform-parameter",
+        message: `Step 5 must not include image platform parameter: ${forbiddenImageParameter}`,
         path: relPath
       });
     }

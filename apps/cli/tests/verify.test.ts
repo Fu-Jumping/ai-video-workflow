@@ -289,7 +289,7 @@ const validMidjourneyStep4 = [
   "",
   "参考 @将军三视图、@城墙场景图。",
   "",
-  "一位身披玄色甲胄的古代中国将领，站立在黄昏的城墙之上，右手按剑，望向远方的平原。前中景为将领与城垛，背景为渐暗的天际线与远处群山。主光来自西侧残阳，铠甲反光与城砖阴影对比强烈，空气中有薄雾。避免使用现代物件、避免现代服饰。",
+  "一位身披玄色甲胄的古代中国将领，站立在黄昏的城墙之上，右手按剑，望向远方的平原。前中景为将领与城垛，背景为渐暗的天际线与远处群山。主光来自西侧残阳，铠甲反光与城砖阴影对比强烈，空气中有薄雾。将领面容沉静，胡须随风微动，肩甲与胸甲有旧痕和磨损，城砖缝隙中可见青苔。整体采用暗调留白、写实电影感构图，强调孤独与肃穆，避免使用现代物件、避免现代服饰。",
   "",
   "避免：",
   "",
@@ -1640,6 +1640,97 @@ test("accepts a custom pack name in project.config.yaml", async () => {
     expect(result.issues).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({ code: "missing-step4-platform-execution-setting" })
+      ])
+    );
+  });
+
+  test("rejects invalid midjourney style parameters", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-mj-style-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "mj-style");
+    await writeMidjourneyConfig(projectRoot);
+    await writeStep4File(projectRoot, validMidjourneyStep4.replace("- 风格参数：--style raw", "- 风格参数：--style rawx"));
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "invalid-step4-midjourney-style-parameter" })
+      ])
+    );
+  });
+
+  test("rejects midjourney stylize values above the allowed range", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-mj-stylize-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "mj-stylize");
+    await writeMidjourneyConfig(projectRoot);
+    await writeStep4File(projectRoot, validMidjourneyStep4.replace("默认 100（如写实不足可 50~100）", "9999"));
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "invalid-step4-midjourney-stylize-range" })
+      ])
+    );
+  });
+
+  test("rejects short midjourney Chinese full prompts", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-mj-chinese-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "mj-chinese");
+    await writeMidjourneyConfig(projectRoot);
+    await writeStep4File(projectRoot, validMidjourneyStep4.replace(/参考 @将军三视图、@城墙场景图。\n\n一位[^\n]+/u, "参考 @将军三视图、@城墙场景图。\n\n短"));
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "invalid-step4-midjourney-chinese-length" })
+      ])
+    );
+  });
+
+  test("rejects Chinese copyable midjourney prompts", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-mj-copy-lang-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "mj-copy-lang");
+    await writeMidjourneyConfig(projectRoot);
+    const chineseCopyable = validMidjourneyStep4.replace(/epic ultra-wide[^\n]*/u, "一位身披玄色甲胄的古代中国将领，站立在黄昏的城墙之上。");
+    await writeStep4File(projectRoot, chineseCopyable);
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "invalid-step4-midjourney-copyable-language" })
+      ])
+    );
+  });
+
+  test("rejects image platform parameters inside Step 5", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-step5-image-param-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex", "seedance");
+    await seedShotContract(projectRoot, { platform: "seedance" });
+    const videoPath = path.join(projectRoot, "05_视频提示词", shotGroupDir, "镜头-001.md");
+    const content = await fs.readFile(videoPath, "utf8");
+    await fs.writeFile(videoPath, `${content}\n\n--v 8.2 --ar 21:9 --style raw --stylize 80\n`, "utf8");
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "step5-forbidden-image-platform-parameter" })
+      ])
+    );
+  });
+
+  test("rejects Step 7 files that only contain a title", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-step7-content-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex", "seedance");
+    const step7Dir = path.join(projectRoot, "07_发布物料");
+    for (const file of ["01_标题.md", "02_简介正文.md", "03_话题标签.md", "04_封面文案.md"]) {
+      await fs.writeFile(path.join(step7Dir, file), "# 只有标题\n", "utf8");
+    }
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "missing-step7-source-highlights" }),
+        expect.objectContaining({ code: "missing-step7-platform-section" }),
+        expect.objectContaining({ code: "missing-step7-avoid-section" })
       ])
     );
   });
