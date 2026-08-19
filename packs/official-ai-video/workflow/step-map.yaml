@@ -20,3 +20,6 @@ steps:
   - id: step-06
     slug: execution-plan
     directory: 06_执行计划
+  - id: step-07
+    slug: publish
+    directory: 07_发布物料
