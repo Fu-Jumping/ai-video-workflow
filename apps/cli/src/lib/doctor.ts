@@ -10,6 +10,7 @@ const groups: Record<string, string> = {
   "invalid-research-source-id": "Step 0 Research",
   "research-sensitive-auth-material": "Step 0 Research",
   "missing-step6-file": "Structure",
+  "missing-step7-file": "Structure",
   "missing-config": "Structure",
   "invalid-project-config": "Configuration",
   "invalid-project-config-yaml": "Configuration",
@@ -132,6 +133,9 @@ export async function diagnoseProject({
       }
       if (issue.code === "missing-step6-file") {
         lines.push("  Restore the missing Step 6 execution plan file.");
+      }
+      if (issue.code === "missing-step7-file") {
+        lines.push("  Restore the missing Step 7 publish material file, or remove the 07_发布物料 directory if this project does not do multi-platform publishing.");
       }
       if (issue.code === "missing-step0-file") {
         lines.push("  Restore the missing Step 0 research template file, or set `workflow.research_step.enabled: false` only if this project starts from a complete script.");
