@@ -42,6 +42,15 @@ Step 4 技能。负责生成面向项目默认图片平台的中文图片提示�
 - 默认模型：不在 pack 规范中写死
 - 默认维护形态：Markdown 交付层
 
+### Midjourney 平台适配（当默认图片平台为 midjourney 时）
+
+- 固定交付合同增加 `## 平台执行参数`。
+- `可复制提示词` 为英文：按 Subject / Medium / Environment / Lighting / Color / Mood / Composition 七要素组织；**风格方向不写死**，默认实拍电影感收尾（`photorealistic film still, shot on 65mm film, anamorphic lens, extreme detail`），项目按画面风格显式声明插画、水墨、像素、动漫等其他方向时替换收尾与视觉描述词，7 要素结构与参数行不变；末尾参数行 `--ar 21:9 --style raw --v 8.2`；正文（不含避免段）≤1024 字符。
+- `避免:` 段保留：只写单词级 `--no` 项或正向描述，禁止短语式否定。
+- `@xx三视图` / `@xx场景图` 语义引用保留在中文完整版本与可复制提示词；执行层通过图生图或 `--oref` 映射，不写死 URL。
+- 风格方向属于内容层，机器不校验，由项目初始化时选择并记录或按单个关键帧画面决定。
+- 平台事实、写作法则与踩坑见 `workflow/indexes/platform-midjourney-v82.md`（相对路径引用）。
+
 ### 固定交付合同
 
 每个正式文件必须包含：
