@@ -7,7 +7,8 @@ export const WORKFLOW_STEPS = [
   { step: 3, directory: "03_分镜脚本", label: "分镜脚本", sourceKind: "storyboard" },
   { step: 4, directory: "04_图片提示词", label: "图片提示词", sourceKind: "image-prompt" },
   { step: 5, directory: "05_视频提示词", label: "视频提示词", sourceKind: "video-prompt" },
-  { step: 6, directory: "06_执行计划", label: "执行计划", sourceKind: "execution-plan" }
+  { step: 6, directory: "06_执行计划", label: "执行计划", sourceKind: "execution-plan" },
+  { step: 7, directory: "07_发布物料", label: "发布物料", sourceKind: "publish" }
 ] as const;
 
 export const STEP_DIRS = WORKFLOW_STEPS.map((step) => step.directory);
@@ -30,6 +31,14 @@ export const STEP6_FILES = [
   "00_执行计划.md",
   "01_图片执行计划.md",
   "02_视频执行计划.md"
+] as const;
+
+export const STEP7_FILES = [
+  "00_发布总表.md",
+  "01_标题.md",
+  "02_简介正文.md",
+  "03_话题标签.md",
+  "04_封面文案.md"
 ] as const;
 
 export const SUPPORTED_IDES: Ide[] = ["codex", "cursor", "claude-code", "trae"];
