@@ -105,5 +105,6 @@ describe("createPackScaffold", () => {
     await expect(fs.pathExists(path.join(packRoot, "pack.yaml"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(packRoot, "checks", "required-files.yaml"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(packRoot, "templates", "06_执行计划", "02_视频执行计划.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(packRoot, "templates", "07_publish_materials", "00_publish_overview.md"))).resolves.toBe(true);
   });
 });

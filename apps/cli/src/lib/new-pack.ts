@@ -12,6 +12,16 @@ const step6Files = [
 
 const step6TemplateDir = "06_执行计划";
 
+const step7Files = [
+  "00_publish_overview.md",
+  "01_titles.md",
+  "02_descriptions.md",
+  "03_hashtags.md",
+  "04_cover_copy.md"
+];
+
+const step7TemplateDir = "07_publish_materials";
+
 export async function createPackScaffold({
   targetRoot,
   packName
@@ -33,6 +43,7 @@ export async function createPackScaffold({
   }
   await fs.ensureDir(path.join(packRoot, "checks"));
   await fs.ensureDir(path.join(packRoot, "templates", step6TemplateDir));
+  await fs.ensureDir(path.join(packRoot, "templates", step7TemplateDir));
   await fs.writeFile(
     path.join(packRoot, "pack.yaml"),
     ["name: " + safePackName, "version: 0.1.0", "displayName: " + safePackName].join("\n"),
@@ -44,5 +55,8 @@ export async function createPackScaffold({
   await fs.writeFile(path.join(packRoot, "checks", "project-structure.yaml"), "steps: []\n", "utf8");
   for (const file of step6Files) {
     await fs.writeFile(path.join(packRoot, "templates", step6TemplateDir, file), `# ${file}\n`, "utf8");
+  }
+  for (const file of step7Files) {
+    await fs.writeFile(path.join(packRoot, "templates", step7TemplateDir, file), `# ${file}\n`, "utf8");
   }
 }
