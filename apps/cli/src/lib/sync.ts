@@ -132,7 +132,7 @@ async function syncCursor(projectRoot: string, packRoot: string): Promise<void> 
       "# AI 视频工作流",
       "",
       `- 先读取 \`AGENTS.md\` 和 \`${sharedAgentDocsDir}/\`。`,
-      "- 将项目已启用步骤文件作为事实源；研究模式包含步骤零到步骤六，剧本模式包含步骤一到步骤六。",
+      "- 将项目已启用步骤文件作为事实源；研究模式包含步骤零到步骤七，剧本模式包含步骤一到步骤七。",
       "- 将 `project-step-files` 作为跨智能体共享事实源。",
       "- `.cursor/ai-video-workflow/` 是运行镜像。",
       "- `.cursor/skills/` 是适配器可用的技能包。",

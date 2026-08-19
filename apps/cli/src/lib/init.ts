@@ -151,7 +151,7 @@ function renderProjectReadme(projectName: string, ide: string, startFrom: StartF
     "1. 请在你的 AI 智能体中打开这个项目目录。",
     `2. 让智能体先读取 \`AGENTS.md\` 和 \`${sharedAgentDocsReadmePath}\`。`,
     `3. 从 \`${startPath}\` 开始补全${startLabel}。`,
-    startFrom === "research" ? "4. 以步骤零到步骤六的源文件作为事实源。" : "4. 以步骤一到步骤六的源文件作为事实源。",
+    startFrom === "research" ? "4. 以步骤零到步骤七的源文件作为事实源。" : "4. 以步骤一到步骤七的源文件作为事实源。",
     "",
     "## 常用命令",
     "",
