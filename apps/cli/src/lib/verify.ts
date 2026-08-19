@@ -33,6 +33,9 @@ const step4ForbiddenText = ["参考前文", "同上", "模型应自行理解剧�
 const step4QuickGuideMetaMarkers = ["导演解释", "导演意图", "镜头设计意图", "画面设计意图"];
 const step5RequiredSections = ["## 元信息", "## 平台执行设置", "## 参考素材映射", "## 可复制提示词", "## 负面约束"];
 const step5PlatformExecutionMarkers = ["默认视频平台", "目标时长", "画幅", "参考素材", "素材上传顺序", "负面约束"];
+const step4PlatformExecutionMarkers = ["## 平台执行参数", "midjourney", "--v 8.2", "--ar"];
+const step4MidjourneyForbiddenParameters = ["--cref", "--cw", "::"];
+const step4MidjourneyPromptMaxLength = 1024;
 // Template-generic negative constraints. A Step 5 file must add at least one shot-specific
 // constraint beyond these defaults, otherwise the negative block is not per-shot customized.
 const step5GenericNegativeDefaults = [
@@ -378,6 +381,51 @@ async function verifyStep4(graph: ShotGraph, issues: VerificationIssue[]): Promi
           path: relPath
         });
       }
+    }
+  }
+}
+
+async function verifyStep4PlatformExecutionSettings(
+  graph: ShotGraph,
+  defaultImagePlatform: Platform,
+  issues: VerificationIssue[]
+): Promise<void> {
+  if (defaultImagePlatform !== "midjourney") {
+    return;
+  }
+  for (const file of graph.files.filter((candidate) => candidate.step === 4)) {
+    const relPath = file.relPath;
+    const content = file.content;
+    const missingHeading = !/^##\s*平台执行参数\s*$/mu.test(content);
+    const missingMarker = missingHeading
+      ? "## 平台执行参数"
+      : step4PlatformExecutionMarkers.slice(1).find((marker) => !content.includes(marker));
+    if (missingMarker) {
+      pushIssue(issues, {
+        code: "missing-step4-platform-execution-setting",
+        message: `Step 4 must include 平台执行参数 with ${missingMarker} for midjourney`,
+        path: relPath
+      });
+      continue;
+    }
+    const promptBlock = sectionAfterHeading(content, "## 可复制提示词");
+    const promptBody = promptBlock.replace(/避免[：:][\s\S]*$/u, "").trim();
+    if (promptBody.length > step4MidjourneyPromptMaxLength) {
+      pushIssue(issues, {
+        code: "step4-midjourney-prompt-too-long",
+        message: `Step 4 midjourney prompt body exceeds ${step4MidjourneyPromptMaxLength} characters`,
+        path: relPath
+      });
+    }
+    const forbidden = step4MidjourneyForbiddenParameters.find((parameter) =>
+      parameter === "--cw" ? /\B--cw\b/u.test(content) : content.includes(parameter)
+    );
+    if (/\b--q\b/u.test(content) || forbidden) {
+      pushIssue(issues, {
+        code: "invalid-step4-midjourney-parameter",
+        message: "Step 4 midjourney prompt uses parameters unsupported in V8 (--cref / --cw / --q / ::)",
+        path: relPath
+      });
     }
   }
 }
@@ -850,6 +898,9 @@ export async function verifyProject({
   }
   if (step === undefined || step >= 4) {
     await verifyStep4(shotGraph, issues);
+    if (config?.platforms.image.default) {
+      await verifyStep4PlatformExecutionSettings(shotGraph, config.platforms.image.default, issues);
+    }
     await verifyStep3Step4Traceability(projectRoot, shotGraph, issues);
   }
   if (step === undefined || step >= 5) {

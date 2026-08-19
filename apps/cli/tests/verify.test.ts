@@ -249,6 +249,67 @@ function step5PlatformExecutionSettings(platform = "veo"): string[] {
   ];
 }
 
+async function writeStep4File(projectRoot: string, content: string): Promise<void> {
+  await fs.ensureDir(path.join(projectRoot, "04_图片提示词"));
+  await fs.writeFile(path.join(projectRoot, "04_图片提示词", "shot-01.md"), content, "utf8");
+}
+
+async function writeMidjourneyConfig(projectRoot: string): Promise<void> {
+  await fs.ensureDir(projectRoot);
+  await fs.writeFile(
+    path.join(projectRoot, "project.config.yaml"),
+    [
+      "pack: official-ai-video",
+      "ide: codex",
+      "platforms:",
+      "  image:",
+      "    default: midjourney",
+      "  video:",
+      "    default: seedance",
+      "workflow:",
+      "  enhanced_flow:",
+      "    enabled: true"
+    ].join("\n"),
+    "utf8"
+  );
+}
+
+const validMidjourneyStep4 = [
+  "# Shot 01",
+  "",
+  "## 元信息",
+  "- 镜头组：group-001",
+  "- 镜头编号：shot-001",
+  "- 对应分镜：分镜 1",
+  "",
+  "## 快速导读",
+  "- 画面内容：古代将领立于城头。",
+  "",
+  "## 中文完整版本",
+  "",
+  "参考 @将军三视图、@城墙场景图。",
+  "",
+  "一位身披玄色甲胄的古代中国将领，站立在黄昏的城墙之上，右手按剑，望向远方的平原。前中景为将领与城垛，背景为渐暗的天际线与远处群山。主光来自西侧残阳，铠甲反光与城砖阴影对比强烈，空气中有薄雾。避免使用现代物件、避免现代服饰。",
+  "",
+  "避免：",
+  "",
+  "## 可复制提示词",
+  "",
+  "epic ultra-wide cinematic shot, only one ancient Chinese general in dark armor, weathered face with a long black beard, standing on the city wall at dusk, right hand resting on a sword, looking toward the distant plain, city battlements in the foreground, darkening skyline and distant mountains in the background, dim overcast daylight with warm low sun from the west, chiaroscuro on the armor, muted earth tones with a single rust-red accent, somber and solemn mood, dramatic wide-angle composition, photorealistic film still, shot on 65mm film, anamorphic lens, extreme detail --ar 21:9 --style raw --v 8.2",
+  "",
+  "避免：modern objects, modern clothing",
+  "",
+  "## 平台执行参数",
+  "- 平台：midjourney",
+  "- 版本：--v 8.2",
+  "- 画幅：--ar 21:9",
+  "- 风格方向：实拍电影感（默认，项目可按画面风格切换为插画/水墨/像素等）",
+  "- 风格参数：--style raw",
+  "- stylize：默认 100（如写实不足可 50~100）",
+  "- 参考资产上传：执行时上传 @将军三视图 与 @城墙场景图（图生图，或 --oref 锁形象），不写死 URL",
+  "- 负面约束执行：正向描述优先，--no 仅单词级"
+].join("\n")
+
 afterEach(async () => {
   await Promise.all(tempRoots.splice(0).map((dir) => fs.remove(dir)));
 });
@@ -1503,6 +1564,82 @@ test("accepts a custom pack name in project.config.yaml", async () => {
           code: "broken-step3-step4-link",
           path: storyboardRelPath
         })
+      ])
+    );
+  });
+
+  test("reports missing Step 4 platform execution settings for midjourney image platform", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-mj-missing-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "mj-missing");
+    await writeMidjourneyConfig(projectRoot);
+    await writeStep4File(
+      projectRoot,
+      validMidjourneyStep4.replace("## 平台执行参数", "## 平台执行参数缺失占位")
+    );
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "missing-step4-platform-execution-setting" })
+      ])
+    );
+  });
+
+  test("reports V8 unsupported parameters in midjourney Step 4 prompt", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-mj-badparam-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "mj-badparam");
+    await writeMidjourneyConfig(projectRoot);
+    await writeStep4File(projectRoot, validMidjourneyStep4.replace("--v 8.2", "--v 8.2 --cref 123"));
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "invalid-step4-midjourney-parameter" })
+      ])
+    );
+  });
+
+  test("reports over-length midjourney Step 4 prompt", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-mj-long-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "mj-long");
+    await writeMidjourneyConfig(projectRoot);
+    const longBody = "only one ancient Chinese general in dark armor, ".repeat(60);
+    await writeStep4File(projectRoot, validMidjourneyStep4.replace(/epic ultra-wide[^\n]*/u, longBody.trim()));
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "step4-midjourney-prompt-too-long" })
+      ])
+    );
+  });
+
+  test("does not require platform execution settings for non-midjourney image platform", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-openai-step4-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "openai-step4");
+    await fs.ensureDir(projectRoot);
+    await fs.writeFile(
+      path.join(projectRoot, "project.config.yaml"),
+      [
+        "pack: official-ai-video",
+        "ide: codex",
+        "platforms:",
+        "  image:",
+        "    default: openai",
+        "  video:",
+        "    default: seedance",
+        "workflow:",
+        "  enhanced_flow:",
+        "    enabled: true"
+      ].join("\n"),
+      "utf8"
+    );
+    await writeStep4File(projectRoot, validMidjourneyStep4.replace("## 平台执行参数", "## 平台执行参数不存在"));
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    expect(result.issues).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "missing-step4-platform-execution-setting" })
       ])
     );
   });
