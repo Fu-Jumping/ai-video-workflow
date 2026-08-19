@@ -2,7 +2,7 @@ import fs from "fs-extra";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { DEFAULT_PACK, DEFAULT_VIDEO_PLATFORM, STEP0_FILES, STEP6_FILES, STEP_DIR_BY_NUMBER, STORY_KERNEL_FILE, activeStepDirs } from "./constants.js";
+import { DEFAULT_PACK, DEFAULT_VIDEO_PLATFORM, STEP0_FILES, STEP6_FILES, STEP7_FILES, STEP_DIR_BY_NUMBER, STORY_KERNEL_FILE, activeStepDirs } from "./constants.js";
 import { CliUserError } from "./cli-errors.js";
 import { copyDirectory } from "./fs-utils.js";
 import { validateSafeDirectoryName } from "./name-validation.js";
@@ -99,6 +99,12 @@ async function seedProjectDirectories(repoRoot: string, projectRoot: string, sta
     await writeSeededFile(
       path.join(projectRoot, "06_执行计划", file),
       await readPackTemplate(repoRoot, pack, path.join("06_执行计划", file))
+    );
+  }
+  for (const file of STEP7_FILES) {
+    await writeSeededFile(
+      path.join(projectRoot, "07_发布物料", file),
+      await readPackTemplate(repoRoot, pack, path.join("07_发布物料", file))
     );
   }
 }
