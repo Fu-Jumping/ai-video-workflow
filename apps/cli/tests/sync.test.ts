@@ -67,7 +67,7 @@ async function expectSharedAgentWorkspace(projectRoot: string): Promise<void> {
   expect(agents).toContain("project-step-files");
   expect(agents).toContain("00_前期研究");
   expect(agents).toContain("01_概念策划");
-  expect(agents).toContain("06_执行计划");
+  expect(agents).toContain("07_发布物料");
 
   const sharedReadme = await fs.readFile(path.join(projectRoot, "文档", "智能体工作区", "入口说明.md"), "utf8");
   expect(sharedReadme).toContain("ai-video-workflow 共享智能体工作区");
@@ -77,7 +77,7 @@ async function expectSharedAgentWorkspace(projectRoot: string): Promise<void> {
   expect(sharedReadme).toContain("共享智能体工作区");
   expect(sharedReadme).toContain("00_前期研究");
   expect(sharedReadme).toContain("01_概念策划");
-  expect(sharedReadme).toContain("06_执行计划");
+  expect(sharedReadme).toContain("07_发布物料");
 }
 
 function countOccurrences(content: string, value: string): number {

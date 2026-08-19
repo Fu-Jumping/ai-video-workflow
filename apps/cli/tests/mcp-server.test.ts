@@ -73,6 +73,7 @@ describe("MCP resources", () => {
         "ai-video-workflow://workflow/steps",
         "ai-video-workflow://workflow/step/1",
         "ai-video-workflow://workflow/step/6",
+        "ai-video-workflow://workflow/step/7",
         "ai-video-workflow://shots/index",
         "ai-video-workflow://shots/shot-001",
         "ai-video-workflow://handoff/project",

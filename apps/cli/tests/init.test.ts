@@ -228,6 +228,11 @@ describe("createProject", () => {
     await expect(fs.pathExists(path.join(projectRoot, "04_图片提示词", "镜头组-001"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, "05_视频提示词", "镜头组-001"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, "06_执行计划", "00_执行计划.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "07_发布物料", "00_发布总表.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "07_发布物料", "01_标题.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "07_发布物料", "02_简介正文.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "07_发布物料", "03_话题标签.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "07_发布物料", "04_封面文案.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, ".codex", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, ".codex", "skills", "film-workflow", "SKILL.md"))).resolves.toBe(true);
 

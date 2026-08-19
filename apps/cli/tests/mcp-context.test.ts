@@ -76,14 +76,15 @@ describe("MCP read-only context", () => {
 
     expect(context.project.pack).toBe("official-ai-video");
     expect(context.project.projectRoot).toBe(".");
-    expect(context.steps.map((step) => step.step)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(context.steps.map((step) => step.step)).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(context.steps.map((step) => step.directory)).toEqual([
       "01_概念策划",
       "02_世界设定",
       "03_分镜脚本",
       "04_图片提示词",
       "05_视频提示词",
-      "06_执行计划"
+      "06_执行计划",
+      "07_发布物料"
     ]);
     expect(context.verificationCommands).toEqual(
       expect.arrayContaining([
@@ -110,7 +111,7 @@ describe("MCP read-only context", () => {
       pack: "official-ai-video"
     });
 
-    expect(context.steps.map((step) => step.step)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(context.steps.map((step) => step.step)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
     expect(context.steps[0]).toEqual({ step: 0, label: "前期研究", directory: "00_前期研究" });
     expect(context.editBoundaries.research).toContain("步骤零前期研究");
   });
