@@ -26,8 +26,10 @@ import {
   productionStatusBasePath
 } from "./routes.js";
 import { obsidianProperties, obsidianPropertyValues } from "./properties.js";
+import { deviationScopeMatches, type DeviationsReadResult } from "../deviations.js";
 import { formatReferenceAssets } from "../reference-assets.js";
 import type { ReferenceAssetToken } from "../reference-assets.js";
+import type { WorkflowDeviation, WorkflowShotMode } from "../types.js";
 
 function uniqueShotIds(sourceFiles: ObsidianSourceFile[]): string[] {
   return [...new Set(sourceFiles.map((file) => file.shotId).filter((shotId): shotId is string => Boolean(shotId)))].sort();
@@ -273,12 +275,29 @@ function renderShotEditEntry(): string {
 - 需要智能体修改源文件时：[[${agentHandoffPath}#2. 单镜头交接|智能体交接]]`;
 }
 
-function renderShotHub(shotId: string, shotFiles: ObsidianSourceFile[], allSourceFiles: ObsidianSourceFile[], shotIds: string[]): ObsidianGeneratedFile {
+function renderShotHub(
+  shotId: string,
+  shotFiles: ObsidianSourceFile[],
+  allSourceFiles: ObsidianSourceFile[],
+  shotIds: string[],
+  deviationsContext: DeviationsReadResult
+): ObsidianGeneratedFile {
   const sourcePath = shotFiles.find((file) => file.sourceKind === "storyboard")?.sourcePath ?? shotFiles[0]?.sourcePath;
   const sourcePathLine = sourcePath ? `${obsidianProperties.sourcePath}: ${sourcePath}\n` : "";
   const order = shotOrder(shotId);
   const shotOrderLine = order === undefined ? "" : `${obsidianProperties.shotOrder}: ${order}\n`;
   const displayName = shotDisplayName(shotId, allSourceFiles);
+  const shotDeviations = deviationsForShot(deviationsContext, shotFiles);
+  const shotModes = shotModesForShot(deviationsContext, shotId);
+  const acceptedDeviationLines = [
+    ...shotDeviations.map(
+      (deviation) => `- ${deviation.rule}${deviation.scope ? ` [${deviation.scope}]` : ""}${deviation.reason ? ` — ${deviation.reason}` : ""}`
+    ),
+    ...shotModes.map((shot) => `- ${shot.id}: ${shot.mode}${shot.reason ? ` — ${shot.reason}` : ""}`)
+  ];
+  const acceptedDeviationsSection = acceptedDeviationLines.length > 0
+    ? `\n### 7.1 已接受偏离\n\n${acceptedDeviationLines.join("\n")}\n`
+    : "";
   const storyboard = fileForKind(shotFiles, "storyboard");
   const imagePrompt = fileForKind(shotFiles, "image-prompt");
   const videoPrompt = fileForKind(shotFiles, "video-prompt");
@@ -364,7 +383,7 @@ ${embeddedFileForKind(shotFiles, "video-prompt", "视频提示词")}
 - Step 5 已延续同镜头 Step 4 的角色三视图和场景图。
 - Step 5 已写清默认视频平台、输入方式、开场参考、时长上限、画幅和负面约束。
 - 执行前打开 [[${productionBoardPath}|制作看板]]。
-
+${acceptedDeviationsSection}
 ${renderShotEditEntry()}
 
 ## 9. 数据视图
@@ -491,7 +510,46 @@ function renderCommunityPluginRecipes(): ObsidianGeneratedFile {
   };
 }
 
-export function renderDashboardFiles(projectName: string, sourceFiles: ObsidianSourceFile[], includePluginRecipes: boolean): ObsidianGeneratedFile[] {
+function renderDeviationsMarkdown(context: DeviationsReadResult): string {
+  const lines: string[] = [];
+  if (context.mode !== "standard" || context.deviations.length > 0 || context.shots.length > 0) {
+    lines.push("## 7. 已接受偏离与流程模式", "");
+    lines.push(`- 流程模式：${context.mode}`);
+  }
+  if (context.deviations.length > 0) {
+    lines.push("", "### 7.1 已登记偏离", "");
+    for (const deviation of context.deviations) {
+      const scope = deviation.scope ? ` [${deviation.scope}]` : "";
+      const reason = deviation.reason ? ` — ${deviation.reason}` : "";
+      lines.push(`- ${deviation.rule}${scope}${reason}`);
+    }
+  }
+  if (context.shots.length > 0) {
+    lines.push("", "### 7.2 镜头模式", "");
+    for (const shot of context.shots) {
+      const reason = shot.reason ? ` — ${shot.reason}` : "";
+      lines.push(`- ${shot.id}: ${shot.mode}${reason}`);
+    }
+  }
+  return lines.length > 0 ? `${lines.join("\n")}\n` : "";
+}
+
+function deviationsForShot(context: DeviationsReadResult, shotFiles: ObsidianSourceFile[]): WorkflowDeviation[] {
+  const paths = shotFiles.map((file) => file.sourcePath.replace(/\\/g, "/"));
+  return context.deviations.filter((deviation) => deviation.scope && paths.some((filePath) => deviationScopeMatches(deviation.scope, filePath)));
+}
+
+function shotModesForShot(context: DeviationsReadResult, shotId: string): WorkflowShotMode[] {
+  return context.shots.filter((shot) => shot.id === shotId);
+}
+
+
+export function renderDashboardFiles(
+  projectName: string,
+  sourceFiles: ObsidianSourceFile[],
+  includePluginRecipes: boolean,
+  deviationsContext: DeviationsReadResult = { mode: "standard", deviations: [], shots: [], issues: [] }
+): ObsidianGeneratedFile[] {
   const shotIds = uniqueShotIds(sourceFiles);
   const shotGroupIds = uniqueShotGroupIds(sourceFiles);
   const shotLinks = shotIds.length > 0
@@ -514,6 +572,7 @@ ${stageReviewLinks}
 发现跨阶段不一致时，再进入 [[${shotLookupIndexPath}|按镜头联查]]。
 `
   };
+  const deviationsMarkdown = renderDeviationsMarkdown(deviationsContext);
   const files: ObsidianGeneratedFile[] = [
     {
       vaultPath: projectionInfoPath,
@@ -596,6 +655,8 @@ ${shotLinks}
 ### 6.6 镜头流水线
 
 ![[${shotPipelineCanvasPath}]]
+
+${deviationsMarkdown}
 `
     },
     {
@@ -713,7 +774,7 @@ tags:
     ...stageReviewHubs,
     renderAgentHandoffPage(shotIds, sourceFiles),
     ...shotGroupIds.map((groupId) => renderShotGroupHub(groupId, sourceFiles)),
-    ...shotIds.map((shotId) => renderShotHub(shotId, sourceFiles.filter((file) => file.shotId === shotId), sourceFiles, shotIds))
+    ...shotIds.map((shotId) => renderShotHub(shotId, sourceFiles.filter((file) => file.shotId === shotId), sourceFiles, shotIds, deviationsContext))
   ];
   if (includePluginRecipes) {
     files.push(renderCommunityPluginRecipes());

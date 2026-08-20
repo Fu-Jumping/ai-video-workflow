@@ -26,6 +26,7 @@ import type {
 import { isDirectObsidianUiConfigPath, renderObsidianUiConfigFiles } from "./ui-config.js";
 import { resolveInProjectObsidianView } from "../view-layer.js";
 import { CliUserError } from "../cli-errors.js";
+import { readDeviations } from "../deviations.js";
 import { readProjectConfig } from "../project-config.js";
 import { assertExistingDirectory } from "../project-root.js";
 import { verifyProject } from "../verify.js";
@@ -468,9 +469,10 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
       });
     }
 
+    const deviationContext = await readDeviations(projectRoot);
     const files = [
       ...workflowFiles,
-      ...renderDashboardFiles(projectName, sourceFiles, options.includePluginRecipes),
+      ...renderDashboardFiles(projectName, sourceFiles, options.includePluginRecipes, deviationContext),
       ...renderBaseFiles(),
       renderWorkflowCanvas(sourceFiles),
       renderShotPipelineCanvas(sourceFiles),

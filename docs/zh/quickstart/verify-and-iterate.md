@@ -36,3 +36,5 @@ ai-video-workflow verify --project <project-path> --ide <ide> --step 3
 工具目前对"上游修改的下游影响"提供两种支持：结构契约校验（`verify` 会抓住 @ 资产继承断裂、跨步链接断裂、编号冲突）和 Obsidian 增量导出（只更新受影响的投影，`updated/unchanged/orphaned` 一目了然）。**语义层面**（人物取舍、色彩纪律、动作指纹、视线落点、时长值一致性）没有机器检查，需要按 [影响面排查手册](../workflow/impact-analysis.md) 人工排查。
 
 整体推翻重写请阅读 [源层重写操作手册](../workflow/rewrite-handbook.md)。
+
+如果某些镜头/项目确实不需要完全按标准流程走，请使用 [受支持偏离：deviations.yaml](../workflow/supported-deviations.md) 显式登记偏离，而不是静默跳过或手工绕过校验。

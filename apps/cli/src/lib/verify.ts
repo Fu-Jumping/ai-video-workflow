@@ -11,6 +11,7 @@ import {
   sharedAgentEntryPath
 } from "./agent-workspace.js";
 import { STEP0_FILES, STEP6_FILES, STEP7_FILES, STEP_DIR_BY_NUMBER, researchStepEnabled } from "./constants.js";
+import { applyAcceptedDeviations, readDeviations } from "./deviations.js";
 import { readProjectConfig } from "./project-config.js";
 import { projectRootIssues } from "./project-root.js";
 import {
@@ -931,7 +932,8 @@ async function verifyNestedProjects(projectRoot: string, issues: VerificationIss
 export async function verifyProject({
   projectRoot,
   ide,
-  step
+  step,
+  strict
 }: {
   projectRoot: string;
   ide: Ide;
@@ -942,6 +944,11 @@ export async function verifyProject({
    * are skipped, turning the command into a per-step gate.
    */
   step?: number;
+  /**
+   * When true, ignore registered deviations in deviations.yaml and report all matching issues.
+   * Defaults to false: explicitly registered deviations are accepted and shown as accepted.
+   */
+  strict?: boolean;
 }): Promise<VerificationResult> {
   const issues: VerificationIssue[] = [];
   const rootIssues = await projectRootIssues(projectRoot);
@@ -1009,5 +1016,28 @@ export async function verifyProject({
   await verifyRelativeMarkdownLinkTargets(projectRoot, issues, step);
   await verifyIdeRuntime(projectRoot, ide, issues);
   await verifySharedAgentWorkspace(projectRoot, ide, issues);
-  return { ok: issues.length === 0, issues };
+
+  const { mode, deviations, shots, issues: deviationIssues } = await readDeviations(projectRoot);
+  for (const issue of deviationIssues) {
+    pushIssue(issues, issue);
+  }
+  const shotByPath = new Map<string, string>();
+  for (const file of shotGraph.files) {
+    if (file.shotId) {
+      shotByPath.set(normalizeProjectRelPath(file.relPath), file.shotId);
+    }
+  }
+  const { issues: finalIssues, acceptedDeviations } = applyAcceptedDeviations(
+    issues,
+    deviations,
+    strict ?? false,
+    mode,
+    shots,
+    shotByPath
+  );
+  return {
+    ok: finalIssues.length === 0,
+    issues: finalIssues,
+    ...(acceptedDeviations.length > 0 ? { acceptedDeviations } : {})
+  };
 }

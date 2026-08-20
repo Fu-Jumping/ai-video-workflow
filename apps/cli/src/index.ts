@@ -1,10 +1,21 @@
 #!/usr/bin/env node
-import { input, select } from "@inquirer/prompts";
+import { confirm, input, select } from "@inquirer/prompts";
 import { Command } from "commander";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { DEFAULT_PACK, DEFAULT_VIDEO_PLATFORM, SUPPORTED_IDES, SUPPORTED_PLATFORMS } from "./lib/constants.js";
+import {
+  addDeviation,
+  readDeviations,
+  removeDeviation,
+  removeShotMode,
+  renderDeviations,
+  setShotMode,
+  setWorkflowMode,
+  WORKFLOW_MODES
+} from "./lib/deviations.js";
+import type { WorkflowMode } from "./lib/types.js";
 import { diagnoseProject } from "./lib/doctor.js";
 import { createProject, renderInitNextSteps } from "./lib/init.js";
 import { runCliAction } from "./lib/cli-errors.js";
@@ -89,6 +100,16 @@ function parsePositiveInteger(value: string | undefined, label: string, defaultV
   return parsed;
 }
 
+function parseWorkflowMode(value: string | undefined): WorkflowMode | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!WORKFLOW_MODES.includes(value as WorkflowMode)) {
+    throw new Error(`Invalid workflow mode: ${value}. Expected one of: ${WORKFLOW_MODES.join(", ")}`);
+  }
+  return value as WorkflowMode;
+}
+
 program
   .command("init")
   .description("Create a project with the official AI video workflow starter")
@@ -162,6 +183,7 @@ program
   .requiredOption("--project <path>")
   .requiredOption("--ide <ide>")
   .option("--step <n>", "Verify only completed steps up to N (0-7); skips checks that require artifacts from later steps")
+  .option("--strict", "Ignore registered deviations in deviations.yaml and report all matching issues", false)
   .action((options) => runCliAction(async () => {
     const ide = parseIde(options.ide);
     if (!ide) {
@@ -175,12 +197,53 @@ program
       }
       step = parsed;
     }
-    const result = await verifyProject({
-      projectRoot: path.resolve(options.project),
+    const projectRoot = path.resolve(options.project);
+    let result = await verifyProject({
+      projectRoot,
       ide,
-      pack: await readProjectPack(path.resolve(options.project)),
-      step
+      pack: await readProjectPack(projectRoot),
+      step,
+      strict: options.strict === true
     });
+    if (!result.ok && !options.strict && process.stdin.isTTY && process.stdout.isTTY) {
+      const toAdd: Array<{ rule: string; scope?: string }> = [];
+      for (const issue of result.issues) {
+        const answer = await confirm({
+          message: `将以下问题登记为已接受偏离？\n  ${issue.code}: ${issue.message}${issue.path ? ` (${issue.path})` : ""}`,
+          default: false
+        });
+        if (answer) {
+          toAdd.push({ rule: issue.code, scope: issue.path });
+        }
+      }
+      if (toAdd.length > 0) {
+        for (const entry of toAdd) {
+          try {
+            await addDeviation(projectRoot, {
+              rule: entry.rule,
+              scope: entry.scope,
+              reason: "interactively accepted",
+              confirmed_by: "user"
+            });
+          } catch {
+            // Ignore duplicates or race conditions; re-verify below will reflect the final state.
+          }
+        }
+        result = await verifyProject({
+          projectRoot,
+          ide,
+          pack: await readProjectPack(projectRoot),
+          step,
+          strict: false
+        });
+      }
+    }
+    if (result.acceptedDeviations?.length) {
+      console.log(`Accepted deviations (${result.acceptedDeviations.length}):`);
+      for (const issue of result.acceptedDeviations) {
+        console.log(`- ${issue.code}: ${issue.message}${issue.path ? ` (${issue.path})` : ""}`);
+      }
+    }
     if (!result.ok) {
       for (const issue of result.issues) {
         console.error(`- ${issue.code}: ${issue.message}${issue.path ? ` (${issue.path})` : ""}`);
@@ -212,6 +275,105 @@ program
       process.exitCode = 1;
     }
   }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+const deviation = program.command("deviation").description("Manage accepted workflow deviations");
+
+deviation
+  .command("add")
+  .description("Register an accepted deviation so verify does not treat it as a failure")
+  .requiredOption("--project <path>")
+  .requiredOption("--rule <code>", "Verification issue code to accept, e.g. missing-character-triview")
+  .option("--scope <path>", "Project-relative file path, directory prefix, or path#anchor to narrow the deviation")
+  .option("--reason <text>", "Why this deviation is accepted")
+  .option("--by <text>", "Who confirmed the deviation")
+  .action((options) => runCliAction(async () => {
+    const projectRoot = path.resolve(options.project);
+    const deviations = await addDeviation(projectRoot, {
+      rule: options.rule,
+      scope: options.scope,
+      reason: options.reason,
+      confirmed_by: options.by
+    });
+    console.log(`Added deviation: ${options.rule}${options.scope ? ` [${options.scope}]` : ""}`);
+    console.log(renderDeviations(deviations));
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+deviation
+  .command("remove")
+  .description("Remove a previously accepted deviation")
+  .requiredOption("--project <path>")
+  .requiredOption("--rule <code>")
+  .option("--scope <path>", "Must match the scope used when adding")
+  .action((options) => runCliAction(async () => {
+    const projectRoot = path.resolve(options.project);
+    const deviations = await removeDeviation(projectRoot, options.rule, options.scope);
+    console.log(`Removed deviation: ${options.rule}${options.scope ? ` [${options.scope}]` : ""}`);
+    console.log(renderDeviations(deviations));
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+deviation
+  .command("list")
+  .description("List registered deviations")
+  .requiredOption("--project <path>")
+  .action((options) => runCliAction(async () => {
+    const projectRoot = path.resolve(options.project);
+    const result = await readDeviations(projectRoot);
+    for (const issue of result.issues) {
+      console.error(`- ${issue.code}: ${issue.message}`);
+      process.exitCode = 1;
+    }
+    if (result.issues.length > 0) {
+      return;
+    }
+    console.log(renderDeviations(result));
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+deviation
+  .command("set-mode")
+  .description("Set the project workflow mode: standard, scene-basis, minimal-video, or hybrid")
+  .requiredOption("--project <path>")
+  .requiredOption("--mode <mode>", "standard, scene-basis, minimal-video, or hybrid")
+  .action((options) => runCliAction(async () => {
+    const mode = parseWorkflowMode(options.mode);
+    if (!mode) {
+      throw new Error("Missing --mode");
+    }
+    const projectRoot = path.resolve(options.project);
+    const result = await setWorkflowMode(projectRoot, mode);
+    console.log(`Set workflow mode: ${mode}`);
+    console.log(renderDeviations(result));
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+deviation
+  .command("set-shot-mode")
+  .description("Set a per-shot workflow mode")
+  .requiredOption("--project <path>")
+  .requiredOption("--shot <id>", "Shot id such as shot-002")
+  .requiredOption("--mode <mode>", "standard, scene-basis, minimal-video, or hybrid")
+  .option("--reason <text>", "Why this shot uses a different mode")
+  .action((options) => runCliAction(async () => {
+    const mode = parseWorkflowMode(options.mode);
+    if (!mode) {
+      throw new Error("Missing --mode");
+    }
+    const projectRoot = path.resolve(options.project);
+    const result = await setShotMode(projectRoot, options.shot, mode, options.reason);
+    console.log(`Set shot mode: ${options.shot} -> ${mode}`);
+    console.log(renderDeviations(result));
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+deviation
+  .command("remove-shot-mode")
+  .description("Remove a per-shot workflow mode")
+  .requiredOption("--project <path>")
+  .requiredOption("--shot <id>")
+  .action((options) => runCliAction(async () => {
+    const projectRoot = path.resolve(options.project);
+    const result = await removeShotMode(projectRoot, options.shot);
+    console.log(`Removed shot mode: ${options.shot}`);
+    console.log(renderDeviations(result));
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
 
 program
   .command("mcp-context")

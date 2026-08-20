@@ -98,7 +98,9 @@ export type IssueCode =
   | "obsidian-manifest-source-mismatch"
   | "obsidian-view-stale"
   | "obsidian-vault-not-directory"
-  | "unsafe-obsidian-force-target";
+  | "unsafe-obsidian-force-target"
+  | "invalid-deviations-yaml"
+  | "invalid-deviation-entry";
 
 export interface ProjectConfig {
   pack: string;
@@ -140,7 +142,24 @@ export interface VerificationIssue {
   path?: string;
 }
 
+export type WorkflowMode = "standard" | "scene-basis" | "minimal-video" | "hybrid";
+
+export interface WorkflowDeviation {
+  rule: string;
+  scope?: string;
+  reason?: string;
+  confirmed_by?: string;
+  confirmed_at?: string;
+}
+
+export interface WorkflowShotMode {
+  id: string;
+  mode: WorkflowMode;
+  reason?: string;
+}
+
 export interface VerificationResult {
   ok: boolean;
   issues: VerificationIssue[];
+  acceptedDeviations?: VerificationIssue[];
 }
