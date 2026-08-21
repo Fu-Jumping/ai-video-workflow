@@ -32,8 +32,8 @@ import {
 import type { ObsidianProjectionManifest, ObsidianProjectionManifestEntry } from "./types.js";
 
 const requiredDashboardMarkers: Record<string, string[]> = {
-  [projectHomePath]: ["## 1. 打开路线", "## 2. 审阅入口", "## 3. 镜头组入口", "## 4. 镜头入口", "## 5. 项目状态", "### 6.1 画布导航"],
-  [reviewOverviewPath]: ["## 1. 需要关注", "## 2. 执行就绪", "## 3. 审阅地图", "## 4. 镜头审阅画布"],
+  [projectHomePath]: ["## 1. 打开路线", "## 2. 审阅入口", "## 3. 镜头审阅", "## 4. 项目状态", "## 5. 工具入口"],
+  [reviewOverviewPath]: ["## 1. 需要关注", "## 2. 异常镜头"],
   [shotLookupIndexPath]: ["## 1. 镜头组入口", "## 2. 镜头入口", "## 3. 镜头表", "## 4. 镜头进度", "## 5. 沉浸式审阅表"],
   [productionBoardPath]: ["## 1. 执行就绪", "## 2. 制作状态", "## 3. 镜头进度", "## 4. 导航"]
 };
@@ -62,14 +62,12 @@ const requiredWorkspacePaths = [projectHomePath, stageReviewOverviewPath, review
 const requiredShotReviewMarkers = [
   "## 1. 快速审阅",
   "## 2. 审阅路径",
-  "## 3. 参考资产",
-  "## 4. 源文件序列",
-  "## 5. 画面连续性",
-  "## 6. 视频提示词",
-  "## 7. 执行检查",
-  "## 8. 修改入口",
-  "## 9. 数据视图",
-  "## 10. 审阅画布"
+  "## 3. 源文件序列",
+  "## 4. 画面连续性",
+  "## 5. 视频提示词",
+  "## 6. 执行检查",
+  "## 7. 修改入口",
+  "## 8. 审阅画布"
 ];
 const absoluteLinkPattern = /([A-Za-z]:\\|[A-Za-z]:\/|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
 const unsafeLocalPathStringPattern = /(^|[^A-Za-z])[A-Za-z]:[\\/]|file:\/\/|vscode:\/\//i;
@@ -357,7 +355,7 @@ async function verifyStageReviewHubs(vaultRoot: string, files: string[], issues:
       continue;
     }
     const content = await fs.readFile(fullPath, "utf8");
-    for (const marker of ["## 1. 本阶段范围", "## 2. 审核顺序", "## 3. 本阶段检查", "## 4. 上下游导航"]) {
+    for (const marker of ["## 1. 审核顺序", "## 2. 本阶段检查", "## 3. 上下游导航"]) {
       if (!content.includes(marker)) {
         pushIssue(issues, { code: "invalid-obsidian-dashboard", message: `Stage review page is missing marker: ${marker}`, path: hubPath });
       }

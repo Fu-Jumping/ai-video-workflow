@@ -4,7 +4,7 @@ import { formatReferenceAssets } from "../reference-assets.js";
 import { shotGroupDirectoryName } from "../shot-graph.js";
 import { sanitizeVaultFileName, toVaultPath } from "./paths.js";
 import { obsidianProperties, obsidianPropertyValues } from "./properties.js";
-import { productionBoardPath, projectHomePath, reviewOverviewPath, singleShotPagePath, stageReviewPath, stepDisplayDirectory } from "./routes.js";
+import { singleShotPagePath, stageReviewPath, stepDisplayDirectory } from "./routes.js";
 import type { ObsidianSourceFile } from "./types.js";
 
 const stepNames: Record<number, string> = {
@@ -93,10 +93,6 @@ function shotDisplayName(sourceFile: ObsidianSourceFile, sourceFiles: ObsidianSo
   const storyboard = shotFiles.find((file) => file.sourceKind === "storyboard");
   const title = storyboard?.headingTitle ?? storyboard?.title ?? sourceFile.headingTitle ?? sourceFile.title;
   return title?.trim() || sourceFile.shotId;
-}
-
-function nextAction(sourceFile: ObsidianSourceFile): string {
-  return obsidianPropertyValues.nextAction[sourceFile.sourceKind];
 }
 
 function shotIndexLink(sourceFile: ObsidianSourceFile, sourceFiles: ObsidianSourceFile[] = [sourceFile]): string | undefined {
@@ -222,18 +218,14 @@ export function renderFrontmatter(sourceFile: ObsidianSourceFile, projectName: s
   const lines = [
     "---",
     `${obsidianProperties.projectionGenerated}: ${obsidianPropertyValues.yes}`,
-    `${obsidianProperties.workflowPack}: official-ai-video`,
-    `${obsidianProperties.project}: ${projectName}`,
     `${obsidianProperties.title}: ${yamlString(noteTitle(sourceFile))}`,
-    `${obsidianProperties.nextAction}: ${nextAction(sourceFile)}`,
     `${obsidianProperties.sourcePath}: ${sourceFile.sourcePath}`,
     `${obsidianProperties.sourceKind}: ${obsidianPropertyValues.sourceKind[sourceFile.sourceKind]}`,
     `${obsidianProperties.step}: ${sourceFile.step}`,
     `${obsidianProperties.stepName}: ${stepNames[sourceFile.step] ?? obsidianPropertyValues.sourceKind[sourceFile.sourceKind]}`,
     `${obsidianProperties.stageGroup}: ${obsidianPropertyValues.stageGroup[stageGroup]}`,
     `${obsidianProperties.reviewStatus}: ${obsidianPropertyValues.reviewStatus[reviewStatus(sourceFile)]}`,
-    `${obsidianProperties.executionStatus}: ${obsidianPropertyValues.executionStatus[executionStatus(sourceFile)]}`,
-    `${obsidianProperties.needsAttention}: ${obsidianPropertyValues.no}`
+    `${obsidianProperties.executionStatus}: ${obsidianPropertyValues.executionStatus[executionStatus(sourceFile)]}`
   ];
   if (sourceFile.shotId) {
     lines.push(`${obsidianProperties.shotId}: ${sourceFile.shotId}`);
@@ -263,9 +255,8 @@ export function renderGeneratedWorkflowNote(
   projectName: string,
   sourceFiles: ObsidianSourceFile[] = [sourceFile]
 ): string {
-  const shotLink = sourceFile.shotId ? ` · 镜头：${shotIndexLink(sourceFile, sourceFiles)}` : "";
   const navigation = [
-    `> 源文件：\`${sourceFile.sourcePath}\` · [[${projectHomePath}|首页]] · [[${reviewOverviewPath}|审阅总览]] · [[${productionBoardPath}|制作看板]]${shotLink}`
+    `> 源文件：\`${sourceFile.sourcePath}\``
   ];
   const body = rewriteSourceMarkdownLinks(stripFrontmatter(originalContent).trim(), sourceFile, sourceFiles);
 

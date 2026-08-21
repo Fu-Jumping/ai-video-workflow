@@ -455,7 +455,7 @@ describe("verifyObsidianVault", () => {
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
     const shotReviewPath = path.join(outRoot, "02_按镜头联查", "单镜头", "shot-001.md");
     const content = await fs.readFile(shotReviewPath, "utf8");
-    const nextContent = content.replace("## 6. 视频提示词", "## 6. 提示词桥接");
+    const nextContent = content.replace("## 5. 视频提示词", "## 5. 提示词桥接");
     await fs.writeFile(shotReviewPath, nextContent, "utf8");
     const manifest = (await readProjectionManifest(outRoot)) as ObsidianProjectionManifest;
     await fs.writeFile(

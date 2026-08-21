@@ -24,3 +24,7 @@ USER.md
 soul.md
 user.md
 memory/
+
+# LibTV adapter local surfaces
+.libtv/
+outputs/

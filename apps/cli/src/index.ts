@@ -46,6 +46,7 @@ import {
 import { syncProject } from "./lib/sync.js";
 import { verifyProject } from "./lib/verify.js";
 import { assertSingleObsidianTarget, resolveInProjectObsidianView } from "./lib/view-layer.js";
+import { registerLibTvCommands } from "./lib/libtv/register.js";
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -56,7 +57,9 @@ async function readProjectPack(projectRoot: string): Promise<string> {
 
 const program = new Command();
 program.name("ai-video-workflow").description("AI video workflow CLI");
+program.version("0.1.0", "-V, --version", "显示版本号");
 program.option("--debug", "Print internal stack traces for CLI errors", false);
+registerLibTvCommands(program);
 
 const obsidianOperationStatuses: ObsidianExportOperationStatus[] = [
   "created",
@@ -449,7 +452,7 @@ program
   .option("--force", "Overwrite the output directory if it already contains files", false)
   .option("--dry-run", "Print planned Obsidian export operations without writing files", false)
   .option("--include-obsidian-ui", "Include optional Obsidian UI suggestion files without overwriting existing user config", false)
-  .option("--no-plugin-recipes", "Skip optional community plugin recipe notes")
+  .option("--plugin-recipes", "Include optional community plugin recipe notes", false)
   .action((options) => runCliAction(async () => {
     assertSingleObsidianTarget({
       outRoot: options.out,
@@ -462,7 +465,7 @@ program
       projectRoot,
       outRoot,
       force: options.force,
-      includePluginRecipes: options.pluginRecipes,
+      includePluginRecipes: options.pluginRecipes === true,
       includeObsidianUi: options.includeObsidianUi,
       dryRun: options.dryRun,
       inProjectView: options.inProjectView
@@ -539,7 +542,7 @@ program
   .option("--ide <ide>", "AI IDE target to sync before rebuilding; defaults to project.config.yaml")
   .option("--dry-run", "Print planned cleanup and export operations without writing files", false)
   .option("--include-obsidian-ui", "Include optional Obsidian UI suggestion files without overwriting existing user config", false)
-  .option("--no-plugin-recipes", "Skip optional community plugin recipe notes")
+  .option("--plugin-recipes", "Include optional community plugin recipe notes", false)
   .option("--skip-sync", "Skip IDE runtime sync before rebuilding the view", false)
   .option("--kind <kind>", "Only rebuild generated files by kind; repeat or comma-separate values", collectRepeatedOption)
   .option("--step <step>", "Only rebuild generated files for Step 0-7; repeat or comma-separate values", collectRepeatedOption)
@@ -561,7 +564,7 @@ program
       ide,
       dryRun: options.dryRun,
       includeObsidianUi: options.includeObsidianUi,
-      includePluginRecipes: options.pluginRecipes,
+      includePluginRecipes: options.pluginRecipes === true,
       skipSync: options.skipSync,
       filter
     });

@@ -124,19 +124,15 @@ function renderStageReviewHub(step: number, sourceFiles: ObsidianSourceFile[], a
     vaultPath: stageReviewHubPath(step),
     content: `# ${stageReviewPath(step).split("/").at(-1)}审核
 
-## 1. 本阶段范围
-
-当前阶段按工作流顺序审核；先确认阶段整体成立，再按镜头组和镜头顺序从头到尾检查。
-
-## 2. 审核顺序
+## 1. 审核顺序
 
 ${sequence}
 
-## 3. 本阶段检查
+## 2. 本阶段检查
 
 ${stageReviewCheckList(step)}
 
-## 4. 上下游导航
+## 3. 上下游导航
 
 ${previous}
 ${next}
@@ -270,7 +266,7 @@ function renderShotHandoffEntry(shotId: string, shotIndex: number, shotFiles: Ob
 }
 
 function renderShotEditEntry(): string {
-  return `## 8. 修改入口
+  return `## 7. 修改入口
 
 - 需要智能体修改源文件时：[[${agentHandoffPath}#2. 单镜头交接|智能体交接]]`;
 }
@@ -355,28 +351,23 @@ ${groupTag}  - ai-video/type/index
 - 审阅地图：[[${reviewMapCanvasPath}|审阅地图]]
 ${groupNavigation}${shotNavigation(shotId, shotIds, allSourceFiles)}
 
-## 3. 参考资产
-
-- 必带参考资产：${referenceAssets}
-- 使用口径：图片提示词中统一写成 \`@xx三视图\` / \`@xx场景图\`。
-
-## 4. 源文件序列
+## 3. 源文件序列
 
 ${embeddedFileForKind(shotFiles, "storyboard", "分镜脚本")}
 
-## 5. 画面连续性
+## 4. 画面连续性
 
 审阅步骤四图片提示词连续性时，以步骤三分镜画面为参照。
 
 ${embeddedFilesForKind(shotFiles, "image-prompt", "图片提示词")}
 
-## 6. 视频提示词
+## 5. 视频提示词
 
 检查步骤五视频提示词是否保留步骤四视觉画面，并且只增加运动、时长、镜头行为和平台执行设置。
 
 ${embeddedFileForKind(shotFiles, "video-prompt", "视频提示词")}
 
-## 7. 执行检查
+## 6. 执行检查
 
 - 分镜脚本、图片提示词和视频提示词逐镜头对齐。
 - Step 4 已携带本页列出的必带参考资产。
@@ -386,17 +377,7 @@ ${embeddedFileForKind(shotFiles, "video-prompt", "视频提示词")}
 ${acceptedDeviationsSection}
 ${renderShotEditEntry()}
 
-## 9. 数据视图
-
-### 9.1 镜头记录
-
-![[${shotBasePath}#镜头表]]
-
-### 9.2 进度视图
-
-![[${shotBasePath}#镜头进度]]
-
-## 10. 审阅画布
+## 8. 审阅画布
 
 ![[${reviewCanvasPath}]]
 `
@@ -513,11 +494,11 @@ function renderCommunityPluginRecipes(): ObsidianGeneratedFile {
 function renderDeviationsMarkdown(context: DeviationsReadResult): string {
   const lines: string[] = [];
   if (context.mode !== "standard" || context.deviations.length > 0 || context.shots.length > 0) {
-    lines.push("## 7. 已接受偏离与流程模式", "");
+    lines.push("## 6. 已接受偏离与流程模式", "");
     lines.push(`- 流程模式：${context.mode}`);
   }
   if (context.deviations.length > 0) {
-    lines.push("", "### 7.1 已登记偏离", "");
+    lines.push("", "### 6.1 已登记偏离", "");
     for (const deviation of context.deviations) {
       const scope = deviation.scope ? ` [${deviation.scope}]` : "";
       const reason = deviation.reason ? ` — ${deviation.reason}` : "";
@@ -525,7 +506,7 @@ function renderDeviationsMarkdown(context: DeviationsReadResult): string {
     }
   }
   if (context.shots.length > 0) {
-    lines.push("", "### 7.2 镜头模式", "");
+    lines.push("", "### 6.2 镜头模式", "");
     for (const shot of context.shots) {
       const reason = shot.reason ? ` — ${shot.reason}` : "";
       lines.push(`- ${shot.id}: ${shot.mode}${reason}`);
@@ -600,61 +581,36 @@ ${stageReviewLinks}
 - [[${productionBoardPath}|制作看板]]
 - [[${agentHandoffPath}|智能体交接]]
 - [[${notesIndexLink}|用户笔记]]
-- [[${reviewMapCanvasPath}|审阅地图]]
-- [[${workflowCanvasPath}|流程图]]
-- [[${shotPipelineCanvasPath}|镜头流水线]]
 
-## 3. 镜头组入口
+## 3. 镜头审阅
 
+- [[${shotLookupIndexPath}|按镜头联查]]
 ${shotGroupLinks}
 
-## 4. 镜头入口
+## 4. 项目状态
 
-${shotLinks}
-
-## 5. 项目状态
-
-### 5.1 审阅队列
+### 4.1 审阅队列
 
 ![[${workflowBasePath}#审阅队列]]
 
-### 5.2 镜头进度
+### 4.2 镜头进度
 
 ![[${shotBasePath}#镜头进度]]
 
-### 5.3 执行就绪
+### 4.3 执行就绪
 
 ![[${productionStatusBasePath}#执行就绪]]
 
-## 6. 画布与数据
+## 5. 工具入口
 
-### 6.1 画布导航
-
+- [[${productionBoardPath}|制作看板]]
+- [[${agentHandoffPath}|智能体交接]]
 - [[${reviewMapCanvasPath}|审阅地图]]
 - [[${workflowCanvasPath}|流程图]]
 - [[${shotPipelineCanvasPath}|镜头流水线]]
-
-### 6.2 数据表入口
-
 - [[${workflowBasePath}|流程文件表]]
 - [[${shotBasePath}|镜头表]]
 - [[${productionStatusBasePath}|制作状态表]]
-
-### 6.3 流程文件
-
-![[${workflowBasePath}#流程文件]]
-
-### 6.4 镜头卡片
-
-![[${shotBasePath}#镜头卡片]]
-
-### 6.5 流程图
-
-![[${workflowCanvasPath}]]
-
-### 6.6 镜头流水线
-
-![[${shotPipelineCanvasPath}]]
 
 ${deviationsMarkdown}
 `
@@ -667,17 +623,9 @@ ${deviationsMarkdown}
 
 ![[${workflowBasePath}#审阅队列]]
 
-## 2. 执行就绪
+## 2. 异常镜头
 
-![[${productionStatusBasePath}#执行就绪]]
-
-## 3. 审阅地图
-
-![[${reviewMapCanvasPath}]]
-
-## 4. 镜头审阅画布
-
-${shotLinks}
+- 暂无异常镜头；如有需要，进入 [[${shotLookupIndexPath}|按镜头联查]] 逐镜头检查。
 
 `
     },
@@ -726,8 +674,6 @@ ${shotLinks}
 
 - 审阅队列：[[${reviewOverviewPath}|审阅总览]]
 - 按镜头联查：[[${shotLookupIndexPath}|按镜头联查]]
-- 流程图：[[${workflowCanvasPath}]]
-- 审阅地图：[[${reviewMapCanvasPath}]]
 - 阶段审核：[[${stageReviewOverviewPath}|阶段审核]]
 `
     },

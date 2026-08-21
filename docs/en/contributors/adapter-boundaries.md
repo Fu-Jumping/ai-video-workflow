@@ -54,3 +54,28 @@ Suggested later order:
 Before an adapter enters the mainline, it must define inputs, outputs, sync direction, rollback behavior, and verification commands.
 
 Use the [Agent adapter contract](./agent-adapter-contract.md) as the required checklist before adding or expanding platform-specific integrations.
+
+## LibTV Asset Adapter
+
+`ai-video-workflow libtv ...` is the LibTV asset execution adapter.
+
+Scope:
+
+- Upload Step 2 anchor images (character tri-views and scene images) to LibTV as image nodes.
+- Create Step 4 keyframe image nodes with reference edges to anchor assets.
+- Create Step 5 video nodes with reference edges to keyframes and anchor assets.
+- Run image/video generation through LibTV HTTP API and record results in `.libtv/state.json`.
+- Download generated assets to `outputs/images/...` and `outputs/video/...`.
+
+Out of scope:
+
+- Story/plot/shooting design.
+- `script storyboard` or any canvas-side script/storyboard logic.
+- Editing Step source files from canvas state.
+
+Boundary rules:
+
+- Step files remain the only creative source of truth.
+- `.libtv/` and `outputs/` are gitignored local execution surfaces.
+- Keyframes must be manually approved (`libtv approve`) before video generation is allowed.
+- Edge order and `&#123;&#123;Mixed n&#125;&#125;` mapping are intentionally deferred; current implementation preserves reference lists but does not enforce upload-order semantics.

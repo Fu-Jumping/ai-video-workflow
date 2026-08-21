@@ -728,7 +728,7 @@ export async function rebuildInProjectObsidianView(options: RebuildViewOptions):
     projectRoot,
     outRoot: vaultRoot,
     force: false,
-    includePluginRecipes: options.includePluginRecipes !== false,
+    includePluginRecipes: options.includePluginRecipes === true,
     includeObsidianUi: options.includeObsidianUi === true,
     dryRun,
     inProjectView: true

@@ -54,3 +54,28 @@ v0.2 优先完成主干可演示闭环。
 每个 adapter 在进入主线前，都必须说明输入、输出、同步方向、失败回滚方式和验证命令。
 
 新增或扩展平台专属适配前，必须先使用 [智能体 Adapter Contract](./agent-adapter-contract.md) 作为检查清单。
+
+## LibTV 素材 Adapter
+
+`ai-video-workflow libtv ...` 是 LibTV 素材执行适配层。
+
+范围：
+
+- 把 Step 2 锚点图（角色三视图、场景图）上传为 LibTV image 节点。
+- 为 Step 4 关键帧创建 image 节点，并把锚点作为引用边。
+- 为 Step 5 视频创建 video 节点，并把关键帧与锚点作为引用边。
+- 通过 LibTV HTTP API 执行图片/视频生成，结果记录到 `.libtv/state.json`。
+- 把生成结果下载到 `outputs/images/...` 与 `outputs/video/...`。
+
+不负责：
+
+- 剧情、分镜设计。
+- `script storyboard` 或任何画布侧脚本/分镜逻辑。
+- 根据画布状态改写 Step 源文件。
+
+边界规则：
+
+- Step 文件始终是唯一创作事实源。
+- `.libtv/` 与 `outputs/` 是 gitignored 的本地执行面。
+- 关键帧必须人工通过（`libtv approve`）后才能执行视频生成。
+- 边序与 `&#123;&#123;Mixed n&#125;&#125;` 映射暂时搁置；当前实现保留引用列表，不强制上传顺序语义。

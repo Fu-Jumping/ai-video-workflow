@@ -32,6 +32,8 @@ export const generatedLocalSurfaceIgnoreBlock = [
   "# ai-video-workflow generated and local surfaces",
   "_views/",
   ".obsidian/",
+  ".libtv/",
+  "outputs/",
   ".codex/",
   ".cursor/",
   ".claude/",
