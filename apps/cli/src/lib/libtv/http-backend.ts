@@ -403,16 +403,25 @@ export class HttpLibTvBackend implements LibTvBackend {
       parentKey: ""
     });
     const connectedEdges = (detail.edges ?? []).filter((edge) => edge.source === existing.nodeKey || edge.target === existing.nodeKey);
+    if (connectedEdges.length > 0) {
+      await this.client.batchNodes({
+        projectUuid,
+        nodes: {},
+        connections: {
+          delete: connectedEdges.map((edge) => ({
+            connectionId: edge.id,
+            source: edge.source,
+            target: edge.target,
+            sourceHandle: edge.sourceHandle ?? "source",
+            targetHandle: edge.targetHandle ?? "target"
+          }))
+        }
+      });
+    }
     await this.client.batchNodes({
       projectUuid,
       nodes: { delete: [record] },
-      connections: connectedEdges.length > 0 ? { delete: connectedEdges.map((edge) => ({
-        connectionId: edge.id,
-        source: edge.source,
-        target: edge.target,
-        sourceHandle: edge.sourceHandle ?? "source",
-        targetHandle: edge.targetHandle ?? "target"
-      })) } : {}
+      connections: {}
     });
   }
 

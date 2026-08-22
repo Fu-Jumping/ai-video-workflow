@@ -15,3 +15,12 @@ describe("libtv order helpers", () => {
     ]);
   });
 });
+
+import { displayNameForVideo, displayNameForKeyframe } from "../src/lib/libtv/order.js";
+
+describe("libtv group-prefixed display names", () => {
+  test("display names include group to avoid cross-group duplicates", () => {
+    expect(displayNameForVideo("group-001", "shot-001")).toBe("group-001 shot-001 视频");
+    expect(displayNameForKeyframe("group-002", "shot-001", "keyframe-01")).toBe("group-002 shot-001 keyframe-01");
+  });
+});

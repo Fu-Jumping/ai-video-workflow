@@ -63,7 +63,7 @@ Built-in defaults when not configured:
 
 - Video nodes write `imageListOrder` / `mixedListOrder` in `--left` order.
 - `&#123;&#123;Node "name"&#125;&#125;` placeholders are rewritten to `&#123;&#123;Image n&#125;&#125;` (or `&#123;&#123;Mixed n&#125;&#125;`) based on reference order.
-- The current implementation supports this mapping; Step 5 upload-order validation can be added later.
+- Step 5 `素材上传顺序` is already checked by `libtv verify-order` via `orderTokens` against the actual node order.
 
 ## Implemented Capabilities
 

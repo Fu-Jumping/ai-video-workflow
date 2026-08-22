@@ -30,8 +30,8 @@ function displayNameForAnchor(token: string): string {
   return token.replace(/^@/, "");
 }
 
-function displayNameForKeyframe(shotId: string, keyframeId: string): string {
-  return `${shotId} ${keyframeId}`;
+function displayNameForKeyframe(groupId: string, shotId: string, keyframeId: string): string {
+  return `${groupId} ${shotId} ${keyframeId}`;
 }
 
 function normalizeRef(value: string): string {
@@ -42,14 +42,14 @@ function stateNameForId(state: LibTvState, id: string): string | undefined {
   const anchor = state.anchors.find((item) => item.nodeId === id);
   if (anchor) return anchor.token.replace(/^@/, "");
   const keyframe = state.keyframes.find((item) => item.nodeId === id);
-  if (keyframe) return displayNameForKeyframe(keyframe.shotId, keyframe.keyframeId);
+  if (keyframe) return displayNameForKeyframe(keyframe.groupId, keyframe.shotId, keyframe.keyframeId);
   const video = state.videos.find((item) => item.nodeId === id);
-  if (video) return displayNameForVideo(video.shotId);
+  if (video) return displayNameForVideo(video.groupId, video.shotId);
   return id;
 }
 
-function displayNameForVideo(shotId: string): string {
-  return `${shotId} 视频`;
+function displayNameForVideo(groupId: string, shotId: string): string {
+  return `${groupId} ${shotId} 视频`;
 }
 
 export async function applyPlan(projectRoot: string, backend: LibTvBackend, options: LibTvApplyOptions = {}): Promise<{ actions: string[]; state: LibTvState }> {
@@ -150,7 +150,7 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
       }
       const node = await backend.createNode({
         projectUuid: binding.projectUuid,
-        name: displayNameForKeyframe(keyframe.shotId, keyframe.keyframeId),
+        name: displayNameForKeyframe(keyframe.groupId, keyframe.shotId, keyframe.keyframeId),
         type: "image",
         prompt: keyframe.prompt,
         params: {
@@ -222,7 +222,7 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
       }
       const node = await backend.createNode({
         projectUuid: binding.projectUuid,
-        name: displayNameForVideo(video.shotId),
+        name: displayNameForVideo(video.groupId, video.shotId),
         type: "video",
         prompt: video.prompt,
         params: {

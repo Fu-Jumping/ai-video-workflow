@@ -6,12 +6,12 @@ import { requireBinding, statePath } from "./project-binding.js";
 import type { LibTvBackend } from "./backend.js";
 import type { LibTvVerifyIssue } from "./types.js";
 
-function displayNameForVideo(shotId: string): string {
-  return `${shotId} 视频`;
+export function displayNameForVideo(groupId: string, shotId: string): string {
+  return `${groupId} ${shotId} 视频`;
 }
 
-function displayNameForKeyframe(shotId: string, keyframeId: string): string {
-  return `${shotId} ${keyframeId}`;
+export function displayNameForKeyframe(groupId: string, shotId: string, keyframeId: string): string {
+  return `${groupId} ${shotId} ${keyframeId}`;
 }
 
 export function normalizeRef(value: string): string {
@@ -56,7 +56,7 @@ export async function writeOrderContracts(projectRoot: string, backend: LibTvBac
   const contracts: Record<string, unknown> = {};
 
   for (const video of plan.videos) {
-    const name = `${video.shotId} 视频`;
+    const name = displayNameForVideo(video.groupId, video.shotId);
     const node = byName.get(name);
     if (!node) continue;
     const params = (node.data?.params ?? {}) as Record<string, unknown>;
@@ -95,7 +95,7 @@ export async function verifyLibtvOrder(projectRoot: string, backend: LibTvBacken
 
   // Verify video nodes.
   for (const video of plan.videos) {
-    const name = displayNameForVideo(video.shotId);
+    const name = displayNameForVideo(video.groupId, video.shotId);
     const node = byName.get(name);
     if (!node) {
       issues.push({ code: "missing-order-video-node", message: `找不到视频节点: ${name}`, path: video.sourcePath });
@@ -165,7 +165,7 @@ export async function verifyLibtvOrder(projectRoot: string, backend: LibTvBacken
 
   // Verify keyframe image nodes.
   for (const keyframe of plan.keyframes) {
-    const name = displayNameForKeyframe(keyframe.shotId, keyframe.keyframeId);
+    const name = displayNameForKeyframe(keyframe.groupId, keyframe.shotId, keyframe.keyframeId);
     const node = byName.get(name);
     if (!node) {
       issues.push({ code: "missing-order-keyframe-node", message: `找不到关键帧节点: ${name}`, path: keyframe.sourcePath });
