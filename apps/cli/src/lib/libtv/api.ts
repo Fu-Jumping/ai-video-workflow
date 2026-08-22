@@ -10,6 +10,8 @@ import type {
   LibTvProjectListResult,
   LibTvProjectMeta,
   LibTvUploadResult,
+  LibTvWorkspace,
+  LibTvWorkspaceListResult,
   LibTvCredentials
 } from "./types.js";
 
@@ -23,6 +25,10 @@ export const LIBTV_API_PATHS = {
   projectUpdate: "/api/canvas/project/update",
   projectDelete: "/api/canvas/project/delete",
   projectDetail: "/api/canvas/project/detail",
+  folderCreate: "/api/canvas/folder/create",
+  folderUpdate: "/api/canvas/folder/update",
+  folderDetail: "/api/canvas/folder/detail",
+  folderEntries: "/api/canvas/folder/entries",
   nodesBatch: "/api/canvas/nodes/batch",
   thirdAssetCheck: "/api/third_asset/check",
   thirdAssetCreate: "/api/third_asset/create",
@@ -36,6 +42,7 @@ export interface LibTvApiClientOptions {
   baseUrl?: string;
   accountBaseUrl?: string;
   canvasBaseUrl?: string;
+  passportBaseUrl?: string;
   credentials?: LibTvCredentials;
 }
 
@@ -44,7 +51,7 @@ interface RequestOptions {
   query?: Record<string, string | number | undefined>;
   body?: unknown;
   headers?: Record<string, string>;
-  host?: "account" | "canvas";
+  host?: "account" | "canvas" | "passport";
 }
 
 function unwrapResponse<T>(data: unknown): T {
@@ -85,19 +92,23 @@ function parseNodeData(value: unknown): Record<string, unknown> | undefined {
 export class LibTvApiClient {
   readonly accountBaseUrl: string;
   readonly canvasBaseUrl: string;
+  readonly passportBaseUrl: string;
   private readonly credentials?: LibTvCredentials;
 
   constructor(options: LibTvApiClientOptions = {}) {
     this.accountBaseUrl = (options.accountBaseUrl ?? options.baseUrl ?? process.env.LIBTV_API_BASE_URL ?? "https://api2.liblib.art").replace(/\/$/, "");
     this.canvasBaseUrl = (options.canvasBaseUrl ?? process.env.LIBTV_CANVAS_API_BASE_URL ?? "https://api.liblib.tv").replace(/\/$/, "");
+    this.passportBaseUrl = (options.passportBaseUrl ?? process.env.LIBTV_PASSPORT_API_BASE_URL ?? "https://passport.liblib.art").replace(/\/$/, "");
     this.credentials = options.credentials;
   }
 
-  private baseUrl(host: "account" | "canvas" = "canvas"): string {
-    return host === "account" ? this.accountBaseUrl : this.canvasBaseUrl;
+  private baseUrl(host: "account" | "canvas" | "passport" = "canvas"): string {
+    if (host === "account") return this.accountBaseUrl;
+    if (host === "passport") return this.passportBaseUrl;
+    return this.canvasBaseUrl;
   }
 
-  private buildUrl(path: string, query?: Record<string, string | number | undefined>, host: "account" | "canvas" = "canvas"): string {
+  private buildUrl(path: string, query?: Record<string, string | number | undefined>, host: "account" | "canvas" | "passport" = "canvas"): string {
     const url = new URL(path, this.baseUrl(host));
     if (query) {
       for (const [key, value] of Object.entries(query)) {
@@ -145,8 +156,30 @@ export class LibTvApiClient {
     return unwrapResponse<T>(data);
   }
 
-  getAccountInfo(): Promise<LibTvAccountInfo> {
-    return this.request<LibTvAccountInfo>(LIBTV_API_PATHS.accountList, { method: "GET", host: "account" });
+  async getAccountInfo(): Promise<LibTvAccountInfo> {
+    const result = await this.listAccounts();
+    const active = result.accounts.find((account) => account.isActive) ?? result.accounts[0];
+    let userId = active?.accountId ?? 0;
+    try {
+      const projects = await this.listProjects();
+      const ownerId = projects.projectMetaList?.[0]?.ownerId;
+      if (ownerId) userId = ownerId;
+    } catch {
+      // ignore project list failures; accountId is a safe fallback.
+    }
+    return {
+      user: {
+        uuid: active?.ownerUuid ?? "",
+        id: userId,
+        nickname: active?.accountName ?? ""
+      },
+      activeAccount: active ?? {
+        accountId: 0,
+        accountName: ""
+      },
+      teamId: active?.teamId ?? null,
+      accountsCount: result.accounts.length
+    };
   }
 
   listAccounts(): Promise<LibTvAccountListResult> {
@@ -158,14 +191,14 @@ export class LibTvApiClient {
   }
 
   sendLoginPhoneCode(body: { phone: string; captcha?: string }): Promise<unknown> {
-    return this.request(LIBTV_API_PATHS.loginSendCode, { method: "POST", body, host: "account" });
+    return this.request(LIBTV_API_PATHS.loginSendCode, { method: "POST", body: { ...body, type: "sms" }, host: "passport" });
   }
 
   loginByPhoneCode(body: { phone: string; code: string; captcha?: string }): Promise<unknown> {
-    return this.request(LIBTV_API_PATHS.loginByPhone, { method: "POST", body, host: "account" });
+    return this.request(LIBTV_API_PATHS.loginByPhone, { method: "POST", body: { ...body, type: "sms" }, host: "passport" });
   }
 
-  async listProjects(query: { page?: number; pageSize?: number; orderBy?: string; name?: string; teamId?: number } = {}): Promise<LibTvProjectListResult> {
+  async listProjects(query: { page?: number; pageSize?: number; orderBy?: string; name?: string; teamId?: number; workspaceId?: number | string } = {}): Promise<LibTvProjectListResult> {
     const body: Record<string, unknown> = {
       page: query.page ?? 1,
       pageSize: query.pageSize ?? 20,
@@ -174,6 +207,9 @@ export class LibTvApiClient {
     };
     if (query.teamId !== undefined && query.teamId !== 0) {
       body.teamId = query.teamId;
+    }
+    if (query.workspaceId !== undefined && Number(query.workspaceId) !== 0) {
+      body.folderId = Number(query.workspaceId);
     }
     return this.request<LibTvProjectListResult>(LIBTV_API_PATHS.projectList, { method: "POST", body });
   }
@@ -188,11 +224,12 @@ export class LibTvApiClient {
         position?: { positionX?: string | number; positionY?: string | number };
         measured?: { width?: string | number; height?: string | number };
       }>;
-      connectionList?: Array<{ id: string; source: string; target: string }>;
+      connectionList?: Array<{ id: string; source: string; target: string; sourceHandle?: string; targetHandle?: string }>;
       nodeData?: string;
     }>(LIBTV_API_PATHS.projectDetail, { method: "GET", query: { uuid: projectUuid } });
     return {
       projectUuid,
+      projectMeta: data.projectMeta,
       nodes: (data.nodeList ?? []).map((node) => ({
         id: node.nodeKey,
         name: node.name,
@@ -204,12 +241,22 @@ export class LibTvApiClient {
         height: node.measured?.height !== undefined ? Number(node.measured.height) : undefined,
         data: parseNodeData((node as { data?: unknown }).data)
       })),
-      edges: data.connectionList ?? []
+      edges: (data.connectionList ?? []).map((edge) => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        sourceHandle: edge.sourceHandle,
+        targetHandle: edge.targetHandle
+      }))
     };
   }
 
-  createProject(body: { name: string; description?: string; coverUrl?: string; teamId?: number; folderId?: number }): Promise<LibTvProjectMeta> {
-    return this.request<LibTvProjectMeta>(LIBTV_API_PATHS.projectCreate, { method: "POST", body });
+  createProject(body: { name: string; description?: string; coverUrl?: string; teamId?: number; folderId?: number; workspaceId?: number | string }): Promise<LibTvProjectMeta> {
+    const payload = { ...body } as Record<string, unknown>;
+    if (body.workspaceId !== undefined) {
+      payload.folderId = Number(body.workspaceId);
+    }
+    return this.request<LibTvProjectMeta>(LIBTV_API_PATHS.projectCreate, { method: "POST", body: payload });
   }
 
   updateProject(projectUuid: string, body: { name?: string; description?: string; coverUrl?: string; folderId?: number }): Promise<LibTvProjectMeta> {
@@ -218,6 +265,39 @@ export class LibTvApiClient {
 
   deleteProject(projectUuid: string, body: { teamId?: number } = {}): Promise<unknown> {
     return this.request(LIBTV_API_PATHS.projectDelete, { method: "POST", body: { uuid: projectUuid, ...body } });
+  }
+
+  async listWorkspaces(query: { page?: number; pageSize?: number; orderBy?: string; name?: string; teamId?: number } = {}): Promise<LibTvWorkspaceListResult> {
+    const body: Record<string, unknown> = {
+      id: 0,
+      page: query.page ?? 1,
+      pageSize: query.pageSize ?? 20,
+      orderBy: query.orderBy ?? "updated_at_desc",
+      name: query.name ?? ""
+    };
+    if (query.teamId !== undefined && query.teamId !== 0) {
+      body.teamId = query.teamId;
+    }
+    return this.request<LibTvWorkspaceListResult>(LIBTV_API_PATHS.folderEntries, { method: "POST", body });
+  }
+
+  async getWorkspaceDetail(workspaceId: number | string): Promise<LibTvWorkspace> {
+    const data = await this.request<{ folder?: LibTvWorkspace }>(LIBTV_API_PATHS.folderDetail, {
+      method: "GET",
+      query: { id: Number(workspaceId) }
+    });
+    if (!data.folder) {
+      throw new CliUserError(`LibTV API error: workspace not found: ${workspaceId}`);
+    }
+    return data.folder;
+  }
+
+  createWorkspace(body: { name: string; description?: string; coverUrl?: string; teamId?: number }): Promise<LibTvWorkspace> {
+    return this.request<LibTvWorkspace>(LIBTV_API_PATHS.folderCreate, { method: "POST", body });
+  }
+
+  updateWorkspace(workspaceId: number | string, body: { name?: string; description?: string; coverUrl?: string; teamId?: number }): Promise<LibTvWorkspace> {
+    return this.request<LibTvWorkspace>(LIBTV_API_PATHS.folderUpdate, { method: "POST", body: { id: Number(workspaceId), ...body } });
   }
 
   batchNodes(body: Record<string, unknown>): Promise<unknown> {
@@ -236,8 +316,9 @@ export class LibTvApiClient {
     return this.request<LibTvGenerationResult>(LIBTV_API_PATHS.generationCreate, { method: "POST", body });
   }
 
-  getGenerationProgress(body: { taskIds: string[] }): Promise<LibTvGenerationProgress[]> {
-    return this.request<LibTvGenerationProgress[]>(LIBTV_API_PATHS.generationProgress, { method: "POST", body });
+  async getGenerationProgress(body: { taskIds: string[] }): Promise<LibTvGenerationProgress[]> {
+    const data = await this.request<{ progresses?: LibTvGenerationProgress[] }>(LIBTV_API_PATHS.generationProgress, { method: "POST", body });
+    return data.progresses ?? [];
   }
 
   async listToolSpecs(query: { nodeType?: string; name?: string } = {}): Promise<LibTvModelListResult> {

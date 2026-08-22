@@ -25,10 +25,15 @@ export async function readBinding(projectRoot: string): Promise<LibTvProjectBind
   }
   try {
     const data = (await fs.readJson(file)) as Partial<LibTvProjectBinding>;
-    if (!data.projectUuid) {
+    if (!data.projectUuid && !data.workspaceId) {
       return null;
     }
-    return { projectUuid: data.projectUuid, groupNodeKey: data.groupNodeKey };
+    return {
+      projectUuid: data.projectUuid,
+      workspaceId: data.workspaceId,
+      teamId: data.teamId,
+      groupNodeKey: data.groupNodeKey
+    };
   } catch {
     return null;
   }
@@ -36,9 +41,9 @@ export async function readBinding(projectRoot: string): Promise<LibTvProjectBind
 
 export async function requireBinding(projectRoot: string): Promise<LibTvProjectBinding> {
   const binding = await readBinding(projectRoot);
-  if (!binding) {
+  if (!binding?.projectUuid) {
     throw new CliUserError(
-      `缺少项目：请在 ${projectRoot} 执行 ai-video-workflow libtv project use <项目UUID> 写入 .libtv/project.json`
+      `缺少画布：请在 ${projectRoot} 执行 ai-video-workflow libtv project use <画布UUID> 写入 .libtv/project.json`
     );
   }
   return binding;
@@ -64,7 +69,26 @@ export async function writeGroupBinding(projectRoot: string, groupNodeKey: strin
 export async function clearGroupBinding(projectRoot: string): Promise<void> {
   const binding = await readBinding(projectRoot);
   if (!binding) return;
-  await writeBinding(projectRoot, { projectUuid: binding.projectUuid });
+  const { groupNodeKey: _groupNodeKey, ...rest } = binding;
+  await writeBinding(projectRoot, rest);
+}
+
+export async function writeWorkspaceBinding(projectRoot: string, workspaceId: number | string, teamId?: number | string): Promise<LibTvProjectBinding> {
+  const binding: LibTvProjectBinding = { workspaceId, teamId };
+  await writeBinding(projectRoot, binding);
+  return binding;
+}
+
+export async function clearWorkspaceBinding(projectRoot: string): Promise<LibTvProjectBinding | null> {
+  const binding = await readBinding(projectRoot);
+  if (!binding) return null;
+  const { workspaceId: _workspaceId, teamId: _teamId, ...rest } = binding;
+  if (rest.projectUuid) {
+    await writeBinding(projectRoot, rest);
+    return rest;
+  }
+  await clearBinding(projectRoot);
+  return null;
 }
 
 export async function readState(projectRoot: string): Promise<LibTvState | null> {

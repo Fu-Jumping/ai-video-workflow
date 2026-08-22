@@ -9,7 +9,9 @@ export interface LibTvCredentials {
 }
 
 export interface LibTvProjectBinding {
-  projectUuid: string;
+  projectUuid?: string;
+  workspaceId?: number | string;
+  teamId?: number | string;
   groupNodeKey?: string;
 }
 
@@ -63,8 +65,31 @@ export interface LibTvProjectListResult {
   projectMetaList: LibTvProjectMeta[];
 }
 
+export interface LibTvWorkspace {
+  id: number | string;
+  name: string;
+  description?: string;
+  parentFolderId?: number;
+  spaceType?: number;
+  depth?: number;
+  coverUrl?: string;
+  ownerId?: number;
+  teamId?: number;
+  fileCnt?: number;
+  createAt?: string;
+  updateAt?: string;
+  isFolder?: boolean;
+  creatorNickname?: string;
+}
+
+export interface LibTvWorkspaceListResult {
+  folders: LibTvWorkspace[];
+  total?: number;
+}
+
 export interface LibTvProjectDetailResult {
   projectUuid: string;
+  projectMeta?: LibTvProjectMeta;
   nodes: LibTvProjectNodeSummary[];
   edges: LibTvProjectEdge[];
 }
@@ -83,6 +108,8 @@ export interface LibTvProjectEdge {
   id: string;
   source: string;
   target: string;
+  sourceHandle?: string;
+  targetHandle?: string;
 }
 
 export interface LibTvNodeData {
@@ -213,6 +240,7 @@ export interface LibTvVideoRef {
   referenceTokens: string[];
   keyframePaths: string[];
   modelKey?: string;
+  orderTokens?: string[];
   params?: Record<string, unknown>;
   nodeId?: string;
   status?: "planned" | "pending-approval" | "generated" | "failed";
@@ -229,9 +257,9 @@ export interface LibTvPlan {
 export interface LibTvState {
   version: 1;
   projectUuid: string;
-  anchors: Array<LibTvAssetRef & { nodeId: string; fileSha256: string; uploadedAt: string }>;
-  keyframes: Array<LibTvKeyframeRef & { nodeId: string; status: string; localOutput?: string }>;
-  videos: Array<LibTvVideoRef & { nodeId: string; status: string; localOutput?: string }>;
+  anchors: Array<LibTvAssetRef & { nodeId: string; fileSha256: string; uploadedAt: string; cdnUrl?: string }>;
+  keyframes: Array<LibTvKeyframeRef & { nodeId: string; status: string; localOutput?: string; cdnUrl?: string }>;
+  videos: Array<LibTvVideoRef & { nodeId: string; status: string; localOutput?: string; cdnUrl?: string }>;
   updatedAt: string;
 }
 

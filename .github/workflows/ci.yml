@@ -19,3 +19,5 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify:v0.2
+      - name: LibTV adapter mock tests
+        run: pnpm --filter ./apps/cli exec vitest run tests/libtv-plan.test.ts tests/libtv-apply.test.ts tests/libtv-cli.test.ts

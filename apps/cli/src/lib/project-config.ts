@@ -35,7 +35,13 @@ const projectConfigSchema = z.object({
     enhanced_flow: z.object({
       enabled: z.boolean()
     })
-  })
+  }),
+  libtv: z.object({
+    image_model: z.string().optional(),
+    video_model: z.string().optional(),
+    image_settings: z.record(z.string(), z.unknown()).optional(),
+    video_settings: z.record(z.string(), z.unknown()).optional()
+  }).optional()
 });
 
 export interface ProjectConfigReadResult {

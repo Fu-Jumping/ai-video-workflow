@@ -102,6 +102,13 @@ export type IssueCode =
   | "invalid-deviations-yaml"
   | "invalid-deviation-entry";
 
+export interface LibTvProjectConfig {
+  image_model?: string;
+  video_model?: string;
+  image_settings?: Record<string, unknown>;
+  video_settings?: Record<string, unknown>;
+}
+
 export interface ProjectConfig {
   pack: string;
   ide: Ide;
@@ -117,6 +124,7 @@ export interface ProjectConfig {
       enabled: boolean;
     };
   };
+  libtv?: LibTvProjectConfig;
 }
 
 export interface CreateProjectOptions {

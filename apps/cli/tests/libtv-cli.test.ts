@@ -36,14 +36,14 @@ async function runCli(entry: string, args: string[]): Promise<{ stdout: string; 
 }
 
 describe("libtv CLI", () => {
-  test("--version is exposed", async () => {
+  test("--version is exposed", { timeout: 20000 }, async () => {
     const cliRoot = path.resolve(__dirname, "..");
     const entry = await buildCliToTemp(cliRoot);
     const result = await runCli(entry, ["--version"]);
     expect(result.stdout.trim()).toBe("0.1.0");
   });
 
-  test("libtv plan prints official example asset plan", async () => {
+  test("libtv plan prints official example asset plan", { timeout: 20000 }, async () => {
     const cliRoot = path.resolve(__dirname, "..");
     const repoRoot = path.resolve(cliRoot, "..", "..");
     const exampleRoot = path.join(repoRoot, "examples", "官方示例-云上早市");

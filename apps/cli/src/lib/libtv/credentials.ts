@@ -6,8 +6,12 @@ import type { LibTvCredentials } from "./types.js";
 
 const CREDENTIALS_FILE = "credentials.json";
 
+export function libTvConfigDir(): string {
+  return process.env.LIBTV_CONFIG_DIR ?? path.join(os.homedir(), ".libtv");
+}
+
 export function libTvCredentialsPath(): string {
-  return path.join(os.homedir(), ".libtv", CREDENTIALS_FILE);
+  return path.join(libTvConfigDir(), CREDENTIALS_FILE);
 }
 
 export function libTvTokenFromEnv(): string | undefined {
@@ -31,13 +35,26 @@ export async function readLibTvCredentials(): Promise<LibTvCredentials | null> {
   }
   try {
     const data = (await fs.readJson(credsPath)) as Partial<LibTvCredentials>;
-    if (!data.usertoken || !data.useruuid || !data.webid) {
+    if (!data.usertoken) {
       return null;
     }
     return data as LibTvCredentials;
   } catch {
     return null;
   }
+}
+
+export async function writeLibTvCredentials(token: string, extra: Partial<LibTvCredentials> = {}): Promise<string> {
+  const existing = await readLibTvCredentials();
+  const creds: LibTvCredentials = {
+    ...(existing ?? { usertoken: "", useruuid: "", webid: "" }),
+    ...extra,
+    usertoken: token,
+    savedAt: new Date().toISOString()
+  };
+  await fs.ensureDir(path.dirname(libTvCredentialsPath()));
+  await fs.writeJson(libTvCredentialsPath(), creds, { spaces: 2 });
+  return libTvCredentialsPath();
 }
 
 export async function requireLibTvCredentials(): Promise<LibTvCredentials> {

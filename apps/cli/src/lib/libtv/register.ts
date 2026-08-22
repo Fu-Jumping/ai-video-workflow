@@ -1,17 +1,64 @@
 import type { Command } from "commander";
 import path from "node:path";
+import http from "node:http";
+import { exec, execFile } from "node:child_process";
+import { promisify } from "node:util";
+import fs from "fs-extra";
 import { runCliAction } from "../cli-errors.js";
-import { requireLibTvCredentials } from "./credentials.js";
+import { requireLibTvCredentials, writeLibTvCredentials, libTvCredentialsPath } from "./credentials.js";
 import { LibTvApiClient } from "./api.js";
 import { HttpLibTvBackend } from "./http-backend.js";
 import { MockLibTvBackend } from "./mock-backend.js";
 import type { LibTvBackend } from "./backend.js";
-import { readBinding, resolveProjectRoot, writeBinding, clearBinding, writeGroupBinding, clearGroupBinding, readState, writeState } from "./project-binding.js";
+import { readBinding, resolveProjectRoot, writeBinding, clearBinding, writeGroupBinding, clearGroupBinding, readState, writeState, writeWorkspaceBinding, clearWorkspaceBinding } from "./project-binding.js";
 import { buildLibTvPlan } from "./assets.js";
 import { renderPlan } from "./plan.js";
 import { applyPlan, renderApplySummary } from "./apply.js";
 import { buildStatus, renderStatus } from "./status.js";
 import { verifyLibtvProject, renderVerifyIssues } from "./verify.js";
+import { verifyLibtvOrder, renderOrderVerifyIssues, writeOrderContracts } from "./order.js";
+
+const execFileAsync = promisify(execFile);
+
+async function ensureLocalLibtvBinary(): Promise<string> {
+  const candidates = [
+    process.env.LIBTV_CLI_BINARY,
+    path.join(os.homedir(), ".libtv", process.platform === "win32" ? "libtv.exe" : "libtv"),
+    process.platform === "win32" ? "libtv.exe" : "libtv"
+  ].filter((value): value is string => Boolean(value));
+  for (const candidate of candidates) {
+    try {
+      if (candidate.includes("/") || candidate.includes("\\") || candidate.includes(":")) {
+        if (fs.existsSync(candidate)) return candidate;
+      } else {
+        return candidate;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  const isWindows = process.platform === "win32";
+  if (isWindows) {
+    await execFileAsync("powershell.exe", [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-Command",
+      "Invoke-WebRequest -Uri 'https://liblibai-web-static.liblib.cloud/cli/latest/install-libtv-cli.ps1' -UseBasicParsing | Invoke-Expression"
+    ]);
+  } else {
+    await execFileAsync("bash", ["-c", "curl -fsSL 'https://liblibai-web-static.liblib.cloud/cli/latest/install-libtv-cli.sh' | bash"]);
+  }
+  const installed = candidates.find((candidate) => {
+    try {
+      return candidate.includes("/") || candidate.includes("\\") || candidate.includes(":") ? fs.existsSync(candidate) : true;
+    } catch {
+      return false;
+    }
+  });
+  if (!installed) throw new Error("未找到 libtv CLI，且自动安装失败。");
+  return installed;
+}
 
 function getAncestorOption(command: Command, key: string): unknown {
   let current: Command | null | undefined = command;
@@ -36,6 +83,27 @@ function renderProjectList(projects: Array<{ uuid: string; name: string; id?: nu
   return projects.map((project) => `${project.uuid}\t${project.name}`).join("\n");
 }
 
+
+async function readStdinNodeKeys(): Promise<string[]> {
+  if (process.stdin.isTTY) return [];
+  const chunks: string[] = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(String(chunk));
+  }
+  const keys: string[] = [];
+  for (const line of chunks.join("").split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const obj = JSON.parse(trimmed) as { nodeKey?: unknown; newNodeKey?: unknown };
+      const key = obj?.nodeKey ?? obj?.newNodeKey;
+      if (typeof key === "string") keys.push(key);
+    } catch {
+      // ignore non-JSON lines
+    }
+  }
+  return keys;
+}
 
 function collect(value: string, previous: string[] | undefined): string[] {
   return [...(previous ?? []), value];
@@ -66,8 +134,48 @@ function parsePairs(pairs: string[] | undefined): Record<string, unknown> {
   return result;
 }
 
+function isEmptyOptionValue(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (value === false) return true;
+  if (Array.isArray(value) && value.length === 0) return true;
+  return false;
+}
+
 function getOption(command: Command, key: string): unknown {
-  return getAncestorOption(command, key);
+  const own = (command.opts() as Record<string, unknown>)[key];
+  if (own !== undefined && !isEmptyOptionValue(own)) return own;
+  let current: Command | undefined = command.parent;
+  while (current) {
+    const opts = current.opts() as Record<string, unknown>;
+    const value = opts[key];
+    if (value !== undefined && !isEmptyOptionValue(value)) return value;
+    current = current.parent;
+  }
+  return own;
+}
+
+function extractToken(result: unknown): string | undefined {
+  if (typeof result !== "object" || result === null) return undefined;
+  const record = result as Record<string, unknown>;
+  if (typeof record.token === "string") return record.token;
+  if (typeof record.usertoken === "string") return record.usertoken;
+  if (record.data && typeof record.data === "object") {
+    const data = record.data as Record<string, unknown>;
+    if (typeof data.token === "string") return data.token;
+    if (typeof data.usertoken === "string") return data.usertoken;
+  }
+  return undefined;
+}
+
+function replacePromptPlaceholders(prompt: string | undefined, orderedLeft: string[], mixed = false): string | undefined {
+  if (!prompt) return prompt;
+  const pattern = /\{\{\s*Node\s+(?:"([^"]+)"|([^}]+?))\s*\}\}/g;
+  const kind = mixed ? "Mixed" : "Image";
+  return prompt.replace(pattern, (match, quoted: string | undefined, unquoted: string | undefined) => {
+    const ref = (quoted ?? unquoted ?? "").trim();
+    const index = orderedLeft.findIndex((item) => item === ref);
+    return index === -1 ? match : `{{${kind} ${index + 1}}}`;
+  });
 }
 
 function inferMediaKind(filePath: string): "image" | "video" | "audio" {
@@ -86,10 +194,47 @@ export function registerLibTvCommands(program: Command): void {
   const login = libtv.command("login").description("登录：浏览器（web）或手机验证码");
   login
     .command("web")
-    .description("浏览器登录（需要本机回调服务；HTTP API 契约待验证）")
+    .description("浏览器登录：启动本机回调服务，打印带 callback_url 的登录链接")
     .option("--open", "尝试用系统默认浏览器打开登录链接", false)
     .action((options, command) => runCliAction(async () => {
-      throw new Error("libtv login web 尚未实现：需要 LibTV 网页登录回调接口。");
+      const server = http.createServer((req, res) => {
+        const url = new URL(req.url ?? "/", "http://127.0.0.1");
+        if (url.pathname === "/callback") {
+          const token = url.searchParams.get("token");
+          if (!token) {
+            res.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
+            res.end("缺少 token");
+            return;
+          }
+          void (async () => {
+            const credsPath = await writeLibTvCredentials(token);
+            res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+            res.end("登录成功，可以关闭此页面。");
+            server.close();
+            console.log(credsPath);
+          })();
+          return;
+        }
+        res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+        res.end("Not Found");
+      });
+      await new Promise<void>((resolve) => {
+        server.listen(0, "127.0.0.1", () => {
+          const address = server.address();
+          const port = typeof address === "object" && address !== null ? address.port : 0;
+          const baseUrl = process.env.LIBTV_LOGIN_WEB_URL ?? `https://www.liblib.tv${process.env.LIBTV_LOGIN_WEB_PATH ?? "/zh"}`;
+          const loginUrl = `${baseUrl}?callback_url=${encodeURIComponent(`http://127.0.0.1:${port}/callback`)}`;
+          console.error(`在浏览器中打开以下链接完成登录（成功后会自动回调本机并结束本命令）：
+
+${loginUrl}
+`);
+          if (options.open) {
+            const cmd = process.platform === "win32" ? `start "" "${loginUrl}"` : process.platform === "darwin" ? `open "${loginUrl}"` : `xdg-open "${loginUrl}"`;
+            exec(cmd, () => undefined);
+          }
+        });
+        server.on("close", () => resolve());
+      });
     }, () => getAncestorOption(command, "debug") === true));
 
   login
@@ -97,15 +242,22 @@ export function registerLibTvCommands(program: Command): void {
     .description("手机登录：发短信、验证码两步")
     .requiredOption("-p, --phone <phone>", "11 位中国大陆手机号")
     .option("-c, --code <code>", "短信中 6 位数字验证码")
+    .option("--platform <x>", "平台标识")
     .option("--captcha <captcha-payload>", "人机验证返回串")
     .action((options, command) => runCliAction(async () => {
       const backend = await backendWithCredentials(command);
-      if (options.code) {
-        await backend.listAccounts();
-        console.log("手机验证码登录：HTTP API 契约待验证");
+      if (!options.code) {
+        const result = await backend.sendLoginPhoneCode({ phone: options.phone, captcha: options.captcha });
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+      const result = await backend.loginByPhoneCode({ phone: options.phone, code: options.code, captcha: options.captcha });
+      const token = extractToken(result);
+      if (token) {
+        const credsPath = await writeLibTvCredentials(token);
+        console.log(JSON.stringify({ ok: true, credentialsPath: credsPath }, null, 2));
       } else {
-        await backend.listAccounts();
-        console.log(`已向 ${options.phone} 发送验证码（HTTP API 契约待验证）`);
+        console.log(JSON.stringify(result, null, 2));
       }
     }, () => getAncestorOption(command, "debug") === true));
 
@@ -155,15 +307,25 @@ export function registerLibTvCommands(program: Command): void {
     .option("-d, --description <text>", "项目简介")
     .option("--cover-url <url>", "封面图链接")
     .option("-t, --team-id <n>", "所属团队 ID")
-    .option("--folder-id <n>", "父文件夹 id")
+    .option("-w, --workspace <n>", "落地的项目（工作区）id；0 = 根目录")
+    .option("--folder-id <n>", "低层父文件夹 id（等价 -w，显式传入时优先）")
     .action((name, options, command) => runCliAction(async () => {
       const backend = await backendWithCredentials(command);
+      const binding = await readBinding(process.cwd());
+      const workspaceId = options.folderId !== undefined
+        ? Number(options.folderId)
+        : options.workspace !== undefined
+          ? Number(options.workspace)
+          : binding?.workspaceId !== undefined
+            ? Number(binding.workspaceId)
+            : undefined;
       const meta = await backend.createProject({
         name,
         description: options.description,
         coverUrl: options.coverUrl,
         teamId: options.teamId === undefined ? undefined : Number(options.teamId),
-        folderId: options.folderId === undefined ? undefined : Number(options.folderId)
+        folderId: options.folderId === undefined ? undefined : Number(options.folderId),
+        workspaceId
       });
       console.log(JSON.stringify(meta, null, 2));
     }, () => getAncestorOption(command, "debug") === true));
@@ -177,9 +339,23 @@ export function registerLibTvCommands(program: Command): void {
     .option("-o, --order-by <field>", "排序方式", "updated_at_desc")
     .option("--name <text>", "名称关键字")
     .option("-t, --team-id <n>", "团队空间过滤")
+    .option("-w, --workspace <n>", "项目（工作区）范围；0 = 根目录")
     .action((options, command) => runCliAction(async () => {
       const backend = await backendWithCredentials(command);
-      const projects = await backend.listProjects();
+      const binding = await readBinding(process.cwd());
+      const workspaceId = options.workspace !== undefined
+        ? Number(options.workspace)
+        : binding?.workspaceId !== undefined
+          ? Number(binding.workspaceId)
+          : undefined;
+      const projects = await backend.listProjects({
+        page: Number(options.page),
+        pageSize: Number(options.pageSize),
+        orderBy: options.orderBy,
+        name: options.name,
+        teamId: options.teamId === undefined ? undefined : Number(options.teamId),
+        workspaceId
+      });
       console.log(renderProjectList(projects));
     }, () => getAncestorOption(command, "debug") === true));
 
@@ -216,19 +392,31 @@ export function registerLibTvCommands(program: Command): void {
   project
     .command("use")
     .argument("<project>", "画布项目 UUID")
-    .description("将当前目录绑定到画布项目")
+    .description("将当前目录绑定到画布项目，并同步其所属项目/团队")
     .action((projectUuid, _options, command) => runCliAction(async () => {
+      const backend = await backendWithCredentials(command);
       const cwd = process.cwd();
-      await writeBinding(cwd, { projectUuid });
-      console.log(`已绑定项目 ${projectUuid} -> ${cwd}/.libtv/project.json`);
+      const detail = await backend.getProjectDetail(projectUuid);
+      const workspaceId = detail.projectMeta?.folderId ?? detail.projectMeta?.projectSpaceId;
+      let teamId: number | string | undefined;
+      if (workspaceId) {
+        try {
+          const workspace = await backend.getWorkspaceDetail(workspaceId);
+          teamId = workspace.teamId;
+        } catch {
+          teamId = undefined;
+        }
+      }
+      await writeBinding(cwd, { projectUuid, workspaceId, teamId });
+      console.log(JSON.stringify({ cwd, projectUuid, workspaceId, teamId }, null, 2));
     }, () => getAncestorOption(command, "debug") === true));
 
   project
     .command("unuse")
-    .description("解除当前目录与项目的绑定")
+    .description("解除当前目录与画布的绑定")
     .action((_options, command) => runCliAction(async () => {
       await clearBinding(process.cwd());
-      console.log("已解除项目绑定");
+      console.log(JSON.stringify({ unbound: true }));
     }, () => getAncestorOption(command, "debug") === true));
 
   project
@@ -242,6 +430,84 @@ export function registerLibTvCommands(program: Command): void {
       }
       const detail = await backend.getProjectDetail(uuid);
       console.log(JSON.stringify({ projectUuid: detail.projectUuid, nodes: detail.nodes.length, edges: detail.edges.length }, null, 2));
+    }, () => getAncestorOption(command, "debug") === true));
+
+  const workspace = libtv.command("workspace").description("项目（工作区）：新建、列表、更新、本地绑定(use/unuse)。一个项目下可容纳多张画布");
+  workspace
+    .command("create")
+    .argument("<workspace>", "项目名称")
+    .option("-d, --description <text>", "项目简介")
+    .option("--cover-url <url>", "封面图 URL")
+    .option("-t, --team-id <n>", "团队 ID")
+    .action((name, options, command) => runCliAction(async () => {
+      const backend = await backendWithCredentials(command);
+      const workspace = await backend.createWorkspace({
+        name,
+        description: options.description,
+        coverUrl: options.coverUrl,
+        teamId: options.teamId === undefined ? undefined : Number(options.teamId)
+      });
+      console.log(JSON.stringify(workspace, null, 2));
+    }, () => getAncestorOption(command, "debug") === true));
+
+  workspace
+    .command("list")
+    .alias("ls")
+    .description("项目列表")
+    .option("-p, --page <n>", "页码", "1")
+    .option("-s, --page-size <n>", "每页条数", "20")
+    .option("-o, --order-by <field>", "排序方式", "updated_at_desc")
+    .option("--name <text>", "名称关键字")
+    .option("-t, --team-id <n>", "团队空间过滤")
+    .action((options, command) => runCliAction(async () => {
+      const backend = await backendWithCredentials(command);
+      const result = await backend.listWorkspaces({
+        page: Number(options.page),
+        pageSize: Number(options.pageSize),
+        orderBy: options.orderBy,
+        name: options.name,
+        teamId: options.teamId === undefined ? undefined : Number(options.teamId)
+      });
+      console.log(JSON.stringify(result, null, 2));
+    }, () => getAncestorOption(command, "debug") === true));
+
+  workspace
+    .command("update")
+    .argument("<workspaceId>", "项目 ID")
+    .option("-n, --name <text>", "新项目名称")
+    .option("-d, --description <text>", "新项目简介")
+    .option("--cover-url <url>", "封面图 URL")
+    .option("-t, --team-id <n>", "团队 ID")
+    .action((workspaceId, options, command) => runCliAction(async () => {
+      const backend = await backendWithCredentials(command);
+      const workspace = await backend.updateWorkspace(workspaceId, {
+        name: options.name,
+        description: options.description,
+        coverUrl: options.coverUrl,
+        teamId: options.teamId === undefined ? undefined : Number(options.teamId)
+      });
+      console.log(JSON.stringify(workspace, null, 2));
+    }, () => getAncestorOption(command, "debug") === true));
+
+  workspace
+    .command("use")
+    .argument("<workspace>", "项目 ID")
+    .description("将当前目录绑定到项目（工作区）：写入 workspaceId 与 teamId；不设置默认画布")
+    .option("-t, --team-id <n>", "团队 ID")
+    .action((workspaceId, options, command) => runCliAction(async () => {
+      const backend = await backendWithCredentials(command);
+      const workspace = await backend.getWorkspaceDetail(workspaceId);
+      const teamId = options.teamId !== undefined ? Number(options.teamId) : workspace.teamId;
+      await writeWorkspaceBinding(process.cwd(), String(workspace.id), teamId);
+      console.log(JSON.stringify({ ok: true, cwd: process.cwd(), workspaceId: String(workspace.id), name: workspace.name, teamId }, null, 2));
+    }, () => getAncestorOption(command, "debug") === true));
+
+  workspace
+    .command("unuse")
+    .description("解除当前目录与项目（工作区）的绑定")
+    .action((_options, command) => runCliAction(async () => {
+      const result = await clearWorkspaceBinding(process.cwd());
+      console.log(JSON.stringify({ workspaceUnbound: true, remainingProjectUuid: result?.projectUuid ?? null }, null, 2));
     }, () => getAncestorOption(command, "debug") === true));
 
   const node = libtv.command("node").description("画布节点：list/create/delete；默认用法操作已有节点");
@@ -281,23 +547,57 @@ export function registerLibTvCommands(program: Command): void {
       const backend = await backendWithCredentials(command);
       const projectUuid = getOption(command, "project") as string | undefined ?? (await readBinding(process.cwd()))?.projectUuid;
       if (!projectUuid) throw new Error("缺少项目：请使用 -p/--project 或先 libtv project use");
-      const data = parsePairs(options.update);
-      const params = parsePairs(options.set);
-      const left = [...options.left, ...options.leftAdd].filter(Boolean);
-      const right = [...options.right, ...options.rightAdd].filter(Boolean);
+      const data = parsePairs(getOption(command, "update") as string[] | undefined);
+      const params = parsePairs(getOption(command, "set") as string[] | undefined);
+      const left = [
+        ...((getOption(command, "left") as string[] | undefined) ?? []),
+        ...((getOption(command, "leftAdd") as string[] | undefined) ?? [])
+      ].filter(Boolean);
+      const right = [
+        ...((getOption(command, "right") as string[] | undefined) ?? []),
+        ...((getOption(command, "rightAdd") as string[] | undefined) ?? [])
+      ].filter(Boolean);
+      const resolvedLeftNodes: Array<{ nodeKey: string; nodeType: string; url?: string }> = [];
+      for (const ref of left) {
+        const node = await backend.getNode(projectUuid, ref);
+        if (!node) throw new Error(`未找到左侧节点: ${ref}`);
+        const url = Array.isArray(node.data?.url) ? (node.data?.url as string[])[0] : undefined;
+        resolvedLeftNodes.push({ nodeKey: node.nodeKey, nodeType: node.nodeType, url });
+      }
+      const resolvedLeft = resolvedLeftNodes.map((item) => item.nodeKey);
+      const leftUrls: Record<string, string> = {};
+      for (const item of resolvedLeftNodes) {
+        if (item.url) leftUrls[item.nodeKey] = item.url;
+      }
+      const mixed = resolvedLeftNodes.some((item) => item.nodeType !== "image");
+      const promptWithPlaceholders = replacePromptPlaceholders(getOption(command, "prompt") as string | undefined, left, mixed);
+      const resolvedRight: string[] = [];
+      for (const ref of right) {
+        const node = await backend.getNode(projectUuid, ref);
+        if (!node) throw new Error(`未找到右侧节点: ${ref}`);
+        resolvedRight.push(node.nodeKey);
+      }
+      const groupRef = getOption(command, "group") as string | undefined;
+      let groupNodeKey: string | undefined;
+      if (groupRef) {
+        const groupNode = await backend.getNode(projectUuid, groupRef);
+        if (!groupNode) throw new Error(`未找到分组: ${groupRef}`);
+        groupNodeKey = groupNode.nodeKey;
+      }
       const result = await backend.createNode({
         projectUuid,
         name,
-        type: options.type,
-        prompt: options.prompt,
+        type: getOption(command, "type") as string,
+        prompt: promptWithPlaceholders,
         params,
         data,
-        groupNodeKey: getOption(command, "group") as string | undefined,
-        left,
-        right,
-        x: Number(options.x),
-        y: Number(options.y),
-        run: options.run === true
+        groupNodeKey,
+        left: resolvedLeft,
+        leftUrls,
+        right: resolvedRight,
+        x: Number(getOption(command, "x") ?? 0),
+        y: Number(getOption(command, "y") ?? 0),
+        run: getOption(command, "run") === true
       });
       console.log(JSON.stringify(result, null, 2));
     }, () => getAncestorOption(command, "debug") === true));
@@ -342,8 +642,9 @@ export function registerLibTvCommands(program: Command): void {
         console.log("node 帮助：libtv node [node] [options]；子命令 list/create/delete");
         return;
       }
-      const hasWrites = options.prompt || options.name || options.set.length || options.update.length || options.leftAdd.length || options.leftRm?.length || options.rightAdd.length || options.rightRm?.length;
-      if (!hasWrites) {
+      const hasWrites = options.prompt || options.name || options.run === true || options.set.length || options.update.length || options.leftAdd.length || options.leftRm?.length || options.rightAdd.length || options.rightRm?.length;
+      const stdinKeys = await readStdinNodeKeys();
+      if (!hasWrites && stdinKeys.length === 0) {
         const detail = await backend.getNode(projectUuid, ref);
         if (!detail) throw new Error(`未找到节点: ${ref}`);
         console.log(JSON.stringify(detail, null, 2));
@@ -351,16 +652,37 @@ export function registerLibTvCommands(program: Command): void {
       }
       const detail = await backend.getNode(projectUuid, ref);
       if (!detail) throw new Error(`未找到节点: ${ref}`);
+      const leftAddNodes: Array<{ nodeKey: string; nodeType: string; url?: string }> = [];
+      for (const leftRef of [...(options.leftAdd ?? []), ...stdinKeys]) {
+        const node = await backend.getNode(projectUuid, leftRef);
+        if (!node) throw new Error(`未找到左侧节点: ${leftRef}`);
+        const url = Array.isArray(node.data?.url) ? (node.data?.url as string[])[0] : undefined;
+        leftAddNodes.push({ nodeKey: node.nodeKey, nodeType: node.nodeType, url });
+      }
+      const leftAddResolved = leftAddNodes.map((item) => item.nodeKey);
+      const leftUrls: Record<string, string> = {};
+      for (const item of leftAddNodes) {
+        if (item.url) leftUrls[item.nodeKey] = item.url;
+      }
+      const mixed = leftAddNodes.some((item) => item.nodeType !== "image");
+      const promptWithPlaceholders = replacePromptPlaceholders(options.prompt, options.leftAdd ?? [], mixed);
+      const rightAddResolved: string[] = [];
+      for (const rightRef of options.rightAdd ?? []) {
+        const node = await backend.getNode(projectUuid, rightRef);
+        if (!node) throw new Error(`未找到右侧节点: ${rightRef}`);
+        rightAddResolved.push(node.nodeKey);
+      }
       const result = await backend.updateNode({
         projectUuid,
         nodeKey: detail.nodeKey,
         name: options.name,
-        prompt: options.prompt,
+        prompt: promptWithPlaceholders,
         params: parsePairs(options.set),
         data: parsePairs(options.update),
-        leftAdd: options.leftAdd,
+        leftAdd: leftAddResolved,
+        leftUrls,
         leftRemove: options.leftRm,
-        rightAdd: options.rightAdd,
+        rightAdd: rightAddResolved,
         rightRemove: options.rightRm,
         run: options.run === true
       });
@@ -514,8 +836,43 @@ export function registerLibTvCommands(program: Command): void {
       if (!projectUuid) throw new Error("缺少项目：请使用 -p/--project 或先 libtv project use");
       const node = await backend.getNode(projectUuid, options.node);
       if (!node) throw new Error(`未找到节点: ${options.node}`);
-      // 真实下载需要从 node.data.url 拉取并落盘；HTTP 下载契约待验证。
-      console.log(JSON.stringify({ nodeKey: node.nodeKey, outputDir: options.out, urls: node.data?.url ?? [] }, null, 2));
+      const urls = (node.data?.url ?? []) as string[];
+      if (urls.length === 0) {
+        throw new Error(`节点没有可下载的媒体 URL: ${node.nodeKey}`);
+      }
+      const outputDir = path.resolve(options.out);
+      await fs.ensureDir(outputDir);
+      if (options.withoutAiWatermark || options.vip || urls.length > 1) {
+        const binary = await ensureLocalLibtvBinary();
+        const args = [
+          "download",
+          "-n",
+          node.nodeKey,
+          "-p",
+          projectUuid,
+          "-o",
+          outputDir,
+          ...(options.withoutAiWatermark ? ["--without-ai-watermark"] : []),
+          ...(options.vip ? ["--vip"] : [])
+        ];
+        const { stdout } = await execFileAsync(binary, args);
+        console.log(stdout.trim());
+        return;
+      }
+      const saved: string[] = [];
+      for (const [index, url] of urls.entries()) {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`下载失败 ${url}: ${response.status} ${response.statusText}`);
+        }
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const ext = path.extname(new URL(url).pathname) || ".bin";
+        const fileName = `${node.name}${urls.length > 1 ? `-${index + 1}` : ""}${ext}`;
+        const target = path.join(outputDir, fileName);
+        await fs.writeFile(target, buffer);
+        saved.push(target);
+      }
+      console.log(JSON.stringify({ nodeKey: node.nodeKey, outputDir, saved }, null, 2));
     }, () => getAncestorOption(command, "debug") === true));
 
   libtv
@@ -564,6 +921,24 @@ export function registerLibTvCommands(program: Command): void {
       const backend = await backendWithCredentials(command);
       const issues = await verifyLibtvProject(projectRoot, options.remote ? backend : undefined);
       console.log(renderVerifyIssues(issues));
+      if (issues.length > 0) process.exitCode = 1;
+    }, () => getAncestorOption(command, "debug") === true));
+
+  libtv
+    .command("verify-order")
+    .description("校验 LibTV 节点引用顺序与提示词占位符（只读）")
+    .option("--project <path>", "本地项目目录")
+    .option("--write-contract", "把当前节点顺序写成合同文件", false)
+    .action((options, command) => runCliAction(async () => {
+      const projectRoot = await resolveProjectRoot(options.project, process.cwd());
+      const backend = await backendWithCredentials(command);
+      if (options.writeContract) {
+        const contractPath = await writeOrderContracts(projectRoot, backend);
+        console.log(`已写入顺序合同: ${contractPath}`);
+        return;
+      }
+      const issues = await verifyLibtvOrder(projectRoot, backend);
+      console.log(renderOrderVerifyIssues(issues));
       if (issues.length > 0) process.exitCode = 1;
     }, () => getAncestorOption(command, "debug") === true));
 

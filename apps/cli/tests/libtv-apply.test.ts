@@ -20,7 +20,23 @@ describe("libtv apply with mock backend", () => {
     await fs.copy(path.join(repoRoot, "examples", "官方示例-云上早市"), projectRoot);
     await writeBinding(projectRoot, { projectUuid: "mock-project" });
 
+    // Seed local anchor files so the anchor upload step can populate state.
+    const anchorFiles: Array<[string, string]> = [
+      ["characters", "罗婆婆三视图"],
+      ["characters", "沈安三视图"],
+      ["characters", "小满三视图"],
+      ["scenes", "小镇修伞铺场景图"],
+      ["scenes", "云上早市场景图"],
+      ["scenes", "镇口晨光场景图"]
+    ];
+    for (const [kind, name] of anchorFiles) {
+      const file = path.join(projectRoot, "assets", "anchors", kind, `${name}.png`);
+      await fs.ensureDir(path.dirname(file));
+      await fs.writeFile(file, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    }
+
     const backend = new MockLibTvBackend();
+    await applyPlan(projectRoot, backend, { only: ["anchors"] });
     const keyframes = await applyPlan(projectRoot, backend, { only: ["keyframes"] });
     expect(keyframes.state.keyframes).toHaveLength(3);
     for (const item of keyframes.state.keyframes) {

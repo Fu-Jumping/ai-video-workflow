@@ -11,7 +11,9 @@ import type {
   LibTvProjectMeta,
   LibTvProjectNodeSummary,
   LibTvToolSpec,
-  LibTvUploadResult
+  LibTvUploadResult,
+  LibTvWorkspace,
+  LibTvWorkspaceListResult
 } from "./types.js";
 
 export interface LibTvCreateNodeInput {
@@ -23,6 +25,7 @@ export interface LibTvCreateNodeInput {
   data?: Record<string, unknown>;
   groupNodeKey?: string;
   left?: string[];
+  leftUrls?: Record<string, string>;
   right?: string[];
   x?: number;
   y?: number;
@@ -37,6 +40,7 @@ export interface LibTvUpdateNodeInput {
   params?: Record<string, unknown>;
   data?: Record<string, unknown>;
   leftAdd?: string[];
+  leftUrls?: Record<string, string>;
   leftRemove?: string[];
   rightAdd?: string[];
   rightRemove?: string[];
@@ -66,18 +70,25 @@ export interface LibTvGenerationInput {
   nodeId: string;
   modelKey: string;
   prompt: string;
+  taskType?: string;
   params?: Record<string, unknown>;
 }
 
 export interface LibTvBackend {
   getAccountInfo(): Promise<LibTvAccountInfo>;
   listAccounts(): Promise<LibTvAccountListResult>;
+  sendLoginPhoneCode(input: { phone: string; captcha?: string }): Promise<unknown>;
+  loginByPhoneCode(input: { phone: string; code: string; captcha?: string }): Promise<unknown>;
   activateAccount(accountId: number | string): Promise<LibTvAccountListResult>;
-  listProjects(): Promise<LibTvProjectMeta[]>;
+  listProjects(query?: { page?: number; pageSize?: number; orderBy?: string; name?: string; teamId?: number; workspaceId?: number | string }): Promise<LibTvProjectMeta[]>;
   getProjectDetail(projectUuid: string): Promise<LibTvProjectDetailResult>;
-  createProject(input: { name: string; description?: string; coverUrl?: string; teamId?: number; folderId?: number }): Promise<LibTvProjectMeta>;
+  createProject(input: { name: string; description?: string; coverUrl?: string; teamId?: number; folderId?: number; workspaceId?: number | string }): Promise<LibTvProjectMeta>;
   updateProject(projectUuid: string, input: { name?: string; description?: string; coverUrl?: string; folderId?: number }): Promise<LibTvProjectMeta>;
   deleteProject(projectUuid: string, teamId?: number): Promise<void>;
+  listWorkspaces(query?: { page?: number; pageSize?: number; orderBy?: string; name?: string; teamId?: number }): Promise<LibTvWorkspaceListResult>;
+  getWorkspaceDetail(workspaceId: number | string): Promise<LibTvWorkspace>;
+  createWorkspace(input: { name: string; description?: string; coverUrl?: string; teamId?: number }): Promise<LibTvWorkspace>;
+  updateWorkspace(workspaceId: number | string, input: { name?: string; description?: string; coverUrl?: string; teamId?: number }): Promise<LibTvWorkspace>;
   listNodes(projectUuid: string, groupNodeKey?: string): Promise<LibTvProjectNodeSummary[]>;
   getNode(projectUuid: string, ref: string): Promise<LibTvNodeDetail | null>;
   createNode(input: LibTvCreateNodeInput): Promise<LibTvNodeDetail>;

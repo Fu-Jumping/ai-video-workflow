@@ -15,10 +15,10 @@ export function renderPlan(plan: LibTvPlan, projectUuid?: string): string {
     ...plan.anchors.map((anchor) => `- ${anchor.token}${anchor.localPath ? ` (${anchor.localPath})` : " (缺少本地文件)"}`),
     "",
     `关键帧图片：${plan.keyframes.length}`,
-    ...plan.keyframes.map((item) => `- ${item.groupId}/${item.shotId}/${item.keyframeId} @ ${item.sourcePath}`),
+    ...plan.keyframes.map((item) => `- ${item.groupId}/${item.shotId}/${item.keyframeId} @ ${item.sourcePath}${item.modelKey ? ` model=${item.modelKey}` : ""}`),
     "",
     `视频：${plan.videos.length}`,
-    ...plan.videos.map((item) => `- ${item.groupId}/${item.shotId} @ ${item.sourcePath}`),
+    ...plan.videos.map((item) => `- ${item.groupId}/${item.shotId} @ ${item.sourcePath}${item.modelKey ? ` model=${item.modelKey}` : ""}`),
     "",
     `镜头组：${plan.groups.length > 0 ? plan.groups.join(", ") : "无"}`
   ];

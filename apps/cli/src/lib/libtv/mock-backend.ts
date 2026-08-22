@@ -14,7 +14,9 @@ import type {
   LibTvProjectMeta,
   LibTvProjectNodeSummary,
   LibTvToolSpec,
-  LibTvUploadResult
+  LibTvUploadResult,
+  LibTvWorkspace,
+  LibTvWorkspaceListResult
 } from "./types.js";
 
 let nextNodeSeq = 1;
@@ -40,9 +42,11 @@ export class MockLibTvBackend implements LibTvBackend {
   private models: LibTvModel[] = [
     { modelKey: "mock-image-1", modelName: "Mock Image", supportModality: "image" },
     { modelKey: "mock-video-1", modelName: "Mock Video", supportModality: "video" },
+    { modelKey: "star-video2", modelName: "Seedance 2.0 VIP", modelVendor: "star-video2", supportModality: "video" },
     { modelKey: "midjourney-v8.2", modelName: "Midjourney V8.2", supportModality: "image" }
   ];
   private tasks = new Map<string, { status: number; progressPercent: number }>();
+  private workspaces = new Map<number | string, LibTvWorkspace>();
 
   constructor() {
     this.ensureProject({
@@ -56,6 +60,12 @@ export class MockLibTvBackend implements LibTvBackend {
       projectType: 0,
       ownerId: 1
     });
+    this.workspaces.set("mock-workspace", {
+      id: "mock-workspace",
+      name: "Mock Workspace",
+      teamId: 0,
+      fileCnt: 0
+    });
   }
 
   private ensureProject(meta: LibTvProjectMeta): LibTvProjectDetailResult {
@@ -63,10 +73,37 @@ export class MockLibTvBackend implements LibTvBackend {
     if (existing) {
       return existing;
     }
-    const detail: LibTvProjectDetailResult = { projectUuid: meta.uuid, nodes: [], edges: [] };
+    const detail: LibTvProjectDetailResult = { projectUuid: meta.uuid, projectMeta: meta, nodes: [], edges: [] };
     this.projects.set(meta.uuid, detail);
     this.projectMetas.set(meta.uuid, meta);
     return detail;
+  }
+
+  async listWorkspaces(query: { page?: number; pageSize?: number; orderBy?: string; name?: string; teamId?: number } = {}): Promise<LibTvWorkspaceListResult> {
+    let folders = [...this.workspaces.values()];
+    if (query.name) {
+      folders = folders.filter((folder) => folder.name.includes(query.name ?? ""));
+    }
+    return { folders, total: folders.length };
+  }
+
+  async getWorkspaceDetail(workspaceId: number | string): Promise<LibTvWorkspace> {
+    const workspace = this.workspaces.get(String(workspaceId)) ?? this.workspaces.get(workspaceId);
+    if (!workspace) throw new Error(`Mock workspace not found: ${workspaceId}`);
+    return workspace;
+  }
+
+  async createWorkspace(input: { name: string; description?: string; coverUrl?: string; teamId?: number }): Promise<LibTvWorkspace> {
+    const id = `mock-workspace-${nextProjectSeq++}`;
+    const workspace: LibTvWorkspace = { id, name: input.name, description: input.description, coverUrl: input.coverUrl, teamId: input.teamId ?? 0, fileCnt: 0 };
+    this.workspaces.set(id, workspace);
+    return workspace;
+  }
+
+  async updateWorkspace(workspaceId: number | string, input: { name?: string; description?: string; coverUrl?: string; teamId?: number }): Promise<LibTvWorkspace> {
+    const workspace = await this.getWorkspaceDetail(workspaceId);
+    Object.assign(workspace, input);
+    return workspace;
   }
 
   async getAccountInfo(): Promise<LibTvAccountInfo> {
@@ -88,8 +125,26 @@ export class MockLibTvBackend implements LibTvBackend {
     return { accounts: this.accounts };
   }
 
-  async listProjects(): Promise<LibTvProjectMeta[]> {
-    return [...this.projectMetas.values()];
+  async sendLoginPhoneCode(_input: { phone: string; captcha?: string }): Promise<unknown> {
+    return { ok: true, needCaptcha: false };
+  }
+
+  async loginByPhoneCode(input: { phone: string; code: string; captcha?: string }): Promise<unknown> {
+    if (input.code === "123456") {
+      return { ok: true, token: "mock-token", phone: input.phone };
+    }
+    throw new Error("验证码失败");
+  }
+
+  async listProjects(query?: { page?: number; pageSize?: number; orderBy?: string; name?: string; teamId?: number; workspaceId?: number | string }): Promise<LibTvProjectMeta[]> {
+    let metas = [...this.projectMetas.values()];
+    if (query?.name) {
+      metas = metas.filter((meta) => meta.name.includes(query.name ?? ""));
+    }
+    if (query?.workspaceId !== undefined && Number(query.workspaceId) !== 0) {
+      metas = metas.filter((meta) => meta.folderId === Number(query.workspaceId));
+    }
+    return metas;
   }
 
   async getProjectDetail(projectUuid: string): Promise<LibTvProjectDetailResult> {
@@ -100,16 +155,17 @@ export class MockLibTvBackend implements LibTvBackend {
     return detail;
   }
 
-  async createProject(input: { name: string; description?: string; coverUrl?: string; teamId?: number; folderId?: number }): Promise<LibTvProjectMeta> {
+  async createProject(input: { name: string; description?: string; coverUrl?: string; teamId?: number; folderId?: number; workspaceId?: number | string }): Promise<LibTvProjectMeta> {
     const uuid = `mock-project-${nextProjectSeq++}`;
+    const folderId = Number(input.folderId ?? input.workspaceId ?? 0);
     const meta: LibTvProjectMeta = {
       id: nextProjectSeq,
       uuid,
       name: input.name,
       createdAtMs: Date.now(),
       updatedAtMs: Date.now(),
-      folderId: input.folderId ?? 0,
-      projectSpaceId: input.folderId ?? 0,
+      folderId,
+      projectSpaceId: folderId,
       projectType: 0,
       ownerId: 1
     };

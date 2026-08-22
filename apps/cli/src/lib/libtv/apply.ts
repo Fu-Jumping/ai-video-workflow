@@ -12,12 +12,40 @@ function fileSha256(filePath: string): string {
   return createHash("sha256").update(content).digest("hex");
 }
 
+async function downloadNodeOutput(node: { data?: { url?: unknown } }, outputDir: string): Promise<string | undefined> {
+  const urls = (node.data?.url ?? []) as string[];
+  if (urls.length === 0) return undefined;
+  await fs.ensureDir(outputDir);
+  const url = urls[0];
+  const response = await fetch(url);
+  if (!response.ok) return undefined;
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const ext = path.extname(new URL(url).pathname) || ".bin";
+  const target = path.join(outputDir, `output${ext}`);
+  await fs.writeFile(target, buffer);
+  return target;
+}
+
 function displayNameForAnchor(token: string): string {
   return token.replace(/^@/, "");
 }
 
 function displayNameForKeyframe(shotId: string, keyframeId: string): string {
   return `${shotId} ${keyframeId}`;
+}
+
+function normalizeRef(value: string): string {
+  return value.replace(/^@/, "").replace(/镜头/g, "shot").replace(/关键帧/g, "keyframe").replace(/[_\-\s]/g, "").toLowerCase();
+}
+
+function stateNameForId(state: LibTvState, id: string): string | undefined {
+  const anchor = state.anchors.find((item) => item.nodeId === id);
+  if (anchor) return anchor.token.replace(/^@/, "");
+  const keyframe = state.keyframes.find((item) => item.nodeId === id);
+  if (keyframe) return displayNameForKeyframe(keyframe.shotId, keyframe.keyframeId);
+  const video = state.videos.find((item) => item.nodeId === id);
+  if (video) return displayNameForVideo(video.shotId);
+  return id;
 }
 
 function displayNameForVideo(shotId: string): string {
@@ -59,6 +87,11 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
 
   // Anchor assets.
   if (only.includes("anchors")) {
+    const existingAnchorGroup = (await backend.listNodes(binding.projectUuid)).find((node) => node.name === "锚点素材" || node.id === "锚点素材");
+    if (!existingAnchorGroup) {
+      await backend.createGroup({ projectUuid: binding.projectUuid, name: "锚点素材" });
+      actions.push("创建分组 锚点素材");
+    }
     const existingAnchors = new Set(state.anchors.map((anchor) => anchor.token));
     for (const anchor of plan.anchors) {
       if (existingAnchors.has(anchor.token)) {
@@ -77,12 +110,15 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
         groupNodeKey: "锚点素材"
       });
       const hash = fileSha256(anchor.localPath);
+      const uploadedNodeKey = node.node?.nodeKey ?? node.nodeKey ?? "";
+      const cdnUrl = node.cdnUrl ?? (Array.isArray(node.node?.data?.url) ? (node.node?.data?.url as string[])[0] : undefined);
       state.anchors.push({
         ...anchor,
-        nodeId: node.node?.nodeKey ?? node.nodeKey ?? "",
+        nodeId: uploadedNodeKey,
         fileSha256: hash,
         uploadedAt: new Date().toISOString(),
-        localPath: anchor.localPath
+        localPath: anchor.localPath,
+        cdnUrl
       });
       actions.push(`上传锚点 ${anchor.token} -> ${node.node?.nodeKey ?? node.nodeKey ?? ""}`);
     }
@@ -100,13 +136,30 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
       const left = keyframe.referenceTokens
         .map((token) => state.anchors.find((anchor) => anchor.token === token)?.nodeId)
         .filter((id): id is string => Boolean(id));
+      const leftUrls: Record<string, string> = {};
+      for (const id of left) {
+        const anchor = state.anchors.find((item) => item.nodeId === id);
+        if (anchor?.cdnUrl) leftUrls[id] = anchor.cdnUrl;
+      }
+      if (keyframe.modelKey) {
+        const schema = await backend.getModelSchema(keyframe.modelKey);
+        if (!schema) {
+          actions.push(`跳过关键帧 ${key}：模型不可用 ${keyframe.modelKey}`);
+          continue;
+        }
+      }
       const node = await backend.createNode({
         projectUuid: binding.projectUuid,
         name: displayNameForKeyframe(keyframe.shotId, keyframe.keyframeId),
         type: "image",
         prompt: keyframe.prompt,
+        params: {
+          ...(keyframe.params ?? {}),
+          ...(keyframe.modelKey ? { model: keyframe.modelKey } : {})
+        },
         groupNodeKey: keyframe.groupId,
         left,
+        leftUrls,
         data: {
           avwKind: "keyframe",
           avwSourcePath: keyframe.sourcePath,
@@ -116,8 +169,10 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
         },
         run: true
       });
-      state.keyframes.push({ ...keyframe, nodeId: node.nodeKey, status: "pending-approval" });
-      actions.push(`创建并生成关键帧 ${key} -> ${node.nodeKey}`);
+      const localOutput = await downloadNodeOutput(node, path.join(projectRoot, "outputs", "images", keyframe.groupId, keyframe.shotId));
+      const keyframeCdnUrl = Array.isArray(node.data?.url) ? (node.data?.url as string[])[0] : undefined;
+      state.keyframes.push({ ...keyframe, nodeId: node.nodeKey, status: "pending-approval", localOutput, cdnUrl: keyframeCdnUrl });
+      actions.push(`创建并生成关键帧 ${key} -> ${node.nodeKey}${localOutput ? ` (${localOutput})` : ""}`);
     }
   }
 
@@ -141,13 +196,42 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
         ...video.referenceTokens.map((token) => state.anchors.find((anchor) => anchor.token === token)?.nodeId),
         ...state.keyframes.filter((item) => item.groupId === video.groupId && item.shotId === video.shotId).map((item) => item.nodeId)
       ].filter((id): id is string => Boolean(id));
+      const leftUrls: Record<string, string> = {};
+      for (const id of left) {
+        const anchor = state.anchors.find((item) => item.nodeId === id);
+        const keyframe = state.keyframes.find((item) => item.nodeId === id);
+        const url = anchor?.cdnUrl ?? keyframe?.cdnUrl;
+        if (url) leftUrls[id] = url;
+      }
+      if (video.orderTokens && video.orderTokens.length > 0) {
+        const actualNames = left.map((id) => stateNameForId(state, id) ?? id);
+        const expected = video.orderTokens.map(normalizeRef);
+        const actual = actualNames.map(normalizeRef);
+        const missing = expected.filter((token) => !actual.some((value) => value.includes(token) || token.includes(value)));
+        if (missing.length > 0) {
+          actions.push(`跳过视频 ${key}：引用顺序校验未通过，缺少 ${missing.join(", ")}（实际: ${actualNames.join(" -> ")}）`);
+          continue;
+        }
+      }
+      if (video.modelKey) {
+        const schema = await backend.getModelSchema(video.modelKey);
+        if (!schema) {
+          actions.push(`跳过视频 ${key}：模型不可用 ${video.modelKey}`);
+          continue;
+        }
+      }
       const node = await backend.createNode({
         projectUuid: binding.projectUuid,
         name: displayNameForVideo(video.shotId),
         type: "video",
         prompt: video.prompt,
+        params: {
+          ...(video.params ?? {}),
+          ...(video.modelKey ? { model: video.modelKey } : {})
+        },
         groupNodeKey: video.groupId,
         left,
+        leftUrls,
         data: {
           avwKind: "video",
           avwSourcePath: video.sourcePath,
@@ -156,8 +240,15 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
         },
         run: true
       });
-      state.videos.push({ ...video, nodeId: node.nodeKey, status: "generated" });
-      actions.push(`创建并生成视频 ${key} -> ${node.nodeKey}`);
+      const localOutput = await downloadNodeOutput(node, path.join(projectRoot, "outputs", "video", video.groupId, video.shotId));
+      const dataParams = (node.data?.params ?? {}) as Record<string, unknown>;
+      const orderAfterRun = (dataParams.mixedListOrder ?? dataParams.imageListOrder) as string[] | undefined;
+      if (!orderAfterRun || orderAfterRun.length === 0) {
+        actions.push(`警告：视频 ${key} 生成后缺少 imageListOrder/mixedListOrder`);
+      }
+      const videoCdnUrl = Array.isArray(node.data?.url) ? (node.data?.url as string[])[0] : undefined;
+      state.videos.push({ ...video, nodeId: node.nodeKey, status: "generated", localOutput, cdnUrl: videoCdnUrl });
+      actions.push(`创建并生成视频 ${key} -> ${node.nodeKey}${localOutput ? ` (${localOutput})` : ""}`);
     }
   }
 

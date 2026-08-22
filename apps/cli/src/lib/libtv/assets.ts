@@ -3,6 +3,7 @@ import path from "node:path";
 import { STEP_DIR_BY_NUMBER } from "../constants.js";
 import { buildShotGraph, listStepMarkdownFiles } from "../shot-graph.js";
 import { declaredReferenceAssetTokens, extractReferenceAssets } from "../reference-assets.js";
+import { readProjectConfig } from "../project-config.js";
 import type { LibTvAssetRef, LibTvKeyframeRef, LibTvVideoRef } from "./types.js";
 
 const ANCHOR_DIRS = [
@@ -25,6 +26,29 @@ function findByToken(root: string, token: string, kind: LibTvAssetRef["kind"]): 
     }
   }
   return undefined;
+}
+
+const DEFAULT_IMAGE_MODEL_MAP: Record<string, string> = {
+  midjourney: "mj-v8.2"
+};
+
+const DEFAULT_VIDEO_MODEL_MAP: Record<string, string> = {
+  seedance: "star-video2",
+  minimax: "MiniMax-Hailuo-H3"
+};
+
+export async function resolveLibtvImageModel(projectRoot: string): Promise<string | undefined> {
+  const { config } = await readProjectConfig(projectRoot);
+  if (config?.libtv?.image_model) return config.libtv.image_model;
+  const platform = config?.platforms.image.default;
+  return platform ? DEFAULT_IMAGE_MODEL_MAP[platform] : undefined;
+}
+
+export async function resolveLibtvVideoModel(projectRoot: string): Promise<string | undefined> {
+  const { config } = await readProjectConfig(projectRoot);
+  if (config?.libtv?.video_model) return config.libtv.video_model;
+  const platform = config?.platforms.video.default;
+  return platform ? DEFAULT_VIDEO_MODEL_MAP[platform] : undefined;
 }
 
 export async function discoverAnchorAssets(projectRoot: string): Promise<LibTvAssetRef[]> {
@@ -75,6 +99,9 @@ function parseGroupId(relPath: string): string | undefined {
 
 export async function buildKeyframeRefs(projectRoot: string): Promise<LibTvKeyframeRef[]> {
   const files = await listStepMarkdownFiles(projectRoot, 4);
+  const modelKey = await resolveLibtvImageModel(projectRoot);
+  const { config } = await readProjectConfig(projectRoot);
+  const imageSettings = config?.libtv?.image_settings;
   const refs: LibTvKeyframeRef[] = [];
   for (const file of files) {
     const keyframeId = parseKeyframeId(file.fileName);
@@ -89,6 +116,8 @@ export async function buildKeyframeRefs(projectRoot: string): Promise<LibTvKeyfr
       sourcePath: file.relPath,
       prompt: extractCopyablePrompt(file.content),
       referenceTokens: tokens.map((token) => token.token),
+      modelKey,
+      params: imageSettings,
       status: "planned"
     });
   }
@@ -97,6 +126,9 @@ export async function buildKeyframeRefs(projectRoot: string): Promise<LibTvKeyfr
 
 export async function buildVideoRefs(projectRoot: string): Promise<LibTvVideoRef[]> {
   const files = await listStepMarkdownFiles(projectRoot, 5);
+  const modelKey = await resolveLibtvVideoModel(projectRoot);
+  const { config } = await readProjectConfig(projectRoot);
+  const videoSettings = config?.libtv?.video_settings;
   const refs: LibTvVideoRef[] = [];
   for (const file of files) {
     const shotId = parseShotId(file.fileName);
@@ -104,6 +136,10 @@ export async function buildVideoRefs(projectRoot: string): Promise<LibTvVideoRef
     if (!shotId || !groupId) continue;
     const tokens = extractReferenceAssets(file.content);
     const keyframePaths = [...file.content.matchAll(/关键帧文件[^：:]*[：:]\s*`([^`]+)`/gu)].map((match) => match[1] ?? "");
+    const orderMatch = file.content.match(/素材上传顺序\s*[：:]\s*([^\n]+)/u);
+    const orderTokens = orderMatch
+      ? orderMatch[1].split(/[、,，]/u).map((item) => item.trim()).filter(Boolean)
+      : undefined;
     refs.push({
       groupId,
       shotId,
@@ -111,6 +147,9 @@ export async function buildVideoRefs(projectRoot: string): Promise<LibTvVideoRef
       prompt: extractCopyablePrompt(file.content),
       referenceTokens: tokens.map((token) => token.token),
       keyframePaths,
+      modelKey,
+      orderTokens,
+      params: videoSettings,
       status: "planned"
     });
   }
