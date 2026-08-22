@@ -9,5 +9,24 @@ This repository treats the workflow as a product.
 
 ## Testing
 
-- Testing/retesting must follow the machine-global skill `avw-isolated-e2e-testing`.
-- Isolated E2E tests must start from a clone/initialized copy, not from the local working tree, and must keep reference materials out of the test context.
+### Required method
+
+Any testing/retesting/end-to-end verification must follow the machine-global skill `avw-isolated-e2e-testing`.
+
+### Orchestration flow
+
+1. The main conversation is the orchestrator.
+2. It prepares an isolated test directory, initial idea file, repository link or bare mirror, and any external test config.
+3. It starts a general-purpose subagent with a self-contained task book.
+4. The subagent task book contains only repository link, test directory, idea path, scenario list, and report requirements.
+5. The subagent must clone/initialize from the link, not use the local working tree as its source.
+6. The subagent must not see reference materials, old reports, or existing outputs.
+7. After the subagent finishes, the main conversation performs comparison and final review.
+
+### Prompt formatting rules
+
+- The main-conversation test prompt must be delivered as one single text code block.
+- Never nest triple backticks inside that block.
+- Commands and paths inside the block should be indented or plain text.
+- The subagent task book should be included inside the same single block when delivering the main prompt.
+- The subagent task book must remain free of reference project information.
