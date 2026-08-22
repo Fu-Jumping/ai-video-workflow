@@ -97,6 +97,19 @@ For a local MCP client, use the CLI command `ai-video-workflow mcp-server --proj
 
 See `docs/en/contributors/mcp-adapter.md` for the MCP adapter boundary.
 
+## LibTV Asset Execution
+
+```powershell
+pnpm build
+node apps/cli/dist/index.js libtv plan --project <project-path>
+node apps/cli/dist/index.js libtv apply --project <project-path> --only anchors --dry-run
+node apps/cli/dist/index.js libtv verify-order --project <project-path>
+```
+
+The LibTV asset execution adapter only handles asset upload, reference, generation and result download. It does not design story or shots and does not implement `script storyboard`. It maps Step 2 anchors, Step 4 keyframes and Step 5 videos to LibTV canvas nodes and reference order, and `verify-order` checks the Step 5 upload-order contract. Asset upload currently falls back to the locally installed official `libtv` CLI rather than a pure HTTP upload path.
+
+See [LibTV Asset Adapter](docs/en/contributors/libtv-asset-adapter.md) for the full boundary.
+
 ## Step 0 Research
 
 New real-world or prototype-based projects start with `00_前期研究/` by default. Step 0 organizes reports, interviews, historical records, video observations, comment samples, and visual evidence into traceable `SRC-xxxx` sources for Step 1.

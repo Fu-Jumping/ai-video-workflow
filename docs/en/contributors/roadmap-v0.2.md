@@ -45,7 +45,7 @@ Suggested order:
 3. v0.4.1 to v0.4.5 Codex, Cursor, Claude Code, and Trae adapter hardening with runtime verification.
 4. v0.5: MCP read-only context adapter. Start with resources, prompts, and read-only diagnostics. Write tools and LibTV execution remain postponed.
 5. v0.6: cross-agent workspace consistency. Use `AGENTS.md` and `文档/智能体工作区/` as shared project entrypoints across Codex, Cursor, Claude Code, Trae, Cherry Studio, Obsidian, and MCP surfaces.
-5. LibTV execution projection after the platform and CLI are stable enough to validate against real state.
+5. ~~LibTV execution projection after the platform and CLI are stable enough to validate against real state.~~ (Completed on 2026-08-22; see the LibTV completion section below.)
 
 ## Completed Since v0.4
 
@@ -75,3 +75,14 @@ v0.6 should make repeated cross-platform access safer:
 - keep platform runtime mirrors aligned with the shared entry
 - document Cherry Studio as a working-directory adapter without writing host memory or persona files
 - verify missing shared docs and runtime entries that redefine project truth
+
+## LibTV Asset Execution Adapter Completed
+
+The LibTV asset execution adapter is now integrated as a one-way adapter: it handles anchor upload, node/reference edges, image/video generation and result download. It does not design story or shots and does not implement `script storyboard`.
+
+- `ai-video-workflow libtv ...` command group: plan / project / apply / status / verify / node / group / model / upload / download, etc.
+- The adapter reads and writes canvas nodes, edges and ordering through the official LibTV HTTP API; asset upload falls back to the locally installed official `libtv` CLI.
+- Step 5 `素材上传顺序` is now validated by `libtv verify-order`.
+- See [LibTV Asset Adapter](./libtv-asset-adapter.md) for boundaries and commands.
+
+Specialized tests cover anchor parsing, node/edge/placeholder order mapping, verify-order contracts, `apply --only anchors` idempotence, and `node delete` connection cleanup.

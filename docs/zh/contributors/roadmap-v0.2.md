@@ -45,7 +45,7 @@ v0.3 之后，优先级不是继续增加 Obsidian 表层功能，而是定义�
 3. v0.4.1 到 v0.4.5 完成 Codex、Cursor、Claude Code 和 Trae adapter 加固，并加入 runtime 验证。
 4. v0.5：MCP 只读上下文 adapter。先提供 resources、prompts 和只读诊断；写入工具和 LibTV 执行继续暂缓。
 5. v0.6：跨智能体工作目录一致性。使用 `AGENTS.md` 和 `文档/智能体工作区/` 作为 Codex、Cursor、Claude Code、Trae、Cherry Studio、Obsidian 和 MCP 表面的共享项目入口。
-5. 等 LibTV 平台和 CLI 足够稳定后，再回到 LibTV 执行投影。
+5. ~~等 LibTV 平台和 CLI 足够稳定后，再回到 LibTV 执行投影~~（已于 2026-08-22 完成，见下方 LibTV 完成记录）。
 
 ## v0.4 之后已完成
 
@@ -75,3 +75,14 @@ v0.6 应让多平台反复访问同一工作目录更安全：
 - 平台 runtime mirror 回指共享入口
 - 把 Cherry Studio 记录为工作目录型 adapter，不写宿主记忆或 persona 文件
 - 校验共享文档缺失和 runtime 入口重定义事实源的问题
+
+## LibTV 素材执行 Adapter 已完成
+
+LibTV 素材执行适配层已作为单向 adapter 接入：只负责锚点上传、节点/边引用、图片/视频生成与回传，不承担剧情/分镜设计，也不实现 `script storyboard`。
+
+- `ai-video-workflow libtv ...` 命令组：plan / project / apply / status / verify / node / group / model / upload / download 等。
+- 通过官方 LibTV HTTP API 读取画布并写入节点/边/顺序；素材上传回退到本地官方 `libtv` CLI。
+- Step 5 `素材上传顺序` 已进入 `libtv verify-order` 校验。
+- 边界与命令见 [LibTV 素材 Adapter](./libtv-asset-adapter.md)。
+
+已完成的专项测试覆盖：锚点解析、节点/边/占位符顺序映射、verify-order 合同、apply --only anchors 幂等、node delete 连接清理。
