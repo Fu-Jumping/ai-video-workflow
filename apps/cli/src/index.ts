@@ -17,6 +17,7 @@ import {
 } from "./lib/deviations.js";
 import type { WorkflowMode } from "./lib/types.js";
 import { diagnoseProject } from "./lib/doctor.js";
+import { analyzeImpact, renderImpactResult } from "./lib/impact.js";
 import { createProject, renderInitNextSteps } from "./lib/init.js";
 import { runCliAction } from "./lib/cli-errors.js";
 import { parseIde, parsePlatform, parseStartFrom } from "./lib/cli-options.js";
@@ -277,6 +278,16 @@ program
     if (!result.ok) {
       process.exitCode = 1;
     }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+program
+  .command("impact")
+  .description("Find files likely affected by changing a keyword in a project")
+  .requiredOption("--project <path>")
+  .argument("<keyword>", "Keyword to search, e.g. a character name, scene, color, or motif")
+  .action((keyword, options) => runCliAction(async () => {
+    const result = await analyzeImpact(path.resolve(options.project), keyword);
+    console.log(renderImpactResult(result));
   }, () => program.opts<{ debug?: boolean }>().debug === true));
 
 const deviation = program.command("deviation").description("Manage accepted workflow deviations");

@@ -110,6 +110,16 @@ The LibTV asset execution adapter only handles asset upload, reference, generati
 
 See [LibTV Asset Adapter](docs/en/contributors/libtv-asset-adapter.md) for the full boundary.
 
+## Impact Analysis
+
+```powershell
+node apps/cli/dist/index.js impact "Jing Ke" --project <project-path>
+node apps/cli/dist/index.js impact "farewell in the rain" --project <project-path>
+```
+
+`impact` searches Markdown files in Steps 0-7, lists direct keyword matches, and flags same-shot downstream Step 4/5 files for review. It is a text and structure aid, not a full semantic impact analysis; semantic criteria still require manual review using the project’s impact analysis guidance.
+
+
 ## Step 0 Research
 
 New real-world or prototype-based projects start with `00_前期研究/` by default. Step 0 organizes reports, interviews, historical records, video observations, comment samples, and visual evidence into traceable `SRC-xxxx` sources for Step 1.

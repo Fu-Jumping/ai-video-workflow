@@ -108,6 +108,16 @@ LibTV 素材执行适配层只负责素材上传、引用、生成与回传，�
 
 详细边界见 [LibTV 素材 Adapter](docs/zh/contributors/libtv-asset-adapter.md)。
 
+## 影响面排查
+
+```powershell
+node apps/cli/dist/index.js impact "荆轲" --project <project-path>
+node apps/cli/dist/index.js impact "雨中告别" --project <project-path>
+```
+
+`impact` 会在 Step 0-7 的 Markdown 文件中搜索关键词，列出直接命中的文件，并标出同镜头下游链中需要复核的 Step 4/5 文件。它是文本/结构辅助，不等同于完整语义影响分析；语义判据仍需按[影响面排查手册](docs/zh/workflow/impact-analysis.md)人工复核。
+
+
 ## Step 0 前期研究
 
 从零开始的真实题材或现实原型项目默认启用 `00_前期研究/`。它用于整理新闻报道、采访、历史资料、其他视频观察、评论样本和视觉细节依据，并通过 `SRC-xxxx` 来源 ID 交接给 Step 1。

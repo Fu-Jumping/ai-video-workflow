@@ -739,6 +739,24 @@ describe("built CLI", () => {
     expect(stdout).not.toMatch(/[A-Z]:\\\\|[A-Z]:\\\/|file:\/\/|vscode:\/\//);
   });
 
+  test("impact prints direct matches from the bundled ESM entry", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-impact-"));
+    tempRoots.push(projectRoot);
+    await fs.ensureDir(path.join(projectRoot, "01_概念策划"));
+    await fs.writeFile(path.join(projectRoot, "01_概念策划", "故事内核.md"), "# 故事内核\n\n测试关键词。\n", "utf8");
+
+    await buildCli(cliRoot);
+    const { stdout } = await run(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "impact", "测试关键词", "--project", projectRoot],
+      cliRoot
+    );
+
+    expect(stdout).toContain('Impact analysis for "测试关键词"');
+    expect(stdout).toContain("01_概念策划/故事内核.md");
+  });
+
   test("help exposes the read-only MCP server command from the bundled ESM entry", async () => {
     const cliRoot = path.resolve(__dirname, "..");
 
@@ -750,5 +768,6 @@ describe("built CLI", () => {
     expect(stdout).toContain("research");
     expect(stdout).toContain("clean-view");
     expect(stdout).toContain("rebuild-view");
+    expect(stdout).toContain("impact");
   });
 });
