@@ -81,6 +81,14 @@ describe("libtv CLI", () => {
       updatedAt: new Date().toISOString()
     };
     await writeState(projectRoot, state);
+    for (const [dir, groupDir, file, content] of [
+      ["03_分镜脚本", "镜头组-001", "镜头-001.md", "# 镜头 001\n"],
+      ["04_图片提示词", "镜头组-001", "镜头-001-关键帧-01.md", "# 关键帧 01\n"],
+      ["05_视频提示词", "镜头组-001", "镜头-001.md", "# 镜头 001 视频\n"]
+    ]) {
+      await fs.ensureDir(path.join(projectRoot, dir, groupDir));
+      await fs.writeFile(path.join(projectRoot, dir, groupDir, file), content, "utf8");
+    }
 
     const review = await runCli(entry, [
       "libtv", "--mock", "review", "group-001/shot-001/keyframe-01",
@@ -94,8 +102,26 @@ describe("libtv CLI", () => {
     ]);
     expect(refine.stdout).toContain("已创建精修节点");
 
+    const refine2 = await runCli(entry, [
+      "libtv", "--mock", "refine", "group-001/shot-001/keyframe-01",
+      "--project", projectRoot, "--base", "current", "--instruction", "继续修", "--allow-generation"
+    ]);
+    expect(refine2.stdout).toContain("已创建精修节点");
+
     const readState = await import("../src/lib/libtv/project-binding.js");
     const updated = await readState.readState(projectRoot);
-    expect(updated?.keyframes[0]?.refineRounds).toHaveLength(1);
+    expect(updated?.keyframes[0]?.refineRounds).toHaveLength(2);
+    const [r1, r2] = updated?.keyframes[0]?.refineRounds ?? [];
+    expect(r1?.refineNodeId).toBeTruthy();
+    expect(r2?.refineNodeId).toBeTruthy();
+    expect(r1?.refineNodeId).not.toBe(r2?.refineNodeId);
+    expect(r2?.baseNodeId).toBe(r1?.refineNodeId);
+
+    const impact = await runCli(entry, [
+      "impact", "--project", projectRoot, "--image", r2?.refineNodeId ?? ""
+    ]);
+    expect(impact.stdout).toContain("04_图片提示词/镜头组-001/镜头-001-关键帧-01.md");
+    expect(impact.stdout).toContain("05_视频提示词/镜头组-001/镜头-001.md");
+    expect(impact.stdout).not.toContain("undefined");
   });
 });

@@ -22,10 +22,11 @@ import type {
 let nextNodeSeq = 1;
 let nextEdgeSeq = 1;
 let nextProjectSeq = 1;
+const processRunId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
 function makeNodeId(type: string): string {
   const prefix = type === "video" ? "v" : type === "group" ? "g" : "i";
-  return `${prefix}-mock-${nextNodeSeq++}`;
+  return `${prefix}-mock-${processRunId}-${nextNodeSeq++}`;
 }
 
 function makeEdgeId(): string {
