@@ -65,8 +65,8 @@
 | Adapter | 把同一工作流落到平台可执行位置的适配层（IDE、Obsidian、LibTV、MCP、Cherry Studio）；不创建第二套工作流 | `docs/zh/contributors/adapter-boundaries.md` |
 | 观看层（`_views/obsidian/`） | 生成的 Obsidian vault 投影；Obsidian 只打开此目录；含 `流程/`、`镜头/`、`数据表/`、`画布/`、`00_项目首页.md`、`投影清单.json`；`笔记/`（用户手写）被增量导出保留但非事实源 | `README.md` Obsidian Vault Projection |
 | `.libtv/` 与 `outputs/` | LibTV 本地执行状态与下载产物；gitignored | `docs/zh/contributors/adapter-boundaries.md` |
-| `libtv review` | 图片节点人工审阅决策：`--decision direct\|refine\|regenerate`（直接可用/需要精修/需要重生成），可附 `--feedback` | `apps/cli/src/lib/libtv/refine.ts` |
-| `libtv refine` | 两阶段精修：基于人工反馈用 GPT Image 2（LibTV 模型 `lib-image-2`）创建精修节点；`--instruction` 中文修改指令、`--base first\|current` 精修基准；触发真实生成，CLI 强制显式 `--allow-generation` | `apps/cli/src/lib/libtv/refine.ts` |
+| `libtv review` | 图片节点人工审阅决策：`--decision direct\|refine\|regenerate`（直接可用/需要精修/需要重生成），可附 `--feedback` | `docs/zh/contributors/libtv-asset-adapter.md`、`apps/cli/src/lib/libtv/refine.ts` |
+| `libtv refine` | 两阶段精修：基于人工反馈用 GPT Image 2（LibTV 模型 `lib-image-2`）创建精修节点；`--instruction` 中文修改指令、`--base first\|current` 精修基准；触发真实生成，CLI 强制显式 `--allow-generation` | `docs/zh/contributors/libtv-asset-adapter.md`、`apps/cli/src/lib/libtv/refine.ts` |
 | `libtv approve` | 关键帧人工通过动作；通过后才能执行视频生成；若存在精修轮，`finalNodeId` 指向最近精修节点、关键帧状态置 `final_approved`，精修版进入主链 | `apps/cli/src/lib/libtv/register.ts`、`docs/zh/contributors/adapter-boundaries.md` |
 | mcp-context / mcp-server | 只读 MCP 上下文输出与单项目 stdio server；不用于必须退出的脚本；上下文含关键帧/锚点精修轮数 | `README.md` MCP Read-Only Context |
 | 宿主表面 | Cherry Studio 等宿主创建的 `SOUL.md`、`USER.md`、`memory/`；兼容但不当作项目事实源 | `README.md` Cross-Agent Workspace |

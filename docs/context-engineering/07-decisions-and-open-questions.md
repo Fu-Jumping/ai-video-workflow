@@ -28,39 +28,53 @@
 
 用户明确裁定：**上下文工程相关的 AI 文档（docs/context-engineering/ 全部、AGENTS.md、CLAUDE.md 及为其补链的 docs 页面）全部纳入 git 跟踪；本地开发计划文档（docs/plans/ 下新增文件）永远不跟踪**。执行含义：docs/context-engineering/ 不得加入 .gitignore；后续新增 AI 文档一律入库；docs/plans/*.md 维持忽略现状，历史已跟踪的 22 份不追溯移除。原 Q1 待确认事项据此关闭。
 
+### D7 版本叙事口径 `[临时决策]` 2026-08-23
+
+双语 README "Current Status/当前状态" 节新增版本口径说明：`package.json` 包版本（0.1.0）与文档中 v0.2~v0.7 为两套编号，后者是内部功能批次/计划文档编号，不是对外发布版本。不追改历史批次编号，后续新功能批次继续沿用计划文档编号并避免抬高对外版本叙事。原 Q4 据此关闭。
+
+### D8 隔离复测"已发布模拟"标准序列 `[临时决策]` 2026-08-23
+
+将 2026-08-23 首次使用的 git 快照 + 裸镜像方法固化为标准命令序列，写入 [06-verification-gates.md](./06-verification-gates.md) §4.4（快照提交不移动 HEAD、测试方只接触克隆）。暂不产品化为仓库脚本；若复用频次上升再考虑固化为命令。原 Q5 据此关闭。
+
+### D9 双语对齐策略 `[临时决策]` 2026-08-23
+
+用户侧工作流手册补齐英文版：en/workflow/impact-analysis.md、rewrite-handbook.md、supported-deviations.md 与 en/quickstart/verify-and-iterate.md（翻译自中文正典），并加入双语侧边栏（中文侧同步补齐手册入口）。`docs/zh/contributors/workflow-system-map.md` 与 `onboarding-initialization-notes.md` 声明为**中文正典**（前者配 SVG 为中文、后者为审计记录），暂不做英文版；需要时再立项。原 Q6 据此关闭。
+
 ## 2. 待确认事项（上下文缺口，未擅自修改）
+
+> 2026-08-23 第二轮：Q2-Q8 已全部处理关闭（处理方式见各条"关闭"说明与 D7-D9）。以下条目保留为历史记录；新缺口按 §3 规则新增编号。
 
 ### Q1 ~~计划文档入库策略~~ → 已关闭
 
 用户于 2026-08-23 裁定：上下文工程 AI 文档全部跟踪，本地开发计划文档永不跟踪。见 D6。
 
-### Q2 workflow-system-map 叙事停留在"六步" `[待确认]`
+### Q2 ~~workflow-system-map 叙事停留在"六步"~~ → 已关闭
 
-`docs/zh/contributors/workflow-system-map.md` 多处按 Step 1-6 六步叙事（§用户使用过程、§六步产物关系、§适合继续开发的方向），而现行 pack 为 Step 0-7 八步。该文档文首已声明"不替代正式规范"，且其 SVG 资产同步成本较高，故本轮仅登记不改。
+2026-08-23 已将 docs/zh/contributors/workflow-system-map.md 全文更新为 Step 0-7 八步叙事（分层说明、使用过程、产物关系表补 Step 0/Step 7 行、开发方向）；SVG 图片仍为六步时期绘制，已在图下加注说明并以 workflow/overview.md 为准。
 
-### Q3 repo-architecture 系列存根 `[待确认]`
+### Q3 ~~repo-architecture 系列存根~~ → 已关闭
 
-`docs/zh|en/contributors/repo-architecture.md` 长期为 3 行存根（本轮已补链，见 D5）；`docs/en/contributors/repo-architecture.md` 同步补链。是否要写完整版仓库架构文档待定（内容大部分已由本目录 00 + workflow-system-map 覆盖，重复撰写的价值需权衡）。
+维持"一句话架构 + 链接"的轻量存根形态：完整架构说明由本目录 00-project-context.md 与 workflow-system-map.md 承担，重复撰写完整版违反单一出处原则。双语存根已补链（D5）。
 
-### Q4 版本叙事漂移 `[待确认]`
+### Q4 ~~版本叙事漂移~~ → 已关闭
 
-package.json `0.1.0`；README 叙事 v0.2；docs 出现 v0.3-v0.7 批次编号。`docs/zh/contributors/onboarding-initialization-notes.md` 已记录为 P1 问题（"文档版本叙事过快且和 package version 不一致"），本轮不处理。
+处理方式见 D7：双语 README 增加版本口径说明，不追改历史批次编号。
 
-### Q5 隔离复测的"已发布模拟"实现 `[待确认]`
+### Q5 ~~隔离复测的"已发布模拟"实现~~ → 已关闭
 
-仓库根 `AGENTS.md` 要求测试准备"本地裸镜像链接模拟已发布远程"。本轮采用 git 快照提交（`git add -A` → `git write-tree` → `git commit-tree`，不移动 HEAD）构造裸镜像，为 skill 方法的一种具体实现。若用户偏好固定脚本化该步骤，可后续固化为仓库脚本。
+处理方式见 D8：标准命令序列固化于 06-verification-gates.md §4.4。
 
-### Q6 zh 独有文档无英文对应 `[待确认]`
+### Q6 ~~zh 独有文档无英文对应~~ → 已关闭
 
-`docs/zh/contributors/` 下 onboarding-initialization-notes.md、workflow-system-map.md 与 `docs/zh/workflow/` 下 impact-analysis.md、rewrite-handbook.md、supported-deviations.md 暂无 en 对应页（en/contributors 也缺 release-notes-v0.3 的部分对应关系以 testing.md 对齐为准）。双语对齐策略待定。
+处理方式见 D9：四个用户侧手册补英文版并入双语侧边栏；workflow-system-map 与 onboarding-initialization-notes 声明为中文正典。
 
-### Q7 pack 规范滞后于 gpt-image-2 校验实现 `[待确认]` 2026-08-23
+### Q7 ~~pack 规范滞后于 gpt-image-2 校验实现~~ → 已关闭
 
-最近提交（732694b、7a0c8d1）为 gpt-image-2 增加了 Step 4 平台参数强制校验（`apps/cli/src/lib/verify.ts` 错误码 `missing-step4-gpt-image-2-platform-setting` / `invalid-step4-gpt-image-2-copyable-language` / `invalid-step4-gpt-image-2-parameter`）并在 Step 4 模板写入 gpt-image-2 参数块与可选 `## 精修配置`；但 `packs/official-ai-video/workflow/quality-gates.md` §4.6 与 `workflow-spec.md` §5/§7 仍写"当前仅 midjourney"。packs/ 超出上下文工程轮次的修改边界，待用户确认后按 B1 路由同步规范正文。
+2026-08-23 已同步 pack 规范：workflow-spec.md §5/§7 增补 gpt-image-2 平台差异条目；quality-gates.md §1.3/§4.6 补 gpt-image-2 门槛（含三个 verify 错误码与机器✅归属）；skills-longform/film-image-prompter.md 与 skills/film-image-prompter/SKILL.md 增补 GPT Image 2 平台适配节；workflow/indexes/skill-index.md 平台差异行更新（该项随 sync 镜像进示例项目）。
 
-### Q8 LibTV adapter 文档未覆盖审阅/精修流程 `[待确认]` 2026-08-23
+### Q8 ~~LibTV adapter 文档未覆盖审阅/精修流程~~ → 已关闭
 
-最近提交（e9a613e、b6331d3、a25da56、23360c9、055eb56）落地了图片审阅（`libtv review`，direct/refine/regenerate）、两阶段精修（`libtv refine`，GPT Image 2 / `lib-image-2`，强制 `--allow-generation`）、精修版并入主链（`finalNodeId` / `final_approved`）、精修状态进 MCP 与 Obsidian、`impact --image` 节点追溯。但 `docs/zh/contributors/libtv-asset-adapter.md`、`docs/zh/contributors/adapter-boundaries.md`、README "LibTV Asset Execution" 节均未提及上述能力；当前精修语义的权威出处是 CLI 实现、测试（`apps/cli/tests/libtv-refine.test.ts`、`impact.test.ts`）与 Step 4 模板。adapter 文档补写待用户确认后进行。
+2026-08-23 已补齐：libtv-asset-adapter.md（zh/en）新增"审阅与两阶段精修"节、命令清单补 review/refine、内置映射补 gpt-image-2 -> lib-image-2；adapter-boundaries.md（zh/en）LibTV 节补精修范围、`--allow-generation` 硬闸与主链规则，并修正陈旧的"边序搁置"口径（实为已实现 verify-order 合同）；双语 README LibTV 节补命令示例与流程摘要；mcp-adapter.md 修正步骤范围（Step 0-7）、资源清单补 step/7、目的清单补精修状态、修改边界与禁止写入补 Step 7。
 
 ## 3. 缺口登记规则 `[通用规则]`
 

@@ -64,7 +64,30 @@
 - **R3 真实环境走查**：模拟真实创作者 + 故意注入违规看工具是否抓到。
 - **复测矩阵**：开箱类 / 数据类 / 校验类 / 检查类 / 模板类 / 防御类 / 文档类——逐修复点给"复测方法 + 证据"。
 
-### 4.4 红线补充
+### 4.4 "已发布远端"模拟的标准命令序列 `[AVW 专用]`
+
+修复未推送远程时，用本地快照 + 裸镜像构造"克隆已发布状态"，全程不移动本地 HEAD、不产生本地分支提交（Git Bash 示例）：
+
+```text
+TESTDIR="/g/develop-G/tests/<本轮目录>"
+mkdir -p "$TESTDIR"
+
+cd /g/develop-G/ai-video-workflow
+git add -A                                  # 快照暂存（结束前 reset，不影响工作树）
+TREE=$(git write-tree)
+git reset -q
+COMMIT=$(git commit-tree "$TREE" -p HEAD -m "temp: snapshot for isolated retest")
+
+git init --bare "$TESTDIR/remote-mirror.git" -q
+git push -q "$TESTDIR/remote-mirror.git" "$COMMIT":refs/heads/master
+git --git-dir="$TESTDIR/remote-mirror.git" symbolic-ref HEAD refs/heads/master
+
+git clone -q "$TESTDIR/remote-mirror.git" "$TESTDIR/clone"   # 测试方只接触这个克隆
+```
+
+要点：测试方（子代理或脚本）只从 `remote-mirror.git` 克隆，看到的即是"已发布"状态；比对与终审由主环境在测试结束后完成。
+
+### 4.5 红线补充
 
 - 不生成、不消耗任何生成额度，除非用户明确允许。
 - 版本模拟技巧（裸镜像 + symbolic-ref）、Windows/Git Bash 已知坑（UTF-8、CRLF、串行）、报告模板见 skill 原文；报告骨架另见 [templates/isolated-test-report.md](./templates/isolated-test-report.md)。
