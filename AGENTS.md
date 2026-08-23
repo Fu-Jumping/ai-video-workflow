@@ -7,6 +7,25 @@ Use the `official-ai-video` pack as the default workflow pack.
 - Default to enhanced flow unless a project explicitly disables it.
 - Use relative links only.
 
+## 项目上下文工程（Context Engineering）
+
+所有 Agent 的项目地图、任务路由与验证门禁位于 `docs/context-engineering/`。首次进入本仓库先读其 README（3 分钟上手路径）：
+
+1. `docs/context-engineering/00-project-context.md` —— 仓库身份、修改边界、必须确认的操作。
+2. `docs/context-engineering/05-task-routing.md` —— 任务类型 → 应读文档 → 可改文件 → 必须验证。
+3. `docs/context-engineering/06-verification-gates.md` —— 改完之后如何验证。
+
+规则冲突时以 `packs/official-ai-video/workflow/workflow-spec.md` 为最高解释顺序；上下文工程文档只是地图，不是第二份规范。
+
+## 必须停止并请求用户确认的场景
+
+- 任何消耗生成额度的操作（图片/视频生成、LibTV 真实执行）。
+- 破坏性操作（`--force` 删除、重置、覆盖用户文件）。
+- 修改已完成的步骤内容（先做影响分析并回报）。
+- 登记偏离（deviations.yaml）或放宽默认契约。
+- commit / push。
+- 发现规则与实际代码或文档不一致：登记到 `docs/context-engineering/07-decisions-and-open-questions.md` 并报告，不擅自修改业务行为。
+
 ## Testing
 
 ### Trigger

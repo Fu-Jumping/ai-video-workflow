@@ -7,6 +7,8 @@ This repository treats the workflow as a product.
 - Codex must keep a full runtime mirror and a runtime skills layer.
 - Relative links only.
 
+Project map, task routing, and verification gates for agents live in `docs/context-engineering/` (start from its README). When rules conflict, `packs/official-ai-video/workflow/workflow-spec.md` wins; context-engineering docs are maps, not a second spec.
+
 ## Testing
 
 ### Required method
