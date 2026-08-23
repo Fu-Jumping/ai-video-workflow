@@ -1,5 +1,7 @@
 # v0.2 Roadmap: Mainline Demo Loop
 
+> See [Post-LibTV next development plan](../../plans/2026-08-22-post-libtv-development-roadmap.md) for the current execution plan.
+
 ## Goal
 
 v0.2 should let a new user clone the repo, initialize a project, inspect the official example, run verification, and understand where future platform adapters fit.
