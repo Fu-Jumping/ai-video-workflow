@@ -17,6 +17,7 @@ export function displayNameForKeyframe(groupId: string, shotId: string, keyframe
 export function normalizeRef(value: string): string {
   return value
     .replace(/^@/, "")
+    .replace(/精修/g, "")
     .replace(/镜头/g, "shot")
     .replace(/关键帧/g, "keyframe")
     .replace(/[_\-\s]/g, "")

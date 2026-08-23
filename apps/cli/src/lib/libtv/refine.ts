@@ -166,12 +166,17 @@ export async function runRefine(
     y: options.y,
     run: true
   });
+  const nodeUrls = Array.isArray((node.data as Record<string, unknown>)?.url)
+    ? ((node.data as Record<string, unknown>).url as Array<unknown>)
+    : [];
+  const refineCdnUrl = typeof nodeUrls[0] === "string" ? nodeUrls[0] : undefined;
   const refineRound = {
     round,
     base: options.base,
     baseNodeId,
     instruction: options.instruction,
     refineNodeId: node.nodeKey,
+    cdnUrl: refineCdnUrl,
     status: "generated" as const
   };
   const rounds = [...(target.item.refineRounds ?? []), refineRound];

@@ -18,7 +18,10 @@ export async function buildStatus(projectRoot: string, backend: LibTvBackend): P
       token: anchor.token,
       local: Boolean(anchor.localPath),
       remote: remoteNode,
-      nodeId: stateAnchor?.nodeId
+      nodeId: stateAnchor?.nodeId,
+      reviewDecision: stateAnchor?.reviewDecision,
+      finalNodeId: stateAnchor?.finalNodeId,
+      refineRounds: stateAnchor?.refineRounds?.length ?? 0
     };
   });
 
@@ -46,10 +49,10 @@ export function renderStatus(status: LibTvStatusResult): string {
     `项目：${status.projectUuid}`,
     "",
     `锚点 ${status.anchors.length}`,
-    ...status.anchors.map((anchor) => `- ${anchor.token} local=${anchor.local ? "✓" : "✗"} remote=${anchor.remote ? "✓" : "✗"}${anchor.nodeId ? ` node=${anchor.nodeId}` : ""}`),
+    ...status.anchors.map((anchor) => `- ${anchor.token} local=${anchor.local ? "✓" : "✗"} remote=${anchor.remote ? "✓" : "✗"}${anchor.nodeId ? ` node=${anchor.nodeId}` : ""}${anchor.reviewDecision ? ` review=${anchor.reviewDecision}` : ""}${anchor.finalNodeId ? ` final=${anchor.finalNodeId}` : ""}${anchor.refineRounds ? ` rounds=${anchor.refineRounds}` : ""}`),
     "",
     `关键帧 ${status.keyframes.length}`,
-    ...status.keyframes.map((item) => `- ${item.id} remote=${item.remote ? "✓" : "✗"}${item.nodeId ? ` node=${item.nodeId}` : ""}${item.status ? ` status=${item.status}` : ""}`),
+    ...status.keyframes.map((item) => `- ${item.id} remote=${item.remote ? "✓" : "✗"}${item.nodeId ? ` node=${item.nodeId}` : ""}${item.status ? ` status=${item.status}` : ""}${item.reviewDecision ? ` review=${item.reviewDecision}` : ""}${item.finalNodeId ? ` final=${item.finalNodeId}` : ""}${item.refineRounds ? ` rounds=${item.refineRounds}` : ""}`),
     "",
     `视频 ${status.videos.length}`,
     ...status.videos.map((item) => `- ${item.id} remote=${item.remote ? "✓" : "✗"}${item.nodeId ? ` node=${item.nodeId}` : ""}${item.status ? ` status=${item.status}` : ""}`)

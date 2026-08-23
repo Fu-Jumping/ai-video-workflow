@@ -263,6 +263,8 @@ export interface LibTvRefineRound {
   baseNodeId: string;
   instruction: string;
   refineNodeId?: string;
+  cdnUrl?: string;
+  localOutput?: string;
   status: "refining" | "generated" | "failed";
 }
 
@@ -304,8 +306,8 @@ export interface LibTvApplyOptions {
 
 export interface LibTvStatusResult {
   projectUuid: string;
-  anchors: Array<{ token: string; local: boolean; remote: boolean; nodeId?: string }>;
-  keyframes: Array<{ id: string; remote: boolean; nodeId?: string; status?: string }>;
+  anchors: Array<{ token: string; local: boolean; remote: boolean; nodeId?: string; reviewDecision?: LibTvImageReviewDecision; finalNodeId?: string; refineRounds?: number }>;
+  keyframes: Array<{ id: string; remote: boolean; nodeId?: string; status?: string; reviewDecision?: LibTvImageReviewDecision; finalNodeId?: string; refineRounds?: number }>;
   videos: Array<{ id: string; remote: boolean; nodeId?: string; status?: string }>;
 }
 

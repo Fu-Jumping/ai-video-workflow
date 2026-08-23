@@ -945,19 +945,27 @@ ${loginUrl}
 
   libtv
     .command("approve")
-    .description("将本地镜像中的关键帧标记为已通过人工待审")
-    .argument("<id>", "关键帧 ID，格式 group-001/shot-001/keyframe-01")
+    .description("将本地镜像中的图片节点标记为最终采用（支持关键帧和锚点精修版）")
+    .argument("<id>", "图片节点 ID：关键帧 group-001/shot-001/keyframe-01，或锚点 @角色名三视图")
     .option("--project <path>", "本地项目目录")
     .action((id, options, command) => runCliAction(async () => {
       const projectRoot = await resolveProjectRoot(options.project, process.cwd());
       const state = await readState(projectRoot);
-      if (!state) throw new Error("没有本地状态，请先执行 libtv apply --only keyframes");
-      const item = state.keyframes.find((candidate) => `${candidate.groupId}/${candidate.shotId}/${candidate.keyframeId}` === id);
-      if (!item) throw new Error(`未找到关键帧: ${id}`);
-      item.status = "approved";
+      if (!state) throw new Error("没有本地状态，请先执行 libtv apply --only anchors/keyframes");
+      const keyframe = state.keyframes.find((candidate) => `${candidate.groupId}/${candidate.shotId}/${candidate.keyframeId}` === id);
+      const anchor = state.anchors.find((candidate) => candidate.token === id || candidate.token.replace(/^@/, "") === id.replace(/^@/, ""));
+      const item = keyframe ?? anchor;
+      if (!item) throw new Error(`未找到图片节点: ${id}`);
+      const lastRefine = item.refineRounds && item.refineRounds.length > 0
+        ? item.refineRounds[item.refineRounds.length - 1]
+        : undefined;
+      item.finalNodeId = lastRefine?.refineNodeId ?? item.nodeId;
+      if (keyframe) {
+        keyframe.status = lastRefine ? "final_approved" : "approved";
+      }
       state.updatedAt = new Date().toISOString();
       await writeState(projectRoot, state);
-      console.log(`已通过关键帧 ${id}`);
+      console.log(`已通过图片节点 ${id}${lastRefine ? `（精修版 ${lastRefine.refineNodeId}）` : ""}`);
     }, () => getAncestorOption(command, "debug") === true));
 
   libtv

@@ -39,13 +39,44 @@ function normalizeRef(value: string): string {
 }
 
 function stateNameForId(state: LibTvState, id: string): string | undefined {
-  const anchor = state.anchors.find((item) => item.nodeId === id);
-  if (anchor) return anchor.token.replace(/^@/, "");
-  const keyframe = state.keyframes.find((item) => item.nodeId === id);
-  if (keyframe) return displayNameForKeyframe(keyframe.groupId, keyframe.shotId, keyframe.keyframeId);
+  const anchor = state.anchors.find((item) => item.nodeId === id || item.finalNodeId === id);
+  if (anchor) {
+    const round = anchor.refineRounds?.find((item) => item.refineNodeId === id);
+    return round ? `${anchor.token.replace(/^@/, "")} 精修` : anchor.token.replace(/^@/, "");
+  }
+  const keyframe = state.keyframes.find((item) => item.nodeId === id || item.finalNodeId === id);
+  if (keyframe) {
+    const round = keyframe.refineRounds?.find((item) => item.refineNodeId === id);
+    const base = displayNameForKeyframe(keyframe.groupId, keyframe.shotId, keyframe.keyframeId);
+    return round ? `${base} 精修` : base;
+  }
   const video = state.videos.find((item) => item.nodeId === id);
   if (video) return displayNameForVideo(video.groupId, video.shotId);
   return id;
+}
+
+function finalAnchorNodeId(state: LibTvState, token: string): string | undefined {
+  const anchor = state.anchors.find((item) => item.token === token);
+  return anchor?.finalNodeId ?? anchor?.nodeId;
+}
+
+function finalKeyframeNodeId(state: LibTvState, groupId: string, shotId: string): string | undefined {
+  const keyframe = state.keyframes.find((item) => item.groupId === groupId && item.shotId === shotId);
+  return keyframe?.finalNodeId ?? keyframe?.nodeId;
+}
+
+function anchorCdnUrlForNode(state: LibTvState, id: string): string | undefined {
+  const anchor = state.anchors.find((item) => item.nodeId === id || item.finalNodeId === id);
+  if (!anchor) return undefined;
+  if (anchor.nodeId === id) return anchor.cdnUrl;
+  return anchor.refineRounds?.find((round) => round.refineNodeId === id)?.cdnUrl;
+}
+
+function keyframeCdnUrlForNode(state: LibTvState, id: string): string | undefined {
+  const keyframe = state.keyframes.find((item) => item.nodeId === id || item.finalNodeId === id);
+  if (!keyframe) return undefined;
+  if (keyframe.nodeId === id) return keyframe.cdnUrl;
+  return keyframe.refineRounds?.find((round) => round.refineNodeId === id)?.cdnUrl;
 }
 
 function displayNameForVideo(groupId: string, shotId: string): string {
@@ -134,12 +165,12 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
         continue;
       }
       const left = keyframe.referenceTokens
-        .map((token) => state.anchors.find((anchor) => anchor.token === token)?.nodeId)
+        .map((token) => finalAnchorNodeId(state, token))
         .filter((id): id is string => Boolean(id));
       const leftUrls: Record<string, string> = {};
       for (const id of left) {
-        const anchor = state.anchors.find((item) => item.nodeId === id);
-        if (anchor?.cdnUrl) leftUrls[id] = anchor.cdnUrl;
+        const url = anchorCdnUrlForNode(state, id);
+        if (url) leftUrls[id] = url;
       }
       if (keyframe.modelKey) {
         const schema = await backend.getModelSchema(keyframe.modelKey);
@@ -185,22 +216,23 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
         actions.push(`视频已存在 ${key}`);
         continue;
       }
-      const keyframeApproved = state.keyframes.some(
-        (item) => item.groupId === video.groupId && item.shotId === video.shotId && (item.status === "approved" || item.status === "generated")
+      const matchingKeyframes = state.keyframes.filter(
+        (item) => item.groupId === video.groupId && item.shotId === video.shotId
+      );
+      const keyframeApproved = matchingKeyframes.some(
+        (item) => (item.status === "approved" || item.status === "final_approved" || item.status === "generated") && Boolean(item.finalNodeId ?? item.nodeId)
       );
       if (!keyframeApproved) {
         actions.push(`跳过视频 ${key}：关键帧未通过人工待审`);
         continue;
       }
       const left = [
-        ...video.referenceTokens.map((token) => state.anchors.find((anchor) => anchor.token === token)?.nodeId),
-        ...state.keyframes.filter((item) => item.groupId === video.groupId && item.shotId === video.shotId).map((item) => item.nodeId)
+        ...video.referenceTokens.map((token) => finalAnchorNodeId(state, token)),
+        ...matchingKeyframes.map((item) => item.finalNodeId ?? item.nodeId)
       ].filter((id): id is string => Boolean(id));
       const leftUrls: Record<string, string> = {};
       for (const id of left) {
-        const anchor = state.anchors.find((item) => item.nodeId === id);
-        const keyframe = state.keyframes.find((item) => item.nodeId === id);
-        const url = anchor?.cdnUrl ?? keyframe?.cdnUrl;
+        const url = anchorCdnUrlForNode(state, id) ?? keyframeCdnUrlForNode(state, id);
         if (url) leftUrls[id] = url;
       }
       if (video.orderTokens && video.orderTokens.length > 0) {
