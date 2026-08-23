@@ -9,9 +9,10 @@ MCP adapter 的起点是 resources、prompts 和只读 tools。它不能变成�
 这个 adapter 帮助智能体理解项目，而不是猜仓库结构：
 
 - 当前使用哪个 workflow pack
-- 哪些已启用步骤文件定义了项目；研究模式包含 Step 0 到 Step 6，剧本模式包含 Step 1 到 Step 6
+- 哪些已启用步骤文件定义了项目；研究模式包含 Step 0 到 Step 7，剧本模式包含 Step 1 到 Step 7
 - 项目里有哪些镜头
 - 每个镜头对应哪些 Step 3、Step 4、Step 5 和 Step 6 文件
+- 关键帧/锚点的 LibTV 审阅决策与精修轮数
 - 故事、图像提示词、运动或执行计划修改应该改哪个源文件
 - 修改后应该运行哪些验证命令
 - 生成的 `_views/obsidian/` 观看层在哪里打开
@@ -45,6 +46,7 @@ Resources 应该暴露稳定的、项目相对的上下文。建议资源包括�
 - `ai-video-workflow://workflow/step/4`
 - `ai-video-workflow://workflow/step/5`
 - `ai-video-workflow://workflow/step/6`
+- `ai-video-workflow://workflow/step/7`
 - `ai-video-workflow://shots/index`
 - `ai-video-workflow://shots/{shotId}`
 - `ai-video-workflow://handoff/project`
@@ -79,6 +81,7 @@ Prompt 文案必须告诉智能体：
 - 视觉提示词和一致性修改回到 Step 4
 - 运动和镜头行为修改回到 Step 5
 - 执行组织和落地信息回到 Step 6
+- 发布物料文案修改回到 Step 7
 
 ## Tools
 
@@ -102,6 +105,7 @@ MCP adapter 不能写入：
 - `04_图片提示词/`
 - `05_视频提示词/`
 - `06_执行计划/`
+- `07_发布物料/`
 - `_views/obsidian/` 下的生成 Obsidian 投影目录，包括 `00_开始审阅/`、`01_阶段审核/`、`02_按镜头联查/`、`03_审阅工具/` 和 `投影清单.json`
 - `.obsidian/`
 - `.codex/`

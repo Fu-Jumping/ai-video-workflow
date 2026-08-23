@@ -66,6 +66,7 @@ v0.2 优先完成主干可演示闭环。
 - 为 Step 5 视频创建 video 节点，并把关键帧与锚点作为引用边。
 - 通过 LibTV HTTP API 执行图片/视频生成，结果记录到 `.libtv/state.json`。
 - 把生成结果下载到 `outputs/images/...` 与 `outputs/video/...`。
+- 支持图片审阅与两阶段精修：`libtv review`（direct/refine/regenerate）→ `libtv refine`（GPT Image 2 / `lib-image-2` 精修节点）→ `libtv approve`（精修版经 `finalNodeId` 并入主链，状态 `final_approved`）。
 
 不负责：
 
@@ -77,5 +78,6 @@ v0.2 优先完成主干可演示闭环。
 
 - Step 文件始终是唯一创作事实源。
 - `.libtv/` 与 `outputs/` 是 gitignored 的本地执行面。
-- 关键帧必须人工通过（`libtv approve`）后才能执行视频生成。
-- 边序与 `&#123;&#123;Mixed n&#125;&#125;` 映射暂时搁置；当前实现保留引用列表，不强制上传顺序语义。
+- 关键帧必须人工通过（`libtv approve`）后才能执行视频生成；存在精修轮时主链使用最近精修版。
+- `libtv refine` 触发真实生成，CLI 强制显式 `--allow-generation`，不传即拒绝执行。
+- 边序按 `--left` 传入顺序写入 `imageListOrder` / `mixedListOrder`，`libtv verify-order` 校验 Step 5 素材上传顺序合同；`&#123;&#123;Node "名"&#125;&#125;` 占位符按引用顺序替换为 `&#123;&#123;Image n&#125;&#125;` / `&#123;&#123;Mixed n&#125;&#125;`（详见 [LibTV 素材 Adapter](./libtv-asset-adapter.md)）。

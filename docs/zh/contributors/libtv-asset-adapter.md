@@ -24,6 +24,8 @@ ai-video-workflow libtv apply
 ai-video-workflow libtv status
 ai-video-workflow libtv verify
 ai-video-workflow libtv approve
+ai-video-workflow libtv review
+ai-video-workflow libtv refine
 ```
 
 ## 素材链路
@@ -57,7 +59,18 @@ libtv:
 未配置时使用内置默认映射：
 
 - `midjourney -> mj-v8.2`
+- `gpt-image-2 -> lib-image-2`
 - `seedance -> star-video2`
+
+## 审阅与两阶段精修
+
+关键帧/锚点首版生成后进入人工审阅闭环：
+
+1. `libtv review <id> --decision direct|refine|regenerate [--feedback <text>]`：记录人工审阅决策（直接可用 / 需要精修 / 需要重生成）。`id` 形如 `group-001/shot-001/keyframe-01` 或 `@角色名三视图`。
+2. `libtv refine <id> --instruction <中文修改指令> [--base first|current]`：基于人工反馈用 GPT Image 2（LibTV 模型 `lib-image-2`）创建精修节点。精修提示词由 CLI 按"只修改指定问题点、其余画面保持不变"模板动态生成；`--base first` 回到首版、`--base current` 基于当前轮。**精修会触发真实生成，CLI 强制显式 `--allow-generation`，不传即拒绝执行。**
+3. `libtv approve <id>`：人工通过。若存在精修轮，`finalNodeId` 指向最近精修节点、关键帧状态置 `final_approved`，精修版进入主链供 Step 5 视频生成引用；无精修轮则指回首版（状态 `approved`）。
+
+状态查看：`libtv status` 输出每个关键帧/锚点的 `review`（审阅决策）、`final`（主链节点）、`rounds`（精修轮数）；MCP `mcp-context` 同步暴露精修轮数，Obsidian 仪表盘展示精修轮数与最近精修节点。相关影响排查可用 `impact --image <节点> --project <path>` 从图片节点反查受影响 Step 4/5 文件。
 
 ## 边序与占位符
 
@@ -73,6 +86,7 @@ libtv:
 - 管道：`libtv node <下游>` 支持从 stdin 读取 NDJSON 并作为左侧引用。
 - 顺序合同：`libtv verify-order --write-contract` 可生成合同文件，之后 `verify-order` 会校验 orderHash。
 - 模型可用性：`apply` 执行前会校验模型是否存在于当前账号。
+- 审阅与精修：`libtv review` 记录 direct/refine/regenerate 决策；`libtv refine` 经 `lib-image-2` 创建精修节点并并入主链（见上文"审阅与两阶段精修"）。
 
 ## 已知限制
 

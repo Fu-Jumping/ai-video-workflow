@@ -66,6 +66,7 @@ Scope:
 - Create Step 5 video nodes with reference edges to keyframes and anchor assets.
 - Run image/video generation through LibTV HTTP API and record results in `.libtv/state.json`.
 - Download generated assets to `outputs/images/...` and `outputs/video/...`.
+- Support image review and two-stage refine: `libtv review` (direct/refine/regenerate) → `libtv refine` (GPT Image 2 / `lib-image-2` refine nodes) → `libtv approve` (the refined image joins the main chain via `finalNodeId`, status `final_approved`).
 
 Out of scope:
 
@@ -77,5 +78,6 @@ Boundary rules:
 
 - Step files remain the only creative source of truth.
 - `.libtv/` and `outputs/` are gitignored local execution surfaces.
-- Keyframes must be manually approved (`libtv approve`) before video generation is allowed.
-- Edge order and `&#123;&#123;Mixed n&#125;&#125;` mapping are intentionally deferred; current implementation preserves reference lists but does not enforce upload-order semantics.
+- Keyframes must be manually approved (`libtv approve`) before video generation is allowed; when refine rounds exist, the main chain uses the latest refined image.
+- `libtv refine` triggers real generation; the CLI requires an explicit `--allow-generation` flag and refuses to run without it.
+- Edge order is written to `imageListOrder` / `mixedListOrder` in `--left` order, and `libtv verify-order` checks the Step 5 upload-order contract; `&#123;&#123;Node "name"&#125;&#125;` placeholders are rewritten to `&#123;&#123;Image n&#125;&#125;` / `&#123;&#123;Mixed n&#125;&#125;` by reference order (see the [LibTV asset adapter](./libtv-asset-adapter.md)).

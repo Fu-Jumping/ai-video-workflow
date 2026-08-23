@@ -24,6 +24,8 @@ ai-video-workflow libtv apply
 ai-video-workflow libtv status
 ai-video-workflow libtv verify
 ai-video-workflow libtv approve
+ai-video-workflow libtv review
+ai-video-workflow libtv refine
 ```
 
 ## Asset Chain
@@ -57,7 +59,18 @@ libtv:
 Built-in defaults when not configured:
 
 - `midjourney -> mj-v8.2`
+- `gpt-image-2 -> lib-image-2`
 - `seedance -> star-video2`
+
+## Review and Two-Stage Refine
+
+After a keyframe/anchor first version is generated, it enters a human review loop:
+
+1. `libtv review <id> --decision direct|refine|regenerate [--feedback <text>]`: record the review decision (usable as-is / needs refine / needs regeneration). `id` looks like `group-001/shot-001/keyframe-01` or `@角色名三视图`.
+2. `libtv refine <id> --instruction <Chinese fix instruction> [--base first|current]`: create a refine node with GPT Image 2 (LibTV model `lib-image-2`) based on human feedback. The refine prompt is generated dynamically by the CLI from a "fix only the listed issues, keep everything else unchanged" template; `--base first` returns to the first version, `--base current` builds on the latest round. **Refining triggers real generation: the CLI requires an explicit `--allow-generation` flag and refuses to run without it.**
+3. `libtv approve <id>`: human approval. If refine rounds exist, `finalNodeId` points to the latest refine node and the keyframe status becomes `final_approved`, so the refined image joins the main chain referenced by Step 5 video generation; without refine rounds it points to the first version (status `approved`).
+
+Status: `libtv status` prints each keyframe/anchor with `review` (decision), `final` (main-chain node), and `rounds` (refine rounds); MCP `mcp-context` exposes refine round counts, and the Obsidian dashboard shows refine rounds and the latest refine node. For impact tracing, `impact --image <node> --project <path>` maps a LibTV image node back to affected Step 4/5 files.
 
 ## Edge Order and Placeholders
 
@@ -73,6 +86,7 @@ Built-in defaults when not configured:
 - Pipe: `libtv node <downstream>` reads NDJSON from stdin and treats entries as left references.
 - Order contracts: `libtv verify-order --write-contract` writes a contract; subsequent `verify-order` checks orderHash.
 - Model availability: `apply` validates model existence before running.
+- Review and refine: `libtv review` records direct/refine/regenerate decisions; `libtv refine` creates refine nodes via `lib-image-2` and merges them into the main chain (see "Review and Two-Stage Refine" above).
 
 ## Known Limits
 
