@@ -42,7 +42,18 @@ export const STEP7_FILES = [
 ] as const;
 
 export const SUPPORTED_IDES: Ide[] = ["codex", "cursor", "claude-code", "trae"];
-export const SUPPORTED_PLATFORMS: Platform[] = ["openai", "veo", "runway", "luma", "minimax", "seedance", "midjourney"];
+export const SUPPORTED_PLATFORMS: Platform[] = ["openai", "gpt-image-2", "veo", "runway", "luma", "minimax", "seedance", "midjourney"];
+
+export const PLATFORM_DISPLAY_NAMES: Record<Platform, string> = {
+  openai: "OpenAI",
+  "gpt-image-2": "GPT Image 2（LibTV）",
+  veo: "Veo",
+  runway: "Runway",
+  luma: "Luma",
+  minimax: "MiniMax",
+  seedance: "Seedance",
+  midjourney: "Midjourney"
+};
 export const DEFAULT_VIDEO_PLATFORM: Platform = "seedance";
 export const DEFAULT_PACK = "official-ai-video";
 

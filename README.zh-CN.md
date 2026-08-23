@@ -53,7 +53,7 @@ pnpm verify:v0.2
 
 该命令会构建 CLI 与文档站、运行测试（测试会自动为官方示例同步 IDE runtime 镜像，clean clone 直接可跑），并验证官方示例项目。
 
-支持的图片/视频平台：`openai`、`veo`、`runway`、`luma`、`minimax`、`seedance`、`midjourney`（`midjourney` 仅作配置登记，出图仍走平台自身）。
+支持的图片/视频平台：`openai`、`gpt-image-2`、`veo`、`runway`、`luma`、`minimax`、`seedance`、`midjourney`（`gpt-image-2` 通过 LibTV `lib-image-2` 执行；`midjourney` 仅作配置登记，出图仍走平台自身）。
 
 ## Obsidian vault 投影
 

@@ -29,7 +29,8 @@ function findByToken(root: string, token: string, kind: LibTvAssetRef["kind"]): 
 }
 
 const DEFAULT_IMAGE_MODEL_MAP: Record<string, string> = {
-  midjourney: "mj-v8.2"
+  midjourney: "mj-v8.2",
+  "gpt-image-2": "lib-image-2"
 };
 
 const DEFAULT_VIDEO_MODEL_MAP: Record<string, string> = {

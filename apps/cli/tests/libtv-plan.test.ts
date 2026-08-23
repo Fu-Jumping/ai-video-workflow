@@ -40,6 +40,30 @@ describe("libtv model mapping", () => {
     expect(plan.videos.every((video) => video.modelKey === "star-video2")).toBe(true);
   });
 
+  test("gpt-image-2 maps to LibTV lib-image-2", async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "avw-libtv-gpt-image-2-"));
+    tempRoots.push(projectRoot);
+    await fs.copy(exampleRoot, projectRoot);
+    await fs.writeFile(
+      path.join(projectRoot, "project.config.yaml"),
+      [
+        "pack: official-ai-video",
+        "ide: codex",
+        "platforms:",
+        "  image:",
+        "    default: gpt-image-2",
+        "  video:",
+        "    default: seedance",
+        "workflow:",
+        "  enhanced_flow:",
+        "    enabled: true"
+      ].join("\n"),
+      "utf8"
+    );
+    const plan = await buildLibTvPlan(projectRoot);
+    expect(plan.keyframes.every((item) => item.modelKey === "lib-image-2")).toBe(true);
+  });
+
   test("project libtv config overrides image model", async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "avw-libtv-model-"));
     tempRoots.push(projectRoot);

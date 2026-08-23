@@ -4,7 +4,7 @@ import { Command } from "commander";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { DEFAULT_PACK, DEFAULT_VIDEO_PLATFORM, SUPPORTED_IDES, SUPPORTED_PLATFORMS } from "./lib/constants.js";
+import { DEFAULT_PACK, DEFAULT_VIDEO_PLATFORM, PLATFORM_DISPLAY_NAMES, SUPPORTED_IDES, SUPPORTED_PLATFORMS } from "./lib/constants.js";
 import {
   addDeviation,
   readDeviations,
@@ -140,13 +140,13 @@ program
       parsedImagePlatform ??
       (await select({
         message: "Choose the default image platform",
-        choices: SUPPORTED_PLATFORMS.map((value) => ({ name: value, value }))
+        choices: SUPPORTED_PLATFORMS.map((value) => ({ name: PLATFORM_DISPLAY_NAMES[value] ?? value, value }))
       }));
     const videoPlatform =
       parsedVideoPlatform ??
       (await select({
         message: "Choose the default video platform",
-        choices: SUPPORTED_PLATFORMS.map((value) => ({ name: value, value })),
+        choices: SUPPORTED_PLATFORMS.map((value) => ({ name: PLATFORM_DISPLAY_NAMES[value] ?? value, value })),
         default: DEFAULT_VIDEO_PLATFORM
       }));
     const startFrom = parsedStartFrom ?? "research";

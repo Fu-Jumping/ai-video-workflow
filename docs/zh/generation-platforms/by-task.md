@@ -1,11 +1,11 @@
 # 按任务分组的平台
 
-- 生图：OpenAI、MiniMax、Midjourney
+- 生图：OpenAI、GPT Image 2（LibTV）、MiniMax、Midjourney
 - 图生视频：Runway、Veo、Luma、Seedance
 - 角色一致性：OpenAI、Runway
 - 镜头延展：Veo、Runway
 
-CLI 会在 `init` 时记录默认生图平台与默认生视频平台。`SUPPORTED_PLATFORMS` 当前为 `openai / veo / runway / luma / minimax / seedance / midjourney`，任一平台都可作为 `platforms.image.default` 或 `platforms.video.default`（配置层不限定任务类型）；上表是按任务分类的推荐口径，`verify` 不强制校验该映射。
+CLI 会在 `init` 时记录默认生图平台与默认生视频平台。`SUPPORTED_PLATFORMS` 当前为 `openai / gpt-image-2 / veo / runway / luma / minimax / seedance / midjourney`，任一平台都可作为 `platforms.image.default` 或 `platforms.video.default`（配置层不限定任务类型）；上表是按任务分类的推荐口径，`verify` 不强制校验该映射。
 
 ## Step 5 视频提示词合同与平台差异
 

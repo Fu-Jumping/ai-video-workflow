@@ -55,7 +55,7 @@ pnpm verify:v0.2
 
 This command builds the CLI and docs site, runs tests (the test suite bootstraps the official example's IDE runtime mirror, so a clean clone can run it directly), and verifies the official example project.
 
-Supported image/video platforms: `openai`, `veo`, `runway`, `luma`, `minimax`, `seedance`, `midjourney` (`midjourney` is config registration only; image generation still happens on the platform itself).
+Supported image/video platforms: `openai`, `gpt-image-2`, `veo`, `runway`, `luma`, `minimax`, `seedance`, `midjourney` (`gpt-image-2` runs through LibTV `lib-image-2`; `midjourney` is config registration only; image generation still happens on the platform itself).
 
 ## Obsidian Vault Projection
 

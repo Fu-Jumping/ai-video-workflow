@@ -2,7 +2,7 @@ export type Ide = "codex" | "cursor" | "claude-code" | "trae";
 
 export type AdapterId = Ide | "obsidian" | "mcp" | "cherry-studio";
 
-export type Platform = "openai" | "veo" | "runway" | "luma" | "minimax" | "seedance" | "midjourney";
+export type Platform = "openai" | "gpt-image-2" | "veo" | "runway" | "luma" | "minimax" | "seedance" | "midjourney";
 
 export type StartFromMode = "research" | "script";
 
