@@ -126,10 +126,16 @@ describe("impact analysis", () => {
 
     const result = await analyzeImageNodeImpact(projectRoot, "i-refine-1");
     expect(result.affectedShots).toEqual(["shot-001"]);
-    expect(result.reviewCandidates).toEqual([
+    expect(result.reviewCandidates.map((hit) => hit.relPath)).toEqual([
       "04_图片提示词/镜头组-001/镜头-001-关键帧-01.md",
       "05_视频提示词/镜头组-001/镜头-001.md"
     ]);
+    expect(result.reviewCandidates.every((hit) => hit.step > 0 && hit.relPath.length > 0)).toBe(true);
+
+    const rendered = renderImpactResult(result);
+    expect(rendered).toContain("04_图片提示词/镜头组-001/镜头-001-关键帧-01.md");
+    expect(rendered).toContain("05_视频提示词/镜头组-001/镜头-001.md");
+    expect(rendered).not.toContain("undefined");
   });
 
   test("renders a readable summary", async () => {

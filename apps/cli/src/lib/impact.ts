@@ -299,10 +299,17 @@ export async function analyzeImageNodeImpact(projectRoot: string, imageNode: str
     "这是执行层节点关联辅助，不代替语义影响分析。"
   ];
 
+  const reviewHits = [...reviewPaths]
+    .map((relPath) => {
+      const stepDir = relPath.split("/")[0] ?? "";
+      return toHit(relPath, stepDir, 0);
+    })
+    .sort((left, right) => left.step - right.step || left.relPath.localeCompare(right.relPath));
+
   return {
     keyword: `image:${imageNode}`,
     matches: [],
-    reviewCandidates: [...reviewPaths].sort(),
+    reviewCandidates: reviewHits,
     affectedShots: [...affectedShots].sort(),
     notes
   };
