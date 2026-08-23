@@ -17,7 +17,7 @@ import {
 } from "./lib/deviations.js";
 import type { WorkflowMode } from "./lib/types.js";
 import { diagnoseProject } from "./lib/doctor.js";
-import { analyzeImpact, renderImpactResult } from "./lib/impact.js";
+import { analyzeImpact, analyzeImageNodeImpact, renderImpactResult } from "./lib/impact.js";
 import { createProject, renderInitNextSteps } from "./lib/init.js";
 import { runCliAction } from "./lib/cli-errors.js";
 import { parseIde, parsePlatform, parseStartFrom } from "./lib/cli-options.js";
@@ -282,11 +282,21 @@ program
 
 program
   .command("impact")
-  .description("Find files likely affected by changing a keyword in a project")
+  .description("Find files likely affected by a keyword or a LibTV image node")
   .requiredOption("--project <path>")
-  .argument("<keyword>", "Keyword to search, e.g. a character name, scene, color, or motif")
+  .option("--image <node>", "LibTV image node id to trace from .libtv/state.json to downstream Step 4/5 files")
+  .argument("[keyword]", "Keyword to search, e.g. a character name, scene, color, or motif")
   .action((keyword, options) => runCliAction(async () => {
-    const result = await analyzeImpact(path.resolve(options.project), keyword);
+    const projectRoot = path.resolve(options.project);
+    if (options.image) {
+      const result = await analyzeImageNodeImpact(projectRoot, options.image);
+      console.log(renderImpactResult(result));
+      return;
+    }
+    if (!keyword) {
+      throw new Error("Impact requires either a keyword or --image <node>.");
+    }
+    const result = await analyzeImpact(projectRoot, keyword);
     console.log(renderImpactResult(result));
   }, () => program.opts<{ debug?: boolean }>().debug === true));
 

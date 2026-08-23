@@ -9,6 +9,8 @@ import {
   shotIdFromFileName,
   type ShotGraph
 } from "./shot-graph.js";
+import { buildLibTvPlan } from "./libtv/assets.js";
+import { readState } from "./libtv/project-binding.js";
 
 export interface ImpactFileHit {
   /** Project-relative POSIX path. */
@@ -237,6 +239,70 @@ export async function analyzeImpact(projectRoot: string, keyword: string): Promi
     keyword: trimmed,
     matches: [...matches.values()].sort((left, right) => left.step - right.step || left.relPath.localeCompare(right.relPath)),
     reviewCandidates: reviewHits,
+    affectedShots: [...affectedShots].sort(),
+    notes
+  };
+}
+
+export async function analyzeImageNodeImpact(projectRoot: string, imageNode: string): Promise<ImpactResult> {
+  const state = await readState(projectRoot);
+  const plan = await buildLibTvPlan(projectRoot);
+  const reviewPaths = new Set<string>();
+  const affectedShots = new Set<string>();
+
+  const keyframe = state?.keyframes.find((item) =>
+    item.nodeId === imageNode ||
+    item.finalNodeId === imageNode ||
+    item.refineRounds?.some((round) => round.refineNodeId === imageNode)
+  );
+  if (keyframe) {
+    affectedShots.add(keyframe.shotId);
+    const video = plan.videos.find((candidate) =>
+      candidate.groupId === keyframe.groupId && candidate.shotId === keyframe.shotId
+    );
+    if (video) {
+      reviewPaths.add(video.sourcePath);
+    }
+    const candidate = plan.keyframes.find((candidate) =>
+      candidate.groupId === keyframe.groupId && candidate.shotId === keyframe.shotId && candidate.keyframeId === keyframe.keyframeId
+    );
+    if (candidate) {
+      reviewPaths.add(candidate.sourcePath);
+    }
+  } else {
+    const anchor = state?.anchors.find((item) =>
+      item.nodeId === imageNode ||
+      item.finalNodeId === imageNode ||
+      item.refineRounds?.some((round) => round.refineNodeId === imageNode)
+    );
+    if (anchor) {
+      for (const keyframe of plan.keyframes.filter((candidate) => candidate.referenceTokens.includes(anchor.token))) {
+        reviewPaths.add(keyframe.sourcePath);
+        affectedShots.add(keyframe.shotId);
+        const video = plan.videos.find((candidate) =>
+          candidate.groupId === keyframe.groupId && candidate.shotId === keyframe.shotId
+        );
+        if (video) {
+          reviewPaths.add(video.sourcePath);
+        }
+      }
+      for (const video of plan.videos.filter((candidate) => candidate.referenceTokens.includes(anchor.token))) {
+        reviewPaths.add(video.sourcePath);
+        affectedShots.add(video.shotId);
+      }
+    }
+  }
+
+  const notes = [
+    `已按 LibTV 图片节点 ${imageNode} 定位影响面。`,
+    "`reviewCandidates` 是会受该首版/精修图影响的 Step 4/5 源文件，需人工复核。",
+    "这是执行层节点关联辅助，不代替语义影响分析。"
+  ];
+
+  return {
+    keyword: `image:${imageNode}`,
+    matches: [],
+    reviewCandidates: [...reviewPaths].sort(),
     affectedShots: [...affectedShots].sort(),
     notes
   };

@@ -3,7 +3,9 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { analyzeImpact, renderImpactResult } from "../src/lib/impact.js";
+import { analyzeImpact, analyzeImageNodeImpact, renderImpactResult } from "../src/lib/impact.js";
+import { writeState } from "../src/lib/libtv/project-binding.js";
+import type { LibTvState } from "../src/lib/libtv/types.js";
 
 const tempRoots: string[] = [];
 
@@ -93,6 +95,41 @@ describe("impact analysis", () => {
   test("rejects an empty keyword", async () => {
     const projectRoot = await createImpactProject();
     await expect(analyzeImpact(projectRoot, "   ")).rejects.toThrow("Impact keyword must not be empty.");
+  });
+
+  test("traces a LibTV keyframe image node to downstream files", async () => {
+    const projectRoot = await createImpactProject();
+    const state: LibTvState = {
+      version: 1,
+      projectUuid: "mock-project",
+      anchors: [],
+      keyframes: [
+        {
+          groupId: "group-001",
+          shotId: "shot-001",
+          keyframeId: "keyframe-01",
+          sourcePath: "04_图片提示词/镜头组-001/镜头-001-关键帧-01.md",
+          prompt: "中文提示词",
+          referenceTokens: [],
+          nodeId: "i-keyframe-1",
+          status: "refined_generated",
+          finalNodeId: "i-refine-1",
+          refineRounds: [
+            { round: 1, base: "first", baseNodeId: "i-keyframe-1", instruction: "只修手", refineNodeId: "i-refine-1", status: "generated" }
+          ]
+        }
+      ],
+      videos: [],
+      updatedAt: new Date().toISOString()
+    };
+    await writeState(projectRoot, state);
+
+    const result = await analyzeImageNodeImpact(projectRoot, "i-refine-1");
+    expect(result.affectedShots).toEqual(["shot-001"]);
+    expect(result.reviewCandidates).toEqual([
+      "04_图片提示词/镜头组-001/镜头-001-关键帧-01.md",
+      "05_视频提示词/镜头组-001/镜头-001.md"
+    ]);
   });
 
   test("renders a readable summary", async () => {
