@@ -1,7 +1,7 @@
 # LibTV 落地后的下一步开发计划
 
 - 制定日期：2026-08-22
-- 状态：草案（待确认优先级后逐项实施；2026-08-22 确认 LibTV 中 gpt-image-2 的映射键为 `lib-image-2`）
+- 状态：草案（待确认优先级后逐项实施；2026-08-22 已确认 `lib-image-2` = gpt-image-2、新增平台枚举 `gpt-image-2`、两步流程不限于 MJ 首版）
 - 基线：master @ `3412352`（已含 LibTV 素材 Adapter 修复、LibTV 路线图更新、`impact` 命令 v1）
 - 适用范围：`apps/cli`、官方 pack、文档站、测试基建；不含剧情/分镜设计能力
 
@@ -13,7 +13,7 @@
 2. MCP 增加 LibTV 只读状态
 3. 补齐双语文档与路线图
 4. LibTV 生成执行链路产品化
-5. Midjourney 首版 + GPT Image 2 精修的两步出图流程专项设计（流程级，需谨慎设计）
+5. 两步出图流程专项设计：首版平台（MJ 或 GPT Image 2）+ GPT Image 2 精修（流程级，需谨慎设计）
 
 其中 1、2、3 不触发生成、风险低，可先做。4、5 涉及真实生成与出图流程，而且 **5 会直接影响流程本身**：gpt-image-2 在 LibTV 中的模型身份已确认为 `lib-image-2`；还需先定稿两步执行模式和状态机，再在 4 中写生成执行代码，避免把“单模型单次生成”的路径写死。
 
@@ -128,7 +128,7 @@
 - 真实环境单镜头冒烟一次，且必须有用户显式允许生成。
 - 生成前、生成中、生成后的状态都能在 CLI 与 MCP 中一致可读。
 
-## 5. Midjourney 首版 + GPT Image 2 精修的两步出图流程专项设计
+## 5. 两步出图流程专项设计：首版平台 + GPT Image 2 精修
 
 > 本项是流程级设计，不是简单模板补字段。第 4 项“LibTV 生成执行链路产品化”的代码实现应在本项关键决策定稿后进行。
 >
@@ -166,7 +166,7 @@
   - `prompt.placeholder` 明确支持“可直接文字生图，或上传图片输入文字指令对图片进行编辑，如：将背景改为雪夜”；
   - `modeType.items.image2image = [0, 10]`，`rules` 允许 `prompt` 或 `media`；
   - `generateTypes.image = 92`。
-- 后续设计统一使用 `lib-image-2` 作为 LibTV gpt-image-2 的模型映射键；在工作流配置层再决定对外显示名是 `gpt-image-2`、`openai` 还是新增平台枚举。
+- 后续设计统一使用 `lib-image-2` 作为 LibTV gpt-image-2 的模型映射键；工作流平台枚举新增 `gpt-image-2`，对外显示名采用 `GPT Image 2（LibTV）`。
 - 其他模型（`nebula-ultra`、`nebula-2-flash`、`nebula-core`、`orbit-2-image` 等）不再作为本流程候选。
 
 ### 5.3 为什么这会影响流程本身
@@ -196,7 +196,7 @@
 
 **阶段 B：流程模型设计**
 
-- 项目默认策略：首版模型 Midjourney，精修模型 gpt-image-2；支持单镜头/单关键帧覆盖。
+- 项目默认策略：首版平台可配置为 `midjourney` 或 `gpt-image-2`（后续可扩展），精修平台固定 `gpt-image-2`；支持单镜头/单关键帧覆盖。
 - 关键帧状态机：
   - `planned -> first_draft_generated -> review(直接可用 | 需要精修 | 需要重生成) -> refined -> final_approved`
 - 精修在 LibTV 中的表达：
@@ -232,7 +232,7 @@
 **阶段 E：验证**
 
 - 全部 mock 测试覆盖状态机、审核阻断、重试、版本选择。
-- 真实冒烟必须显式允许生成：先用 1 张低分辨率图验证“MJ 首版 → 人工决策 → GPT Image 2 精修 → 最终采用”完整闭环。
+- 真实冒烟必须显式允许生成：先用 1 张低分辨率图验证“首版（MJ 或 GPT Image 2）→ 人工决策 → GPT Image 2 精修 → 最终采用”完整闭环。
 - 验证 LibTV 中 gpt-image-2 节点的参考图输入方式和生成结果字段。
 
 ### 5.5 建议的流程草案（待阶段 A/B 验证后定稿）
@@ -243,7 +243,7 @@ Step 4 源文件：写明“首版平台 / 精修平台 / 精修判定标准 / �
 libtv plan：为每个关键帧生成两阶段出图计划，但默认不连续执行
 
 libtv apply --only keyframes --allow-generation
-  -> 生成 Midjourney 首版
+  -> 用首版平台生成首版（midjourney 或 gpt-image-2）
 
 人工审阅：
   -> 直接可用：标记 final_approved，进入视频引用链
@@ -259,14 +259,15 @@ libtv apply --only keyframes --allow-generation
 
 ### 5.6 待确认问题
 
-- LibTV 中 gpt-image-2 的映射键已确认：`lib-image-2`（待确认对外显示平台枚举）。
-- 该模型在 LibTV 中是否支持“参考图 + 文本”的精修/编辑模式，还是只有文生图？
-- 精修节点应新建节点，还是更新原节点并保留版本？
+- LibTV 中 gpt-image-2 的映射键已确认：`lib-image-2`。
+- 工作流平台枚举已确认：新增 `gpt-image-2`，对外显示 `GPT Image 2（LibTV）`。
+- 精修流程已确认不限于 MJ 首版：首版为 `gpt-image-2` 时，同一流程仍适用。
+- `template` 风格模板：v1 默认不做。
+- 精修节点应新建节点，还是更新原节点并保留版本？（设计初稿建议新建精修节点）
 - 两步模式是项目级默认、镜头级覆盖，还是每个关键帧独立选择？
-- 精修提示词应放 Step 4 源文件字段，还是执行时由精修原因生成？
+- 精修提示词动态生成，用户反馈记录在 `.libtv/state.json` 还是独立 review 文件？（初稿建议 `.libtv/state.json`）
 - Step 2 锚点图是否也需要“首版 + 精修”流程？
-- `gpt-image-2` 在工作流 `platforms` 枚举中是新增平台，还是映射到现有 `openai`？
-- LibTV 中 gpt-image-2 与 MJ 节点之间的参考边/`imageListOrder` 应如何表达？
+- LibTV 中 gpt-image-2 精修节点与首版节点之间的参考边/`imageListOrder` 应如何表达？
 
 ### 5.7 边界
 
@@ -296,25 +297,26 @@ GPT Image 2 需要一套与 Midjourney 平行的专用适配层，而不是复�
 - 新增 `packs/official-ai-video/workflow/indexes/platform-gpt-image-2.md`：
   - 固化的平台事实：`lib-image-2` 映射、文生图与图生图编辑能力、`quality/resolution/ratio/template`、`image2image [0,10]`、prompt/media 规则。
 - Step 4 模板增加 gpt-image-2 专用块：
-  - `## 平台执行参数`（gpt-image-2 项目变体）：不写 MJ 参数，写 `模型：gpt-image-2 / LibTV: lib-image-2`、出图质量、清晰度、比例、风格模板。
-  - `## 精修指令`（两步模式）：参考图来源 + 编辑指令 + 保持不变项 + 精修原因。
+  - `## 平台执行参数`（gpt-image-2 项目变体）：不写 MJ 参数，写 `平台：gpt-image-2`、`显示名：GPT Image 2（LibTV）`、`LibTV 模型：lib-image-2`、出图质量、清晰度、比例；`template` 风格模板默认不做。
+  - `## 精修配置` + `## 精修负面约束`（两步模式）：静态合同；精修指令本身动态生成。
 - `docs/zh/generation-platforms/by-task.md` 与英文版增加 GPT Image 2 段落。
 - `verify.ts` 增加 gpt-image-2 专属检查：
   - 项目启用 gpt-image-2 时必须有平台执行参数块；
   - 不得照抄 MJ 参数；
-  - 两步模式启用时必须有精修指令块；
-  - 精修原因必须具体、不得用“同上/保持一致”。
-- `constants/types` 决定平台枚举：
-  - 新增 `gpt-image-2`，或映射到现有 `openai`（待确认）。
+  - 两步模式启用时必须有 `## 精修配置` 和 `## 精修负面约束`；
+  - 精修负面约束必须具体、不得用“同上/保持一致”。
+- `constants/types` 平台枚举：
+  - 新增 `gpt-image-2`（已确认），对外显示 `GPT Image 2（LibTV）`。
 - `assets.ts` 增加模型映射：`gpt-image-2 -> lib-image-2`。
 
 ### 6.3 设计决策状态
 
-1. 工作流平台枚举：待确认；文档建议新增 `gpt-image-2`（方案 A）。
+1. 工作流平台枚举：已确认新增 `gpt-image-2`；对外显示 `GPT Image 2（LibTV）`；LibTV 模型映射 `gpt-image-2 -> lib-image-2`。
 2. GPT Image 2 提示词语言：已确认用中文。
 3. 精修指令：已确认动态生成，由用户生成首版后反馈问题，再进入精修；不预写。
 4. 精修节点引用方式：已确认用画布引用边引用已生成的原图节点。
-5. `template` 风格模板：v1 暂不作为必填合同，默认/留空，待获取可选值后再设计。
+5. `template` 风格模板：已确认 v1 默认不做。
 6. 首版与精修负面约束：已确认分开维护。
+7. 流程适用范围：已确认不限于 MJ 首版；首版为 gpt-image-2 时，同一套“生成 → 反馈 → 精修 → 最终采用”流程仍适用。
 
 详细流程见 [两步出图流程设计 v0.1](./2026-08-22-two-stage-image-refine-flow-design.md)。

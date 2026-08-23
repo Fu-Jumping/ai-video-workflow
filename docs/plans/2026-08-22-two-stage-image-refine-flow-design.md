@@ -1,4 +1,4 @@
-# 两步出图流程设计 v0.1：Midjourney 首版 + GPT Image 2 精修
+# 两步出图流程设计 v0.1：首版平台 + GPT Image 2 精修
 
 - 制定日期：2026-08-22
 - 状态：流程设计草案（已进入设计阶段，未实现）
@@ -35,25 +35,35 @@ GPT Image 2 现在不在列表里，所以有两个方案：
   - 优点：改动小。
   - 代价：以后 openai 图片模型不止一个时，`openai` 无法表达“到底用哪个”，只能靠 `libtv.image_model` 兜底。
 
-**建议：方案 A，新增 `gpt-image-2`。** 该建议待使用者最终确认。
+**已确认：方案 A，新增 `gpt-image-2`。**
+
+命名约定：
+
+- 配置层 enum 键：`gpt-image-2`
+- 对外显示名：`GPT Image 2（LibTV）`（后缀式；也可按产品需要改成 `LibTV GPT Image 2` 前缀式）
+- LibTV 模型映射：`gpt-image-2 -> lib-image-2`
+
+说明：enum 保持平台本体名 `gpt-image-2`，让校验器和模板稳定；`LibTV` 只出现在显示名里，表示该平台当前通过 LibTV 执行。
 
 ## 1. 已确认决策
 
 | # | 问题 | 决策 |
 | --- | --- | --- |
 | 1 | GPT Image 2 提示词语言 | 中文。不照搬 Midjourney 的英文七要素 + 参数行合同 |
-| 2 | 精修提示词是否预写 | 动态生成：先出 MJ 首版，用户生成后反馈“哪张图、哪里有问题、要怎样调整”，再由反馈生成精修指令 |
+| 2 | 精修提示词是否预写 | 动态生成：首版图（平台可配置，MJ 或 GPT Image 2 均可）生成后，用户反馈“哪张图、哪里有问题、要怎样调整”，再由反馈生成精修指令 |
 | 3 | 精修节点前置条件 | 必须先有一个已经生成出来的图片节点；精修节点直接引用该原图节点作为参考 |
 | 4 | 精修节点引用方式 | 用画布引用边（left 边）引用原图节点，不再重新上传 |
-| 5 | 首版与精修负面约束 | 分开维护：首版 MJ 负面约束与精修 GPT Image 2 负面约束各自独立 |
-| 6 | `template` 风格模板 | v1 暂不作为必填合同；它是 LibTV `lib-image-2` schema 里的 `template` 字段（显示名“风格”，最多 1 个），当前未知可选值，先用默认/留空，后续需要时再映射项目风格方向 |
-| 7 | 平台枚举 | 待确认；文档建议新增 `gpt-image-2`（见第 0 节） |
+| 5 | 首版与精修负面约束 | 分开维护：首版平台自己的负面约束与精修 GPT Image 2 负面约束各自独立 |
+| 6 | `template` 风格模板 | 默认不做；v1 不生成该字段、不作为 Step 4 合同，LibTV 侧使用默认值 |
+| 7 | 平台枚举 | 新增 `gpt-image-2`；对外显示 `GPT Image 2（LibTV）`；LibTV 模型映射 `lib-image-2` |
 
 ## 2. 流程设计
 
 ### 2.1 源层：Step 4 文件
 
-首版仍按现有 Midjourney 合同写：
+Step 4 的首版提示词合同由**首版平台**决定，不再限定 Midjourney。
+
+**首版平台 = midjourney：**
 
 - `## 快速导读`
 - `## 中文完整版本`
@@ -61,7 +71,26 @@ GPT Image 2 现在不在列表里，所以有两个方案：
 - `## 平台执行参数`（Midjourney 参数）
 - `## 中文自检`
 
-两步模式启用后，Step 4 增加静态配置，但**不预写精修指令**：
+**首版平台 = gpt-image-2：**
+
+- `## 快速导读`
+- `## 中文完整版本`
+- `## 可复制提示词`（中文，供 GPT Image 2）
+- `## 平台执行参数`（gpt-image-2 版本，不写 MJ 参数）：
+
+```markdown
+## 平台执行参数
+
+- 平台：gpt-image-2
+- 显示名：GPT Image 2（LibTV）
+- LibTV 模型：lib-image-2
+- 出图质量：medium（可选 low / medium / high）
+- 清晰度：2K（可选 1K / 2K / 4K）
+- 比例：继承项目目标画幅
+- 风格模板：默认不做，不生成 template 字段
+```
+
+无论首版平台是什么，两步精修能力启用后，Step 4 增加静态配置，但**不预写精修指令**：
 
 ```markdown
 ## 精修配置
@@ -89,17 +118,19 @@ GPT Image 2 现在不在列表里，所以有两个方案：
 
 ```text
 planned
-  -> first_generated（MJ 首版已生成，等待人工审阅）
+  -> first_generated（首版图已生成，等待人工审阅）
   -> direct_approved（直接可用，作为最终采用图）
   -> needs_refine（用户反馈问题，等待精修）
   -> refined_generated（GPT Image 2 精修完成，等待复核）
   -> final_approved（最终采用图）
 ```
 
+首版平台可以是 `midjourney` 或 `gpt-image-2`，后续也可扩展其它图片平台；精修平台固定为 `gpt-image-2`。
+
 重生成路径：
 
 ```text
-first_generated -> regenerate（重新生成 MJ 首版）
+first_generated -> regenerate（用首版平台重新生成首版）
 ```
 
 关键帧状态记录建议扩展：
@@ -134,24 +165,29 @@ libtv refine <keyframe-id>
 
 `refine` 必须显式 `--allow-generation`，执行：
 
-1. 找到该关键帧的 MJ 首版节点。
+1. 找到该关键帧的首版节点（不管首版是 MJ 还是 GPT Image 2）。
 2. 校验首版节点确实存在且已有生成结果。
 3. 创建新的 image 精修节点：
    - 展示名：`group-001 shot-001 keyframe-01 精修`
    - 模型：`lib-image-2`
    - 模式：`image2image`
-   - 参考：left 边指向 MJ 首版节点
+   - 参考：left 边指向首版节点
    - 提示词：中文精修指令 + 精修负面约束
 4. 等待生成完成，下载结果。
 5. 状态写入 `.libtv/state.json`，等待人工复核。
 
 `approve` 语义调整为批准最终采用图；旧行为兼容。
 
+**两种典型路径：**
+
+- 路径 A：`midjourney` 首版 → 审阅 → `gpt-image-2` 精修。
+- 路径 B：`gpt-image-2` 首版 → 审阅 → `gpt-image-2` 精修（同一模型，首版是完整创作提示词，精修是针对性编辑指令）。
+
 ### 2.4 执行层：节点与边
 
-- MJ 首版节点名保持不变：`group-001 shot-001 keyframe-01`
+- 首版节点名保持不变：`group-001 shot-001 keyframe-01`（首版平台不影响命名）
 - 精修节点名建议：`group-001 shot-001 keyframe-01 精修`
-- 精修节点 left 边 = MJ 首版节点
+- 精修节点 left 边 = 首版节点
 - 精修节点的 `imageList` / 顺序字段中，首版图排第一，作为待编辑输入图
 - 视频节点的 left 边引用 `finalNodeId`，而不是固定引用首版节点
 - `verify-order` 合同需要知道“最终采用图”对应哪个节点，避免首版/精修版本歧义
@@ -161,7 +197,7 @@ libtv refine <keyframe-id>
 与 Midjourney 参数行不同，GPT Image 2 使用自然语言指令。建议精修提示词采用以下结构：
 
 ```text
-参考图：已上传的 MJ 首版图。
+参考图：已上传的首版图（MJ 或 GPT Image 2 首版均可）。
 
 修改范围：只修改以下问题点：
 1. <用户反馈的问题点 1>
@@ -184,6 +220,12 @@ libtv refine <keyframe-id>
 - 如果用户没有写“保持不变”，系统补上默认的“保持构图/身份/色调”保护句。
 - 负面约束从 Step 4 的 `## 精修负面约束` 读取；用户反馈中也可以临时追加一条本次精修的额外约束。
 
+首版平台 = gpt-image-2 时：
+
+- 首版提示词是完整的中文画面描述。
+- 精修提示词是针对性编辑指令。
+- 两者都走中文自然语言合同，但用途不同：首版负责“生成完整画面”，精修负责“只改反馈中的问题点”。
+
 ### 2.6 校验、状态与审阅表面
 
 - `verify`：
@@ -199,14 +241,14 @@ libtv refine <keyframe-id>
 - `impact`：
   - 当用户修改了某个关键帧的精修状态或最终采用图，提示下游视频提示词需要复核。
 
-## 3. 待确认/待澄清
+## 3. 已确认 / 待澄清
 
-1. 平台枚举方案 A（新增 `gpt-image-2`）是否确认？
+1. 平台枚举：已确认新增 `gpt-image-2`，显示名 `GPT Image 2（LibTV）`。
 2. 用户反馈记录在 `.libtv/state.json`，还是单独 `outputs/images/<group>/<shot>/review.md`？
    - 建议先放 `.libtv/state.json`，保持执行层单点。
 3. 精修节点是否需要独立分组，还是放在原 keyframe 节点旁边（无分组）？
-4. `lib-image-2` 的 `template` 风格模板可选值暂未发现；是否保持 v1 不启用？
-5. 首版 MJ 若已经足够好，是否允许把 `direct_approved` 作为常态，避免强制两步？
+4. `template` 风格模板：已确认 v1 默认不做。
+5. 首版图若已经足够好，是否允许把 `direct_approved` 作为常态，避免强制两步？
    - 建议允许，因为不是所有图都需要精修。
 
 ## 4. 边界
