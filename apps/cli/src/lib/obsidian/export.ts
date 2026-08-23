@@ -27,6 +27,7 @@ import { isDirectObsidianUiConfigPath, renderObsidianUiConfigFiles } from "./ui-
 import { resolveInProjectObsidianView } from "../view-layer.js";
 import { CliUserError } from "../cli-errors.js";
 import { readDeviations } from "../deviations.js";
+import { readState } from "../libtv/project-binding.js";
 import { readProjectConfig } from "../project-config.js";
 import { assertExistingDirectory } from "../project-root.js";
 import { verifyProject } from "../verify.js";
@@ -470,9 +471,10 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
     }
 
     const deviationContext = await readDeviations(projectRoot);
+    const libtvState = await readState(projectRoot);
     const files = [
       ...workflowFiles,
-      ...renderDashboardFiles(projectName, sourceFiles, options.includePluginRecipes, deviationContext),
+      ...renderDashboardFiles(projectName, sourceFiles, options.includePluginRecipes, deviationContext, libtvState),
       ...renderBaseFiles(),
       renderWorkflowCanvas(sourceFiles),
       renderShotPipelineCanvas(sourceFiles),

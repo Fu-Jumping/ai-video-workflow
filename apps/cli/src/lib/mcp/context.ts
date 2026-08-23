@@ -1,4 +1,5 @@
 import { STEP6_FILES, STEP_DIR_BY_NUMBER, activeWorkflowSteps } from "../constants.js";
+import { readState } from "../libtv/project-binding.js";
 import { readWorkflowProjectConfig } from "../project-root.js";
 import { buildShotGraph } from "../shot-graph.js";
 import type { ProjectConfig } from "../types.js";
@@ -27,6 +28,31 @@ export interface McpWorkflowStepContext {
   directory: string;
 }
 
+export interface McpLibtvContext {
+  available: boolean;
+  projectUuid?: string;
+  anchors: Array<{
+    token: string;
+    nodeId?: string;
+    reviewDecision?: string;
+    finalNodeId?: string;
+    refineRounds: number;
+  }>;
+  keyframes: Array<{
+    id: string;
+    status?: string;
+    nodeId?: string;
+    reviewDecision?: string;
+    finalNodeId?: string;
+    refineRounds: number;
+  }>;
+  videos: Array<{
+    id: string;
+    status?: string;
+    nodeId?: string;
+  }>;
+}
+
 export interface McpProjectContext {
   project: {
     pack: string;
@@ -43,6 +69,7 @@ export interface McpProjectContext {
       refreshCommand: "ai-video-workflow export-obsidian --project <path> --in-project-view";
     };
   };
+  libtv: McpLibtvContext;
 }
 
 const step6Dir = STEP_DIR_BY_NUMBER[6];
@@ -83,6 +110,32 @@ export async function buildMcpContext(options: BuildMcpContextOptions): Promise<
       };
     });
 
+  const libtvState = await readState(options.projectRoot);
+  const libtv: McpLibtvContext = {
+    available: Boolean(libtvState),
+    projectUuid: libtvState?.projectUuid,
+    anchors: (libtvState?.anchors ?? []).map((anchor) => ({
+      token: anchor.token,
+      nodeId: anchor.nodeId,
+      reviewDecision: anchor.reviewDecision,
+      finalNodeId: anchor.finalNodeId,
+      refineRounds: anchor.refineRounds?.length ?? 0
+    })),
+    keyframes: (libtvState?.keyframes ?? []).map((item) => ({
+      id: `${item.groupId}/${item.shotId}/${item.keyframeId}`,
+      status: item.status,
+      nodeId: item.nodeId,
+      reviewDecision: item.reviewDecision,
+      finalNodeId: item.finalNodeId,
+      refineRounds: item.refineRounds?.length ?? 0
+    })),
+    videos: (libtvState?.videos ?? []).map((item) => ({
+      id: `${item.groupId}/${item.shotId}`,
+      status: item.status,
+      nodeId: item.nodeId
+    }))
+  };
+
   return {
     project: {
       pack: options.pack,
@@ -110,6 +163,7 @@ export async function buildMcpContext(options: BuildMcpContextOptions): Promise<
         sourceOfTruth: false,
         refreshCommand: "ai-video-workflow export-obsidian --project <path> --in-project-view"
       }
-    }
+    },
+    libtv
   };
 }

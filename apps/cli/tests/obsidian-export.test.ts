@@ -466,6 +466,8 @@ describe("exportObsidianVault", () => {
     expect(shotReview).toContain("## 3. 源文件序列");
     expect(shotReview).toContain("必带参考资产：@沈安三视图、@小满三视图、@小镇修伞铺场景图");
     expect(shotReview).toContain("## 4. 画面连续性");
+    expect(shotReview).toContain("## 4.1 图片出图决策");
+    expect(shotReview).toContain("尚无 LibTV 关键帧执行状态");
     expect(shotReview).toContain("## 5. 视频提示词");
     expect(shotReview).toContain("## 6. 执行检查");
     expect(shotReview).toContain("Step 5 已延续同镜头 Step 4 的角色三视图和场景图。");

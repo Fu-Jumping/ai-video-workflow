@@ -167,6 +167,17 @@ describe("MCP read-only context", () => {
     ).rejects.toThrow("must be a directory");
   });
 
+  test("includes LibTV execution status when no state file exists", async () => {
+    const projectRoot = await createChineseMcpProject();
+    const context = await buildMcpContext({
+      projectRoot,
+      pack: "official-ai-video"
+    });
+    expect(context.libtv.available).toBe(false);
+    expect(context.libtv.anchors).toEqual([]);
+    expect(context.libtv.keyframes).toEqual([]);
+  });
+
   test("requires all Step directories before building context", async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-mcp-missing-step-"));
     tempRoots.push(projectRoot);

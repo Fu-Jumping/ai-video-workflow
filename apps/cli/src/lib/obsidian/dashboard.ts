@@ -30,6 +30,7 @@ import { deviationScopeMatches, type DeviationsReadResult } from "../deviations.
 import { formatReferenceAssets } from "../reference-assets.js";
 import type { ReferenceAssetToken } from "../reference-assets.js";
 import type { WorkflowDeviation, WorkflowShotMode } from "../types.js";
+import type { LibTvState } from "../libtv/types.js";
 
 function uniqueShotIds(sourceFiles: ObsidianSourceFile[]): string[] {
   return [...new Set(sourceFiles.map((file) => file.shotId).filter((shotId): shotId is string => Boolean(shotId)))].sort();
@@ -271,12 +272,33 @@ function renderShotEditEntry(): string {
 - 需要智能体修改源文件时：[[${agentHandoffPath}#2. 单镜头交接|智能体交接]]`;
 }
 
+function renderLibtvDecisionText(libtvState: LibTvState | null | undefined, shotId: string): string {
+  const items = (libtvState?.keyframes ?? []).filter((item) => item.shotId === shotId);
+  if (items.length === 0) {
+    return "> 尚无 LibTV 关键帧执行状态；执行 `ai-video-workflow libtv apply --only keyframes` 后可在状态文件中查看。";
+  }
+  return items.map((item) => {
+    const lastRound = item.refineRounds && item.refineRounds.length > 0
+      ? item.refineRounds[item.refineRounds.length - 1]
+      : undefined;
+    return [
+      `- ${item.keyframeId}: status=${item.status}`,
+      item.reviewDecision ? `  - 审阅决策：${item.reviewDecision}` : "",
+      item.finalNodeId ? `  - 最终采用：${item.finalNodeId}` : "",
+      item.refineRounds && item.refineRounds.length > 0 ? `  - 精修轮数：${item.refineRounds.length}` : "",
+      lastRound ? `  - 最近精修：${lastRound.refineNodeId}（基准 ${lastRound.base}）` : "",
+      item.feedback ? `  - 用户反馈：${item.feedback}` : ""
+    ].filter(Boolean).join("\n");
+  }).join("\n");
+}
+
 function renderShotHub(
   shotId: string,
   shotFiles: ObsidianSourceFile[],
   allSourceFiles: ObsidianSourceFile[],
   shotIds: string[],
-  deviationsContext: DeviationsReadResult
+  deviationsContext: DeviationsReadResult,
+  libtvState?: LibTvState | null
 ): ObsidianGeneratedFile {
   const sourcePath = shotFiles.find((file) => file.sourceKind === "storyboard")?.sourcePath ?? shotFiles[0]?.sourcePath;
   const sourcePathLine = sourcePath ? `${obsidianProperties.sourcePath}: ${sourcePath}\n` : "";
@@ -360,6 +382,10 @@ ${embeddedFileForKind(shotFiles, "storyboard", "分镜脚本")}
 审阅步骤四图片提示词连续性时，以步骤三分镜画面为参照。
 
 ${embeddedFilesForKind(shotFiles, "image-prompt", "图片提示词")}
+
+## 4.1 图片出图决策
+
+${renderLibtvDecisionText(libtvState, shotId)}
 
 ## 5. 视频提示词
 
@@ -529,7 +555,8 @@ export function renderDashboardFiles(
   projectName: string,
   sourceFiles: ObsidianSourceFile[],
   includePluginRecipes: boolean,
-  deviationsContext: DeviationsReadResult = { mode: "standard", deviations: [], shots: [], issues: [] }
+  deviationsContext: DeviationsReadResult = { mode: "standard", deviations: [], shots: [], issues: [] },
+  libtvState?: LibTvState | null
 ): ObsidianGeneratedFile[] {
   const shotIds = uniqueShotIds(sourceFiles);
   const shotGroupIds = uniqueShotGroupIds(sourceFiles);
@@ -720,7 +747,7 @@ tags:
     ...stageReviewHubs,
     renderAgentHandoffPage(shotIds, sourceFiles),
     ...shotGroupIds.map((groupId) => renderShotGroupHub(groupId, sourceFiles)),
-    ...shotIds.map((shotId) => renderShotHub(shotId, sourceFiles.filter((file) => file.shotId === shotId), sourceFiles, shotIds, deviationsContext))
+    ...shotIds.map((shotId) => renderShotHub(shotId, sourceFiles.filter((file) => file.shotId === shotId), sourceFiles, shotIds, deviationsContext, libtvState))
   ];
   if (includePluginRecipes) {
     files.push(renderCommunityPluginRecipes());

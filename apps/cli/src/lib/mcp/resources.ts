@@ -72,6 +72,12 @@ export function buildMcpResources(context: McpProjectContext): McpResourceDefini
       text: asJson(context.project)
     },
     {
+      uri: "ai-video-workflow://libtv/status",
+      name: "LibTV 执行状态",
+      mimeType: "application/json",
+      text: asJson(context.libtv)
+    },
+    {
       uri: `ai-video-workflow://pack/${context.project.pack}/overview`,
       name: "工作流包概览",
       mimeType: "text/markdown",

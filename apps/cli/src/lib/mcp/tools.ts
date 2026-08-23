@@ -24,6 +24,15 @@ export function buildMcpTools(options: BuildMcpToolsOptions): McpToolDefinition[
       handler: async () => buildMcpContext({ projectRoot: options.projectRoot, pack: options.pack })
     },
     {
+      name: "get_libtv_status",
+      description: "Return read-only LibTV execution status from .libtv/state.json.",
+      readOnly: true,
+      handler: async () => {
+        const context = await buildMcpContext({ projectRoot: options.projectRoot, pack: options.pack });
+        return context.libtv;
+      }
+    },
+    {
       name: "list_shots",
       description: "Return shot ids, titles, and source path references.",
       readOnly: true,
