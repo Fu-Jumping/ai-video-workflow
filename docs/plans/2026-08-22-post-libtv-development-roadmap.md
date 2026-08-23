@@ -156,6 +156,21 @@
 - 当前代码只映射了 `midjourney -> mj-v8.2`，没有 gpt-image-2 相关映射；`getModelSchema` 已经支持按 `modelKey` 或 `modelName` 查 LibTV 模型 schema。
 - 这意味着两步出图流程可以设计成 LibTV 画布中的“首版 image 节点 → 精修 image 节点 → 最终采用节点/版本”链路，与现有素材 adapter 边界一致。
 
+**2026-08-22 模型身份初查结果（未生成，仅查询模型列表与 schema）：**
+
+- `libtv model search gpt`：无 `gpt` 字面命中，确认名称经过伪装。
+- `lib-image-2`（`modelName: Lib Image`，`modelVendor: lib-image`）是当前最可能的 gpt-image-2 候选：
+  - 官方 CLI 搜索描述为“最新图片模型、长文本能力突出”；
+  - `prompt.placeholder` 明确支持“可直接文字生图，或上传图片输入文字指令对图片进行编辑，如：将背景改为雪夜”；
+  - `modeType.items.image2image = [0, 10]`，`rules` 允许 `prompt` 或 `media`；
+  - `generateTypes.image = 92`。
+- 其他待排除候选：
+  - `nebula-ultra`：官方搜索名 “Lib Navo Pro” / “General image Pro”，描述“最强图片编辑模型，一致性好”，也支持 `image2image`；
+  - `nebula-2-flash`：官方搜索名 “General image V2”，描述“支持联网搜索、文字准确、速度更快”；
+  - `nebula-core`：官方搜索名 “General image”，描述“图像编辑模型 语义理解强”；
+  - `orbit-2-image`：官方名 “艾克斯图片模型”。
+- 结论：`lib-image-2` 证据最强，但 **必须通过一次用户显式允许的小规模生成冒烟**才能最终确认其输出风格、细节一致性和编辑能力是否就是 gpt-image-2。设计阶段不得把候选名写死。
+
 ### 5.3 为什么这会影响流程本身
 
 当前实现假设一个关键帧只有一个 `modelKey`、一次生成、一个 `status`。两步模式会改变以下结构：
@@ -247,7 +262,7 @@ libtv apply --only keyframes --allow-generation
 
 ### 5.6 待确认问题
 
-- LibTV 中 gpt-image-2 的真实 `modelKey` / `modelName` / `modelVendor` 是什么？
+- LibTV 中 gpt-image-2 的真实 `modelKey` / `modelName` / `modelVendor` 是什么？（初查首选候选 `lib-image-2`，待小规模生成冒烟最终确认）
 - 该模型在 LibTV 中是否支持“参考图 + 文本”的精修/编辑模式，还是只有文生图？
 - 精修节点应新建节点，还是更新原节点并保留版本？
 - 两步模式是项目级默认、镜头级覆盖，还是每个关键帧独立选择？
