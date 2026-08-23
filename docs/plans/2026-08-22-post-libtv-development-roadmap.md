@@ -1,7 +1,7 @@
 # LibTV 落地后的下一步开发计划
 
 - 制定日期：2026-08-22
-- 状态：草案（待确认优先级后逐项实施；2026-08-22 补充 LibTV 存在 gpt-image-2 类模型这一关键事实）
+- 状态：草案（待确认优先级后逐项实施；2026-08-22 确认 LibTV 中 gpt-image-2 的映射键为 `lib-image-2`）
 - 基线：master @ `3412352`（已含 LibTV 素材 Adapter 修复、LibTV 路线图更新、`impact` 命令 v1）
 - 适用范围：`apps/cli`、官方 pack、文档站、测试基建；不含剧情/分镜设计能力
 
@@ -15,7 +15,7 @@
 4. LibTV 生成执行链路产品化
 5. Midjourney 首版 + GPT Image 2 精修的两步出图流程专项设计（流程级，需谨慎设计）
 
-其中 1、2、3 不触发生成、风险低，可先做。4、5 涉及真实生成与出图流程，而且 **5 会直接影响流程本身**：必须先在 5 中确认 LibTV 的 gpt-image-2 模型身份、两步执行模式和状态机，再在 4 中写生成执行代码，避免把“单模型单次生成”的路径写死。
+其中 1、2、3 不触发生成、风险低，可先做。4、5 涉及真实生成与出图流程，而且 **5 会直接影响流程本身**：gpt-image-2 在 LibTV 中的模型身份已确认为 `lib-image-2`；还需先定稿两步执行模式和状态机，再在 4 中写生成执行代码，避免把“单模型单次生成”的路径写死。
 
 红线保持不变：
 
@@ -151,25 +151,21 @@
 
 ### 5.2 关键事实：LibTV 本身也有 gpt-image-2
 
-- LibTV 的模型列表中存在 gpt-image-2 类模型；实际 `modelKey` / `modelName` 可能不是字面 `gpt-image-2`，可能改名或伪装。
-- 因此精修步骤**很可能可以直接在 LibTV 内执行**，不必然依赖外部平台。
+- LibTV 的模型列表中存在 gpt-image-2 类模型；实际 `modelKey` / `modelName` 不是字面 `gpt-image-2`，而是经过改名/伪装。
+- 精修步骤可以直接在 LibTV 内执行，不依赖外部平台。
 - 当前代码只映射了 `midjourney -> mj-v8.2`，没有 gpt-image-2 相关映射；`getModelSchema` 已经支持按 `modelKey` 或 `modelName` 查 LibTV 模型 schema。
-- 这意味着两步出图流程可以设计成 LibTV 画布中的“首版 image 节点 → 精修 image 节点 → 最终采用节点/版本”链路，与现有素材 adapter 边界一致。
+- 两步出图流程可以设计成 LibTV 画布中的“首版 image 节点 → 精修 image 节点 → 最终采用节点/版本”链路，与现有素材 adapter 边界一致。
 
-**2026-08-22 模型身份初查结果（未生成，仅查询模型列表与 schema）：**
+**2026-08-22 模型身份确认（已由使用者确认，无需再生成冒烟验证）：**
 
 - `libtv model search gpt`：无 `gpt` 字面命中，确认名称经过伪装。
-- `lib-image-2`（`modelName: Lib Image`，`modelVendor: lib-image`）是当前最可能的 gpt-image-2 候选：
+- **`lib-image-2` 就是 LibTV 中的 gpt-image-2**（`modelName: Lib Image`，`modelVendor: lib-image`）。
   - 官方 CLI 搜索描述为“最新图片模型、长文本能力突出”；
   - `prompt.placeholder` 明确支持“可直接文字生图，或上传图片输入文字指令对图片进行编辑，如：将背景改为雪夜”；
   - `modeType.items.image2image = [0, 10]`，`rules` 允许 `prompt` 或 `media`；
   - `generateTypes.image = 92`。
-- 其他待排除候选：
-  - `nebula-ultra`：官方搜索名 “Lib Navo Pro” / “General image Pro”，描述“最强图片编辑模型，一致性好”，也支持 `image2image`；
-  - `nebula-2-flash`：官方搜索名 “General image V2”，描述“支持联网搜索、文字准确、速度更快”；
-  - `nebula-core`：官方搜索名 “General image”，描述“图像编辑模型 语义理解强”；
-  - `orbit-2-image`：官方名 “艾克斯图片模型”。
-- 结论：`lib-image-2` 证据最强，但 **必须通过一次用户显式允许的小规模生成冒烟**才能最终确认其输出风格、细节一致性和编辑能力是否就是 gpt-image-2。设计阶段不得把候选名写死。
+- 后续设计统一使用 `lib-image-2` 作为 LibTV gpt-image-2 的模型映射键；在工作流配置层再决定对外显示名是 `gpt-image-2`、`openai` 还是新增平台枚举。
+- 其他模型（`nebula-ultra`、`nebula-2-flash`、`nebula-core`、`orbit-2-image` 等）不再作为本流程候选。
 
 ### 5.3 为什么这会影响流程本身
 
@@ -186,16 +182,15 @@
 
 ### 5.4 设计阶段（建议顺序，全部在写生成代码之前）
 
-**阶段 A：确认 LibTV 的 gpt-image-2 模型身份（不生成）**
+**阶段 A：确认 LibTV 的 gpt-image-2 模型身份（已完成）**
 
-- 使用 `libtv model search gpt` / `libtv model list` 查询实际 `modelKey`、`modelName`、`modelVendor`。
-- 若名称经过伪装，记录真实映射关系，不写死猜测值。
-- 检查该模型 schema 是否支持：
-  - 纯文生图；
-  - 参考图 + 文本精修；
-  - 图生图 / 编辑类 taskType；
-  - 需要的额外参数。
-- 产出：LibTV 模型合同文档 + `assets.ts` 模型映射方案。
+- 已确认映射键：`lib-image-2`（`Lib Image` / `lib-image`）。
+- 已确认 schema 支持：
+  - 纯文字生图；
+  - 上传图片 + 文字指令编辑（参考图 + 文本精修）；
+  - `image2image` 模态，范围 `[0, 10]`；
+  - 参数：`quality`、`resolution`、`ratio`、`template`（风格）等。
+- 产出待补：LibTV 模型合同文档 + `assets.ts` 模型映射方案（后续实现时落地）。
 
 **阶段 B：流程模型设计**
 
@@ -262,7 +257,7 @@ libtv apply --only keyframes --allow-generation
 
 ### 5.6 待确认问题
 
-- LibTV 中 gpt-image-2 的真实 `modelKey` / `modelName` / `modelVendor` 是什么？（初查首选候选 `lib-image-2`，待小规模生成冒烟最终确认）
+- LibTV 中 gpt-image-2 的映射键已确认：`lib-image-2`（待确认对外显示平台枚举）。
 - 该模型在 LibTV 中是否支持“参考图 + 文本”的精修/编辑模式，还是只有文生图？
 - 精修节点应新建节点，还是更新原节点并保留版本？
 - 两步模式是项目级默认、镜头级覆盖，还是每个关键帧独立选择？
