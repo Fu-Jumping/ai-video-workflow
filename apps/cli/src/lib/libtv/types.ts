@@ -254,11 +254,45 @@ export interface LibTvPlan {
   groups: string[];
 }
 
+export type LibTvImageReviewDecision = "direct" | "refine" | "regenerate";
+export type LibTvRefineBase = "first" | "current";
+
+export interface LibTvRefineRound {
+  round: number;
+  base: LibTvRefineBase;
+  baseNodeId: string;
+  instruction: string;
+  refineNodeId?: string;
+  status: "refining" | "generated" | "failed";
+}
+
+export interface LibTvAnchorState extends LibTvAssetRef {
+  nodeId: string;
+  fileSha256: string;
+  uploadedAt: string;
+  cdnUrl?: string;
+  reviewDecision?: LibTvImageReviewDecision;
+  feedback?: string;
+  finalNodeId?: string;
+  refineRounds?: LibTvRefineRound[];
+}
+
+export interface LibTvKeyframeState extends LibTvKeyframeRef {
+  nodeId: string;
+  status: string;
+  localOutput?: string;
+  cdnUrl?: string;
+  reviewDecision?: LibTvImageReviewDecision;
+  feedback?: string;
+  finalNodeId?: string;
+  refineRounds?: LibTvRefineRound[];
+}
+
 export interface LibTvState {
   version: 1;
   projectUuid: string;
-  anchors: Array<LibTvAssetRef & { nodeId: string; fileSha256: string; uploadedAt: string; cdnUrl?: string }>;
-  keyframes: Array<LibTvKeyframeRef & { nodeId: string; status: string; localOutput?: string; cdnUrl?: string }>;
+  anchors: LibTvAnchorState[];
+  keyframes: LibTvKeyframeState[];
   videos: Array<LibTvVideoRef & { nodeId: string; status: string; localOutput?: string; cdnUrl?: string }>;
   updatedAt: string;
 }

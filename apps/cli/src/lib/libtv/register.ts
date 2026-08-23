@@ -17,6 +17,7 @@ import { applyPlan, renderApplySummary } from "./apply.js";
 import { buildStatus, renderStatus } from "./status.js";
 import { verifyLibtvProject, renderVerifyIssues } from "./verify.js";
 import { verifyLibtvOrder, renderOrderVerifyIssues, writeOrderContracts } from "./order.js";
+import { recordReview, runRefine } from "./refine.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -957,5 +958,49 @@ ${loginUrl}
       state.updatedAt = new Date().toISOString();
       await writeState(projectRoot, state);
       console.log(`已通过关键帧 ${id}`);
+    }, () => getAncestorOption(command, "debug") === true));
+
+  libtv
+    .command("review")
+    .description("记录人工审阅决策：直接可用 / 需要精修 / 需要重生成")
+    .argument("<id>", "图片节点 ID，例如 group-001/shot-001/keyframe-01 或 @角色名三视图")
+    .requiredOption("--decision <decision>", "direct | refine | regenerate")
+    .option("--feedback <text>", "用户反馈的问题点与调整指令")
+    .option("--project <path>", "本地项目目录")
+    .action((id, options, command) => runCliAction(async () => {
+      const decision = options.decision as string;
+      if (!["direct", "refine", "regenerate"].includes(decision)) {
+        throw new Error(`Invalid --decision: ${decision}. Expected direct, refine, or regenerate.`);
+      }
+      const projectRoot = await resolveProjectRoot(options.project, process.cwd());
+      const result = await recordReview(projectRoot, id, {
+        decision: decision as "direct" | "refine" | "regenerate",
+        feedback: options.feedback
+      });
+      const label = result.target.kind === "keyframe" ? result.target.item.keyframeId : result.target.item.token;
+      console.log(`已记录 ${label} 审阅决策: ${decision}${options.feedback ? ` | ${options.feedback}` : ""}`);
+    }, () => getAncestorOption(command, "debug") === true));
+
+  libtv
+    .command("refine")
+    .description("基于人工反馈创建 GPT Image 2（lib-image-2）精修节点")
+    .argument("<id>", "图片节点 ID，例如 group-001/shot-001/keyframe-01 或 @角色名三视图")
+    .requiredOption("--instruction <text>", "本次精修的中文修改指令")
+    .option("--base <base>", "精修基准：first=回到首版；current=基于当前轮", "first")
+    .option("--allow-generation", "显式允许触发生成", false)
+    .option("--project <path>", "本地项目目录")
+    .action((id, options, command) => runCliAction(async () => {
+      if (options.allowGeneration !== true) {
+        throw new Error("精修会触发真实生成，必须显式传入 --allow-generation");
+      }
+      const projectRoot = await resolveProjectRoot(options.project, process.cwd());
+      const backend = await backendWithCredentials(command);
+      const base = options.base === "current" ? "current" : "first";
+      const result = await runRefine(projectRoot, backend, id, {
+        allowGeneration: true,
+        base,
+        instruction: options.instruction
+      });
+      console.log(`已创建精修节点 ${result.refineNodeId} (round ${result.round})`);
     }, () => getAncestorOption(command, "debug") === true));
 }

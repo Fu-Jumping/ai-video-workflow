@@ -5,6 +5,8 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { build } from "tsup";
 import { afterEach, describe, expect, test } from "vitest";
+import { writeState } from "../src/lib/libtv/project-binding.js";
+import type { LibTvState } from "../src/lib/libtv/types.js";
 
 const execFileAsync = promisify(execFile);
 const tempRoots: string[] = [];
@@ -52,5 +54,48 @@ describe("libtv CLI", () => {
     expect(result.stdout).toContain("锚点素材：6");
     expect(result.stdout).toContain("关键帧图片：3");
     expect(result.stdout).toContain("视频：3");
+  });
+
+  test("libtv review and refine work with mock backend", { timeout: 20000 }, async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const entry = await buildCliToTemp(cliRoot);
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-libtv-cli-refine-"));
+    tempRoots.push(projectRoot);
+    const state: LibTvState = {
+      version: 1,
+      projectUuid: "mock-project",
+      anchors: [],
+      keyframes: [
+        {
+          groupId: "group-001",
+          shotId: "shot-001",
+          keyframeId: "keyframe-01",
+          sourcePath: "04_图片提示词/镜头组-001/镜头-001-关键帧-01.md",
+          prompt: "中文提示词",
+          referenceTokens: [],
+          nodeId: "i-keyframe-1",
+          status: "pending-approval"
+        }
+      ],
+      videos: [],
+      updatedAt: new Date().toISOString()
+    };
+    await writeState(projectRoot, state);
+
+    const review = await runCli(entry, [
+      "libtv", "--mock", "review", "group-001/shot-001/keyframe-01",
+      "--project", projectRoot, "--decision", "refine", "--feedback", "手部需要调整"
+    ]);
+    expect(review.stdout).toContain("已记录");
+
+    const refine = await runCli(entry, [
+      "libtv", "--mock", "refine", "group-001/shot-001/keyframe-01",
+      "--project", projectRoot, "--base", "first", "--instruction", "只修手", "--allow-generation"
+    ]);
+    expect(refine.stdout).toContain("已创建精修节点");
+
+    const readState = await import("../src/lib/libtv/project-binding.js");
+    const updated = await readState.readState(projectRoot);
+    expect(updated?.keyframes[0]?.refineRounds).toHaveLength(1);
   });
 });

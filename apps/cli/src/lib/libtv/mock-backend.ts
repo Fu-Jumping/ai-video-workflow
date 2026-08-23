@@ -43,7 +43,8 @@ export class MockLibTvBackend implements LibTvBackend {
     { modelKey: "mock-image-1", modelName: "Mock Image", supportModality: "image" },
     { modelKey: "mock-video-1", modelName: "Mock Video", supportModality: "video" },
     { modelKey: "star-video2", modelName: "Seedance 2.0 VIP", modelVendor: "star-video2", supportModality: "video" },
-    { modelKey: "midjourney-v8.2", modelName: "Midjourney V8.2", supportModality: "image" }
+    { modelKey: "midjourney-v8.2", modelName: "Midjourney V8.2", supportModality: "image" },
+    { modelKey: "lib-image-2", modelName: "Lib Image", modelVendor: "lib-image", supportModality: "image" }
   ];
   private tasks = new Map<string, { status: number; progressPercent: number }>();
   private workspaces = new Map<number | string, LibTvWorkspace>();
