@@ -271,3 +271,46 @@ libtv apply --only keyframes --allow-generation
 - 这是图像执行与质量决策流程，不是剧情/分镜设计能力。
 - 生成仍必须显式允许；决策由创作者人工做出。
 - 不改变“Step 文件是唯一事实源”的原则；生成产物与执行状态只是执行层数据。
+
+## 6. GPT Image 2 提示词适配层：现状结论与设计基线
+
+### 6.1 现状结论
+
+**目前没有像 Midjourney 那样的 GPT Image 2 专属提示词适配部分。**
+
+具体证据：
+
+- Step 4 模板中的 `## 平台执行参数` 是 Midjourney 专属内容：
+  - `--v 8.2`、`--ar`、`--style raw`、`stylize`、`--oref`、`--no` 等都是 MJ 参数。
+- 平台事实索引只有 `packs/official-ai-video/workflow/indexes/platform-midjourney-v82.md`，没有 gpt-image-2 / `lib-image-2` 平台索引。
+- `docs/zh/generation-platforms/by-task.md` 只写了 Step 4 的 midjourney 平台差异，没有 gpt-image-2 段落。
+- 校验器 `verifyStep4PlatformExecutionSettings` 对非 midjourney 项目直接 `return`，不存在 gpt-image-2 的平台参数检查。
+- `SUPPORTED_PLATFORMS` 没有 `gpt-image-2`；`assets.ts` 也只有 `midjourney -> mj-v8.2`，没有 `gpt-image-2 -> lib-image-2`。
+
+### 6.2 需要新增的平行适配层
+
+GPT Image 2 需要一套与 Midjourney 平行的专用适配层，而不是复用 MJ 参数：
+
+- 新增 `packs/official-ai-video/workflow/indexes/platform-gpt-image-2.md`：
+  - 固化的平台事实：`lib-image-2` 映射、文生图与图生图编辑能力、`quality/resolution/ratio/template`、`image2image [0,10]`、prompt/media 规则。
+- Step 4 模板增加 gpt-image-2 专用块：
+  - `## 平台执行参数`（gpt-image-2 项目变体）：不写 MJ 参数，写 `模型：gpt-image-2 / LibTV: lib-image-2`、出图质量、清晰度、比例、风格模板。
+  - `## 精修指令`（两步模式）：参考图来源 + 编辑指令 + 保持不变项 + 精修原因。
+- `docs/zh/generation-platforms/by-task.md` 与英文版增加 GPT Image 2 段落。
+- `verify.ts` 增加 gpt-image-2 专属检查：
+  - 项目启用 gpt-image-2 时必须有平台执行参数块；
+  - 不得照抄 MJ 参数；
+  - 两步模式启用时必须有精修指令块；
+  - 精修原因必须具体、不得用“同上/保持一致”。
+- `constants/types` 决定平台枚举：
+  - 新增 `gpt-image-2`，或映射到现有 `openai`（待确认）。
+- `assets.ts` 增加模型映射：`gpt-image-2 -> lib-image-2`。
+
+### 6.3 待确认的设计决策
+
+1. 工作流平台枚举是新增 `gpt-image-2`，还是作为 `openai` 的别名/子项？
+2. GPT Image 2 的可复制提示词是否要求英文，还是允许中文？（GPT Image 2 对自然语言支持更好，不能照搬 MJ 的英文七要素 + 参数行合同。）
+3. 两步模式下的“精修指令”是 Step 4 源文件中的一个固定区块，还是生成执行时动态拼装？
+4. LibTV 精修节点的参考图引用方式：`imageList` / left 边 / `media` 上传资源，以哪个为准？
+5. GPT Image 2 的 `template` 风格模板如何与项目级风格方向联动？
+6. 首版 MJ 与精修 GPT Image 2 的负面约束是否分离维护？
