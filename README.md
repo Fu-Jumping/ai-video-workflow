@@ -16,6 +16,8 @@ It combines:
 
 This repository is the first-stage refactor from the former internal mother package. The current default pack is `official-ai-video`.
 
+Versioning note: the package version in `package.json` (currently 0.1.0) is tracked separately from the v0.2-v0.7 numbers used across contributor docs — those are internal feature-batch / plan-document numbers, not release versions.
+
 ## Beginner Start
 
 If you want to start a creative project, do not write scripts inside this tool repository. Download or clone this repository, then let an agent run the CLI to create a separate creative project directory.
@@ -104,9 +106,13 @@ pnpm build
 node apps/cli/dist/index.js libtv plan --project <project-path>
 node apps/cli/dist/index.js libtv apply --project <project-path> --only anchors --dry-run
 node apps/cli/dist/index.js libtv verify-order --project <project-path>
+node apps/cli/dist/index.js libtv review group-001/shot-001/keyframe-01 --decision refine --feedback "issues" --project <project-path>
+node apps/cli/dist/index.js libtv refine group-001/shot-001/keyframe-01 --instruction "fix instruction" --allow-generation --project <project-path>
 ```
 
 The LibTV asset execution adapter only handles asset upload, reference, generation and result download. It does not design story or shots and does not implement `script storyboard`. It maps Step 2 anchors, Step 4 keyframes and Step 5 videos to LibTV canvas nodes and reference order, and `verify-order` checks the Step 5 upload-order contract. Asset upload currently falls back to the locally installed official `libtv` CLI rather than a pure HTTP upload path.
+
+Image execution supports review and two-stage refine: `libtv review` records direct/refine/regenerate decisions, `libtv refine` creates refine nodes with GPT Image 2 (`lib-image-2`) — refining triggers real generation and requires an explicit `--allow-generation` flag — and `libtv approve` merges the refined image into the main chain via `finalNodeId`.
 
 See [LibTV Asset Adapter](docs/en/contributors/libtv-asset-adapter.md) for the full boundary.
 

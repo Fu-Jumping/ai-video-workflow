@@ -14,6 +14,8 @@
 
 这个仓库是从旧的内部母包重构出来的第一阶段产品仓库，当前默认官方 pack 是 `official-ai-video`。
 
+版本口径说明：`package.json` 中的包版本（当前 0.1.0）与文档里的 v0.2~v0.7 是两套编号——后者是内部功能批次/计划文档编号，不是对外发布版本，请勿混读。
+
 ## 新手启动
 
 如果你只是想开始一个 AI 视频创作项目，不要直接在这个工具仓库里写剧本。推荐做法是：先下载或克隆本仓库，再让智能体代跑 CLI 创建一个单独的创作项目目录。
@@ -102,9 +104,13 @@ pnpm build
 node apps/cli/dist/index.js libtv plan --project <project-path>
 node apps/cli/dist/index.js libtv apply --project <project-path> --only anchors --dry-run
 node apps/cli/dist/index.js libtv verify-order --project <project-path>
+node apps/cli/dist/index.js libtv review group-001/shot-001/keyframe-01 --decision refine --feedback "问题点" --project <project-path>
+node apps/cli/dist/index.js libtv refine group-001/shot-001/keyframe-01 --instruction "修改指令" --allow-generation --project <project-path>
 ```
 
 LibTV 素材执行适配层只负责素材上传、引用、生成与回传，不承担剧情/分镜设计，也不实现 `script storyboard`。它会将 Step 2 锚点、Step 4 关键帧和 Step 5 视频映射到 LibTV 画布节点与引用顺序，并支持 `verify-order` 校验 Step 5 上传顺序合同。素材上传当前回退到本地官方 `libtv` CLI，未改用纯 HTTP 上传。
+
+图片执行支持审阅与两阶段精修：`libtv review` 记录 direct/refine/regenerate 审阅决策，`libtv refine` 基于 GPT Image 2（`lib-image-2`）创建精修节点（触发真实生成，必须显式 `--allow-generation`），`libtv approve` 通过后精修版经 `finalNodeId` 并入主链。
 
 详细边界见 [LibTV 素材 Adapter](docs/zh/contributors/libtv-asset-adapter.md)。
 
