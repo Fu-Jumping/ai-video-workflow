@@ -431,80 +431,113 @@ async function verifyStep4PlatformExecutionSettings(
   defaultImagePlatform: Platform,
   issues: VerificationIssue[]
 ): Promise<void> {
-  if (defaultImagePlatform !== "midjourney") {
+  if (defaultImagePlatform !== "midjourney" && defaultImagePlatform !== "gpt-image-2") {
     return;
   }
-  for (const file of graph.files.filter((candidate) => candidate.step === 4)) {
+  const cjkPattern = /[\u4e00-\u9fff]/u;
+  const gptImage2ForbiddenMjPattern =
+    /(?:--v\b|--ar\b|--style\s+raw\b|--raw\b|--stylize\b|--s\b|--sref\b|--oref\b|--cref\b|--cw\b|--no\b|--q\b|--profile\b|--chaos\b|--weird\b|--seed\b|--tile\b|--repeat\b|--draft\b|::)/iu;
+  for (const file of graph.files.filter((candidate) => candidate.step === 4 && candidate.shotId !== undefined)) {
     const relPath = file.relPath;
     const content = file.content;
     const hasHeading = /^##\s*平台执行参数\s*$/mu.test(content);
     const platformSection = hasHeading ? sectionAfterHeading(content, "## 平台执行参数") : "";
+
+    if (defaultImagePlatform === "midjourney") {
+      const missingMarker = !hasHeading
+        ? "## 平台执行参数"
+        : step4PlatformExecutionMarkers.slice(1).find((marker) => !platformSection.includes(marker));
+      if (missingMarker) {
+        pushIssue(issues, {
+          code: "missing-step4-platform-execution-setting",
+          message: `Step 4 must include 平台执行参数 with ${missingMarker} for midjourney`,
+          path: relPath
+        });
+        continue;
+      }
+      const promptBlock = sectionAfterHeading(content, "## 可复制提示词");
+      const promptBody = promptBlock.replace(/避免[：:][\s\S]*$/u, "").trim();
+      if (promptBody.length > step4MidjourneyPromptMaxLength) {
+        pushIssue(issues, {
+          code: "step4-midjourney-prompt-too-long",
+          message: `Step 4 midjourney prompt body exceeds ${step4MidjourneyPromptMaxLength} characters`,
+          path: relPath
+        });
+      }
+      const styleLine = platformSection.split(/\r?\n/).find((line) => line.includes("风格参数")) ?? "";
+      const validStyle = /(?:^|\W)--style raw(?:\s|$)/u.test(styleLine) || /(?:^|\W)--raw(?:\s|$)/u.test(styleLine);
+      if (styleLine && !validStyle) {
+        pushIssue(issues, {
+          code: "invalid-step4-midjourney-style-parameter",
+          message: "Step 4 midjourney 平台执行参数 must use --style raw (or --raw)",
+          path: relPath
+        });
+      }
+      const stylizeLine = platformSection.split(/\r?\n/).find((line) => /stylize/i.test(line)) ?? "";
+      const stylizeNumber = stylizeLine.match(/(\d+)/)?.[1];
+      if (stylizeNumber && Number.parseInt(stylizeNumber, 10) > step4MidjourneyStylizeMax) {
+        pushIssue(issues, {
+          code: "invalid-step4-midjourney-stylize-range",
+          message: `Step 4 midjourney stylize must be 0-${step4MidjourneyStylizeMax}`,
+          path: relPath
+        });
+      }
+      const chineseBlock = sectionAfterHeading(content, "## 中文完整版本");
+      const chineseBody = chineseBlock.replace(/```text|```/gu, "").replace(/避免[：:][\s\S]*$/u, "").trim();
+      if (chineseBody.replace(/\s+/gu, "").length < step4MidjourneyMinChineseLength) {
+        pushIssue(issues, {
+          code: "invalid-step4-midjourney-chinese-length",
+          message: `Step 4 midjourney Chinese full prompt must be at least ${step4MidjourneyMinChineseLength} non-whitespace characters`,
+          path: relPath
+        });
+      }
+      if (cjkPattern.test(promptBody)) {
+        pushIssue(issues, {
+          code: "invalid-step4-midjourney-copyable-language",
+          message: "Step 4 midjourney copyable prompt must be English",
+          path: relPath
+        });
+      }
+      const scannableContent = `${platformSection}\n${promptBlock}`;
+      const forbidden = step4MidjourneyForbiddenParameters.find((parameter) =>
+        parameter === "--cw" ? /\B--cw\b/u.test(scannableContent) : scannableContent.includes(parameter)
+      );
+      if (/\b--q\b/u.test(scannableContent) || forbidden) {
+        pushIssue(issues, {
+          code: "invalid-step4-midjourney-parameter",
+          message: "Step 4 midjourney prompt uses parameters unsupported in V8 (--cref / --cw / --q / ::)",
+          path: relPath
+        });
+      }
+      continue;
+    }
+
+    // gpt-image-2 (LibTV lib-image-2) prompt contract.
     const missingMarker = !hasHeading
       ? "## 平台执行参数"
-      : step4PlatformExecutionMarkers.slice(1).find((marker) => !platformSection.includes(marker));
+      : ["gpt-image-2", "lib-image-2"].find((marker) => !platformSection.includes(marker));
     if (missingMarker) {
       pushIssue(issues, {
-        code: "missing-step4-platform-execution-setting",
-        message: `Step 4 must include 平台执行参数 with ${missingMarker} for midjourney`,
+        code: "missing-step4-gpt-image-2-platform-setting",
+        message: `Step 4 must include 平台执行参数 with ${missingMarker} for gpt-image-2`,
         path: relPath
       });
       continue;
     }
     const promptBlock = sectionAfterHeading(content, "## 可复制提示词");
     const promptBody = promptBlock.replace(/避免[：:][\s\S]*$/u, "").trim();
-    if (promptBody.length > step4MidjourneyPromptMaxLength) {
+    if (!cjkPattern.test(promptBody)) {
       pushIssue(issues, {
-        code: "step4-midjourney-prompt-too-long",
-        message: `Step 4 midjourney prompt body exceeds ${step4MidjourneyPromptMaxLength} characters`,
+        code: "invalid-step4-gpt-image-2-copyable-language",
+        message: "Step 4 gpt-image-2 copyable prompt must be Chinese natural language",
         path: relPath
       });
     }
-    const styleLine = platformSection.split(/\r?\n/).find((line) => line.includes("风格参数")) ?? "";
-    const validStyle = /(?:^|\W)--style raw(?:\s|$)/u.test(styleLine) || /(?:^|\W)--raw(?:\s|$)/u.test(styleLine);
-    if (styleLine && !validStyle) {
-      pushIssue(issues, {
-        code: "invalid-step4-midjourney-style-parameter",
-        message: "Step 4 midjourney 平台执行参数 must use --style raw (or --raw)",
-        path: relPath
-      });
-    }
-    const stylizeLine = platformSection.split(/\r?\n/).find((line) => /stylize/i.test(line)) ?? "";
-    const stylizeNumber = stylizeLine.match(/(\d+)/)?.[1];
-    if (stylizeNumber && Number.parseInt(stylizeNumber, 10) > step4MidjourneyStylizeMax) {
-      pushIssue(issues, {
-        code: "invalid-step4-midjourney-stylize-range",
-        message: `Step 4 midjourney stylize must be 0-${step4MidjourneyStylizeMax}`,
-        path: relPath
-      });
-    }
-    const chineseBlock = sectionAfterHeading(content, "## 中文完整版本");
-    const chineseBody = chineseBlock.replace(/```text|```/gu, "").replace(/避免[：:][\s\S]*$/u, "").trim();
-    if (chineseBody.replace(/\s+/gu, "").length < step4MidjourneyMinChineseLength) {
-      pushIssue(issues, {
-        code: "invalid-step4-midjourney-chinese-length",
-        message: `Step 4 midjourney Chinese full prompt must be at least ${step4MidjourneyMinChineseLength} non-whitespace characters`,
-        path: relPath
-      });
-    }
-    const cjkPattern = /[\u4e00-\u9fff]/u;
-    if (cjkPattern.test(promptBody)) {
-      pushIssue(issues, {
-        code: "invalid-step4-midjourney-copyable-language",
-        message: "Step 4 midjourney copyable prompt must be English",
-        path: relPath
-      });
-    }
-    // Scan only the actual content sections (platform execution parameters and the copyable
-    // prompt), not the self-check checklist. The template self-check may describe forbidden
-    // parameters in prose without making the file itself invalid.
     const scannableContent = `${platformSection}\n${promptBlock}`;
-    const forbidden = step4MidjourneyForbiddenParameters.find((parameter) =>
-      parameter === "--cw" ? /\B--cw\b/u.test(scannableContent) : scannableContent.includes(parameter)
-    );
-    if (/\b--q\b/u.test(scannableContent) || forbidden) {
+    if (gptImage2ForbiddenMjPattern.test(scannableContent)) {
       pushIssue(issues, {
-        code: "invalid-step4-midjourney-parameter",
-        message: "Step 4 midjourney prompt uses parameters unsupported in V8 (--cref / --cw / --q / ::)",
+        code: "invalid-step4-gpt-image-2-parameter",
+        message: "Step 4 gpt-image-2 prompt must not use Midjourney parameters",
         path: relPath
       });
     }

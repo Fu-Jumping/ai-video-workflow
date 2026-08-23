@@ -295,7 +295,7 @@ const validMidjourneyStep4 = [
   "",
   "## 可复制提示词",
   "",
-  "epic ultra-wide cinematic shot, only one ancient Chinese general in dark armor, weathered face with a long black beard, standing on the city wall at dusk, right hand resting on a sword, looking toward the distant plain, city battlements in the foreground, darkening skyline and distant mountains in the background, dim overcast daylight with warm low sun from the west, chiaroscuro on the armor, muted earth tones with a single rust-red accent, somber and solemn mood, dramatic wide-angle composition, photorealistic film still, shot on 65mm film, anamorphic lens, extreme detail --ar 21:9 --style raw --v 8.2",
+      "epic ultra-wide cinematic shot, only one ancient Chinese general in dark armor, weathered face with a long black beard, standing on the city wall at dusk, right hand resting on a sword, looking toward the distant plain, city battlements in the foreground, darkening skyline and distant mountains in the background, dim overcast daylight with warm low sun from the west, chiaroscuro on the armor, muted earth tones with a single rust-red accent, somber and solemn mood, dramatic wide-angle composition, photorealistic film still, shot on 65mm film, anamorphic lens, extreme detail --ar 21:9 --style raw --v 8.2",
   "",
   "避免：modern objects, modern clothing",
   "",
@@ -308,6 +308,61 @@ const validMidjourneyStep4 = [
   "- stylize：默认 100（如写实不足可 50~100）",
   "- 参考资产上传：执行时上传 @将军三视图 与 @城墙场景图（图生图，或 --oref 锁形象），不写死 URL",
   "- 负面约束执行：正向描述优先，--no 仅单词级"
+].join("\n")
+
+async function writeGptImage2Config(projectRoot: string): Promise<void> {
+  await fs.ensureDir(projectRoot);
+  await fs.writeFile(
+    path.join(projectRoot, "project.config.yaml"),
+    [
+      "pack: official-ai-video",
+      "ide: codex",
+      "platforms:",
+      "  image:",
+      "    default: gpt-image-2",
+      "  video:",
+      "    default: seedance",
+      "workflow:",
+      "  enhanced_flow:",
+      "    enabled: true"
+    ].join("\n"),
+    "utf8"
+  );
+}
+
+const validGptImage2Step4 = [
+  "# Shot 01",
+  "",
+  "## 元信息",
+  "- 镜头组：group-001",
+  "- 镜头编号：shot-001",
+  "- 对应分镜：分镜 1",
+  "",
+  "## 快速导读",
+  "- 画面内容：古代将领立于城头。",
+  "",
+  "## 中文完整版本",
+  "",
+  "参考 @将军三视图、@城墙场景图。",
+  "",
+  "一位身披玄色甲胄的古代中国将领，站立在黄昏的城墙之上，右手按剑，望向远方的平原。整体采用暗调留白、写实电影感构图，强调孤独与肃穆，避免使用现代物件、避免现代服饰。",
+  "",
+  "避免：",
+  "",
+  "## 可复制提示词",
+  "",
+  "参考 @将军三视图、@城墙场景图。一位身披玄色甲胄的古代中国将领，站立在黄昏的城墙之上，右手按剑，望向远方的平原。保持写实电影感，避免现代物件与现代服饰。",
+  "",
+  "避免：现代物件、现代服饰",
+  "",
+  "## 平台执行参数",
+  "- 平台：gpt-image-2",
+  "- 显示名：GPT Image 2（LibTV）",
+  "- LibTV 模型：lib-image-2",
+  "- 出图质量：medium",
+  "- 清晰度：2K",
+  "- 比例：21:9",
+  "- 风格模板：默认不做"
 ].join("\n")
 
 afterEach(async () => {
@@ -1640,6 +1695,68 @@ test("accepts a custom pack name in project.config.yaml", async () => {
     expect(result.issues).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({ code: "missing-step4-platform-execution-setting" })
+      ])
+    );
+  });
+
+  test("reports missing gpt-image-2 platform execution settings", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-gpt-image2-missing-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "gpt-image2-missing");
+    await writeGptImage2Config(projectRoot);
+    await writeStep4File(projectRoot, validGptImage2Step4.replace("## 平台执行参数", "## 平台执行参数缺失占位"));
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "missing-step4-gpt-image-2-platform-setting" })
+      ])
+    );
+  });
+
+  test("accepts a valid gpt-image-2 Step 4 platform block", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-gpt-image2-valid-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "gpt-image2-valid");
+    await writeGptImage2Config(projectRoot);
+    await writeStep4File(projectRoot, validGptImage2Step4);
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    expect(result.issues).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "missing-step4-gpt-image-2-platform-setting" }),
+        expect.objectContaining({ code: "invalid-step4-gpt-image-2-copyable-language" }),
+        expect.objectContaining({ code: "invalid-step4-gpt-image-2-parameter" })
+      ])
+    );
+  });
+
+  test("rejects English copyable prompts for gpt-image-2", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-gpt-image2-english-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "gpt-image2-english");
+    await writeGptImage2Config(projectRoot);
+    const englishCopyable = validGptImage2Step4.replace(
+      /参考 @将军三视图[^\n]+\n\n避免：现代物件、现代服饰/u,
+      "epic ultra-wide cinematic shot\n\n避免：现代物件、现代服饰"
+    );
+    await writeStep4File(projectRoot, englishCopyable);
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "invalid-step4-gpt-image-2-copyable-language" })
+      ])
+    );
+  });
+
+  test("rejects Midjourney parameters in gpt-image-2 Step 4", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-gpt-image2-mjparam-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "gpt-image2-mjparam");
+    await writeGptImage2Config(projectRoot);
+    await writeStep4File(projectRoot, validGptImage2Step4.replace("- 平台：gpt-image-2", "- 平台：gpt-image-2\n- 错误参数：--ar 21:9"));
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "invalid-step4-gpt-image-2-parameter" })
       ])
     );
   });
