@@ -889,16 +889,33 @@ ${loginUrl}
 
   libtv
     .command("apply")
-    .description("按计划幂等执行：上传锚点、生成关键帧、生成视频")
+    .description("按计划幂等执行：上传锚点、生成关键帧、生成视频；真实生成必须显式 --allow-generation")
     .option("--project <path>", "本地项目目录")
     .option("--dry-run", "只输出操作计划，不调用画布", false)
+    .option("--allow-generation", "显式允许关键帧/视频真实生成", false)
+    .option("--poll-interval <ms>", "生成进度轮询间隔", "2000")
+    .option("--timeout <ms>", "单节点生成超时", "1200000")
+    .option("--retry <id>", "只重试指定失败节点，可重复", collect, [])
+    .option("--json", "输出 JSON 结果", false)
     .option("--only <kind>", "只执行 anchors|keyframes|videos，可重复", collect, [])
     .action((options, command) => runCliAction(async () => {
       const projectRoot = await resolveProjectRoot(options.project, process.cwd());
       const backend = await backendWithCredentials(command);
       const only = options.only.length > 0 ? options.only : undefined;
-      const result = await applyPlan(projectRoot, backend, { dryRun: options.dryRun === true, only });
-      console.log(renderApplySummary(result));
+      const retryIds = options.retry.length > 0 ? options.retry : undefined;
+      const result = await applyPlan(projectRoot, backend, {
+        dryRun: options.dryRun === true,
+        allowGeneration: options.allowGeneration === true,
+        only,
+        retryIds,
+        pollIntervalMs: Number(options.pollInterval),
+        timeoutMs: Number(options.timeout)
+      });
+      if (options.json === true) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        console.log(renderApplySummary(result));
+      }
     }, () => getAncestorOption(command, "debug") === true));
 
   libtv
@@ -997,6 +1014,11 @@ ${loginUrl}
     .option("--base <base>", "精修基准：first=回到首版；current=基于当前轮", "first")
     .option("--allow-generation", "显式允许触发生成", false)
     .option("--project <path>", "本地项目目录")
+    .option("--poll-interval <ms>", "生成进度轮询间隔", "2000")
+    .option("--timeout <ms>", "单节点生成超时", "1200000")
+    .option("--retry", "重试最近一次失败的精修轮（复用已有精修节点）", false)
+    .option("--x <n>", "画布 X 坐标，默认放在原图右侧")
+    .option("--y <n>", "画布 Y 坐标，默认与原图同 Y")
     .action((id, options, command) => runCliAction(async () => {
       if (options.allowGeneration !== true) {
         throw new Error("精修会触发真实生成，必须显式传入 --allow-generation");
@@ -1007,7 +1029,12 @@ ${loginUrl}
       const result = await runRefine(projectRoot, backend, id, {
         allowGeneration: true,
         base,
-        instruction: options.instruction
+        instruction: options.instruction,
+        retry: options.retry === true,
+        pollIntervalMs: Number(options.pollInterval),
+        timeoutMs: Number(options.timeout),
+        x: options.x !== undefined ? Number(options.x) : undefined,
+        y: options.y !== undefined ? Number(options.y) : undefined
       });
       console.log(`已创建精修节点 ${result.refineNodeId} (round ${result.round})`);
     }, () => getAncestorOption(command, "debug") === true));

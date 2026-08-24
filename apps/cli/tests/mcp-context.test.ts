@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { buildMcpContext } from "../src/lib/mcp/context.js";
+import { writeState } from "../src/lib/libtv/project-binding.js";
 
 const tempRoots: string[] = [];
 
@@ -205,4 +206,59 @@ describe("MCP read-only context", () => {
       })
     ).rejects.toThrow("missing Step directory: 01_概念策划");
   });
+  test("exposes LibTV progress and summary fields through MCP context", async () => {
+    const projectRoot = await createChineseMcpProject();
+    await writeState(projectRoot, {
+      version: 1,
+      projectUuid: "mock-project",
+      anchors: [],
+      keyframes: [{
+        groupId: "group-001",
+        shotId: "shot-001",
+        keyframeId: "keyframe-01",
+        sourcePath: "04_图片提示词/镜头组-001/镜头-001-关键帧-01.md",
+        prompt: "test",
+        referenceTokens: [],
+        nodeId: "i-keyframe-1",
+        status: "generating",
+        taskId: "task-1",
+        progressPercent: 42,
+        generationError: undefined,
+        attempts: 1
+      }],
+      videos: [{
+        groupId: "group-001",
+        shotId: "shot-001",
+        sourcePath: "05_视频提示词/镜头组-001/镜头-001.md",
+        prompt: "test",
+        referenceTokens: [],
+        keyframePaths: [],
+        nodeId: "v-video-1",
+        status: "generated",
+        taskId: "task-2",
+        progressPercent: 100,
+        attempts: 1
+      }],
+      updatedAt: new Date().toISOString()
+    });
+    const context = await buildMcpContext({ projectRoot, pack: "official-ai-video" });
+    expect(context.libtv.available).toBe(true);
+    expect(context.libtv.keyframes[0]).toMatchObject({
+      id: "group-001/shot-001/keyframe-01",
+      status: "generating",
+      taskId: "task-1",
+      progressPercent: 42,
+      attempts: 1
+    });
+    expect(context.libtv.videos[0]).toMatchObject({
+      id: "group-001/shot-001",
+      status: "generated",
+      taskId: "task-2",
+      progressPercent: 100
+    });
+    expect(context.libtv.summary?.keyframes.generating).toBe(1);
+    expect(context.libtv.summary?.videos.generated).toBe(1);
+  });
+
+
 });

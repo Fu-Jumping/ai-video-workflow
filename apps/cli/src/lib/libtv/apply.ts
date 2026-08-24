@@ -1,29 +1,40 @@
 import fs from "fs-extra";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { CliUserError } from "../cli-errors.js";
 import type { LibTvBackend } from "./backend.js";
 import { buildLibTvPlan } from "./assets.js";
+import { runNodeGeneration, LibTvGenerationError } from "./execution.js";
 import { readState, requireBinding, writeState } from "./project-binding.js";
-import type { LibTvApplyOptions, LibTvState } from "./types.js";
+import type {
+  LibTvApplyOptions,
+  LibTvApplySummary,
+  LibTvApplySectionSummary,
+  LibTvKeyframeState,
+  LibTvState,
+  LibTvVideoState
+} from "./types.js";
 
 function fileSha256(filePath: string): string {
   const content = fs.readFileSync(filePath);
   return createHash("sha256").update(content).digest("hex");
 }
 
-async function downloadNodeOutput(node: { data?: { url?: unknown } }, outputDir: string): Promise<string | undefined> {
+async function downloadNodeOutput(node: { data?: { url?: unknown } }, outputDir: string, fileNameBase: string): Promise<string | undefined> {
   const urls = (node.data?.url ?? []) as string[];
   if (urls.length === 0) return undefined;
   await fs.ensureDir(outputDir);
   const url = urls[0];
-  const response = await fetch(url);
-  if (!response.ok) return undefined;
-  const buffer = Buffer.from(await response.arrayBuffer());
-  const ext = path.extname(new URL(url).pathname) || ".bin";
-  const target = path.join(outputDir, `output${ext}`);
-  await fs.writeFile(target, buffer);
-  return target;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return undefined;
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const ext = path.extname(new URL(url).pathname) || ".bin";
+    const target = path.join(outputDir, `${fileNameBase}${ext}`);
+    await fs.writeFile(target, buffer);
+    return target;
+  } catch {
+    return undefined;
+  }
 }
 
 function displayNameForAnchor(token: string): string {
@@ -60,11 +71,6 @@ function finalAnchorNodeId(state: LibTvState, token: string): string | undefined
   return anchor?.finalNodeId ?? anchor?.nodeId;
 }
 
-function finalKeyframeNodeId(state: LibTvState, groupId: string, shotId: string): string | undefined {
-  const keyframe = state.keyframes.find((item) => item.groupId === groupId && item.shotId === shotId);
-  return keyframe?.finalNodeId ?? keyframe?.nodeId;
-}
-
 function anchorCdnUrlForNode(state: LibTvState, id: string): string | undefined {
   const anchor = state.anchors.find((item) => item.nodeId === id || item.finalNodeId === id);
   if (!anchor) return undefined;
@@ -83,7 +89,59 @@ function displayNameForVideo(groupId: string, shotId: string): string {
   return `${groupId} ${shotId} 视频`;
 }
 
-export async function applyPlan(projectRoot: string, backend: LibTvBackend, options: LibTvApplyOptions = {}): Promise<{ actions: string[]; state: LibTvState }> {
+function keyframeKey(groupId: string, shotId: string, keyframeId: string): string {
+  return `${groupId}/${shotId}/${keyframeId}`;
+}
+
+function videoKey(groupId: string, shotId: string): string {
+  return `${groupId}/${shotId}`;
+}
+
+function isKeyframeComplete(item: LibTvKeyframeState): boolean {
+  return ["pending-approval", "approved", "final_approved", "generated", "refined_generated"].includes(item.status) && Boolean(item.nodeId);
+}
+
+function isVideoComplete(item: LibTvVideoState): boolean {
+  return item.status === "generated" && Boolean(item.nodeId);
+}
+
+function isKeyframeApproved(item: LibTvKeyframeState): boolean {
+  return (item.status === "approved" || item.status === "final_approved") && Boolean(item.finalNodeId ?? item.nodeId);
+}
+
+function emptySection(total: number): LibTvApplySectionSummary {
+  return { total, skipped: 0, generated: 0, failed: 0, failures: [] };
+}
+
+function buildSummary(dryRun: boolean, allowGeneration: boolean, keyframes: LibTvApplySectionSummary, videos: LibTvApplySectionSummary): LibTvApplySummary {
+  return { dryRun, allowGeneration, keyframes, videos };
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+async function ensureGroups(backend: LibTvBackend, projectUuid: string, groups: string[], actions: string[]): Promise<void> {
+  for (const groupId of groups) {
+    const nodes = await backend.listNodes(projectUuid);
+    const existing = nodes.find((node) => node.name === groupId || node.id === groupId);
+    if (!existing) {
+      await backend.createGroup({ projectUuid, name: groupId });
+      actions.push(`创建分组 ${groupId}`);
+    }
+  }
+}
+
+async function loadNodeOrThrow(backend: LibTvBackend, projectUuid: string, nodeId: string, label: string) {
+  const node = await backend.getNode(projectUuid, nodeId);
+  if (!node) {
+    throw new Error(`画布节点不存在: ${label} (${nodeId})`);
+  }
+  return node;
+}
+
+export async function applyPlan(projectRoot: string, backend: LibTvBackend, options: LibTvApplyOptions = {}): Promise<{ actions: string[]; state: LibTvState; summary: LibTvApplySummary }> {
   const binding = await requireBinding(projectRoot);
   const plan = await buildLibTvPlan(projectRoot);
   const previous = await readState(projectRoot);
@@ -96,27 +154,34 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
     updatedAt: new Date().toISOString()
   };
   const actions: string[] = [];
-
   const only = options.only ?? ["anchors", "keyframes", "videos"];
+  const isDryRun = options.dryRun === true;
+  const allowGeneration = options.allowGeneration === true && !isDryRun;
+  const retrySet = new Set(options.retryIds ?? []);
+  const pollIntervalMs = options.pollIntervalMs ?? 2000;
+  const timeoutMs = options.timeoutMs ?? 1200000;
 
-  if (options.dryRun) {
+  const keyframeSummary = emptySection(plan.keyframes.length);
+  const videoSummary = emptySection(plan.videos.length);
+
+  if (isDryRun) {
     actions.push(`[dry-run] 项目 ${binding.projectUuid}`);
     actions.push(`[dry-run] 锚点 ${plan.anchors.length} 个，关键帧 ${plan.keyframes.length} 个，视频 ${plan.videos.length} 个`);
-    return { actions, state };
+    if (only.includes("keyframes") && !allowGeneration) {
+      actions.push(`[dry-run] 关键帧生成需要 --allow-generation`);
+    }
+    if (only.includes("videos") && !allowGeneration) {
+      actions.push(`[dry-run] 视频生成需要 --allow-generation`);
+    }
+    return { actions, state, summary: buildSummary(true, allowGeneration, keyframeSummary, videoSummary) };
   }
 
   // Ensure shot groups.
   if (only.includes("keyframes") || only.includes("videos")) {
-    for (const groupId of plan.groups) {
-      const existing = (await backend.listNodes(binding.projectUuid)).find((node) => node.name === groupId || node.id === groupId);
-      if (!existing) {
-        await backend.createGroup({ projectUuid: binding.projectUuid, name: groupId });
-        actions.push(`创建分组 ${groupId}`);
-      }
-    }
+    await ensureGroups(backend, binding.projectUuid, plan.groups, actions);
   }
 
-  // Anchor assets.
+  // Anchor assets (not generation).
   if (only.includes("anchors")) {
     const existingAnchorGroup = (await backend.listNodes(binding.projectUuid)).find((node) => node.name === "锚点素材" || node.id === "锚点素材");
     if (!existingAnchorGroup) {
@@ -151,81 +216,203 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
         localPath: anchor.localPath,
         cdnUrl
       });
-      actions.push(`上传锚点 ${anchor.token} -> ${node.node?.nodeKey ?? node.nodeKey ?? ""}`);
+      actions.push(`上传锚点 ${anchor.token} -> ${uploadedNodeKey}`);
     }
   }
 
   // Keyframe image nodes.
   if (only.includes("keyframes")) {
-    const existingKeyframes = new Set(state.keyframes.map((item) => `${item.groupId}/${item.shotId}/${item.keyframeId}`));
     for (const keyframe of plan.keyframes) {
-      const key = `${keyframe.groupId}/${keyframe.shotId}/${keyframe.keyframeId}`;
-      if (existingKeyframes.has(key)) {
+      const key = keyframeKey(keyframe.groupId, keyframe.shotId, keyframe.keyframeId);
+      const existing = state.keyframes.find((item) => item.groupId === keyframe.groupId && item.shotId === keyframe.shotId && item.keyframeId === keyframe.keyframeId);
+
+      if (existing && isKeyframeComplete(existing)) {
+        keyframeSummary.skipped += 1;
         actions.push(`关键帧已存在 ${key}`);
         continue;
       }
-      const left = keyframe.referenceTokens
-        .map((token) => finalAnchorNodeId(state, token))
-        .filter((id): id is string => Boolean(id));
-      const leftUrls: Record<string, string> = {};
-      for (const id of left) {
-        const url = anchorCdnUrlForNode(state, id);
-        if (url) leftUrls[id] = url;
+
+      if (existing?.status === "failed" && !retrySet.has(key)) {
+        keyframeSummary.skipped += 1;
+        actions.push(`关键帧失败但未指定重试 ${key}`);
+        continue;
       }
+
+      if (!allowGeneration) {
+        actions.push(`[dry-run] 关键帧 ${key}：缺少 --allow-generation`);
+        continue;
+      }
+
       if (keyframe.modelKey) {
         const schema = await backend.getModelSchema(keyframe.modelKey);
         if (!schema) {
+          keyframeSummary.failed += 1;
+          keyframeSummary.failures.push({ id: key, reason: "model-unavailable", message: `模型不可用 ${keyframe.modelKey}` });
           actions.push(`跳过关键帧 ${key}：模型不可用 ${keyframe.modelKey}`);
           continue;
         }
+      } else {
+        keyframeSummary.failed += 1;
+        keyframeSummary.failures.push({ id: key, reason: "model-missing", message: "关键帧未配置模型" });
+        actions.push(`跳过关键帧 ${key}：未配置模型`);
+        continue;
       }
-      const node = await backend.createNode({
-        projectUuid: binding.projectUuid,
-        name: displayNameForKeyframe(keyframe.groupId, keyframe.shotId, keyframe.keyframeId),
-        type: "image",
-        prompt: keyframe.prompt,
-        params: {
-          ...(keyframe.params ?? {}),
-          ...(keyframe.modelKey ? { model: keyframe.modelKey } : {})
-        },
-        groupNodeKey: keyframe.groupId,
-        left,
-        leftUrls,
-        data: {
-          avwKind: "keyframe",
-          avwSourcePath: keyframe.sourcePath,
-          avwGroup: keyframe.groupId,
-          avwShot: keyframe.shotId,
-          avwKeyframe: keyframe.keyframeId
-        },
-        run: true
-      });
-      const localOutput = await downloadNodeOutput(node, path.join(projectRoot, "outputs", "images", keyframe.groupId, keyframe.shotId));
-      const keyframeCdnUrl = Array.isArray(node.data?.url) ? (node.data?.url as string[])[0] : undefined;
-      state.keyframes.push({ ...keyframe, nodeId: node.nodeKey, status: "pending-approval", localOutput, cdnUrl: keyframeCdnUrl });
-      actions.push(`创建并生成关键帧 ${key} -> ${node.nodeKey}${localOutput ? ` (${localOutput})` : ""}`);
+
+      let item = existing;
+      try {
+        if (!item || !item.nodeId) {
+          const left = keyframe.referenceTokens
+            .map((token) => finalAnchorNodeId(state, token))
+            .filter((id): id is string => Boolean(id));
+          const leftUrls: Record<string, string> = {};
+          for (const id of left) {
+            const url = anchorCdnUrlForNode(state, id);
+            if (url) leftUrls[id] = url;
+          }
+          const node = await backend.createNode({
+            projectUuid: binding.projectUuid,
+            name: displayNameForKeyframe(keyframe.groupId, keyframe.shotId, keyframe.keyframeId),
+            type: "image",
+            prompt: keyframe.prompt,
+            params: {
+              ...(keyframe.params ?? {}),
+              ...(keyframe.modelKey ? { model: keyframe.modelKey } : {})
+            },
+            groupNodeKey: keyframe.groupId,
+            left,
+            leftUrls,
+            data: {
+              avwKind: "keyframe",
+              avwSourcePath: keyframe.sourcePath,
+              avwGroup: keyframe.groupId,
+              avwShot: keyframe.shotId,
+              avwKeyframe: keyframe.keyframeId
+            },
+            run: false
+          });
+          if (item) {
+            item.nodeId = node.nodeKey;
+            item.status = "queued";
+            item.attempts = 0;
+          } else {
+            item = {
+              ...keyframe,
+              nodeId: node.nodeKey,
+              status: "queued",
+              attempts: 0
+            };
+            state.keyframes.push(item);
+          }
+          actions.push(`创建关键帧 ${key} -> ${node.nodeKey}`);
+          await writeState(projectRoot, state);
+        }
+
+        const node = await loadNodeOrThrow(backend, binding.projectUuid, item.nodeId, key);
+        const result = await runNodeGeneration(backend, {
+          projectUuid: binding.projectUuid,
+          node,
+          modelKey: keyframe.modelKey!,
+          prompt: keyframe.prompt,
+          taskType: "image",
+          params: keyframe.params ?? {},
+          existingTaskId: item.status === "generating" ? item.taskId : undefined,
+          pollIntervalMs,
+          timeoutMs,
+          onProgress: async (progress) => {
+            item!.status = "generating";
+            item!.taskId = progress.taskId ?? item!.taskId;
+            item!.progressPercent = progress.progressPercent;
+            await writeState(projectRoot, state);
+          }
+        });
+
+        item.status = "pending-approval";
+        item.taskId = result.taskId;
+        item.progressPercent = 100;
+        item.generationError = undefined;
+        item.attempts = (item.attempts ?? 0) + 1;
+        const localOutput = await downloadNodeOutput(
+          result.node,
+          path.join(projectRoot, "outputs", "images", keyframe.groupId, keyframe.shotId),
+          keyframe.keyframeId
+        );
+        const urls = (result.node.data?.url ?? []) as string[];
+        item.localOutput = localOutput;
+        item.cdnUrl = typeof urls[0] === "string" ? urls[0] : undefined;
+        keyframeSummary.generated += 1;
+        actions.push(`生成关键帧 ${key} -> ${item.nodeId}${localOutput ? ` (${localOutput})` : ""}`);
+        await writeState(projectRoot, state);
+      } catch (error) {
+        item = item ?? {
+          ...keyframe,
+          nodeId: "",
+          status: "failed",
+          attempts: 1,
+          generationError: errorMessage(error)
+        };
+        if (!state.keyframes.includes(item)) {
+          state.keyframes.push(item);
+        }
+        item.status = "failed";
+        item.generationError = errorMessage(error);
+        item.attempts = (item.attempts ?? 0) + 1;
+        keyframeSummary.failed += 1;
+        const reason = error instanceof LibTvGenerationError ? error.reason : "execution-error";
+        keyframeSummary.failures.push({ id: key, reason, message: errorMessage(error), nodeId: item.nodeId || undefined });
+        actions.push(`关键帧失败 ${key}: ${errorMessage(error)}`);
+        await writeState(projectRoot, state);
+      }
     }
   }
 
   // Video nodes (require keyframes approved).
   if (only.includes("videos")) {
-    const existingVideos = new Set(state.videos.map((item) => `${item.groupId}/${item.shotId}`));
     for (const video of plan.videos) {
-      const key = `${video.groupId}/${video.shotId}`;
-      if (existingVideos.has(key)) {
+      const key = videoKey(video.groupId, video.shotId);
+      const existing = state.videos.find((item) => item.groupId === video.groupId && item.shotId === video.shotId);
+
+      if (existing && isVideoComplete(existing)) {
+        videoSummary.skipped += 1;
         actions.push(`视频已存在 ${key}`);
         continue;
       }
+
+      if (existing?.status === "failed" && !retrySet.has(key)) {
+        videoSummary.skipped += 1;
+        actions.push(`视频失败但未指定重试 ${key}`);
+        continue;
+      }
+
       const matchingKeyframes = state.keyframes.filter(
         (item) => item.groupId === video.groupId && item.shotId === video.shotId
       );
-      const keyframeApproved = matchingKeyframes.some(
-        (item) => (item.status === "approved" || item.status === "final_approved" || item.status === "generated") && Boolean(item.finalNodeId ?? item.nodeId)
-      );
+      const keyframeApproved = matchingKeyframes.some(isKeyframeApproved);
       if (!keyframeApproved) {
-        actions.push(`跳过视频 ${key}：关键帧未通过人工待审`);
+        videoSummary.skipped += 1;
+        actions.push(`跳过视频 ${key}：关键帧未通过人工审核`);
         continue;
       }
+
+      if (!allowGeneration) {
+        actions.push(`[dry-run] 视频 ${key}：缺少 --allow-generation`);
+        continue;
+      }
+
+      if (video.modelKey) {
+        const schema = await backend.getModelSchema(video.modelKey);
+        if (!schema) {
+          videoSummary.failed += 1;
+          videoSummary.failures.push({ id: key, reason: "model-unavailable", message: `模型不可用 ${video.modelKey}` });
+          actions.push(`跳过视频 ${key}：模型不可用 ${video.modelKey}`);
+          continue;
+        }
+      } else {
+        videoSummary.failed += 1;
+        videoSummary.failures.push({ id: key, reason: "model-missing", message: "视频未配置模型" });
+        actions.push(`跳过视频 ${key}：未配置模型`);
+        continue;
+      }
+
       const left = [
         ...video.referenceTokens.map((token) => finalAnchorNodeId(state, token)),
         ...matchingKeyframes.map((item) => item.finalNodeId ?? item.nodeId)
@@ -235,66 +422,140 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
         const url = anchorCdnUrlForNode(state, id) ?? keyframeCdnUrlForNode(state, id);
         if (url) leftUrls[id] = url;
       }
+
       if (video.orderTokens && video.orderTokens.length > 0) {
         const actualNames = left.map((id) => stateNameForId(state, id) ?? id);
         const expected = video.orderTokens.map(normalizeRef);
         const actual = actualNames.map(normalizeRef);
         const missing = expected.filter((token) => !actual.some((value) => value.includes(token) || token.includes(value)));
         if (missing.length > 0) {
+          videoSummary.skipped += 1;
           actions.push(`跳过视频 ${key}：引用顺序校验未通过，缺少 ${missing.join(", ")}（实际: ${actualNames.join(" -> ")}）`);
           continue;
         }
       }
-      if (video.modelKey) {
-        const schema = await backend.getModelSchema(video.modelKey);
-        if (!schema) {
-          actions.push(`跳过视频 ${key}：模型不可用 ${video.modelKey}`);
-          continue;
+
+      let item = existing;
+      try {
+        if (!item || !item.nodeId) {
+          const node = await backend.createNode({
+            projectUuid: binding.projectUuid,
+            name: displayNameForVideo(video.groupId, video.shotId),
+            type: "video",
+            prompt: video.prompt,
+            params: {
+              ...(video.params ?? {}),
+              ...(video.modelKey ? { model: video.modelKey } : {})
+            },
+            groupNodeKey: video.groupId,
+            left,
+            leftUrls,
+            data: {
+              avwKind: "video",
+              avwSourcePath: video.sourcePath,
+              avwGroup: video.groupId,
+              avwShot: video.shotId
+            },
+            run: false
+          });
+          if (item) {
+            item.nodeId = node.nodeKey;
+            item.status = "queued";
+            item.attempts = 0;
+          } else {
+            item = { ...video, nodeId: node.nodeKey, status: "queued", attempts: 0 };
+            state.videos.push(item);
+          }
+          actions.push(`创建视频 ${key} -> ${node.nodeKey}`);
+          await writeState(projectRoot, state);
         }
+
+        const node = await loadNodeOrThrow(backend, binding.projectUuid, item.nodeId, key);
+        const result = await runNodeGeneration(backend, {
+          projectUuid: binding.projectUuid,
+          node,
+          modelKey: video.modelKey!,
+          prompt: video.prompt,
+          taskType: "video",
+          params: video.params ?? {},
+          existingTaskId: item.status === "generating" ? item.taskId : undefined,
+          pollIntervalMs,
+          timeoutMs,
+          onProgress: async (progress) => {
+            item!.status = "generating";
+            item!.taskId = progress.taskId ?? item!.taskId;
+            item!.progressPercent = progress.progressPercent;
+            await writeState(projectRoot, state);
+          }
+        });
+
+        item.status = "generated";
+        item.taskId = result.taskId;
+        item.progressPercent = 100;
+        item.generationError = undefined;
+        item.attempts = (item.attempts ?? 0) + 1;
+        const localOutput = await downloadNodeOutput(
+          result.node,
+          path.join(projectRoot, "outputs", "video", video.groupId, video.shotId),
+          video.shotId
+        );
+        const dataParams = (result.node.data?.params ?? {}) as Record<string, unknown>;
+        const orderAfterRun = (dataParams.mixedListOrder ?? dataParams.imageListOrder) as string[] | undefined;
+        if (!orderAfterRun || orderAfterRun.length === 0) {
+          actions.push(`警告：视频 ${key} 生成后缺少 imageListOrder/mixedListOrder`);
+        }
+        const urls = (result.node.data?.url ?? []) as string[];
+        item.localOutput = localOutput;
+        item.cdnUrl = typeof urls[0] === "string" ? urls[0] : undefined;
+        videoSummary.generated += 1;
+        actions.push(`生成视频 ${key} -> ${item.nodeId}${localOutput ? ` (${localOutput})` : ""}`);
+        await writeState(projectRoot, state);
+      } catch (error) {
+        item = item ?? {
+          ...video,
+          nodeId: "",
+          status: "failed",
+          attempts: 1,
+          generationError: errorMessage(error)
+        };
+        if (!state.videos.includes(item)) {
+          state.videos.push(item);
+        }
+        item.status = "failed";
+        item.generationError = errorMessage(error);
+        item.attempts = (item.attempts ?? 0) + 1;
+        videoSummary.failed += 1;
+        const reason = error instanceof LibTvGenerationError ? error.reason : "execution-error";
+        videoSummary.failures.push({ id: key, reason, message: errorMessage(error), nodeId: item.nodeId || undefined });
+        actions.push(`视频失败 ${key}: ${errorMessage(error)}`);
+        await writeState(projectRoot, state);
       }
-      const node = await backend.createNode({
-        projectUuid: binding.projectUuid,
-        name: displayNameForVideo(video.groupId, video.shotId),
-        type: "video",
-        prompt: video.prompt,
-        params: {
-          ...(video.params ?? {}),
-          ...(video.modelKey ? { model: video.modelKey } : {})
-        },
-        groupNodeKey: video.groupId,
-        left,
-        leftUrls,
-        data: {
-          avwKind: "video",
-          avwSourcePath: video.sourcePath,
-          avwGroup: video.groupId,
-          avwShot: video.shotId
-        },
-        run: true
-      });
-      const localOutput = await downloadNodeOutput(node, path.join(projectRoot, "outputs", "video", video.groupId, video.shotId));
-      const dataParams = (node.data?.params ?? {}) as Record<string, unknown>;
-      const orderAfterRun = (dataParams.mixedListOrder ?? dataParams.imageListOrder) as string[] | undefined;
-      if (!orderAfterRun || orderAfterRun.length === 0) {
-        actions.push(`警告：视频 ${key} 生成后缺少 imageListOrder/mixedListOrder`);
-      }
-      const videoCdnUrl = Array.isArray(node.data?.url) ? (node.data?.url as string[])[0] : undefined;
-      state.videos.push({ ...video, nodeId: node.nodeKey, status: "generated", localOutput, cdnUrl: videoCdnUrl });
-      actions.push(`创建并生成视频 ${key} -> ${node.nodeKey}${localOutput ? ` (${localOutput})` : ""}`);
     }
   }
 
   state.updatedAt = new Date().toISOString();
-  if (!options.dryRun) {
-    await writeState(projectRoot, state);
-  }
-  return { actions, state };
+  await writeState(projectRoot, state);
+
+  return {
+    actions,
+    state,
+    summary: buildSummary(false, allowGeneration, keyframeSummary, videoSummary)
+  };
 }
 
-export function renderApplySummary(result: { actions: string[]; state: LibTvState }): string {
-  return [
+export function renderApplySummary(result: { actions: string[]; state: LibTvState; summary?: LibTvApplySummary }): string {
+  const lines: string[] = [
     ...result.actions,
     "",
     `状态：锚点 ${result.state.anchors.length}，关键帧 ${result.state.keyframes.length}，视频 ${result.state.videos.length}`
-  ].join("\n");
+  ];
+  if (result.summary) {
+    lines.push("");
+    lines.push(`关键帧：总 ${result.summary.keyframes.total}，跳过 ${result.summary.keyframes.skipped}，成功 ${result.summary.keyframes.generated}，失败 ${result.summary.keyframes.failed}`);
+    lines.push(`视频：总 ${result.summary.videos.total}，跳过 ${result.summary.videos.skipped}，成功 ${result.summary.videos.generated}，失败 ${result.summary.videos.failed}`);
+    for (const failure of [...result.summary.keyframes.failures, ...result.summary.videos.failures]) {
+      lines.push(`- 失败 ${failure.id} [${failure.reason}] ${failure.message}${failure.nodeId ? ` (${failure.nodeId})` : ""}`);
+    }
+  }
+  return lines.join("\n");
 }

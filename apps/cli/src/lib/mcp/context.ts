@@ -45,12 +45,24 @@ export interface McpLibtvContext {
     reviewDecision?: string;
     finalNodeId?: string;
     refineRounds: number;
+    taskId?: string;
+    progressPercent?: number;
+    generationError?: string;
+    attempts?: number;
   }>;
   videos: Array<{
     id: string;
     status?: string;
     nodeId?: string;
+    taskId?: string;
+    progressPercent?: number;
+    generationError?: string;
+    attempts?: number;
   }>;
+  summary?: {
+    keyframes: { total: number; approved: number; pending: number; failed: number; generating: number };
+    videos: { total: number; generated: number; failed: number; generating: number };
+  };
 }
 
 export interface McpProjectContext {
@@ -127,13 +139,36 @@ export async function buildMcpContext(options: BuildMcpContextOptions): Promise<
       nodeId: item.nodeId,
       reviewDecision: item.reviewDecision,
       finalNodeId: item.finalNodeId,
-      refineRounds: item.refineRounds?.length ?? 0
+      refineRounds: item.refineRounds?.length ?? 0,
+      taskId: item.taskId,
+      progressPercent: item.progressPercent,
+      generationError: item.generationError,
+      attempts: item.attempts
     })),
     videos: (libtvState?.videos ?? []).map((item) => ({
       id: `${item.groupId}/${item.shotId}`,
       status: item.status,
-      nodeId: item.nodeId
-    }))
+      nodeId: item.nodeId,
+      taskId: item.taskId,
+      progressPercent: item.progressPercent,
+      generationError: item.generationError,
+      attempts: item.attempts
+    })),
+    summary: libtvState ? {
+      keyframes: {
+        total: libtvState.keyframes.length,
+        approved: libtvState.keyframes.filter((item) => item.status === "approved" || item.status === "final_approved").length,
+        pending: libtvState.keyframes.filter((item) => item.status === "pending-approval" || item.status === "queued").length,
+        failed: libtvState.keyframes.filter((item) => item.status === "failed").length,
+        generating: libtvState.keyframes.filter((item) => item.status === "generating").length
+      },
+      videos: {
+        total: libtvState.videos.length,
+        generated: libtvState.videos.filter((item) => item.status === "generated").length,
+        failed: libtvState.videos.filter((item) => item.status === "failed").length,
+        generating: libtvState.videos.filter((item) => item.status === "generating").length
+      }
+    } : undefined
   };
 
   return {

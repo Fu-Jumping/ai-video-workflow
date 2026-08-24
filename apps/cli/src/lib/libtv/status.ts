@@ -30,7 +30,16 @@ export async function buildStatus(projectRoot: string, backend: LibTvBackend): P
     const stateItem = state?.keyframes.find((candidate) => `${candidate.groupId}/${candidate.shotId}/${candidate.keyframeId}` === key);
     const nodeId = stateItem?.nodeId;
     const remoteNode = nodeId ? remoteIds.has(nodeId) : false;
-    return { id: key, remote: remoteNode, nodeId, status: stateItem?.status };
+    return {
+      id: key,
+      remote: remoteNode,
+      nodeId,
+      status: stateItem?.status,
+      taskId: stateItem?.taskId,
+      progressPercent: stateItem?.progressPercent,
+      generationError: stateItem?.generationError,
+      attempts: stateItem?.attempts
+    };
   });
 
   const videos = plan.videos.map((item) => {
@@ -38,7 +47,16 @@ export async function buildStatus(projectRoot: string, backend: LibTvBackend): P
     const stateItem = state?.videos.find((candidate) => `${candidate.groupId}/${candidate.shotId}` === key);
     const nodeId = stateItem?.nodeId;
     const remoteNode = nodeId ? remoteIds.has(nodeId) : false;
-    return { id: key, remote: remoteNode, nodeId, status: stateItem?.status };
+    return {
+      id: key,
+      remote: remoteNode,
+      nodeId,
+      status: stateItem?.status,
+      taskId: stateItem?.taskId,
+      progressPercent: stateItem?.progressPercent,
+      generationError: stateItem?.generationError,
+      attempts: stateItem?.attempts
+    };
   });
 
   return { projectUuid: binding.projectUuid, anchors, keyframes, videos };
@@ -52,10 +70,10 @@ export function renderStatus(status: LibTvStatusResult): string {
     ...status.anchors.map((anchor) => `- ${anchor.token} local=${anchor.local ? "✓" : "✗"} remote=${anchor.remote ? "✓" : "✗"}${anchor.nodeId ? ` node=${anchor.nodeId}` : ""}${anchor.reviewDecision ? ` review=${anchor.reviewDecision}` : ""}${anchor.finalNodeId ? ` final=${anchor.finalNodeId}` : ""}${anchor.refineRounds ? ` rounds=${anchor.refineRounds}` : ""}`),
     "",
     `关键帧 ${status.keyframes.length}`,
-    ...status.keyframes.map((item) => `- ${item.id} remote=${item.remote ? "✓" : "✗"}${item.nodeId ? ` node=${item.nodeId}` : ""}${item.status ? ` status=${item.status}` : ""}${item.reviewDecision ? ` review=${item.reviewDecision}` : ""}${item.finalNodeId ? ` final=${item.finalNodeId}` : ""}${item.refineRounds ? ` rounds=${item.refineRounds}` : ""}`),
+    ...status.keyframes.map((item) => `- ${item.id} remote=${item.remote ? "✓" : "✗"}${item.nodeId ? ` node=${item.nodeId}` : ""}${item.status ? ` status=${item.status}` : ""}${item.reviewDecision ? ` review=${item.reviewDecision}` : ""}${item.finalNodeId ? ` final=${item.finalNodeId}` : ""}${item.refineRounds ? ` rounds=${item.refineRounds}` : ""}${item.progressPercent !== undefined ? ` progress=${item.progressPercent}` : ""}${item.generationError ? ` error=${item.generationError}` : ""}${item.attempts !== undefined ? ` attempts=${item.attempts}` : ""}`),
     "",
     `视频 ${status.videos.length}`,
-    ...status.videos.map((item) => `- ${item.id} remote=${item.remote ? "✓" : "✗"}${item.nodeId ? ` node=${item.nodeId}` : ""}${item.status ? ` status=${item.status}` : ""}`)
+    ...status.videos.map((item) => `- ${item.id} remote=${item.remote ? "✓" : "✗"}${item.nodeId ? ` node=${item.nodeId}` : ""}${item.status ? ` status=${item.status}` : ""}${item.progressPercent !== undefined ? ` progress=${item.progressPercent}` : ""}${item.generationError ? ` error=${item.generationError}` : ""}${item.attempts !== undefined ? ` attempts=${item.attempts}` : ""}`)
   ];
   return lines.join("\n");
 }

@@ -5,7 +5,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { build } from "tsup";
 import { afterEach, describe, expect, test } from "vitest";
-import { writeState } from "../src/lib/libtv/project-binding.js";
+import { writeState, writeBinding } from "../src/lib/libtv/project-binding.js";
 import type { LibTvState } from "../src/lib/libtv/types.js";
 
 const execFileAsync = promisify(execFile);
@@ -124,4 +124,31 @@ describe("libtv CLI", () => {
     expect(impact.stdout).toContain("05_视频提示词/镜头组-001/镜头-001.md");
     expect(impact.stdout).not.toContain("undefined");
   });
+  test("libtv apply requires --allow-generation for keyframe generation", { timeout: 30000 }, async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const entry = await buildCliToTemp(cliRoot);
+    const repoRoot = path.resolve(cliRoot, "..", "..");
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-libtv-cli-apply-"));
+    tempRoots.push(projectRoot);
+    await fs.copy(path.join(repoRoot, "examples", "官方示例-云上早市"), projectRoot);
+    await fs.appendFile(
+      path.join(projectRoot, "project.config.yaml"),
+      "\nlibtv:\n  image_model: mj-v8.2\n  video_model: star-video2\n",
+      "utf8"
+    );
+    await writeBinding(projectRoot, { projectUuid: "mock-project" });
+
+    const dry = await runCli(entry, [
+      "libtv", "--mock", "apply", "--project", projectRoot, "--only", "keyframes"
+    ]);
+    expect(dry.stdout).toContain("--allow-generation");
+
+    const executed = await runCli(entry, [
+      "libtv", "--mock", "apply", "--project", projectRoot, "--only", "keyframes",
+      "--allow-generation", "--poll-interval", "1", "--timeout", "5000"
+    ]);
+    expect(executed.stdout).toContain("生成关键帧");
+    expect(executed.stdout).toContain("成功");
+  });
+
 });

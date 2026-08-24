@@ -7,6 +7,7 @@ import fs from "fs-extra";
 import { LibTvApiClient } from "./api.js";
 import type { LibTvBackend, LibTvCreateGroupInput, LibTvCreateNodeInput, LibTvGenerationInput, LibTvUpdateNodeInput, LibTvUploadInput } from "./backend.js";
 import type {
+  LibTvGenerationProgress,
   LibTvNodeDetail,
   LibTvNodeType,
   LibTvProjectNodeSummary,
@@ -507,7 +508,7 @@ export class HttpLibTvBackend implements LibTvBackend {
           throw new CliUserError(`生成失败: ${result.taskId} status=${current.status} result=${typeof current.taskResult === "string" ? current.taskResult.slice(0, 200) : ""}`);
         }
         if (current.status === 2) {
-          await this.writeGenerationResult(projectUuid, node, current);
+          await this.saveGenerationResult({ projectUuid, node, progress: current });
         }
         return (await this.getNode(projectUuid, node.nodeKey)) ?? node;
       }
@@ -515,11 +516,10 @@ export class HttpLibTvBackend implements LibTvBackend {
     throw new CliUserError(`生成超时: ${result.taskId}`);
   }
 
-  private async writeGenerationResult(
-    projectUuid: string,
-    node: LibTvNodeDetail,
-    progress: { taskId?: string; taskResult?: unknown; progressPercent?: number }
-  ): Promise<void> {
+  async saveGenerationResult(
+    input: { projectUuid: string; node: LibTvNodeDetail; progress: LibTvGenerationProgress }
+  ): Promise<LibTvNodeDetail> {
+    const { projectUuid, node, progress } = input;
     const detail = await this.client.getProjectDetail(projectUuid);
     const summary = detail.nodes.find((candidate) => candidate.id === node.nodeKey || candidate.name === node.nodeKey);
     const updatedData: Record<string, unknown> = {
@@ -568,6 +568,7 @@ export class HttpLibTvBackend implements LibTvBackend {
       nodes: { update: [record] },
       connections: {}
     });
+    return (await this.getNode(projectUuid, node.nodeKey)) ?? node;
   }
 
   async uploadAsset(input: LibTvUploadInput): Promise<LibTvUploadResult> {

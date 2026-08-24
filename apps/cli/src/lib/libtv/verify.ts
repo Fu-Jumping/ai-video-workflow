@@ -33,7 +33,7 @@ export async function verifyLibtvProject(projectRoot: string, backend?: LibTvBac
     if (!video.prompt) {
       issues.push({ code: "missing-video-prompt", message: `视频缺少可复制提示词: ${video.sourcePath}`, path: video.sourcePath });
     }
-    if (!state || !state.keyframes.some((item) => item.groupId === video.groupId && item.shotId === video.shotId && (item.status === "approved" || item.status === "generated"))) {
+    if (!state || !state.keyframes.some((item) => item.groupId === video.groupId && item.shotId === video.shotId && (item.status === "approved" || item.status === "final_approved") && Boolean(item.finalNodeId ?? item.nodeId))) {
       issues.push({
         code: "keyframe-not-approved",
         message: `视频前置关键帧未通过人工待审: ${video.groupId}/${video.shotId}`,
