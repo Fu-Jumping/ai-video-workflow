@@ -1,11 +1,15 @@
 import { CliUserError } from "../cli-errors.js";
+import { readProjectConfig } from "../project-config.js";
 import type { LibTvBackend } from "./backend.js";
+import { runNodeGeneration } from "./execution.js";
 import { readState, writeState } from "./project-binding.js";
 import type {
   LibTvAnchorState,
   LibTvImageReviewDecision,
   LibTvKeyframeState,
+  LibTvNodeDetail,
   LibTvRefineBase,
+  LibTvRefineRound,
   LibTvState
 } from "./types.js";
 
@@ -116,6 +120,51 @@ export interface RunRefineOptions {
   negativeConstraints?: string[];
   x?: number;
   y?: number;
+  pollIntervalMs?: number;
+  timeoutMs?: number;
+  retry?: boolean;
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+function cdnUrlForBase(target: LibTvImageTarget, baseNodeId: string): string | undefined {
+  const item = target.item;
+  if (item.nodeId === baseNodeId) return item.cdnUrl;
+  const round = item.refineRounds?.find((candidate) => candidate.refineNodeId === baseNodeId);
+  return round?.cdnUrl;
+}
+
+async function resolveGroupNodeKey(
+  backend: LibTvBackend,
+  projectUuid: string,
+  groupRef: string
+): Promise<string | undefined> {
+  const groups = await backend.listGroups(projectUuid);
+  const group = groups.find((candidate) => candidate.id === groupRef || candidate.name === groupRef);
+  // Return the real group node key when it exists; otherwise keep the original
+  // name/id so existing callers retain compatibility.
+  return group?.id ?? groupRef;
+}
+
+async function resolveRefinePosition(
+  backend: LibTvBackend,
+  projectUuid: string,
+  baseNodeId: string,
+  x?: number,
+  y?: number
+): Promise<{ x?: number; y?: number }> {
+  if (x !== undefined || y !== undefined) {
+    return { x, y };
+  }
+  const detail = await backend.getProjectDetail(projectUuid);
+  const base = detail.nodes.find((candidate) => candidate.id === baseNodeId || candidate.name === baseNodeId);
+  if (base?.position) {
+    return { x: (base.position.x ?? 0) + 240, y: base.position.y ?? 0 };
+  }
+  return {};
 }
 
 export async function runRefine(
@@ -143,46 +192,137 @@ export async function runRefine(
   if (!schema) {
     throw new CliUserError("未找到 LibTV 精修模型 lib-image-2");
   }
-  const round = (target.item.refineRounds?.length ?? 0) + 1;
-  const refineName = displayNameForTarget(target);
-  const node = await backend.createNode({
-    projectUuid: state.projectUuid,
-    name: refineName,
-    type: "image",
-    prompt: buildRefinePrompt(options.instruction, options.negativeConstraints),
-    params: {
-      model: "lib-image-2"
-    },
-    groupNodeKey: target.kind === "keyframe" ? target.item.groupId : undefined,
-    left: [baseNodeId],
-    data: {
-      avwKind: target.kind,
-      avwRefine: true,
-      avwRound: round,
-      avwBase: options.base,
-      avwSourceId: target.id
-    },
-    x: options.x,
-    y: options.y,
-    run: true
-  });
-  const nodeUrls = Array.isArray((node.data as Record<string, unknown>)?.url)
-    ? ((node.data as Record<string, unknown>).url as Array<unknown>)
-    : [];
-  const refineCdnUrl = typeof nodeUrls[0] === "string" ? nodeUrls[0] : undefined;
-  const refineRound = {
-    round,
-    base: options.base,
-    baseNodeId,
-    instruction: options.instruction,
-    refineNodeId: node.nodeKey,
-    cdnUrl: refineCdnUrl,
-    status: "generated" as const
-  };
-  const rounds = [...(target.item.refineRounds ?? []), refineRound];
-  target.item.refineRounds = rounds;
-  target.item.status = target.kind === "keyframe" ? "refined_generated" : target.item.status;
-  state.updatedAt = new Date().toISOString();
-  await writeState(projectRoot, state);
-  return { target, refineNodeId: node.nodeKey, round, state };
+
+  const { config } = await readProjectConfig(projectRoot);
+  const imageSettings = config?.libtv?.image_settings;
+
+  const groupRef = target.kind === "keyframe" ? target.item.groupId : "锚点素材";
+  const groupNodeKey = await resolveGroupNodeKey(backend, state.projectUuid, groupRef);
+  const position = await resolveRefinePosition(backend, state.projectUuid, baseNodeId, options.x, options.y);
+  const baseUrl = cdnUrlForBase(target, baseNodeId);
+  const leftUrls = baseUrl ? { [baseNodeId]: baseUrl } : {};
+
+  const rounds = target.item.refineRounds ?? [];
+  const lastRound = rounds[rounds.length - 1];
+  const resumeExisting = Boolean(
+    lastRound &&
+    lastRound.status === "refining" &&
+    lastRound.refineNodeId &&
+    lastRound.base === options.base &&
+    lastRound.instruction === options.instruction
+  );
+
+  if (options.retry && !(lastRound?.status === "failed" && lastRound.refineNodeId)) {
+    throw new CliUserError("没有可重试的失败精修轮");
+  }
+
+  let round: LibTvRefineRound;
+  let node: LibTvNodeDetail;
+
+  if (resumeExisting && lastRound) {
+    round = lastRound;
+    node = await backend.getNode(state.projectUuid, lastRound.refineNodeId!);
+    if (!node) {
+      throw new CliUserError(`找不到待恢复的精修节点: ${lastRound.refineNodeId}`);
+    }
+  } else if (options.retry && lastRound?.status === "failed" && lastRound.refineNodeId) {
+    round = lastRound;
+    round.status = "refining";
+    round.generationError = undefined;
+    round.taskId = undefined;
+    round.progressPercent = undefined;
+    node = await backend.getNode(state.projectUuid, lastRound.refineNodeId);
+    if (!node) {
+      throw new CliUserError(`找不到待重试的精修节点: ${lastRound.refineNodeId}`);
+    }
+    await writeState(projectRoot, state);
+  } else {
+    const nextRound = (rounds.length ?? 0) + 1;
+    const refineName = displayNameForTarget(target);
+    const created = await backend.createNode({
+      projectUuid: state.projectUuid,
+      name: refineName,
+      type: "image",
+      prompt: buildRefinePrompt(options.instruction, options.negativeConstraints),
+      params: {
+        model: "lib-image-2",
+        ...(imageSettings ?? {})
+      },
+      groupNodeKey,
+      left: [baseNodeId],
+      leftUrls,
+      data: {
+        avwKind: target.kind,
+        avwRefine: true,
+        avwRound: nextRound,
+        avwBase: options.base,
+        avwSourceId: target.id
+      },
+      x: position.x,
+      y: position.y,
+      run: false
+    });
+    round = {
+      round: nextRound,
+      base: options.base,
+      baseNodeId,
+      instruction: options.instruction,
+      refineNodeId: created.nodeKey,
+      status: "refining",
+      attempts: 0
+    };
+    target.item.refineRounds = [...rounds, round];
+    await writeState(projectRoot, state);
+    node = created;
+  }
+
+  try {
+    const result = await runNodeGeneration(backend, {
+      projectUuid: state.projectUuid,
+      node,
+      modelKey: "lib-image-2",
+      prompt: buildRefinePrompt(options.instruction, options.negativeConstraints),
+      taskType: "image",
+      params: imageSettings ?? {},
+      existingTaskId: resumeExisting ? round.taskId : undefined,
+      pollIntervalMs: options.pollIntervalMs ?? 2000,
+      timeoutMs: options.timeoutMs ?? 1200000,
+      onProgress: async (progress) => {
+        round.status = "refining";
+        round.taskId = progress.taskId ?? round.taskId;
+        round.progressPercent = progress.progressPercent;
+        await writeState(projectRoot, state);
+      }
+    });
+
+    const rawUrls = result.node.data?.url ?? [];
+    const nodeUrls = Array.isArray(rawUrls) ? rawUrls as Array<unknown> : [];
+    const refineCdnUrl = typeof nodeUrls[0] === "string" ? nodeUrls[0] : undefined;
+
+    round.status = "generated";
+    round.refineNodeId = result.node.nodeKey;
+    round.cdnUrl = refineCdnUrl;
+    round.taskId = result.taskId;
+    round.progressPercent = 100;
+    round.generationError = undefined;
+    round.attempts = (round.attempts ?? 0) + 1;
+
+    if (!target.item.refineRounds?.some((candidate) => candidate === round)) {
+      target.item.refineRounds = [...(target.item.refineRounds ?? []), round];
+    }
+    target.item.status = target.kind === "keyframe" ? "refined_generated" : target.item.status;
+    state.updatedAt = new Date().toISOString();
+    await writeState(projectRoot, state);
+    return { target, refineNodeId: round.refineNodeId!, round: round.round, state };
+  } catch (error) {
+    round.status = "failed";
+    round.generationError = errorMessage(error);
+    round.attempts = (round.attempts ?? 0) + 1;
+    if (!target.item.refineRounds?.some((candidate) => candidate === round)) {
+      target.item.refineRounds = [...(target.item.refineRounds ?? []), round];
+    }
+    state.updatedAt = new Date().toISOString();
+    await writeState(projectRoot, state);
+    throw error;
+  }
 }

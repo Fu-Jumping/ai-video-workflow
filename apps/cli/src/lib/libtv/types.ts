@@ -205,6 +205,8 @@ export interface LibTvGenerationProgress {
   status?: number;
   progressPercent?: number;
   loading?: boolean;
+  taskResult?: unknown;
+  errorMessage?: string;
   [key: string]: unknown;
 }
 
@@ -266,6 +268,10 @@ export interface LibTvRefineRound {
   cdnUrl?: string;
   localOutput?: string;
   status: "refining" | "generated" | "failed";
+  taskId?: string;
+  progressPercent?: number;
+  generationError?: string;
+  attempts?: number;
 }
 
 export interface LibTvAnchorState extends LibTvAssetRef {
@@ -288,6 +294,21 @@ export interface LibTvKeyframeState extends LibTvKeyframeRef {
   feedback?: string;
   finalNodeId?: string;
   refineRounds?: LibTvRefineRound[];
+  taskId?: string;
+  progressPercent?: number;
+  generationError?: string;
+  attempts?: number;
+}
+
+export interface LibTvVideoState extends LibTvVideoRef {
+  nodeId: string;
+  status: string;
+  localOutput?: string;
+  cdnUrl?: string;
+  taskId?: string;
+  progressPercent?: number;
+  generationError?: string;
+  attempts?: number;
 }
 
 export interface LibTvState {
@@ -295,20 +316,46 @@ export interface LibTvState {
   projectUuid: string;
   anchors: LibTvAnchorState[];
   keyframes: LibTvKeyframeState[];
-  videos: Array<LibTvVideoRef & { nodeId: string; status: string; localOutput?: string; cdnUrl?: string }>;
+  videos: LibTvVideoState[];
   updatedAt: string;
 }
 
 export interface LibTvApplyOptions {
   dryRun?: boolean;
   only?: Array<"anchors" | "keyframes" | "videos">;
+  allowGeneration?: boolean;
+  pollIntervalMs?: number;
+  timeoutMs?: number;
+  retryIds?: string[];
+}
+
+export interface LibTvApplyFailure {
+  id: string;
+  reason: string;
+  message: string;
+  nodeId?: string;
+}
+
+export interface LibTvApplySectionSummary {
+  total: number;
+  skipped: number;
+  generated: number;
+  failed: number;
+  failures: LibTvApplyFailure[];
+}
+
+export interface LibTvApplySummary {
+  dryRun: boolean;
+  allowGeneration: boolean;
+  keyframes: LibTvApplySectionSummary;
+  videos: LibTvApplySectionSummary;
 }
 
 export interface LibTvStatusResult {
   projectUuid: string;
   anchors: Array<{ token: string; local: boolean; remote: boolean; nodeId?: string; reviewDecision?: LibTvImageReviewDecision; finalNodeId?: string; refineRounds?: number }>;
-  keyframes: Array<{ id: string; remote: boolean; nodeId?: string; status?: string; reviewDecision?: LibTvImageReviewDecision; finalNodeId?: string; refineRounds?: number }>;
-  videos: Array<{ id: string; remote: boolean; nodeId?: string; status?: string }>;
+  keyframes: Array<{ id: string; remote: boolean; nodeId?: string; status?: string; reviewDecision?: LibTvImageReviewDecision; finalNodeId?: string; refineRounds?: number; taskId?: string; progressPercent?: number; generationError?: string; attempts?: number }>;
+  videos: Array<{ id: string; remote: boolean; nodeId?: string; status?: string; taskId?: string; progressPercent?: number; generationError?: string; attempts?: number }>;
 }
 
 export interface LibTvVerifyIssue {

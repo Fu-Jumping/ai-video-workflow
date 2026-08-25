@@ -33,6 +33,17 @@ function makeEdgeId(): string {
   return `e-mock-${nextEdgeSeq++}`;
 }
 
+interface MockTaskState {
+  status: number;
+  progressPercent: number;
+  polls: number;
+  completeAfterPolls: number;
+  failAfterPolls?: number;
+  fail: boolean;
+  timeout: boolean;
+}
+
+
 export class MockLibTvBackend implements LibTvBackend {
   private projects = new Map<string, LibTvProjectDetailResult>();
   private projectMetas = new Map<string, LibTvProjectMeta>();
@@ -45,10 +56,56 @@ export class MockLibTvBackend implements LibTvBackend {
     { modelKey: "mock-video-1", modelName: "Mock Video", supportModality: "video" },
     { modelKey: "star-video2", modelName: "Seedance 2.0 VIP", modelVendor: "star-video2", supportModality: "video" },
     { modelKey: "midjourney-v8.2", modelName: "Midjourney V8.2", supportModality: "image" },
+    { modelKey: "mj-v8.2", modelName: "Midjourney V8.2", supportModality: "image" },
     { modelKey: "lib-image-2", modelName: "Lib Image", modelVendor: "lib-image", supportModality: "image" }
   ];
-  private tasks = new Map<string, { status: number; progressPercent: number }>();
+  private tasks = new Map<string, MockTaskState>();
   private workspaces = new Map<number | string, LibTvWorkspace>();
+  private generationConfig: {
+    completeAfterPolls: number;
+    progressStep: number;
+    failAfterPolls: number;
+    failNodeKeys: Set<string>;
+    timeoutNodeKeys: Set<string>;
+  } = {
+    completeAfterPolls: 2,
+    progressStep: 34,
+    failAfterPolls: 1,
+    failNodeKeys: new Set(),
+    timeoutNodeKeys: new Set()
+  };
+  public createGenerationCalls = 0;
+  public pollCalls = 0;
+  private generationCallsByNode = new Map<string, number>();
+
+
+  configureGeneration(options: {
+    completeAfterPolls?: number;
+    progressStep?: number;
+    failAfterPolls?: number;
+    failNodeKeys?: string[];
+    timeoutNodeKeys?: string[];
+  } = {}): void {
+    this.generationConfig = {
+      completeAfterPolls: options.completeAfterPolls ?? this.generationConfig.completeAfterPolls,
+      progressStep: options.progressStep ?? this.generationConfig.progressStep,
+      failAfterPolls: options.failAfterPolls ?? this.generationConfig.failAfterPolls,
+      failNodeKeys: new Set(options.failNodeKeys ?? []),
+      timeoutNodeKeys: new Set(options.timeoutNodeKeys ?? [])
+    };
+  }
+
+  getGenerationCallCount(nodeKey: string): number {
+    return this.generationCallsByNode.get(nodeKey) ?? 0;
+  }
+
+  getTotalGenerationCallCount(): number {
+    return this.createGenerationCalls;
+  }
+
+  getPollCount(): number {
+    return this.pollCalls;
+  }
 
   constructor() {
     this.ensureProject({
@@ -229,7 +286,7 @@ export class MockLibTvBackend implements LibTvBackend {
       detail.edges.push({ id: makeEdgeId(), source: input.groupNodeKey, target: id });
     }
     if (input.run) {
-      this.tasks.set(id, { status: 2, progressPercent: 100 });
+      this.tasks.set(id, { status: 2, progressPercent: 100, polls: 1, completeAfterPolls: 0, fail: false, timeout: false });
     }
     return this.nodeData.get(id)!;
   }
@@ -262,7 +319,7 @@ export class MockLibTvBackend implements LibTvBackend {
       detail.edges = detail.edges.filter((edge) => !remove.has(edge.source) && !remove.has(edge.target));
     }
     if (input.run) {
-      this.tasks.set(existing.id, { status: 2, progressPercent: 100 });
+      this.tasks.set(existing.id, { status: 2, progressPercent: 100, polls: 1, completeAfterPolls: 0, fail: false, timeout: false });
     }
     return data;
   }
@@ -294,7 +351,7 @@ export class MockLibTvBackend implements LibTvBackend {
       detail.edges.push({ id: makeEdgeId(), source: id, target: nodeKey });
     }
     if (input.run) {
-      this.tasks.set(id, { status: 2, progressPercent: 100 });
+      this.tasks.set(id, { status: 2, progressPercent: 100, polls: 1, completeAfterPolls: 0, fail: false, timeout: false });
     }
     return summary;
   }
@@ -315,17 +372,74 @@ export class MockLibTvBackend implements LibTvBackend {
   async createGeneration(input: LibTvGenerationInput): Promise<LibTvGenerationResult> {
     const node = await this.getNode(input.projectUuid, input.nodeId);
     if (!node) throw new Error(`Mock node not found: ${input.nodeId}`);
-    this.tasks.set(node.nodeKey, { status: 1, progressPercent: 0 });
+    this.createGenerationCalls += 1;
+    this.generationCallsByNode.set(node.nodeKey, (this.generationCallsByNode.get(node.nodeKey) ?? 0) + 1);
+    const cfg = this.generationConfig;
+    const fail = cfg.failNodeKeys.has(node.nodeKey) || cfg.failNodeKeys.has(node.name);
+    const timeout = cfg.timeoutNodeKeys.has(node.nodeKey) || cfg.timeoutNodeKeys.has(node.name);
+    this.tasks.set(node.nodeKey, {
+      status: 1,
+      progressPercent: 0,
+      polls: 0,
+      completeAfterPolls: cfg.completeAfterPolls,
+      failAfterPolls: fail ? cfg.failAfterPolls : undefined,
+      fail,
+      timeout
+    });
     return { taskId: `task-${node.nodeKey}`, nodeId: node.nodeKey, status: 1 };
   }
 
   async getGenerationProgress(taskIds: string[]): Promise<LibTvGenerationProgress[]> {
+    this.pollCalls += 1;
     return taskIds.map((taskId) => {
       const key = taskId.replace(/^task-/, "");
-      const status = this.tasks.get(key)?.status ?? 2;
-      const progressPercent = this.tasks.get(key)?.progressPercent ?? 100;
-      return { taskId, status, progressPercent, loading: status === 1 };
+      const task = this.tasks.get(key);
+      if (!task) {
+        return { taskId, status: 2, progressPercent: 100, loading: false };
+      }
+      if (task.timeout) {
+        return { taskId, status: 1, progressPercent: task.progressPercent, loading: true };
+      }
+      task.polls += 1;
+      if (task.fail && task.failAfterPolls !== undefined && task.polls >= task.failAfterPolls) {
+        task.status = 3;
+        task.progressPercent = Math.min(100, task.progressPercent + 25);
+        return {
+          taskId,
+          status: 3,
+          progressPercent: task.progressPercent,
+          loading: false,
+          errorMessage: `Mock generation failed for ${key}`
+        };
+      }
+      if (task.polls >= task.completeAfterPolls) {
+        task.status = 2;
+        task.progressPercent = 100;
+        return { taskId, status: 2, progressPercent: 100, loading: false };
+      }
+      task.status = 1;
+      task.progressPercent = Math.min(100, task.progressPercent + this.generationConfig.progressStep);
+      return { taskId, status: 1, progressPercent: task.progressPercent, loading: true };
     });
+  }
+
+  async saveGenerationResult(
+    input: { projectUuid: string; node: LibTvNodeDetail; progress: LibTvGenerationProgress }
+  ): Promise<LibTvNodeDetail> {
+    const { node, progress } = input;
+    const existing = this.nodeData.get(node.nodeKey) ?? node;
+    const data = existing.data ?? {};
+    existing.data = {
+      ...data,
+      taskInfo: {
+        taskId: progress.taskId ?? "",
+        loading: false,
+        status: 2,
+        progressPercent: progress.progressPercent ?? 100
+      }
+    };
+    this.nodeData.set(node.nodeKey, existing);
+    return existing;
   }
 
   async listModels(nodeType?: string): Promise<LibTvModel[]> {

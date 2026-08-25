@@ -76,6 +76,13 @@
 
 2026-08-23 已补齐：libtv-asset-adapter.md（zh/en）新增"审阅与两阶段精修"节、命令清单补 review/refine、内置映射补 gpt-image-2 -> lib-image-2；adapter-boundaries.md（zh/en）LibTV 节补精修范围、`--allow-generation` 硬闸与主链规则，并修正陈旧的"边序搁置"口径（实为已实现 verify-order 合同）；双语 README LibTV 节补命令示例与流程摘要；mcp-adapter.md 修正步骤范围（Step 0-7）、资源清单补 step/7、目的清单补精修状态、修改边界与禁止写入补 Step 7。
 
+### Q9 LibTV apply 缺少 `--allow-generation` 生成硬闸 `[已处理]` 2026-08-23
+
+- 现象：`ai-video-workflow libtv apply` 目前没有 `--allow-generation` 选项；`applyPlan` 在非 `--dry-run` 时直接以 `backend.createNode({ run: true })` 创建关键帧/视频节点，`HttpLibTvBackend.createNode` 随即调用真实生成 API 并轮询。
+- 证据：`apps/cli/src/lib/libtv/register.ts`（apply 子命令定义）、`apps/cli/src/lib/libtv/apply.ts`（run: true）、`apps/cli/src/lib/libtv/http-backend.ts`（`runNode`）。
+- 影响：与 `00-project-context.md` §6、仓库根 `AGENTS.md`、`2026-08-22-post-libtv-development-roadmap.md` §4 的安全边界“任何生成必须显式 `--allow-generation`，默认 dry-run”不一致；用户仅运行 `libtv apply --only keyframes` 就可能消耗真实生成额度。
+- 处置：本轮实施计划已把该硬闸列为必改项；当前任务分支已实现 `apply --allow-generation` 默认不生成，并补充 mock 测试；待全量验证通过后关闭。
+
 ## 3. 缺口登记规则 `[通用规则]`
 
 发现"规则与实际代码/文档不一致"时：在本文件追加 Q 编号条目（现象 + 证据路径 + 影响），并在对话中报告；**不擅自修改业务行为**；修复需用户确认后按 [05-task-routing.md](./05-task-routing.md) 对应路由执行。

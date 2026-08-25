@@ -99,6 +99,7 @@ export interface LibTvBackend {
   uploadAsset(input: LibTvUploadInput): Promise<LibTvUploadResult>;
   createGeneration(input: LibTvGenerationInput): Promise<LibTvGenerationResult>;
   getGenerationProgress(taskIds: string[]): Promise<LibTvGenerationProgress[]>;
+  saveGenerationResult(input: { projectUuid: string; node: LibTvNodeDetail; progress: LibTvGenerationProgress }): Promise<LibTvNodeDetail>;
   listModels(nodeType?: string): Promise<LibTvModel[]>;
   getModelSchema(ref: string): Promise<LibTvToolSpec | null>;
 }
