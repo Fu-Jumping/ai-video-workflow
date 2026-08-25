@@ -205,7 +205,7 @@ export function renderInitNextSteps({
 export async function createProject(options: CreateProjectOptions): Promise<string> {
   const startFrom = normalizeStartFrom(options.startFrom);
   const projectName = validateSafeDirectoryName(options.projectName, "Project name");
-  const projectRoot = await assertCanInitializeProject(options.targetRoot, projectName);
+  const projectRoot = await assertCanInitializeProject(options.targetRoot, projectName, options.force === true);
   const repoRoot = resolveRepoRoot(moduleDir);
   if (!packRootExists(repoRoot, options.pack)) {
     throw new CliUserError(`Pack not found: ${options.pack} (expected at ${path.join(repoRoot, "packs", options.pack)}).`);

@@ -333,6 +333,90 @@ describe("built CLI", () => {
     expect(output).not.toContain("at Command");
   });
 
+  test("sync validates IDE choices with readable errors and does not write files", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const targetRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-sync-invalid-ide-"));
+    tempRoots.push(targetRoot);
+
+    await buildCli(cliRoot);
+    const result = await runExpectFailure(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "sync", "--project", targetRoot, "--ide", "codx"],
+      targetRoot
+    );
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(output).toContain("Invalid AI IDE: codx");
+    expect(output).toContain("Did you mean codex?");
+    expect(output).not.toContain("node:internal");
+    expect(output).not.toContain("at Command");
+    expect(await fs.readdir(targetRoot)).toEqual([]);
+  });
+
+  test("doctor validates IDE choices with readable errors", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const targetRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-doctor-invalid-ide-"));
+    tempRoots.push(targetRoot);
+
+    await buildCli(cliRoot);
+    const result = await runExpectFailure(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "doctor", "--project", targetRoot, "--ide", "codx"],
+      targetRoot
+    );
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(output).toContain("Invalid AI IDE: codx");
+    expect(output).toContain("Did you mean codex?");
+    expect(output).not.toContain("node:internal");
+    expect(output).not.toContain("at Command");
+    expect(await fs.readdir(targetRoot)).toEqual([]);
+  });
+
+  test("impact rejects file project roots without writing files or printing stack traces", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const targetRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-impact-file-root-"));
+    tempRoots.push(targetRoot);
+    const projectPath = path.join(targetRoot, "project.md");
+    await fs.writeFile(projectPath, "# Not a project\n", "utf8");
+
+    await buildCli(cliRoot);
+    const result = await runExpectFailure(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "impact", "--project", projectPath, "关键词"],
+      targetRoot
+    );
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(output).toContain("Project root must be a directory");
+    expect(output).not.toContain("node:internal");
+    expect(output).not.toContain("at Command");
+    await expect(fs.readFile(projectPath, "utf8")).resolves.toBe("# Not a project\n");
+    expect(await fs.readdir(targetRoot)).toContain("project.md");
+  });
+
+  test("deviation add rejects file project roots without writing files or printing stack traces", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const targetRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-deviation-file-root-"));
+    tempRoots.push(targetRoot);
+    const projectPath = path.join(targetRoot, "project.md");
+    await fs.writeFile(projectPath, "# Not a project\n", "utf8");
+
+    await buildCli(cliRoot);
+    const result = await runExpectFailure(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "deviation", "add", "--project", projectPath, "--rule", "missing-step6-file"],
+      targetRoot
+    );
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(output).toContain("Project root must be a directory");
+    expect(output).not.toContain("node:internal");
+    expect(output).not.toContain("at Command");
+    await expect(fs.pathExists(path.join(targetRoot, "deviations.yaml"))).resolves.toBe(false);
+    await expect(fs.readFile(projectPath, "utf8")).resolves.toBe("# Not a project\n");
+  });
+
   test("verify --step 7 is accepted by the built CLI", async () => {
     const cliRoot = path.resolve(__dirname, "..");
     const targetRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-step7-"));

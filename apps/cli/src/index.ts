@@ -46,6 +46,7 @@ import {
 } from "./lib/research.js";
 import { syncProject } from "./lib/sync.js";
 import { verifyProject } from "./lib/verify.js";
+import { assertExistingDirectory } from "./lib/project-root.js";
 import { assertSingleObsidianTarget, resolveInProjectObsidianView } from "./lib/view-layer.js";
 import { registerLibTvCommands } from "./lib/libtv/register.js";
 
@@ -123,6 +124,7 @@ program
   .option("--video <platform>", "Default video platform")
   .option("--pack <pack>", "Workflow pack name under packs/ (default: official-ai-video)", DEFAULT_PACK)
   .option("--start-from <mode>", "Workflow start mode: research or script")
+  .option("--force", "Explicitly allow initializing into an existing non-empty or .git directory", false)
   .action((options) => runCliAction(async () => {
     const parsedIde = parseIde(options.ide);
     const parsedImagePlatform = parsePlatform(options.image, "image platform");
@@ -157,7 +159,8 @@ program
       ide,
       imagePlatform,
       videoPlatform,
-      startFrom
+      startFrom,
+      force: options.force === true
     });
     console.log(renderInitNextSteps({ projectName, projectRoot, ide, startFrom }));
   }, () => program.opts<{ debug?: boolean }>().debug === true));
@@ -288,6 +291,7 @@ program
   .argument("[keyword]", "Keyword to search, e.g. a character name, scene, color, or motif")
   .action((keyword, options) => runCliAction(async () => {
     const projectRoot = path.resolve(options.project);
+    await assertExistingDirectory(projectRoot, "Project root");
     if (options.image) {
       const result = await analyzeImageNodeImpact(projectRoot, options.image);
       console.log(renderImpactResult(result));
@@ -312,6 +316,7 @@ deviation
   .option("--by <text>", "Who confirmed the deviation")
   .action((options) => runCliAction(async () => {
     const projectRoot = path.resolve(options.project);
+    await assertExistingDirectory(projectRoot, "Project root");
     const deviations = await addDeviation(projectRoot, {
       rule: options.rule,
       scope: options.scope,
@@ -330,6 +335,7 @@ deviation
   .option("--scope <path>", "Must match the scope used when adding")
   .action((options) => runCliAction(async () => {
     const projectRoot = path.resolve(options.project);
+    await assertExistingDirectory(projectRoot, "Project root");
     const deviations = await removeDeviation(projectRoot, options.rule, options.scope);
     console.log(`Removed deviation: ${options.rule}${options.scope ? ` [${options.scope}]` : ""}`);
     console.log(renderDeviations(deviations));
@@ -341,6 +347,7 @@ deviation
   .requiredOption("--project <path>")
   .action((options) => runCliAction(async () => {
     const projectRoot = path.resolve(options.project);
+    await assertExistingDirectory(projectRoot, "Project root");
     const result = await readDeviations(projectRoot);
     for (const issue of result.issues) {
       console.error(`- ${issue.code}: ${issue.message}`);
@@ -363,6 +370,7 @@ deviation
       throw new Error("Missing --mode");
     }
     const projectRoot = path.resolve(options.project);
+    await assertExistingDirectory(projectRoot, "Project root");
     const result = await setWorkflowMode(projectRoot, mode);
     console.log(`Set workflow mode: ${mode}`);
     console.log(renderDeviations(result));
@@ -381,6 +389,7 @@ deviation
       throw new Error("Missing --mode");
     }
     const projectRoot = path.resolve(options.project);
+    await assertExistingDirectory(projectRoot, "Project root");
     const result = await setShotMode(projectRoot, options.shot, mode, options.reason);
     console.log(`Set shot mode: ${options.shot} -> ${mode}`);
     console.log(renderDeviations(result));
@@ -393,6 +402,7 @@ deviation
   .requiredOption("--shot <id>")
   .action((options) => runCliAction(async () => {
     const projectRoot = path.resolve(options.project);
+    await assertExistingDirectory(projectRoot, "Project root");
     const result = await removeShotMode(projectRoot, options.shot);
     console.log(`Removed shot mode: ${options.shot}`);
     console.log(renderDeviations(result));

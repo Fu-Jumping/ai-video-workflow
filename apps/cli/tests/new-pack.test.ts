@@ -25,12 +25,19 @@ describe("createPackScaffold", () => {
     "\\\\server\\share",
     "CON",
     "trailing-dot.",
-    "trailing-space "
+    "trailing-space ",
+    "bad\u0000name",
+    "bad\u001fname",
+    "bad\u200bname"
   ])("rejects unsafe pack directory name %j", async (packName) => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-pack-name-"));
     tempRoots.push(root);
     const possibleTarget = path.resolve(root, packName);
-    if (possibleTarget !== root && possibleTarget.startsWith(`${root}${path.sep}`)) {
+    if (
+      possibleTarget !== root &&
+      possibleTarget.startsWith(`${root}${path.sep}`) &&
+      !/[\u0000-\u001f\u007f]/.test(packName)
+    ) {
       tempRoots.push(possibleTarget);
     }
 

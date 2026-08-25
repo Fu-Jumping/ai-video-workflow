@@ -138,6 +138,7 @@ export interface CreateProjectOptions {
   imagePlatform: Platform;
   videoPlatform: Platform;
   startFrom?: StartFromMode;
+  force?: boolean;
 }
 
 export interface SyncProjectOptions {

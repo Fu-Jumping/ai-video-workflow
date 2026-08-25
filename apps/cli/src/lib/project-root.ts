@@ -96,7 +96,7 @@ export async function assertCanSyncProject(projectRoot: string, repoRoot: string
   await readWorkflowProjectConfig(projectRoot);
 }
 
-export async function assertCanInitializeProject(targetRoot: string, projectName: string): Promise<string> {
+export async function assertCanInitializeProject(targetRoot: string, projectName: string, force = false): Promise<string> {
   const containingProject = await findContainingProjectRoot(targetRoot);
   if (containingProject) {
     throw new CliUserError(`Refusing to create a nested project inside existing ai-video-workflow project: ${containingProject}`);
@@ -111,15 +111,19 @@ export async function assertCanInitializeProject(targetRoot: string, projectName
   if (!stat.isDirectory()) {
     throw new CliUserError(`Project target already exists but is not a directory: ${projectRoot}`);
   }
-  if (await fs.pathExists(path.join(projectRoot, ".git"))) {
-    throw new CliUserError(`Project target contains .git and will not be initialized in place: ${projectRoot}`);
-  }
   if (await fs.pathExists(path.join(projectRoot, "project.config.yaml"))) {
     throw new CliUserError(`Project target is already an ai-video-workflow project. Use verify, doctor, or sync instead: ${projectRoot}`);
   }
+  if (await fs.pathExists(path.join(projectRoot, ".git")) && !force) {
+    throw new CliUserError(
+      `Project target contains .git and will not be initialized in place. Pass --force to explicitly allow an existing Git directory: ${projectRoot}`
+    );
+  }
   const entries = await fs.readdir(projectRoot);
-  if (entries.length > 0) {
-    throw new CliUserError(`Project target is not empty. Choose an empty directory or a new project name: ${projectRoot}`);
+  if (entries.length > 0 && !force) {
+    throw new CliUserError(
+      `Project target is not empty. Choose an empty directory or a new project name, or pass --force to explicitly continue: ${projectRoot}`
+    );
   }
   return projectRoot;
 }

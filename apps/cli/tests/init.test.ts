@@ -32,12 +32,19 @@ describe("createProject", () => {
     "CON",
     "con.txt",
     "trailing-dot.",
-    "trailing-space "
+    "trailing-space ",
+    "bad\u0000name",
+    "bad\u001fname",
+    "bad\u200bname"
   ])("rejects unsafe project directory name %j", async (projectName) => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-init-name-"));
     tempRoots.push(root);
     const possibleTarget = path.resolve(root, projectName);
-    if (possibleTarget !== root && possibleTarget.startsWith(`${root}${path.sep}`)) {
+    if (
+      possibleTarget !== root &&
+      possibleTarget.startsWith(`${root}${path.sep}`) &&
+      !/[\u0000-\u001f\u007f]/.test(projectName)
+    ) {
       tempRoots.push(possibleTarget);
     }
 
@@ -134,6 +141,48 @@ describe("createProject", () => {
     await expect(fs.pathExists(path.join(projectRoot, "project.config.yaml"))).resolves.toBe(false);
   });
 
+  test("force allows non-empty target initialization and preserves unrelated user files", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-init-force-nonempty-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "demo");
+    await fs.ensureDir(projectRoot);
+    await fs.writeFile(path.join(projectRoot, "user-notes.txt"), "keep me\n", "utf8");
+
+    await createProject({
+      targetRoot: root,
+      projectName: "demo",
+      pack: "official-ai-video",
+      ide: "codex",
+      imagePlatform: "openai",
+      videoPlatform: "runway",
+      force: true
+    });
+
+    await expect(fs.pathExists(path.join(projectRoot, "project.config.yaml"))).resolves.toBe(true);
+    await expect(fs.readFile(path.join(projectRoot, "user-notes.txt"), "utf8")).resolves.toBe("keep me\n");
+  });
+
+  test("force allows .git target initialization but does not remove .git", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-init-force-git-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "demo");
+    await fs.ensureDir(path.join(projectRoot, ".git"));
+    await fs.writeFile(path.join(projectRoot, ".git", "config"), "[core]\n", "utf8");
+
+    await createProject({
+      targetRoot: root,
+      projectName: "demo",
+      pack: "official-ai-video",
+      ide: "codex",
+      imagePlatform: "openai",
+      videoPlatform: "runway",
+      force: true
+    });
+
+    await expect(fs.readFile(path.join(projectRoot, ".git", "config"), "utf8")).resolves.toBe("[core]\n");
+    await expect(fs.pathExists(path.join(projectRoot, "project.config.yaml"))).resolves.toBe(true);
+  });
+
   test("rejects repeat initialization of an existing project", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-init-repeat-"));
     tempRoots.push(root);
@@ -155,7 +204,8 @@ describe("createProject", () => {
         pack: "official-ai-video",
         ide: "cursor",
         imagePlatform: "luma",
-        videoPlatform: "minimax"
+        videoPlatform: "minimax",
+        force: true
       })
     ).rejects.toThrow("already an ai-video-workflow project");
 
@@ -182,7 +232,8 @@ describe("createProject", () => {
         pack: "official-ai-video",
         ide: "codex",
         imagePlatform: "openai",
-        videoPlatform: "runway"
+        videoPlatform: "runway",
+        force: true
       })
     ).rejects.toThrow("nested project");
 
