@@ -151,4 +151,29 @@ describe("libtv CLI", () => {
     expect(executed.stdout).toContain("成功");
   });
 
+  test("libtv project delete refuses to run without --yes in non-interactive mode", { timeout: 30000 }, async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const entry = await buildCliToTemp(cliRoot);
+
+    const denied = await (async () => {
+      try {
+        await runCli(entry, ["libtv", "--mock", "project", "delete", "mock-project"]);
+      } catch (error) {
+        const failed = error as { code?: number | null; stdout?: string; stderr?: string };
+        expect(failed.code).not.toBe(0);
+        return { stdout: failed.stdout ?? "", stderr: failed.stderr ?? "" };
+      }
+      throw new Error("Expected project delete without --yes to fail");
+    })();
+    expect(denied.stderr).toContain("破坏性操作");
+    expect(denied.stderr).toContain("--yes");
+    expect(denied.stderr).toContain("mock-project");
+    expect(denied.stdout).not.toContain("已删除项目");
+    expect(denied.stderr).not.toMatch(/^\s+at /m);
+    expect(denied.stderr).not.toContain("node:internal");
+
+    const confirmed = await runCli(entry, ["libtv", "--mock", "project", "delete", "mock-project", "--yes"]);
+    expect(confirmed.stdout).toContain("已删除项目 mock-project");
+  });
+
 });

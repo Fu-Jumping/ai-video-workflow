@@ -4,7 +4,8 @@ import http from "node:http";
 import { exec, execFile } from "node:child_process";
 import { promisify } from "node:util";
 import fs from "fs-extra";
-import { runCliAction } from "../cli-errors.js";
+import { confirm } from "@inquirer/prompts";
+import { runCliAction, runCliPrompt, CliUserError } from "../cli-errors.js";
 import { requireLibTvCredentials, writeLibTvCredentials, libTvCredentialsPath } from "./credentials.js";
 import { LibTvApiClient } from "./api.js";
 import { HttpLibTvBackend } from "./http-backend.js";
@@ -383,8 +384,26 @@ ${loginUrl}
     .alias("rm")
     .argument("<projectUuid>", "画布项目 UUID")
     .option("-t, --team-id <n>", "团队空间 ID")
-    .option("-y, --yes", "跳过二次确认（占位）", false)
+    .option("-y, --yes", "跳过二次确认：显式同意删除该画布项目（破坏性操作，不可恢复）", false)
     .action((projectUuid, options, command) => runCliAction(async () => {
+      if (options.yes !== true) {
+        if (process.stdin.isTTY && process.stdout.isTTY) {
+          const confirmed = await runCliPrompt(
+            () => confirm({
+              message: `确定要删除画布项目 ${projectUuid} 吗？该操作会删除远端项目及其素材，不可恢复。`,
+              default: false
+            }),
+            "交互提示已取消，未执行删除。如需跳过确认请显式传入 --yes。"
+          );
+          if (!confirmed) {
+            throw new CliUserError(`已取消删除画布项目：${projectUuid}。未做任何修改；如需跳过确认请显式传入 --yes。`);
+          }
+        } else {
+          throw new CliUserError(
+            `删除画布项目 ${projectUuid} 是破坏性操作且不可恢复：非交互环境下必须显式传入 --yes 才会执行删除。`
+          );
+        }
+      }
       const backend = await backendWithCredentials(command);
       await backend.deleteProject(projectUuid, options.teamId === undefined ? undefined : Number(options.teamId));
       console.log(`已删除项目 ${projectUuid}`);
