@@ -184,7 +184,7 @@ export function renderInitNextSteps({
   const quotedProjectRoot = projectRoot.includes(" ") ? `"${projectRoot}"` : projectRoot;
   const startPath = startFrom === "research" ? "00_前期研究/00_研究总览.md" : "01_概念策划/故事内核.md";
   return [
-    `已创建项目：${projectName}`,
+    `已创建项目：${projectName}（目标目录：${projectRoot}）`,
     `项目路径：${projectRoot}`,
     "",
     "请在智能体中打开这个目录：",

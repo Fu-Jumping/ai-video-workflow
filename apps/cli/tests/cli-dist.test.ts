@@ -179,6 +179,7 @@ describe("built CLI", () => {
     expect(config).toContain("default: runway");
     expect(config).toContain("research_step:");
     expect(config).toContain("enabled: true");
+    expect(result.stdout).toContain(`已创建项目：scripted-demo（目标目录：${projectRoot}）`);
     expect(result.stdout).toContain("项目路径：");
     expect(result.stdout).toContain("请在智能体中打开这个目录");
     expect(result.stdout).toContain("00_前期研究/00_研究总览.md");
@@ -492,6 +493,44 @@ describe("built CLI", () => {
     );
 
     expect(result.stdout).toContain("Verification passed");
+    expect(result.stderr).not.toContain("Hint:");
+  });
+
+  test("verify failure prints a hint pointing at doctor and deviation add", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const targetRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-verify-hint-"));
+    tempRoots.push(targetRoot);
+
+    await buildCli(cliRoot);
+    await run(
+      process.execPath,
+      [
+        path.join(cliRoot, "dist", "index.js"),
+        "init",
+        "--name",
+        "hint-demo",
+        "--ide",
+        "codex",
+        "--image",
+        "openai",
+        "--video",
+        "runway",
+        "--start-from",
+        "script"
+      ],
+      targetRoot
+    );
+    const projectRoot = path.join(targetRoot, "hint-demo");
+    await fs.writeFile(path.join(projectRoot, "07_发布物料", "00_发布总表.md"), "# 测试注入\n", "utf8");
+
+    const result = await runExpectFailure(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "verify", "--project", projectRoot, "--ide", "codex", "--step", "7"],
+      targetRoot
+    );
+    expect(result.stderr).toContain("Hint:");
+    expect(result.stderr).toContain("doctor");
+    expect(result.stderr).toContain("deviation add");
   });
 
   test("export-obsidian creates a vault projection from the official example", async () => {

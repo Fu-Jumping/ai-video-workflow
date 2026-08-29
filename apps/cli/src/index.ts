@@ -274,6 +274,11 @@ program
       for (const issue of result.issues) {
         console.error(`- ${issue.code}: ${issue.message}${issue.path ? ` (${issue.path})` : ""}`);
       }
+      if (!(process.stdin.isTTY && process.stdout.isTTY)) {
+        console.error(
+          `Hint: Run doctor --project ${projectRoot} --ide ${ide} to diagnose these issues, or register an accepted deviation with deviation add --rule <code>.`
+        );
+      }
       process.exitCode = 1;
       return;
     }
