@@ -42,7 +42,7 @@
 
 ## 2. 待确认事项（上下文缺口，未擅自修改）
 
-> 2026-08-23 第二轮：Q2-Q8 已全部处理关闭（处理方式见各条"关闭"说明与 D7-D9）。以下条目保留为历史记录；新缺口按 §3 规则新增编号。
+> 2026-08-23 第二轮：Q2-Q8 已全部处理关闭（处理方式见各条"关闭"说明与 D7-D9）。2026-08-28 防呆专项：Q10-Q13 已修复关闭（分支 `fix/foolproof-guards-20260828`，修复计划见 `FIX_PLAN.md` H1-H6，复测证据见该轮修复对话记录）。以下条目保留为历史记录；新缺口按 §3 规则新增编号。
 
 ### Q1 ~~计划文档入库策略~~ → 已关闭
 
@@ -82,6 +82,34 @@
 - 证据：`apps/cli/src/lib/libtv/register.ts`（apply 子命令定义）、`apps/cli/src/lib/libtv/apply.ts`（run: true）、`apps/cli/src/lib/libtv/http-backend.ts`（`runNode`）。
 - 影响：与 `00-project-context.md` §6、仓库根 `AGENTS.md`、`2026-08-22-post-libtv-development-roadmap.md` §4 的安全边界“任何生成必须显式 `--allow-generation`，默认 dry-run”不一致；用户仅运行 `libtv apply --only keyframes` 就可能消耗真实生成额度。
 - 处置：本轮实施计划已把该硬闸列为必改项；当前任务分支已实现 `apply --allow-generation` 默认不生成，并补充 mock 测试；待全量验证通过后关闭。
+
+### Q10 ~~`libtv project delete` 无二次确认（`--yes` 为占位）~~ → 已处理 2026-08-28
+
+- 现象：`libtv project delete <uuid>` 一行即执行远端画布项目删除，无任何确认层；帮助文案 `-y, --yes` 自述"跳过二次确认（占位）"，确认机制从未实现，带不带 `-y` 行为相同。本轮防呆专项在 `--mock` 下验证（未触真实删除）。
+- 证据：`apps/cli/src/lib/libtv/register.ts`（delete 子命令定义，action 直接调用 `backend.deleteProject`，无确认逻辑）；行为验证见 `G:\develop-G\tests\avw-foolproof-20260828\REPORT.md` D6。
+- 影响：与"破坏性操作必须先经用户确认"的安全边界不一致；`-y` 名义存在会让用户误以为有确认层。本轮测试定级：严重。
+- 处置：已修复（commit 623e5a6，分支 `fix/foolproof-guards-20260828`；修复计划 FIX_PLAN.md H1）。非交互无 `--yes` 一律拒绝（单行错误、exit 1）；TTY 走 inquirer confirm（默认 false），拒绝干净退出；`--yes` 直接执行；帮助文案移除"占位"字样。回归测试 `libtv-cli.test.ts`（--mock 三条路径）+ 手工复测 D6（拒绝/放行两路径）；`pnpm verify:v0.2` 全绿。
+
+### Q11 ~~`libtv node/group create --run` 无 `--allow-generation` 生成闸~~ → 已处理 2026-08-28
+
+- 现象：`libtv node create -r`（"创建成功后触发生成一次"）与 `libtv group create -r`（"创建成功后整组生成一次"）没有任何生成开关或门禁提示；对照 apply 与 refine 均有显式 `--allow-generation` 硬闸。mock 下创建后无门禁提示且 mock 状态不持久，真实模式行为不可行为学验证；源码层面 `-r` 直通无检查。
+- 证据：`apps/cli/src/lib/libtv/register.ts`（node create / group create 的 `-r, --run` 选项，action 无 allowGeneration 检查；对照 apply 约 :892-908、refine 约 :1015-1024）；行为验证见 REPORT.md D5（行为存疑：结构缺闸成立，真实模式不可证）。
+- 影响：与"任何消耗生成额度的操作必须显式开关/确认"的安全边界不一致；真实模式下一行 `node create ... -r` 即可能直接消耗额度。本轮测试定级：提示（存疑）。
+- 处置：已修复（commit 87fa190；FIX_PLAN.md H5）。两个子命令各增加 `--allow-generation`，`-r` 且无开关时在任何后端调用前抛单行错误（与 refine 同型硬闸，`--mock` 下同样拦截）；不带 `-r` 的路径不受影响。回归测试 `libtv-cli.test.ts`（node/group 各三条路径）+ 手工复测 D5。范围说明：`libtv node [node]` 默认用法的 `-r` 不在本轮任务范围，未改动（如需同型硬闸另行立项）。
+
+### Q12 ~~`new-pack` 缺"工具仓库本体"守卫~~ → 已处理 2026-08-28
+
+- 现象：在工具仓库 `packs/` 目录内执行 `new-pack --name <x>` 成功创建脚手架（EXIT=0），无任何警告或拒绝；对照 init（嵌套项目拒绝）与 sync（工具仓库本体/源码树拒绝）均有专属守卫。
+- 证据：`apps/cli/src/index.ts`（new-pack 命令定义，`targetRoot: process.cwd()` 直接使用、无仓库检查）；行为验证见 REPORT.md G3（记录后已删除产物，克隆现场 `git status` 0 变更还原）。本轮测试定级：一般。
+- 影响：易在工具仓库内误建包脚手架；与 init/sync 的防护水平不一致。
+- 处置：已修复（commit fa34129；FIX_PLAN.md H3）。复用 `project-root.ts` 的 `isToolRepositoryRoot`/`isSourceSubtree`：工具仓库根一律拒绝；源码子树内默认拒绝，新增显式逃生旗标 `--allow-in-tool-repo`（"在仓库内新增官方 pack"的合法开发流）。回归测试 `new-pack.test.ts`（假仓库根夹具四条路径）+ 手工复测 G3 拒绝路径（`git status` 零残留）；放行路径由回归测试覆盖，未在本仓库真实执行以避免污染工作树。
+
+### Q13 ~~机器全局 LibTV 凭据被裸调用静默使用~~ → 已处理 2026-08-28
+
+- 现象：本机存在 `~/.libtv/credentials.json` 时，任意目录裸调用 libtv 命令静默携带全局真实凭据，无"正在使用账户 X"的调用级提示；以 `LIBTV_TOKEN 为空` 判断"无凭据"不成立（环境变量与文件凭据是两条独立通道）。测试实测：裸 `libtv project list` 静默返回（EXIT=0）；裸 `libtv workspace list` 实际发起真实只读 API 请求后返回"用户未授权"（凭据疑似过期）。全程仅只读调用，零额度消耗。
+- 证据：`apps/cli/src/lib/libtv/credentials.ts`（凭据解析作用域为机器全局）；行为验证见 REPORT.md D1（2026-08-28 发现本机 `~/.libtv/credentials.json`，生成于 2026-08-23；子代理发现后全程改用 `--mock` 与假 HOME，未读取/未修改该凭据文件）。本轮测试定级：一般（环境因素放大）。
+- 影响：共享机器/自动化场景下放大误操作面；测试与审计时"无凭据"判据易失效。
+- 处置：已按最小方案（可见性，不做闸门）修复（commit b431cfa；FIX_PLAN.md H2）。`backendWithCredentials` 在创建 HTTP 后端前向 stderr 打印一行凭据来源提示（环境变量 `LIBTV_TOKEN` 或凭据文件路径 + 脱敏账户标识），每命令最多一次；`--mock` 与无凭据路径行为不变；`00-project-context.md` §6 已补说明。回归测试 `libtv-credentials.test.ts`（假凭据目录 + 三个 API base URL 指向本机不可达端口，验证提示先于网络错误、env 通道、--mock 无提示）+ 手工复测 D1。
 
 ## 3. 缺口登记规则 `[通用规则]`
 

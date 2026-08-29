@@ -150,3 +150,86 @@
 4. 中途项目 `verify --step 3` 不再有 18 个预期错误（F5）；内容违规样例被命中（F6）。
 5. `init` 后 Step 2/4/5 有模板（F7）；`--image midjourney` 可登记（F8）。
 6. 两轮测试报告的每个问题编号在此计划中可追溯（F1~F13），修复后状态更新回测试报告或本计划。
+
+---
+
+## 七、防呆机制专项修复（2026-08-28，H1~H6）
+
+- 依据：防呆机制专项隔离测试 `G:\develop-G\tests\avw-foolproof-20260828\REPORT.md`（33 判定点：29 生效 / 2 缺失 / 2 存疑）；缺口登记 `docs/context-engineering/07-decisions-and-open-questions.md` Q10~Q13。
+- 被测版本：master @ c8feb78；修复分支：`fix/foolproof-guards-20260828`。
+- 原则：零额度（全部 --mock 或假 HOME/假凭据目录）；最小改动；每项带回归测试；init/sync/export 族英文文案、libtv 族中文文案。
+
+| 编号 | 问题 | 对应缺口 | 严重度 |
+| --- | --- | --- | --- |
+| H1 | `libtv project delete` 无二次确认 | Q10 | 严重 |
+| H2 | LibTV 凭据来源无调用级提示 | Q13 | 严重 |
+| H3 | `new-pack` 缺工具仓库守卫 | Q12 | 一般 |
+| H4 | init 守卫顺序先交互后校验、交互取消出口泄漏内部警告 | REPORT 问题 4 | 一般 |
+| H5 | `libtv node/group create --run` 无 `--allow-generation` 生成闸 | Q11 | 提示 |
+| H6 | init 绝对目标路径 + verify 失败 Hint（UX 补强） | REPORT 问题 6/7 | 提示·低优先 |
+
+#### H1 `libtv project delete` 二次确认（Q10，严重）
+- **现象**：`libtv project delete <uuid>` 一行即执行删除，无任何确认层；`-y, --yes` 帮助文案自述"跳过二次确认（占位）"，带不带 `-y` 行为相同（REPORT.md D6）。
+- **根因**：`apps/cli/src/lib/libtv/register.ts` project delete 子命令（:381-391）action 直接调用 `backend.deleteProject`，确认机制从未实现，`-y/--yes` 仅为占位选项。
+- **修复方案**：
+  1. 无 `--yes` 且 TTY：inquirer confirm 二次确认（default false）；拒绝则抛 `CliUserError`（exit 1、不执行删除、不触后端）。
+  2. 无 `--yes` 且非 TTY：拒绝执行，单行可读错误明确"破坏性操作需显式 --yes"。
+  3. 带 `--yes`：直接执行。
+  4. 帮助文案移除"占位"字样，写清真实语义（跳过二次确认、显式同意删除）。
+  5. TTY 下 confirm 被关闭（Ctrl+C/stdin EOF）转为可读错误，不泄漏 `ExitPromptError` 内部形态。
+- **验证方法**：`--mock` 下 CLI 子进程回归测试覆盖三条路径；手工复测 REPORT D6 最小复现路径。
+- **回归测试**：`apps/cli/tests/libtv-cli.test.ts` 新增 project delete 用例（非交互无 --yes 拒绝且无堆栈；--yes 正常删除）。
+
+#### H2 LibTV 凭据使用可见性（Q13，严重）
+- **现象**：本机存在 `~/.libtv/credentials.json` 时，任意目录裸调用 libtv 命令静默携带全局真实凭据，无来源提示；以 `LIBTV_TOKEN` 为空判断"无凭据"不成立（env 与文件是两条独立通道）（REPORT.md D1）。
+- **根因**：`apps/cli/src/lib/libtv/credentials.ts` `readLibTvCredentials` 静默解析两通道凭据；`register.ts` `backendWithCredentials` 拿到凭据后直接创建 `HttpLibTvBackend`，无任何调用级提示。
+- **修复方案**（最小方案：可见性，不做闸门）：
+  1. `credentials.ts` 新增凭据来源描述函数：来源=环境变量 `LIBTV_TOKEN`（存在时，若文件凭据同时在位则注明"token 以环境变量为准"）或解析到的凭据文件路径；账户标识字段存在（`useruuid`，或 `activeAccountId`）时一并显示脱敏形式（前 4 + **** + 后 4）。
+  2. `register.ts` `backendWithCredentials` 非 mock 分支在创建 `HttpLibTvBackend` 之前（即任何真实 API 调用之前）向 stderr 打印一行来源提示；每个命令 action 仅调用一次 `backendWithCredentials`，故每命令最多一次。
+  3. `--mock` 分支与无凭据路径（`requireLibTvCredentials` 抛错）行为不变。
+  4. `docs/context-engineering/00-project-context.md` §6 补充说明：文件凭据为机器全局作用域，真实调用前会打印凭据来源提示。
+- **验证方法**：`LIBTV_CONFIG_DIR` 打桩假凭据文件 + `--base-url` 指向本机不可达端口（不触真实 API），断言提示先于网络错误打印且 exit 1；env 通道（`LIBTV_TOKEN`）同样有提示；`--mock` 无提示。
+- **回归测试**：`apps/cli/tests/libtv-credentials.test.ts`（函数级来源描述/mask）+ CLI 子进程用例。
+
+#### H3 `new-pack` 工具仓库守卫（Q12，一般）
+- **现象**：在工具仓库 `packs/` 目录内执行 `new-pack --name <x>` 成功创建脚手架（EXIT=0），无警告或拒绝；对照 init（嵌套拒绝）与 sync（工具仓库/源码树拒绝）两者皆无（REPORT.md G3）。
+- **根因**：`apps/cli/src/index.ts` new-pack action 直接 `targetRoot: process.cwd()`，无任何仓库边界检查。
+- **修复方案**：复用 `apps/cli/src/lib/project-root.ts` 的 `isToolRepositoryRoot` / `isSourceSubtree`：
+  1. 目标为工具仓库根 → 拒绝（文案风格对齐 sync）。
+  2. 目标位于源码子树（apps/packs/scaffolds/schemas/docs）内 → 默认拒绝；提供显式逃生旗标 `--allow-in-tool-repo`（"在仓库内新增官方 pack"为合法开发流），带旗标放行；帮助文案说明用途。
+  3. 普通目录行为不变。
+- **验证方法**：函数级回归测试四条路径（假仓库根夹具构造 package.json name=ai-video-workflow + apps/cli + packs/official-ai-video）；手工复测 G3。
+- **回归测试**：`apps/cli/tests/new-pack.test.ts` 新增守卫用例。
+
+#### H4 init 守卫顺序与交互取消出口（REPORT 问题 4，一般）
+- **现象**：在已有项目目录内跑 `init --name sub-proj`（缺 --image 等）先进入交互提示，管道关闭后崩溃并泄漏 `Warning: Detected unsettled top-level await at file:///...index.js:11732` 与 `Error: User force closed the prompt with 13 null`（REPORT.md A3/E 组）。
+- **根因**：`apps/cli/src/index.ts` init action（:128-165）在调用 `createProject` 之前先用 inquirer 收集缺失参数；目标合法性校验（`init.ts` `createProject` 内 `validateSafeDirectoryName` + `assertCanInitializeProject`）发生在全部交互之后。inquirer 的 `ExitPromptError` 未转换为用户可读错误。
+- **修复方案**：
+  1. init handler 在进入任何交互提示之前先做可静态判定的目标检查：`--name` 已提供 → 直接 `validateSafeDirectoryName` + `assertCanInitializeProject`，失败即单行可读错误退出；`--name` 未提供 → 问完 name 后立即校验目标，再进入其余提示（ide/image/video）。
+  2. `cli-errors.ts` 新增 `runCliPrompt` 包装：捕获 `ExitPromptError`（按 `error.name` 识别，不 import 未声明依赖）转为单行 `CliUserError`，走 `runCliAction` 正常出口（exit 1，无内部文件/行号泄漏）；init 用英文取消文案。
+  3. 正常交互路径与全参数路径行为不变（`createProject` 内既有校验保留，重复只读检查幂等）。
+- **验证方法**：CLI 子进程回归测试 (a) 已有项目内缺参 init → 无交互直接嵌套拒绝、exit 1；(b) stdin 关闭 → 单行错误、无 unsettled top-level await 警告、exit 1；(c) 全参数路径不受影响（既有 cli-dist init 用例守护）；手工复测 REPORT A3。
+- **回归测试**：`apps/cli/tests/cli-dist.test.ts` 新增 init 守卫顺序与取消出口用例。
+
+#### H5 `libtv node/group create --run` 生成闸（Q11，提示）
+- **现象**：`node create -r`（"创建成功后触发生成一次"）与 `group create -r`（"创建成功后整组生成一次"）无任何 `--allow-generation` 检查；对照 refine 硬闸与 apply 显式开关（REPORT.md D5 行为存疑：结构缺闸成立）。
+- **根因**：`register.ts` node create（:546 选项、:601 action 透传 `run`）与 group create（:735 选项、:745 透传）直通 backend，无检查。
+- **修复方案**：与 refine 同型硬闸——两个子命令各增加 `--allow-generation` 选项；action 开头（`backendWithCredentials` 之前，`--mock` 下同样拦截，与 refine 一致）检查：`run === true` 且 `allowGeneration !== true` → 抛单行可读错误，文案语义对齐 refine（触发生成必须显式 `--allow-generation`）；不带 `-r` 的路径完全不受影响。
+- **验证方法**：`--mock` 下 CLI 子进程回归测试：`-r` 无开关拒绝 / `-r` + 开关通过 / 不带 `-r` 不受影响 / group create 同套用例。
+- **回归测试**：`apps/cli/tests/libtv-cli.test.ts` 新增用例。
+
+#### H6 UX 补强：init 绝对目标路径 + verify 失败 Hint（REPORT 问题 6/7，提示·低优先）
+- **现象**：① init 目标解析为 `<CWD>/<name>`，在名为 X 的目录内 `init --name X` 静默创建 `X/X` 嵌套，成功输出首行"已创建项目：X"易被误读（REPORT A5 备注/问题 6）；② verify 失败仅列问题码，未提示 doctor 诊断与 deviation add 通道（REPORT 问题 7）。
+- **根因**：① `renderInitNextSteps` 首行只含项目名；② verify 失败分支无下一步引导。
+- **修复方案**：
+  1. init 成功输出首行补充解析后的绝对目标目录：`已创建项目：<name>（目标目录：<abs path>）`；既有"项目路径"行保留（cli-dist 既有断言不破坏）。
+  2. verify 失败（非交互，即非 TTY 双端）在输出末尾追加一行 Hint：提示 doctor 诊断与 deviation add 登记通道；`verify --strict` 语义不变；verify 通过时不打印。
+- **验证方法**：CLI 子进程回归测试各一条：init 输出含"目标目录：<abs>"；verify 失败 stderr 含 Hint 且 exit 1。
+- **回归测试**：`apps/cli/tests/cli-dist.test.ts` 新增断言/用例。
+
+### 验收门槛（本轮）
+
+1. 每项修复对应模块既有测试套件 + 新增回归测试全绿。
+2. 手工复测：REPORT.md 中 D6/D1/G3/A3/D5 最小复现路径逐条重放，确认"之前直接执行/缺闸"现在"拒绝且报错可操作"；全部 --mock 或假 HOME/假凭据目录，零额度。
+3. 全量门禁：`pnpm verify:v0.2` 全绿（串行执行）+ `git diff --check` 通过。
+4. 更新 `docs/context-engineering/07-decisions-and-open-questions.md` Q10~Q13 状态（写法对齐 Q9）。
