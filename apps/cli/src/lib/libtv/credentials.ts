@@ -18,6 +18,35 @@ export function libTvTokenFromEnv(): string | undefined {
   return process.env.LIBTV_TOKEN?.trim() || undefined;
 }
 
+// Masks an account identifier for display: keeps the first/last 4 chars (or the
+// last 2 for short values) so logs never carry a full account identity.
+export function maskLibTvAccountIdentifier(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  if (value.length <= 8) {
+    return `****${value.slice(-2)}`;
+  }
+  return `${value.slice(0, 4)}****${value.slice(-4)}`;
+}
+
+// Single-line visibility notice describing which credential source a real
+// backend call will use. File credentials are machine-global in scope, so the
+// source (and a masked account identity when available) is printed to stderr
+// before any real network call.
+export function describeLibTvCredentialsSource(creds: LibTvCredentials): string {
+  const identity =
+    maskLibTvAccountIdentifier(creds.useruuid) ??
+    (creds.activeAccountId !== undefined ? maskLibTvAccountIdentifier(String(creds.activeAccountId)) : undefined);
+  const identityLabel = identity ? `（账户 ${identity}）` : "";
+  if (libTvTokenFromEnv()) {
+    return `使用 LibTV 凭据：环境变量 LIBTV_TOKEN（覆盖凭据文件 ${libTvCredentialsPath()} 的 token）${identityLabel}`;
+  }
+  return `使用 LibTV 凭据：凭据文件 ${libTvCredentialsPath()}${identityLabel}`;
+}
+
+export function printLibTvCredentialsSource(creds: LibTvCredentials): void {
+  console.error(describeLibTvCredentialsSource(creds));
+}
+
 export async function readLibTvCredentials(): Promise<LibTvCredentials | null> {
   const envToken = libTvTokenFromEnv();
   const credsPath = libTvCredentialsPath();

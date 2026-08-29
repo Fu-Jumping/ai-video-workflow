@@ -60,7 +60,7 @@ skill 双层：`packs/official-ai-video/skills-longform/*.md` 是内容源；`pa
 
 ## 6. 必须先经用户确认的操作 `[通用规则]`
 
-1. **消耗生成额度**的任何操作：图片/视频生成、LibTV 真实执行（仓库根 `AGENTS.md` Testing 第 8 条）。工具侧硬闸：`libtv refine` 触发真实生成，CLI 强制显式 `--allow-generation`，不传即拒绝执行。
+1. **消耗生成额度**的任何操作：图片/视频生成、LibTV 真实执行（仓库根 `AGENTS.md` Testing 第 8 条）。工具侧硬闸：`libtv refine` 触发真实生成，CLI 强制显式 `--allow-generation`，不传即拒绝执行。注意：LibTV 文件凭据（`~/.libtv/credentials.json`，可用 `LIBTV_CONFIG_DIR` 覆盖）为**机器全局作用域**，任意目录裸调用都会生效；真实调用前 CLI 会向 stderr 打印一行凭据来源提示（环境变量 `LIBTV_TOKEN` 或凭据文件路径 + 脱敏账户标识），`--mock` 下无提示。
 2. **破坏性操作**：`export-obsidian --force`、`clean-view`（非 dry-run）、删除/重置文件、强制覆盖。
 3. **修改已完成的步骤内容**：先做影响分析并把结果回报对话，确认后再动（quality-gates.md §1；流程见 `docs/zh/workflow/impact-analysis.md`）。
 4. **登记偏离 / 放宽默认**：写 `deviations.yaml`、放宽 Step 5 单镜 15 秒默认等。

@@ -6,7 +6,7 @@ import { promisify } from "node:util";
 import fs from "fs-extra";
 import { confirm } from "@inquirer/prompts";
 import { runCliAction, runCliPrompt, CliUserError } from "../cli-errors.js";
-import { requireLibTvCredentials, writeLibTvCredentials, libTvCredentialsPath } from "./credentials.js";
+import { requireLibTvCredentials, writeLibTvCredentials, libTvCredentialsPath, printLibTvCredentialsSource } from "./credentials.js";
 import { LibTvApiClient } from "./api.js";
 import { HttpLibTvBackend } from "./http-backend.js";
 import { MockLibTvBackend } from "./mock-backend.js";
@@ -77,6 +77,9 @@ async function backendWithCredentials(command: Command): Promise<LibTvBackend> {
     return new MockLibTvBackend();
   }
   const credentials = await requireLibTvCredentials();
+  // Print the credential source before any real backend call so bare invocations
+  // never silently use machine-global credentials (at most once per command).
+  printLibTvCredentialsSource(credentials);
   const baseUrl = getAncestorOption(command, "baseUrl") as string | undefined;
   return new HttpLibTvBackend(new LibTvApiClient({ baseUrl, credentials }));
 }
