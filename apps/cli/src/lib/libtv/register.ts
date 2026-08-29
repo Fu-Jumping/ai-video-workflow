@@ -566,7 +566,11 @@ ${loginUrl}
     .option("--x <n>", "画布 X", "0")
     .option("--y <n>", "画布 Y", "0")
     .option("-r, --run", "创建成功后触发生成一次", false)
+    .option("--allow-generation", "显式允许触发生成（-r/--run 会触发生成）", false)
     .action((name, options, command) => runCliAction(async () => {
+      if (getOption(command, "run") === true && options.allowGeneration !== true) {
+        throw new Error("创建后触发生成会消耗真实额度，必须显式传入 --allow-generation");
+      }
       const backend = await backendWithCredentials(command);
       const projectUuid = getOption(command, "project") as string | undefined ?? (await readBinding(process.cwd()))?.projectUuid;
       if (!projectUuid) throw new Error("缺少项目：请使用 -p/--project 或先 libtv project use");
@@ -755,7 +759,11 @@ ${loginUrl}
     .option("-g, --group <group>", "父级普通分组")
     .option("--node <node>", "待绑定子节点，可重复", collect, [])
     .option("-r, --run", "创建成功后整组生成一次", false)
+    .option("--allow-generation", "显式允许触发生成（-r/--run 会触发生成）", false)
     .action((name, options, command) => runCliAction(async () => {
+      if (options.run === true && options.allowGeneration !== true) {
+        throw new Error("整组触发生成会消耗真实额度，必须显式传入 --allow-generation");
+      }
       const backend = await backendWithCredentials(command);
       const projectUuid = getOption(command, "project") as string | undefined ?? (await readBinding(process.cwd()))?.projectUuid;
       if (!projectUuid) throw new Error("缺少项目：请使用 -p/--project 或先 libtv project use");

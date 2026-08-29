@@ -176,4 +176,57 @@ describe("libtv CLI", () => {
     expect(confirmed.stdout).toContain("已删除项目 mock-project");
   });
 
+  test("libtv node create and group create --run require --allow-generation", { timeout: 30000 }, async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const entry = await buildCliToTemp(cliRoot);
+
+    async function runExpectFailure(args: string[]): Promise<{ stdout: string; stderr: string }> {
+      try {
+        await runCli(entry, args);
+      } catch (error) {
+        const failed = error as { code?: number | null; stdout?: string; stderr?: string };
+        expect(failed.code).not.toBe(0);
+        return { stdout: failed.stdout ?? "", stderr: failed.stderr ?? "" };
+      }
+      throw new Error(`Expected command to fail: ${args.join(" ")}`);
+    }
+
+    const nodeDenied = await runExpectFailure([
+      "libtv", "--mock", "node", "create", "测试图节点", "-t", "image", "--prompt", "测试提示词",
+      "-p", "mock-project", "-r"
+    ]);
+    expect(nodeDenied.stderr).toContain("--allow-generation");
+    expect(nodeDenied.stdout).not.toContain("nodeKey");
+    expect(nodeDenied.stderr).not.toMatch(/^\s+at /m);
+
+    const nodeAllowed = await runCli(entry, [
+      "libtv", "--mock", "node", "create", "测试图节点", "-t", "image", "--prompt", "测试提示词",
+      "-p", "mock-project", "-r", "--allow-generation"
+    ]);
+    expect(nodeAllowed.stdout).toContain("nodeKey");
+
+    const nodeNoRun = await runCli(entry, [
+      "libtv", "--mock", "node", "create", "免生成节点", "-t", "image", "--prompt", "测试提示词",
+      "-p", "mock-project"
+    ]);
+    expect(nodeNoRun.stdout).toContain("nodeKey");
+
+    const groupDenied = await runExpectFailure([
+      "libtv", "--mock", "group", "create", "测试分组", "-p", "mock-project", "-r"
+    ]);
+    expect(groupDenied.stderr).toContain("--allow-generation");
+    expect(groupDenied.stdout).not.toContain('"id"');
+    expect(groupDenied.stderr).not.toMatch(/^\s+at /m);
+
+    const groupAllowed = await runCli(entry, [
+      "libtv", "--mock", "group", "create", "测试分组", "-p", "mock-project", "-r", "--allow-generation"
+    ]);
+    expect(groupAllowed.stdout).toContain('"id"');
+
+    const groupNoRun = await runCli(entry, [
+      "libtv", "--mock", "group", "create", "免生成分组", "-p", "mock-project"
+    ]);
+    expect(groupNoRun.stdout).toContain('"id"');
+  });
+
 });
