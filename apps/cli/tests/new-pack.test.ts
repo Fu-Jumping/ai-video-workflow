@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { createPackScaffold } from "../src/lib/new-pack.js";
+import { createPackScaffold, assertCanCreatePackScaffold } from "../src/lib/new-pack.js";
 
 const tempRoots: string[] = [];
 
@@ -113,5 +113,52 @@ describe("createPackScaffold", () => {
     await expect(fs.pathExists(path.join(packRoot, "checks", "required-files.yaml"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(packRoot, "templates", "06_执行计划", "02_视频执行计划.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(packRoot, "templates", "07_发布物料", "00_发布总表.md"))).resolves.toBe(true);
+  });
+});
+
+describe("assertCanCreatePackScaffold", () => {
+  async function makeFakeToolRepo(): Promise<string> {
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-pack-guard-repo-"));
+    tempRoots.push(repoRoot);
+    await fs.writeFile(path.join(repoRoot, "package.json"), JSON.stringify({ name: "ai-video-workflow" }), "utf8");
+    await fs.ensureDir(path.join(repoRoot, "apps", "cli"));
+    await fs.ensureDir(path.join(repoRoot, "packs", "official-ai-video"));
+    return repoRoot;
+  }
+
+  test("refuses the tool repository root", async () => {
+    const repoRoot = await makeFakeToolRepo();
+    await expect(
+      assertCanCreatePackScaffold(repoRoot, repoRoot)
+    ).rejects.toThrow("tool repository");
+  });
+
+  test("refuses a target inside the source subtree by default without writing files", async () => {
+    const repoRoot = await makeFakeToolRepo();
+    const targetRoot = path.join(repoRoot, "packs");
+    await expect(
+      assertCanCreatePackScaffold(targetRoot, repoRoot)
+    ).rejects.toThrow("--allow-in-tool-repo");
+    await expect(fs.pathExists(path.join(targetRoot, "sneaky-pack"))).resolves.toBe(false);
+  });
+
+  test("allows an in-repo official pack when the escape flag is passed", async () => {
+    const repoRoot = await makeFakeToolRepo();
+    const targetRoot = path.join(repoRoot, "packs");
+    await expect(
+      assertCanCreatePackScaffold(targetRoot, repoRoot, { allowInToolRepo: true })
+    ).resolves.toBeUndefined();
+  });
+
+  test("keeps plain directories unaffected", async () => {
+    const repoRoot = await makeFakeToolRepo();
+    const plain = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-pack-guard-plain-"));
+    tempRoots.push(plain);
+    await expect(
+      assertCanCreatePackScaffold(plain, repoRoot)
+    ).resolves.toBeUndefined();
+    await expect(
+      assertCanCreatePackScaffold(plain, repoRoot, { allowInToolRepo: true })
+    ).resolves.toBeUndefined();
   });
 });

@@ -30,7 +30,7 @@ import {
 } from "./lib/maintenance.js";
 import { buildMcpContext } from "./lib/mcp/context.js";
 import { startMcpServer } from "./lib/mcp/server.js";
-import { createPackScaffold } from "./lib/new-pack.js";
+import { createPackScaffold, assertCanCreatePackScaffold } from "./lib/new-pack.js";
 import { exportObsidianVault } from "./lib/obsidian/export.js";
 import type { ObsidianExportOperationStatus } from "./lib/obsidian/types.js";
 import { verifyObsidianVault } from "./lib/obsidian/verify.js";
@@ -609,7 +609,11 @@ program
   .command("new-pack")
   .description("Create a workflow pack scaffold")
   .requiredOption("--name <name>")
+  .option("--allow-in-tool-repo", "Explicitly allow creating the scaffold inside the ai-video-workflow source tree (for official pack development)", false)
   .action((options) => runCliAction(async () => {
+    await assertCanCreatePackScaffold(process.cwd(), resolveRepoRoot(moduleDir), {
+      allowInToolRepo: options.allowInToolRepo === true
+    });
     await createPackScaffold({
       targetRoot: process.cwd(),
       packName: options.name

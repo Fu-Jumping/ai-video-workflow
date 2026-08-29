@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { CliUserError } from "./cli-errors.js";
 import { validateSafeDirectoryName } from "./name-validation.js";
+import { isSourceSubtree, isToolRepositoryRoot } from "./project-root.js";
 
 const step6Files = [
   "00_执行计划.md",
@@ -21,6 +22,26 @@ const step7Files = [
 ];
 
 const step7TemplateDir = "07_发布物料";
+
+// Guards matching init/sync: refuse the tool repository root outright, and refuse
+// the source subtree unless official pack development is explicitly requested via
+// --allow-in-tool-repo.
+export async function assertCanCreatePackScaffold(
+  targetRoot: string,
+  repoRoot: string,
+  options: { allowInToolRepo?: boolean } = {}
+): Promise<void> {
+  if (await isToolRepositoryRoot(targetRoot)) {
+    throw new CliUserError(
+      "Pack target is the ai-video-workflow tool repository, not a pack workspace. Run new-pack from a directory outside the tool repository."
+    );
+  }
+  if (isSourceSubtree(targetRoot, repoRoot) && options.allowInToolRepo !== true) {
+    throw new CliUserError(
+      "Pack target is inside the ai-video-workflow source tree. Pass --allow-in-tool-repo to explicitly create an official pack scaffold here."
+    );
+  }
+}
 
 export async function createPackScaffold({
   targetRoot,
