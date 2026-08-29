@@ -9,9 +9,15 @@ export function isCliUserError(error: unknown): error is CliUserError {
   return error instanceof CliUserError;
 }
 
-// Wraps an @inquirer prompt so a closed/cancelled stdin surfaces as a readable
-// CliUserError instead of leaking the internal ExitPromptError shape.
+// Wraps an @inquirer prompt. Non-TTY runs never enter the prompt: an EOF stdin
+// would leave the internal prompt promise pending forever and crash the process
+// with an "unsettled top-level await" warning. In TTY runs, a cancelled prompt
+// (Ctrl+C / closed stdin) surfaces as a readable CliUserError instead of leaking
+// the internal ExitPromptError shape.
 export async function runCliPrompt<T>(prompt: () => Promise<T>, cancelMessage: string): Promise<T> {
+  if (!(process.stdin.isTTY && process.stdout.isTTY)) {
+    throw new CliUserError(cancelMessage);
+  }
   try {
     return await prompt();
   } catch (error) {

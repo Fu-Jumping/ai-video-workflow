@@ -185,6 +185,49 @@ describe("built CLI", () => {
     expect(result.stdout).toContain("verify --project");
   }, 10000);
 
+  test("init refuses a nested project before entering any interactive prompt", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const targetRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-init-nested-"));
+    tempRoots.push(targetRoot);
+    const existing = path.join(targetRoot, "existing");
+    await fs.ensureDir(existing);
+    await fs.writeFile(
+      path.join(existing, "project.config.yaml"),
+      "pack: official-ai-video\nide: codex\nplatforms:\n  image:\n    default: openai\n  video:\n    default: runway\n",
+      "utf8"
+    );
+
+    await buildCli(cliRoot);
+    const result = await runExpectFailure(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "init", "--name", "sub-proj"],
+      existing
+    );
+    expect(result.stderr).toContain("Refusing to create a nested project");
+    expect(result.stderr).not.toContain("Choose the default image platform");
+    expect(result.stderr).not.toContain("Project directory name");
+    expect(result.stderr).not.toMatch(/^\s+at /m);
+    await expect(fs.pathExists(path.join(existing, "sub-proj"))).resolves.toBe(false);
+  }, 10000);
+
+  test("init converts a closed interactive prompt into a single readable error", async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const targetRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-cli-init-cancel-"));
+    tempRoots.push(targetRoot);
+
+    await buildCli(cliRoot);
+    const result = await runExpectFailure(
+      process.execPath,
+      [path.join(cliRoot, "dist", "index.js"), "init", "--name", "cancel-demo"],
+      targetRoot
+    );
+    expect(result.stderr).toContain("Interactive prompt was cancelled");
+    expect(result.stderr).not.toContain("User force closed");
+    expect(result.stderr).not.toContain("unsettled top-level await");
+    expect(result.stderr).not.toContain("node:internal");
+    expect(result.stderr).not.toMatch(/^\s+at /m);
+  }, 10000);
+
   test("init accepts --pack and seeds templates from the custom pack with official fallback", async () => {
     const cliRoot = path.resolve(__dirname, "..");
     const repoRoot = path.resolve(cliRoot, "..", "..");

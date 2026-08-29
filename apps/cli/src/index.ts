@@ -19,7 +19,8 @@ import type { WorkflowMode } from "./lib/types.js";
 import { diagnoseProject } from "./lib/doctor.js";
 import { analyzeImpact, analyzeImageNodeImpact, renderImpactResult } from "./lib/impact.js";
 import { createProject, renderInitNextSteps } from "./lib/init.js";
-import { runCliAction } from "./lib/cli-errors.js";
+import { runCliAction, runCliPrompt } from "./lib/cli-errors.js";
+import { validateSafeDirectoryName } from "./lib/name-validation.js";
 import { parseIde, parsePlatform, parseStartFrom } from "./lib/cli-options.js";
 import {
   cleanInProjectObsidianView,
@@ -46,7 +47,7 @@ import {
 } from "./lib/research.js";
 import { syncProject } from "./lib/sync.js";
 import { verifyProject } from "./lib/verify.js";
-import { assertExistingDirectory } from "./lib/project-root.js";
+import { assertCanInitializeProject, assertExistingDirectory } from "./lib/project-root.js";
 import { assertSingleObsidianTarget, resolveInProjectObsidianView } from "./lib/view-layer.js";
 import { registerLibTvCommands } from "./lib/libtv/register.js";
 
@@ -62,6 +63,9 @@ program.name("ai-video-workflow").description("AI video workflow CLI");
 program.version("0.1.0", "-V, --version", "显示版本号");
 program.option("--debug", "Print internal stack traces for CLI errors", false);
 registerLibTvCommands(program);
+
+const INIT_PROMPT_CANCELLED_MESSAGE =
+  "Interactive prompt was cancelled or is unavailable without a TTY. Re-run init with --name, --ide, --image, and --video to skip prompts.";
 
 const obsidianOperationStatuses: ObsidianExportOperationStatus[] = [
   "created",
@@ -131,29 +135,44 @@ program
     const parsedVideoPlatform = parsePlatform(options.video, "video platform");
     const parsedStartFrom = parseStartFrom(options.startFrom);
 
-    const projectName = options.name ?? (await input({ message: "Project directory name", default: "my-ai-video-project" }));
+    // Static target checks run before any interactive prompt so scripted runs
+    // fail fast with a single readable error instead of entering prompts first.
+    const targetRoot = process.cwd();
+    const projectName = options.name
+      ?? (await runCliPrompt(() => input({ message: "Project directory name", default: "my-ai-video-project" }), INIT_PROMPT_CANCELLED_MESSAGE));
+    await assertCanInitializeProject(targetRoot, validateSafeDirectoryName(projectName, "Project name"), options.force === true);
+
     const ide =
       parsedIde ??
-      (await select({
-        message: "Choose an AI IDE",
-        choices: SUPPORTED_IDES.map((value) => ({ name: value, value }))
-      }));
+      (await runCliPrompt(
+        () => select({
+          message: "Choose an AI IDE",
+          choices: SUPPORTED_IDES.map((value) => ({ name: value, value }))
+        }),
+        INIT_PROMPT_CANCELLED_MESSAGE
+      ));
     const imagePlatform =
       parsedImagePlatform ??
-      (await select({
-        message: "Choose the default image platform",
-        choices: SUPPORTED_PLATFORMS.map((value) => ({ name: PLATFORM_DISPLAY_NAMES[value] ?? value, value }))
-      }));
+      (await runCliPrompt(
+        () => select({
+          message: "Choose the default image platform",
+          choices: SUPPORTED_PLATFORMS.map((value) => ({ name: PLATFORM_DISPLAY_NAMES[value] ?? value, value }))
+        }),
+        INIT_PROMPT_CANCELLED_MESSAGE
+      ));
     const videoPlatform =
       parsedVideoPlatform ??
-      (await select({
-        message: "Choose the default video platform",
-        choices: SUPPORTED_PLATFORMS.map((value) => ({ name: PLATFORM_DISPLAY_NAMES[value] ?? value, value })),
-        default: DEFAULT_VIDEO_PLATFORM
-      }));
+      (await runCliPrompt(
+        () => select({
+          message: "Choose the default video platform",
+          choices: SUPPORTED_PLATFORMS.map((value) => ({ name: PLATFORM_DISPLAY_NAMES[value] ?? value, value })),
+          default: DEFAULT_VIDEO_PLATFORM
+        }),
+        INIT_PROMPT_CANCELLED_MESSAGE
+      ));
     const startFrom = parsedStartFrom ?? "research";
     const projectRoot = await createProject({
-      targetRoot: process.cwd(),
+      targetRoot,
       projectName,
       pack: options.pack,
       ide,
