@@ -568,7 +568,10 @@ ${loginUrl}
     .option("-r, --run", "创建成功后触发生成一次", false)
     .option("--allow-generation", "显式允许触发生成（-r/--run 会触发生成）", false)
     .action((name, options, command) => runCliAction(async () => {
-      if (getOption(command, "run") === true && options.allowGeneration !== true) {
+      // Use the ancestor-aware getOption: the parent `node` command also defines
+      // -r/--run and --allow-generation (for its default usage), and commander
+      // lets the parent layer consume those flags before the create subcommand.
+      if (getOption(command, "run") === true && getOption(command, "allowGeneration") !== true) {
         throw new Error("创建后触发生成会消耗真实额度，必须显式传入 --allow-generation");
       }
       const backend = await backendWithCredentials(command);
@@ -661,7 +664,11 @@ ${loginUrl}
     .option("--x <n>", "画布 X", "0")
     .option("--y <n>", "画布 Y", "0")
     .option("-r, --run", "主流程成功后触发生成一次", false)
+    .option("--allow-generation", "显式允许触发生成（-r/--run 会触发生成）", false)
     .action((ref, options, command) => runCliAction(async () => {
+      if (getOption(command, "run") === true && getOption(command, "allowGeneration") !== true) {
+        throw new Error("更新后触发生成会消耗真实额度，必须显式传入 --allow-generation");
+      }
       const backend = await backendWithCredentials(command);
       const projectUuid = options.project ?? (await readBinding(process.cwd()))?.projectUuid;
       if (!projectUuid) throw new Error("缺少项目：请使用 -p/--project 或先 libtv project use");
@@ -761,7 +768,7 @@ ${loginUrl}
     .option("-r, --run", "创建成功后整组生成一次", false)
     .option("--allow-generation", "显式允许触发生成（-r/--run 会触发生成）", false)
     .action((name, options, command) => runCliAction(async () => {
-      if (options.run === true && options.allowGeneration !== true) {
+      if (getOption(command, "run") === true && getOption(command, "allowGeneration") !== true) {
         throw new Error("整组触发生成会消耗真实额度，必须显式传入 --allow-generation");
       }
       const backend = await backendWithCredentials(command);

@@ -1,7 +1,7 @@
 import fs from "fs-extra";
 import os from "node:os";
 import path from "node:path";
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { build } from "tsup";
 import { afterEach, describe, expect, test } from "vitest";
@@ -35,6 +35,20 @@ async function buildCliToTemp(cliRoot: string): Promise<string> {
 
 async function runCli(entry: string, args: string[]): Promise<{ stdout: string; stderr: string }> {
   return execFileAsync(process.execPath, [entry, ...args]);
+}
+
+// Runs the CLI with an immediately closed stdin (EOF) so default-usage node
+// commands finish their stdin read instead of waiting on an open pipe.
+function runCliWithClosedStdin(entry: string, args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [entry, ...args], { stdio: ["pipe", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => { stdout += String(chunk); });
+    child.stderr.on("data", (chunk) => { stderr += String(chunk); });
+    child.stdin.end();
+    child.on("close", (code) => resolve({ code: code ?? 0, stdout, stderr }));
+  });
 }
 
 describe("libtv CLI", () => {
@@ -210,6 +224,22 @@ describe("libtv CLI", () => {
       "-p", "mock-project"
     ]);
     expect(nodeNoRun.stdout).toContain("nodeKey");
+
+    const nodeDefaultDenied = await runExpectFailure([
+      "libtv", "--mock", "node", "免生成节点", "--prompt", "更新提示词", "-p", "mock-project", "-r"
+    ]);
+    expect(nodeDefaultDenied.stderr).toContain("--allow-generation");
+    expect(nodeDefaultDenied.stderr).not.toContain("未找到节点");
+    expect(nodeDefaultDenied.stderr).not.toMatch(/^\s+at /m);
+
+    const nodeDefaultAllowed = await runCliWithClosedStdin(entry, [
+      "libtv", "--mock", "node", "免生成节点", "--prompt", "更新提示词", "-p", "mock-project",
+      "-r", "--allow-generation"
+    ]);
+    // The gate has passed: the failure now comes from node lookup, not from the gate.
+    expect(nodeDefaultAllowed.code).not.toBe(0);
+    expect(nodeDefaultAllowed.stderr).toContain("未找到节点");
+    expect(nodeDefaultAllowed.stderr).not.toContain("--allow-generation");
 
     const groupDenied = await runExpectFailure([
       "libtv", "--mock", "group", "create", "测试分组", "-p", "mock-project", "-r"

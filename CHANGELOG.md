@@ -4,7 +4,7 @@
 
 - Added a confirmation gate for `libtv project delete`: non-interactive runs require an explicit `--yes`, TTY runs get a confirm prompt (default false).
 - Added a stderr credential-source notice (environment variable or credentials file path with a masked account identity) before any real LibTV backend call; `--mock` stays silent.
-- Added a `--allow-generation` hard gate to `libtv node create --run` and `libtv group create --run`, matching the refine gate.
+- Added a `--allow-generation` hard gate to `libtv node create --run`, the default `libtv node [node] --run` usage, and `libtv group create --run`, matching the refine gate.
 - Added a tool-repository guard to `new-pack` with an explicit `--allow-in-tool-repo` escape hatch for official pack development.
 - Moved init static target checks (name safety, nested project, existing target, `.git`, non-empty) before any interactive prompt; closed or non-TTY prompts now exit with a single readable error instead of leaking internal warnings.
 - Added the resolved absolute target directory to init success output and a doctor/deviation-add hint to non-interactive verify failures.

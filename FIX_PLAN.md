@@ -214,9 +214,9 @@
 #### H5 `libtv node/group create --run` 生成闸（Q11，提示）
 - **现象**：`node create -r`（"创建成功后触发生成一次"）与 `group create -r`（"创建成功后整组生成一次"）无任何 `--allow-generation` 检查；对照 refine 硬闸与 apply 显式开关（REPORT.md D5 行为存疑：结构缺闸成立）。
 - **根因**：`register.ts` node create（:546 选项、:601 action 透传 `run`）与 group create（:735 选项、:745 透传）直通 backend，无检查。
-- **修复方案**：与 refine 同型硬闸——两个子命令各增加 `--allow-generation` 选项；action 开头（`backendWithCredentials` 之前，`--mock` 下同样拦截，与 refine 一致）检查：`run === true` 且 `allowGeneration !== true` → 抛单行可读错误，文案语义对齐 refine（触发生成必须显式 `--allow-generation`）；不带 `-r` 的路径完全不受影响。
-- **验证方法**：`--mock` 下 CLI 子进程回归测试：`-r` 无开关拒绝 / `-r` + 开关通过 / 不带 `-r` 不受影响 / group create 同套用例。
-- **回归测试**：`apps/cli/tests/libtv-cli.test.ts` 新增用例。
+- **修复方案**：与 refine 同型硬闸——node create、node 默认用法（`node [node]`，用户验收后追加纳入）与 group create 三处各增加 `--allow-generation` 选项；action 开头（`backendWithCredentials` 之前，`--mock` 下同样拦截）检查 `run === true` 且 `allowGeneration !== true` → 抛单行可读错误，文案语义对齐 refine；不带 `-r` 的路径完全不受影响。**实现要点**：`node` 父命令（默认用法）与其子命令 `node create` 存在同名 `-r/--run`、`--allow-generation` 选项，commander 会让父层先行消费这些旗标，子命令 `opts` 收不到——因此三处闸与 `run` 透传统一使用 `getOption` 的祖先冒泡语义判定，避免同名选项作用域差异造成误判。
+- **验证方法**：`--mock` 下 CLI 子进程回归测试：`-r` 无开关拒绝 / `-r` + 开关通过 / 不带 `-r` 不受影响 / group create 同套用例 / node 默认用法拒绝与放行两路径；手工复测 D5。
+- **回归测试**：`apps/cli/tests/libtv-cli.test.ts` 新增用例（node 默认用法放行路径用显式关闭 stdin 的子进程运行，避免 `readStdinNodeKeys` 在开放式管道上等待）。
 
 #### H6 UX 补强：init 绝对目标路径 + verify 失败 Hint（REPORT 问题 6/7，提示·低优先）
 - **现象**：① init 目标解析为 `<CWD>/<name>`，在名为 X 的目录内 `init --name X` 静默创建 `X/X` 嵌套，成功输出首行"已创建项目：X"易被误读（REPORT A5 备注/问题 6）；② verify 失败仅列问题码，未提示 doctor 诊断与 deviation add 通道（REPORT 问题 7）。

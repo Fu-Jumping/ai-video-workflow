@@ -95,7 +95,7 @@
 - 现象：`libtv node create -r`（"创建成功后触发生成一次"）与 `libtv group create -r`（"创建成功后整组生成一次"）没有任何生成开关或门禁提示；对照 apply 与 refine 均有显式 `--allow-generation` 硬闸。mock 下创建后无门禁提示且 mock 状态不持久，真实模式行为不可行为学验证；源码层面 `-r` 直通无检查。
 - 证据：`apps/cli/src/lib/libtv/register.ts`（node create / group create 的 `-r, --run` 选项，action 无 allowGeneration 检查；对照 apply 约 :892-908、refine 约 :1015-1024）；行为验证见 REPORT.md D5（行为存疑：结构缺闸成立，真实模式不可证）。
 - 影响：与"任何消耗生成额度的操作必须显式开关/确认"的安全边界不一致；真实模式下一行 `node create ... -r` 即可能直接消耗额度。本轮测试定级：提示（存疑）。
-- 处置：已修复（commit 87fa190；FIX_PLAN.md H5）。两个子命令各增加 `--allow-generation`，`-r` 且无开关时在任何后端调用前抛单行错误（与 refine 同型硬闸，`--mock` 下同样拦截）；不带 `-r` 的路径不受影响。回归测试 `libtv-cli.test.ts`（node/group 各三条路径）+ 手工复测 D5。范围说明：`libtv node [node]` 默认用法的 `-r` 不在本轮任务范围，未改动（如需同型硬闸另行立项）。
+- 处置：已修复（commit 87fa190，node 默认用法追加纳入见后续提交；FIX_PLAN.md H5）。`node create`、`node` 默认用法（`node [node]`）与 `group create` 三处各增加 `--allow-generation`，`-r` 且无开关时在任何后端调用前抛单行错误（与 refine 同型硬闸，`--mock` 下同样拦截）；不带 `-r` 的路径不受影响。实现要点：`node` 父命令与子命令存在同名 `-r/--allow-generation` 选项（commander 父层先消费），闸统一走 `getOption` 祖先冒泡语义。回归测试 `libtv-cli.test.ts`（node create/默认用法/group 各路径）+ 手工复测 D5。
 
 ### Q12 ~~`new-pack` 缺"工具仓库本体"守卫~~ → 已处理 2026-08-28
 
