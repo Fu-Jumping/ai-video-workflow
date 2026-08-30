@@ -835,12 +835,20 @@ async function verifyStep5PlatformExecutionSettings(
         path: relPath
       });
     }
-    const forbiddenImageParameter = step5ForbiddenImagePlatformParameters.find((parameter) => content.includes(parameter));
+  }
+  // Image platform parameters are banned across the whole Step 5 layer, including
+  // shot-group template files without a shot id: those templates get copied into
+  // per-shot files, so scanning only shot-domain files lets a violating template
+  // pass verify as a "compliant" seed.
+  for (const file of graph.files.filter((candidate) => candidate.step === 5)) {
+    const forbiddenImageParameter = step5ForbiddenImagePlatformParameters.find((parameter) =>
+      file.content.includes(parameter)
+    );
     if (forbiddenImageParameter) {
       pushIssue(issues, {
         code: "step5-forbidden-image-platform-parameter",
         message: `Step 5 must not include image platform parameter: ${forbiddenImageParameter}`,
-        path: relPath
+        path: file.relPath
       });
     }
   }

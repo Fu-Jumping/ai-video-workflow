@@ -1834,6 +1834,25 @@ test("accepts a custom pack name in project.config.yaml", async () => {
     );
   });
 
+  test("rejects image platform parameters in the shot-group Step 5 template file", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-step5-group-param-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex", "seedance");
+    await seedShotContract(projectRoot, { platform: "seedance" });
+    const groupTemplatePath = path.join(projectRoot, "05_视频提示词", shotGroupDir, "视频提示词.md");
+    const content = await fs.readFile(groupTemplatePath, "utf8");
+    await fs.writeFile(groupTemplatePath, `${content}\n\n--ar 21:9\n`, "utf8");
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "step5-forbidden-image-platform-parameter",
+          path: `05_视频提示词/${shotGroupDir}/视频提示词.md`
+        })
+      ])
+    );
+  });
+
   test("rejects Step 7 files that only contain a title", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-step7-content-"));
     tempRoots.push(root);
