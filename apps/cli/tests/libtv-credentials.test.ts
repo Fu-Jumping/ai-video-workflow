@@ -1,11 +1,15 @@
 import fs from "fs-extra";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import type { AddressInfo } from "node:net";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { build } from "tsup";
 import { afterEach, describe, expect, test } from "vitest";
 
+import { CliUserError } from "../src/lib/cli-errors.js";
+import { LibTvApiClient } from "../src/lib/libtv/api.js";
 import {
   describeLibTvCredentialsSource,
   maskLibTvAccountIdentifier,
@@ -14,6 +18,7 @@ import {
 
 const execFileAsync = promisify(execFile);
 const tempRoots: string[] = [];
+const runningServers: http.Server[] = [];
 const envBackup: Record<string, string | undefined> = {};
 
 function setEnv(key: string, value: string | undefined): void {
@@ -36,8 +41,24 @@ afterEach(async () => {
     }
     delete envBackup[key];
   }
+  await Promise.all(
+    runningServers.splice(0).map((server) => new Promise<void>((resolve) => server.close(() => resolve())))
+  );
   await Promise.all(tempRoots.splice(0).map((dir) => fs.remove(dir)));
 });
+
+// Local-only JSON server: every request gets the same canned status/body, so the
+// network layer never reaches a real API.
+async function startJsonServer(status: number, body: string): Promise<string> {
+  const server = http.createServer((_request, response) => {
+    response.writeHead(status, { "content-type": "application/json" });
+    response.end(body);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as AddressInfo;
+  runningServers.push(server);
+  return `http://127.0.0.1:${port}`;
+}
 
 async function stubCredentialsDir(): Promise<string> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-libtv-credentials-"));
@@ -208,5 +229,75 @@ describe("LibTV credential source notice on real backend calls", () => {
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("mock-project");
     expect(result.stderr).not.toContain("使用 LibTV 凭据");
+  });
+});
+
+describe("LibTV project list response shape guard", () => {
+  test("accepts a legitimate empty project list without a false positive", async () => {
+    const baseUrl = await startJsonServer(200, JSON.stringify({ projectMetaList: [] }));
+    const client = new LibTvApiClient({ canvasBaseUrl: baseUrl });
+    const result = await client.listProjects();
+    expect(result.projectMetaList).toEqual([]);
+  });
+
+  test("unwraps a code/data envelope response", async () => {
+    const baseUrl = await startJsonServer(
+      200,
+      JSON.stringify({ code: 0, msg: null, data: { projectMetaList: [{ projectUuid: "p-1", projectName: "P" }] } })
+    );
+    const client = new LibTvApiClient({ canvasBaseUrl: baseUrl });
+    const result = await client.listProjects();
+    expect(result.projectMetaList).toHaveLength(1);
+  });
+
+  test("rejects a 200 response without the expected list field with a readable credential hint", async () => {
+    const baseUrl = await startJsonServer(200, "{}");
+    const client = new LibTvApiClient({ canvasBaseUrl: baseUrl });
+    const error = await client.listProjects().then(
+      () => null,
+      (caught: unknown) => caught
+    );
+    expect(error).toBeInstanceOf(CliUserError);
+    expect((error as Error).message).toContain("projectMetaList");
+    expect((error as Error).message).toContain("凭据失效");
+    expect((error as Error).message).toContain("libtv login");
+  });
+
+  test("rejects a non-array projectMetaList field", async () => {
+    const baseUrl = await startJsonServer(200, JSON.stringify({ projectMetaList: "unexpected" }));
+    const client = new LibTvApiClient({ canvasBaseUrl: baseUrl });
+    await expect(client.listProjects()).rejects.toBeInstanceOf(CliUserError);
+  });
+
+  test("keeps surfacing envelope errors from the backend", async () => {
+    const baseUrl = await startJsonServer(200, JSON.stringify({ code: 40001, msg: "用户未授权", data: null }));
+    const client = new LibTvApiClient({ canvasBaseUrl: baseUrl });
+    await expect(client.listProjects()).rejects.toThrow("用户未授权");
+  });
+});
+
+describe("LibTV project list fails loudly on unexpected response shapes", () => {
+  test("reports a readable error instead of an empty success when the body lacks projectMetaList", { timeout: 30000 }, async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const entry = await buildCliToTemp(cliRoot);
+    const dir = await stubCredentialsDir();
+    await fs.writeJson(path.join(dir, "credentials.json"), {
+      usertoken: "stub-token",
+      useruuid: "user-uuid-12345678"
+    });
+    const baseUrl = await startJsonServer(200, "{}");
+    const result = await runCli(entry, ["libtv", "project", "list"], {
+      LIBTV_API_BASE_URL: baseUrl,
+      LIBTV_CANVAS_API_BASE_URL: baseUrl,
+      LIBTV_PASSPORT_API_BASE_URL: baseUrl,
+      LIBTV_CONFIG_DIR: dir,
+      LIBTV_TOKEN: undefined
+    });
+    expect(result.code).not.toBe(0);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("使用 LibTV 凭据");
+    expect(result.stderr).toContain("projectMetaList");
+    expect(result.stderr).toContain("libtv login");
+    expect(result.stderr).not.toContain("stub-token");
   });
 });

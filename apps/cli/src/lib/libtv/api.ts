@@ -211,7 +211,16 @@ export class LibTvApiClient {
     if (query.workspaceId !== undefined && Number(query.workspaceId) !== 0) {
       body.folderId = Number(query.workspaceId);
     }
-    return this.request<LibTvProjectListResult>(LIBTV_API_PATHS.projectList, { method: "POST", body });
+    const result = await this.request<LibTvProjectListResult>(LIBTV_API_PATHS.projectList, { method: "POST", body });
+    // A 200 body without the expected list field (e.g. an empty object returned for
+    // an invalid token) used to fall through as "no projects"; surface it instead of
+    // reporting a silent empty success.
+    if (!Array.isArray(result?.projectMetaList)) {
+      throw new CliUserError(
+        "LibTV API 响应异常：project list 未返回预期的 projectMetaList 列表字段。常见原因是凭据失效或接口返回结构变更：请重新执行 ai-video-workflow libtv login 后重试；若凭据有效仍复现，请携带 --debug 反馈。"
+      );
+    }
+    return result;
   }
 
   async getProjectDetail(projectUuid: string): Promise<LibTvProjectDetailResult> {

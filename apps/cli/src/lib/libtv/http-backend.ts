@@ -205,7 +205,7 @@ export class HttpLibTvBackend implements LibTvBackend {
 
   async listProjects(query?: { page?: number; pageSize?: number; orderBy?: string; name?: string; teamId?: number; workspaceId?: number | string }) {
     const result = await this.client.listProjects(query ?? {});
-    return result.projectMetaList ?? [];
+    return result.projectMetaList;
   }
 
   async getProjectDetail(projectUuid: string) {
