@@ -8,6 +8,8 @@
 - Added a tool-repository guard to `new-pack` with an explicit `--allow-in-tool-repo` escape hatch for official pack development.
 - Moved init static target checks (name safety, nested project, existing target, `.git`, non-empty) before any interactive prompt; closed or non-TTY prompts now exit with a single readable error instead of leaking internal warnings.
 - Added the resolved absolute target directory to init success output and a doctor/deviation-add hint to non-interactive verify failures.
+- Made `libtv project list` fail loudly with a readable error when the API response lacks the expected `projectMetaList` field (e.g. an empty 200 body for invalid credentials), instead of reporting a silent empty success.
+- Extended the Step 5 forbidden image-platform-parameter scan to all Step 5 files, including shot-group template files without a shot id; the issue code and message are unchanged.
 
 ## 0.3.0
 

@@ -111,6 +111,20 @@
 - 影响：共享机器/自动化场景下放大误操作面；测试与审计时"无凭据"判据易失效。
 - 处置：已按最小方案（可见性，不做闸门）修复（commit b431cfa；FIX_PLAN.md H2）。`backendWithCredentials` 在创建 HTTP 后端前向 stderr 打印一行凭据来源提示（环境变量 `LIBTV_TOKEN` 或凭据文件路径 + 脱敏账户标识），每命令最多一次；`--mock` 与无凭据路径行为不变；`00-project-context.md` §6 已补说明。回归测试 `libtv-credentials.test.ts`（假凭据目录 + 三个 API base URL 指向本机不可达端口，验证提示先于网络错误、env 通道、--mock 无提示）+ 手工复测 D1。
 
+### Q14 ~~无效 LibTV 凭据下列表命令静默"空成功"~~ → 已处理 2026-08-30
+
+- 现象：伪造凭据（假 token，`LIBTV_CONFIG_DIR` 隔离，完全不触碰本机真实凭据）运行真实后端只读命令 `libtv project list`，两次（文件凭据来源 / `LIBTV_TOKEN` 环境变量来源各一次）均 exitCode=0、stdout 为空——鉴权失败表现为"账号下暂无项目"，与真实现状不可区分。Q13 修复项本身工作正常：stderr 在请求前打印凭据来源与脱敏账户标识。
+- 证据：`apps/cli/src/lib/libtv/http-backend.ts`（约 :208 `return result.projectMetaList ?? []`，对响应形状异常静默回退空数组）；`apps/cli/src/lib/libtv/api.ts`（约 :150-154，仅 HTTP 非 2xx 抛错，后端对无效 token 返回 200 空体时 CLI 不报错）；行为证据见 `G:\develop-G\tests\avw-foolproof-retest-20260830\REPORT.md` E2/E3 与发现清单一般-1。后端原始响应形状无法观测（无法区分"后端对无效 token 返回 200 空体"与其他形状异常）。
+- 影响：凭据失效（过期/写错）的用户误判账号状态后继续操作；属"失败被静默"类别。不消耗额度、不破坏数据。复测定级：一般。
+- 处置：已修复（commit 88fa1b6；FIX_PLAN.md §八 H7）。`api.ts` `listProjects` 返回前校验 `projectMetaList` 为数组，异常即抛单行可读错误（说明常见原因：凭据失效/接口结构变更，给出重新 `libtv login` 与 `--debug` 反馈指引）；`http-backend.ts` 移除 `?? []` 静默回退。回归测试：`libtv-credentials.test.ts` 本地 JSON 打桩服务的形状矩阵（合法空列表不误伤 / 信封解包 / 缺字段 / 非数组 / 信封错误保留）+ CLI 子进程级用例（假凭据 + 空对象 200 响应：exit 1、stdout 为空、stderr 先凭据来源提示后可读错误），全部离线零真实 API。
+
+### Q15 ~~Step 5 违禁参数检查不覆盖无镜头号的模板文件~~ → 已处理 2026-08-30
+
+- 现象：向 `05_视频提示词/镜头组-001/视频提示词.md`（镜头组级模板文件，文件名不含 `镜头-<n>`、无 shotId）注入图片平台参数（`--ar 21:9` 等），verify 通过；同类注入落在 shot 域文件（文件名含镜头号）会被拦截。属检查覆盖面事实，非防呆回归。
+- 证据：复测报告 B3 首次注入尝试与发现清单提示-1（`G:\develop-G\tests\avw-foolproof-retest-20260830\REPORT.md`）；校验器按 `shotId !== undefined` 过滤 Step 5 检查域。
+- 影响：镜头组级模板中的违禁参数会作为"照抄即合规"的样板被批量复制进单镜文件，用户先踩一次 verify 失败才能发现；或模板自身始终不触发检查。是否应扩大检查域属设计取舍。
+- 处置：已按"将镜头组级模板纳入检查域"修复（commit 8bb16eb；FIX_PLAN.md §八 H8）。`verify.ts` 违禁参数扫描从 shot 域循环拆出、独立遍历全部 `step === 5` 文件（含组级模板）；问题码、文案、path 语义不变；平台执行合同、Seedance 设置、负面约束等其余 per-shot 检查保持 shot 域。官方组级模板实测不含四项违禁参数，"照抄即合规"不破坏；示例项目 Step 5 仅含 shot 域文件不受影响。回归测试：`verify.test.ts` 组级模板注入用例（断言问题码与 path 指向组级文件）。
+
 ## 3. 缺口登记规则 `[通用规则]`
 
 发现"规则与实际代码/文档不一致"时：在本文件追加 Q 编号条目（现象 + 证据路径 + 影响），并在对话中报告；**不擅自修改业务行为**；修复需用户确认后按 [05-task-routing.md](./05-task-routing.md) 对应路由执行。

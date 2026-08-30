@@ -233,3 +233,42 @@
 2. 手工复测：REPORT.md 中 D6/D1/G3/A3/D5 最小复现路径逐条重放，确认"之前直接执行/缺闸"现在"拒绝且报错可操作"；全部 --mock 或假 HOME/假凭据目录，零额度。
 3. 全量门禁：`pnpm verify:v0.2` 全绿（串行执行）+ `git diff --check` 通过。
 4. 更新 `docs/context-engineering/07-decisions-and-open-questions.md` Q10~Q13 状态（写法对齐 Q9）。
+
+---
+
+## 八、防呆复测残余修复（2026-08-30，H7~H8）
+
+- 依据：防呆复测报告 `G:\develop-G\tests\avw-foolproof-retest-20260830\REPORT.md`（评级"可靠"；新发现 一般-1、提示-1）；缺口登记 `docs/context-engineering/07-decisions-and-open-questions.md` Q14、Q15。用户确认"把残余的内容也一并修复"。
+- 被测版本基线：master @ 06dcb7e（H1~H6 已全部验收通过）。
+- 原则同 §七；本两轮验证均离线（本地 JSON 打桩服务 / 项目夹具），零额度、零真实 API。
+
+| 编号 | 问题 | 对应缺口 | 严重度 |
+| --- | --- | --- | --- |
+| H7 | 无效 LibTV 凭据下列表命令静默"空成功" | Q14 | 一般 |
+| H8 | Step 5 违禁参数检查不覆盖无镜头号的模板文件 | Q15 | 提示 |
+
+#### H7 无效凭据下列表命令静默"空成功"（Q14，一般）
+- **现象**：伪造凭据（`LIBTV_CONFIG_DIR` 隔离、假 token）运行真实后端 `libtv project list`，两次（文件凭据/env 通道各一次）均 exitCode=0、stdout 为空——鉴权失败表现为"账号下暂无项目"，与真实现状不可区分（复测报告 E2/E3）。
+- **根因**：`api.ts` `unwrapResponse` 只识别同时含 `code` 与 `data` 的信封体；后端对无效 token 返回的其它 200 形状（如空对象）原样穿透，`http-backend.ts` `listProjects` 以 `result.projectMetaList ?? []` 静默回退空数组。HTTP 层（`api.ts` 非 2xx 抛错）与信封层检查都覆盖不到该形状。
+- **修复方案**：
+  1. `api.ts` `listProjects` 在返回前校验 `Array.isArray(result?.projectMetaList)`；不满足则抛 `CliUserError`，文案说明常见原因（凭据失效/接口结构变更）并给出动作（重新 `libtv login`、复现时带 `--debug`）。
+  2. `http-backend.ts` `listProjects` 移除 `?? []` 静默回退（client 层已保证形状）。
+  3. `getAccountInfo` 内部的 `listProjects` 调用已有 try/catch 兜底（accountId fallback），行为不变。
+- **验证方法**：本地 JSON 打桩服务（127.0.0.1 随机端口，永不触真实 API）覆盖形状矩阵；CLI 子进程级用例复现复测 E2 场景（假凭据 + 空对象 200 响应）断言：exit 1、stdout 为空（不再"空成功"）、stderr 先凭据来源提示后可读错误。
+- **回归测试**：`apps/cli/tests/libtv-credentials.test.ts` 新增两个 describe（client 形状矩阵 5 用例 + CLI 级 1 用例）。
+
+#### H8 Step 5 违禁参数检查不覆盖无镜头号的模板文件（Q15，提示）
+- **现象**：向镜头组级模板 `05_视频提示词/镜头组-001/视频提示词.md`（文件名不含 `镜头-<n>`、无 shotId）注入 `--ar 21:9` 等图片平台参数，verify 通过；同类注入落在 shot 域文件会被 `step5-forbidden-image-platform-parameter` 拦截（复测报告 B3 首次注入尝试）。
+- **根因**：`verify.ts` `verifyStep5PlatformExecutionSettings` 的违禁参数扫描嵌在 `step === 5 && shotId !== undefined` 的 shot 域循环内；组级模板作为"照抄即合规"的种子会被复制进单镜文件，用户先踩一次 verify 失败才能发现，或模板自身永不触发检查。
+- **修复方案**：
+  1. 违禁参数扫描从 shot 域循环中拆出，独立遍历全部 `step === 5` 文件（含组级模板）；问题码、文案、path 字段不变。
+  2. 平台执行合同、Seedance 设置、负面约束等其余 per-shot 检查保持 shot 域不变（组级文件无单镜合同语义）。
+  3. 官方组级模板 `packs/official-ai-video/templates/05_视频提示词/视频提示词.md` 实测不含四项违禁参数（`--v 8.2`/`--ar`/`--style raw`/`--stylize`），"照抄即合规"不破坏；示例项目 `examples/官方示例-云上早市` Step 5 仅含 shot 域文件，不受影响。
+- **验证方法**：verify.test.ts 新增组级模板注入用例（断言问题码 + path 指向组级文件）；既有 step5 用例（shot 域注入）继续通过证明无回归；全量门禁含 `example:verify` 守护示例项目。
+- **回归测试**：`apps/cli/tests/verify.test.ts` 新增 1 用例。
+
+### 验收门槛（本轮）
+
+1. 定向测试（verify / libtv-credentials）+ 全量门禁 `pnpm verify:v0.2` 全绿（串行）+ `git diff --check` 通过。
+2. 手工重放两条最小复现路径（离线等价形式）确认修复生效。
+3. 更新 `docs/context-engineering/07-decisions-and-open-questions.md` Q14、Q15 状态与 CHANGELOG。
