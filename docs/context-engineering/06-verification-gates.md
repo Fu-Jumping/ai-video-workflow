@@ -38,7 +38,7 @@
 
 ## 4. 隔离端到端测试方法论（对齐 avw-isolated-e2e-testing） `[AVW 专用]`
 
-完整方法论以机器全局 skill `avw-isolated-e2e-testing` 为准（仓库根 `AGENTS.md` Testing 章节强制引用）；本节沉淀执行要点：
+完整方法论以机器全局 skill `avw-isolated-e2e-testing` 为准（仓库根 `AGENTS.md` Testing 章节强制引用）；本节沉淀执行要点。人工亲自对话的手动测试（测试者是真人而非子代理）另见 [10-manual-testing-guide.md](./10-manual-testing-guide.md)：
 
 ### 4.1 隔离红线（不可妥协）
 
