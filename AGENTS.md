@@ -6,6 +6,7 @@ Use the `official-ai-video` pack as the default workflow pack.
 - Keep Step 4 file contracts intact.
 - Default to enhanced flow unless a project explicitly disables it.
 - Use relative links only.
+- 提交信息（标题与正文）一律使用简体中文，保留 conventional 类型前缀、代码标识符、路径与 Q/H/D/F 编号（D11）。
 
 ## 项目上下文工程（Context Engineering）
 
