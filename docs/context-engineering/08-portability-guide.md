@@ -27,6 +27,7 @@ docs/context-engineering/
 ├── 06-verification-gates.md  # L4 变更类型 × 验证矩阵 + 测试方法论
 ├── 07-decisions-and-open-questions.md  # L4 决策记录 + 缺口登记
 ├── 08-portability-guide.md   # L5 标注体系 + 迁移骨架（本文件）
+├── 09-conversation-guidance.md  # L4 对话引导口径：首触引导/每轮状态脚注/载体登记
 └── templates/                # L5 工作模板（简报/来源卡/审核记录/变更请求/测试报告）
 ```
 

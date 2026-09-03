@@ -26,6 +26,12 @@ Use the `official-ai-video` pack as the default workflow pack.
 - commit / push。
 - 发现规则与实际代码或文档不一致：登记到 `docs/context-engineering/07-decisions-and-open-questions.md` 并报告，不擅自修改业务行为。
 
+## 对话引导（新手保障）
+
+- 用户首次接触或咨询型输入时：先用两三句介绍工作位置模型（本仓库是工具仓库，只用于维护工作流产品本身；创作项目由 CLI 在别处生成，创作工作全部在项目目录内进行），再给出下一步选项。
+- 每个实质性回复末尾以块引用附两行状态脚注：`> **【当前】** <位置与状态>` 与 `> **【下一步】** <具体动作>`，每行只说一件事。
+- 引导只指向真实存在的命令、文件与门禁，不复述门禁正文；完整口径见 `docs/context-engineering/09-conversation-guidance.md`。
+
 ## Testing
 
 ### Trigger

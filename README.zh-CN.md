@@ -20,6 +20,8 @@
 
 如果你只是想开始一个 AI 视频创作项目，不要直接在这个工具仓库里写剧本。推荐做法是：先下载或克隆本仓库，再让智能体代跑 CLI 创建一个单独的创作项目目录。
 
+先把工作位置模型说清楚：本仓库是"车间"，装的是工作流规则、CLI 和文档，只有维护这个工具本身时才在这里干活；你想做的每个视频是一道"菜"——由 CLI `init` 在仓库之外生成一个独立的创作项目目录，初始化之后 Step 0 到 Step 7 的全部创作对话和文件都发生在那个目录里。初始化完成后，把智能体的会话切到创作项目目录重新开始（规则由项目内的 `AGENTS.md` 和运行镜像接管）；`verify`、`sync` 等 CLI 命令通过全局安装的 `ai-video-workflow`（构建后执行 `npm install -g apps/cli`）以 `--project` 指向项目运行。
+
 正式入口见 [新手：让智能体代跑 CLI](docs/zh/quickstart/beginner-agent-init.md)。关于“工具仓库和创作项目的区别”“目标目录已有文件时会发生什么”“重复初始化和 `sync` 的区别”的审计背景，见 [新手启动与初始化体验记录](docs/zh/contributors/onboarding-initialization-notes.md)。
 
 ## v0.2 主线

@@ -4,7 +4,7 @@
 
 ## 0. 所有任务的公共起点 `[AVW 专用]`
 
-1. 仓库根 `AGENTS.md` —— 跨 Agent 稳定规则与测试编排要求。
+1. 仓库根 `AGENTS.md` —— 跨 Agent 稳定规则、对话引导行为与测试编排要求（引导话术的口径权威见 [09-conversation-guidance.md](./09-conversation-guidance.md)）。
 2. `docs/context-engineering/00-project-context.md` —— 身份、边界、确认点。
 3. [05-task-routing.md](./05-task-routing.md) —— 定位你的任务类型。
 

@@ -78,6 +78,14 @@
 | 可改 | 意见指向的步骤文件及其下游受影响文件 |
 | 验证 | 每条意见记录原文/处理/理由/修改文件 → 复核 → `verify`；跨步修改先做影响分析并回报 |
 
+### A10 流程偏离请求（跳步、轻量镜头、口径不一致）
+
+| 项 | 内容 |
+| --- | --- |
+| 应读 | [09-conversation-guidance.md](./09-conversation-guidance.md) §5（分类处置）、`docs/zh/workflow/supported-deviations.md` |
+| 可改 | `deviations.yaml`（经确认登记）与用户明确同意修改的步骤源文件；涉及已完成步骤或平台口径变更先停止确认 |
+| 验证 | `deviation list` 确认登记可见且带 reason；登记后 `verify` 通过；未登记的同类问题仍照常失败 |
+
 ## B. 工具仓库侧任务（Agent 在本仓库工作）
 
 ### B1 母包规则 / 模板 / skill 维护
@@ -135,6 +143,14 @@
 | 应读 | `docs/zh/contributors/adapter-boundaries.md`、`docs/zh/contributors/agent-adapter-contract.md`、对应 adapter 文档（libtv-asset-adapter.md / mcp-adapter.md / obsidian-vault-projection.md） |
 | 可改 | 对应 adapter 模块与文档；必须说明输入、输出、同步方向、失败回滚、验证命令 |
 | 验证 | 对应 adapter 测试 + `pnpm verify:v0.2`；不得破坏 Step 3/4 对齐与 Step 4 合同 |
+
+### B8 工具仓库侧咨询 / 新手首触
+
+| 项 | 内容 |
+| --- | --- |
+| 应读 | [09-conversation-guidance.md](./09-conversation-guidance.md)（口径权威）、`docs/zh/quickstart/beginner-agent-init.md` |
+| 可改 | 只读 + 对话引导（不写文件）；若用户要走初始化，转 A1 流程 |
+| 验证 | 话术与 09 文档口径一致；涉及文档改动时 `pnpm docs:build` |
 
 ## 路由不命中时 `[通用规则]`
 

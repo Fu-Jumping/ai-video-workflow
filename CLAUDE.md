@@ -9,6 +9,12 @@ This repository treats the workflow as a product.
 
 Project map, task routing, and verification gates for agents live in `docs/context-engineering/` (start from its README). When rules conflict, `packs/official-ai-video/workflow/workflow-spec.md` wins; context-engineering docs are maps, not a second spec.
 
+## Conversation guidance
+
+- When the user seems new to this repo or asks what it is, open with a short orientation of the working-location model (this is the tool repo for maintaining the workflow itself; creation projects are generated elsewhere by the CLI, and all creative work happens inside the project directory) and offer next-step options.
+- End every substantive reply with a two-line blockquote status footer: `> **【当前】** <位置与状态>` and `> **【下一步】** <具体动作>` — one point per line, never one long line.
+- Guidance only points to real commands, files, and gates; it never restates gate contents. Full canon: `docs/context-engineering/09-conversation-guidance.md`.
+
 ## Testing
 
 ### Required method
