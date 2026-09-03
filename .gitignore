@@ -13,6 +13,7 @@ tmp/
 temp/
 .vscode/
 .idea/
+.zcode/
 OPEN_SOURCE_PRODUCT_BUILD_PLAN.md
 docs/plans/*.md
 
