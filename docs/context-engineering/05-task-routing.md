@@ -117,7 +117,7 @@
 | 项 | 内容 |
 | --- | --- |
 | 应读 | 仓库根 `AGENTS.md` Testing 章节、机器全局 skill `avw-isolated-e2e-testing`、[06-verification-gates.md](./06-verification-gates.md)、[templates/isolated-test-report.md](./templates/isolated-test-report.md) |
-| 可改 | `G:\develop-G\tests\` 下本轮测试目录（新建子文件夹） |
+| 可改 | 本机测试根目录（数据盘 `develop-G\tests\`，机器映射见 [07-decisions-and-open-questions.md](./07-decisions-and-open-questions.md) D12）下本轮测试目录（新建子文件夹） |
 | 验证 | 隔离红线全程遵守；不消耗生成额度；主对话做比对与终审 |
 
 ### B5 文档维护（docs/ 站点）

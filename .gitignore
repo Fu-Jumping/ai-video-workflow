@@ -7,6 +7,7 @@ coverage/
 *.log
 .DS_Store
 Thumbs.db
+desktop.ini
 .turbo/
 tmp/
 .tmp/
@@ -15,7 +16,10 @@ temp/
 .idea/
 .zcode/
 OPEN_SOURCE_PRODUCT_BUILD_PLAN.md
-docs/plans/*.md
+docs/local-only/
+docs/plans/
+docs/context-engineering/record/
+docs/desktop-agent-product-review.html
 
 # ai-video-workflow generated and local surfaces
 _views/
@@ -29,3 +33,6 @@ memory/
 # LibTV adapter local surfaces
 .libtv/
 outputs/
+
+# Mimosa local security hook state
+.mimosa/

@@ -1,6 +1,6 @@
 # 隔离测试报告模板（isolated test report）
 
-> 用途：隔离端到端测试 / 复测的报告骨架。结构对齐机器全局 skill `avw-isolated-e2e-testing` 的 REPORT.md 模板；红线与编排流程见 `docs/context-engineering/06-verification-gates.md` §4。测试目录：`G:\develop-G\tests\<轮次目录>\`。
+> 用途：隔离端到端测试 / 复测的报告骨架。结构对齐机器全局 skill `avw-isolated-e2e-testing` 的 REPORT.md 模板；红线与编排流程见 `docs/context-engineering/06-verification-gates.md` §4。测试目录：`<本机测试根目录>\avw-<轮次目录>\`（数据盘 `develop-G\tests\`，机器映射见 `docs/context-engineering/07-decisions-and-open-questions.md` D12）。
 
 # <项目名> 测试报告（第 N 轮）
 

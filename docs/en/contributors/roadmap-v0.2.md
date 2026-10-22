@@ -1,6 +1,6 @@
 # v0.2 Roadmap: Mainline Demo Loop
 
-> See [Post-LibTV next development plan](../../plans/2026-08-22-post-libtv-development-roadmap.md) for the current execution plan.
+> Detailed execution plans are local working materials and are not included in public-candidate docs; this page describes the public roadmap goals.
 
 ## Goal
 

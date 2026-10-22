@@ -42,10 +42,11 @@
 | [08-portability-guide.md](./08-portability-guide.md) | L5 可迁移层 | 标注体系、最小迁移骨架、不可迁移清单 |
 | [09-conversation-guidance.md](./09-conversation-guidance.md) | L4 行为门禁 | 对话引导口径权威：首触引导、每轮状态脚注、初始化护航、载体登记 |
 | [10-manual-testing-guide.md](./10-manual-testing-guide.md) | L4 测试指南 | 人工真实对话手动测试：从零克隆、全局安装、场景清单、评级与问题处置 |
-| [implementation-plan-2026-08-23.md](./implementation-plan-2026-08-23.md) | 计划存档 | 本目录的建立计划与勘察结论 |
 | templates/ | L5 模板 | 任务简报、来源卡、审核记录、变更请求、隔离测试报告 |
 
 ## 与既有文档的分工
+
+- 本目录是仓库协作资料，不编入公开文档站；本地规划与过程资料放在被忽略的 `docs/local-only/`、`docs/plans/` 或 `docs/context-engineering/record/`。
 
 - `docs/zh/contributors/workflow-system-map.md`：面向"想理解这个系统的人"。
 - 本目录：面向"要动手干活的 Agent"——路由、边界、门禁。

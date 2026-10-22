@@ -44,7 +44,7 @@ When the user says they want to test, retest, or run end-to-end verification, fo
 1. Load and read `avw-isolated-e2e-testing`.
 2. Act as the main/orchestrator conversation.
 3. Prepare an isolated test context:
-   - A fresh test directory under `G:\develop-G\tests\`.
+   - A fresh test directory under the machine's test root `develop-G\tests\` on the data drive (machine mapping registered in `docs/context-engineering/07-decisions-and-open-questions.md` D12; current machine: `E:\develop-G\tests\`).
    - An initial idea file.
    - A repository link or a local bare-mirror link that simulates the published remote.
    - A test config file if a real external resource (for example a LibTV test canvas) is needed.

@@ -20,7 +20,7 @@
 ### 2.1 测试目录与构想文件
 
 ```text
-G:\develop-G\tests\avw-manual-YYYYMMDD\
+<测试根目录>\avw-manual-YYYYMMDD\   # 测试根目录 = 数据盘 develop-G\tests\（机器映射见 07-decisions D12）
 ├── idea.md          # 初期构想（见下）
 └── REPORT.md        # 边测边记（见 §4）
 ```
