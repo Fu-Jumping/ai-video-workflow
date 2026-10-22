@@ -2,9 +2,10 @@ import fs from "fs-extra";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { DEFAULT_PACK, DEFAULT_VIDEO_PLATFORM, STEP0_FILES, STEP6_FILES, STEP7_FILES, STEP_DIR_BY_NUMBER, STORY_KERNEL_FILE, activeStepDirs } from "./constants.js";
+import { CONTENT_FORMAT_VERSION, DEFAULT_PACK, DEFAULT_VIDEO_PLATFORM, STEP0_FILES, STEP6_FILES, STEP7_FILES, STEP_DIR_BY_NUMBER, STORY_KERNEL_FILE, activeStepDirs } from "./constants.js";
 import { CliUserError } from "./cli-errors.js";
 import { copyDirectory } from "./fs-utils.js";
+import { mediaProjectDirectories, mediaRecordGuideFileName, mediaRecordsDirectory } from "./media-records.js";
 import { validateSafeDirectoryName } from "./name-validation.js";
 import { packRootExists, resolvePackRoot, resolveRepoRoot } from "./paths.js";
 import { assertCanInitializeProject } from "./project-root.js";
@@ -57,6 +58,14 @@ async function seedProjectDirectories(repoRoot: string, projectRoot: string, sta
   for (const dir of activeStepDirs(config)) {
     await fs.ensureDir(path.join(projectRoot, dir));
   }
+  // 素材记录与产出目录（B1）：先建最小目录集，稳定身份规则写在说明文件里。
+  for (const dir of mediaProjectDirectories) {
+    await fs.ensureDir(path.join(projectRoot, dir));
+  }
+  await writeSeededFile(
+    path.join(projectRoot, mediaRecordsDirectory, mediaRecordGuideFileName),
+    await readPackTemplate(repoRoot, pack, path.join(mediaRecordsDirectory, mediaRecordGuideFileName))
+  );
   for (const step of [3, 4, 5]) {
     await fs.ensureDir(path.join(projectRoot, STEP_DIR_BY_NUMBER[step], "镜头组-001"));
   }
@@ -125,6 +134,9 @@ async function writeProjectConfig(projectRoot: string, options: CreateProjectOpt
       enhanced_flow: {
         enabled: true
       }
+    },
+    content: {
+      format_version: CONTENT_FORMAT_VERSION
     }
   };
   await fs.writeFile(path.join(projectRoot, "project.config.yaml"), stringifyYaml(config), "utf8");
@@ -195,6 +207,9 @@ export function renderInitNextSteps({
     "",
     "校验项目：",
     `ai-video-workflow verify --project ${quotedProjectRoot} --ide ${ide}`,
+    "",
+    "素材记录（执行阶段的当前状态都看这里）：",
+    `${mediaRecordsDirectory}/${mediaRecordGuideFileName}`,
     "",
     "可选的 Obsidian 观看层：",
     `ai-video-workflow export-obsidian --project ${quotedProjectRoot} --in-project-view`,

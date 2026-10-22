@@ -30,6 +30,7 @@ import {
   shotPipelineCanvasPath
 } from "./routes.js";
 import type { ObsidianProjectionManifest, ObsidianProjectionManifestEntry } from "./types.js";
+import { expectedMediaReviewPages } from "./media-viewer.js";
 
 const requiredDashboardMarkers: Record<string, string[]> = {
   [projectHomePath]: ["## 1. 打开路线", "## 2. 审阅入口", "## 3. 镜头审阅", "## 4. 项目状态", "## 5. 工具入口"],
@@ -170,7 +171,15 @@ function vaultLinkTargetCandidates(currentFile: string, target: string, isWikiLi
   }
   if (isWikiLink) {
     const ext = path.posix.extname(pathPart);
-    return [{ target: ext ? pathPart : `${pathPart}.md`, anchor }];
+    if (!ext) {
+      return [{ target: `${pathPart}.md`, anchor }];
+    }
+    // 素材审阅页会嵌入图片/视频等真实素材文件；它们不是观看层笔记，
+    // 存在性由素材记录校验负责，这里只校验观看层自身的笔记类目标。
+    if (![".md", ".canvas", ".base"].includes(ext)) {
+      return [];
+    }
+    return [{ target: pathPart, anchor }];
   }
   const ext = path.posix.extname(pathPart);
   if (![".md", ".canvas", ".base"].includes(ext)) {
@@ -579,6 +588,28 @@ async function verifyNoAbsoluteLinks(vaultRoot: string, files: string[], issues:
   }
 }
 
+async function verifyMediaReviewPages(
+  projectRoot: string,
+  vaultRoot: string,
+  issues: VerificationIssue[]
+): Promise<void> {
+  const expectedPages = await expectedMediaReviewPages(projectRoot);
+  if (expectedPages.length === 0) {
+    return;
+  }
+  const existingFiles = new Set(await listVaultFiles(vaultRoot));
+  for (const expected of expectedPages) {
+    if (existingFiles.has(expected.pagePath)) {
+      continue;
+    }
+    pushIssue(issues, {
+      code: "missing-obsidian-dashboard",
+      message: `素材记录已存在，但观看层缺少对应的素材审阅页：${expected.pagePath}（来源素材记录：${expected.recordPath}）`,
+      path: expected.pagePath
+    });
+  }
+}
+
 async function verifyMarkdownLinks(vaultRoot: string, files: string[], issues: VerificationIssue[]): Promise<void> {
   const existingFiles = new Set(files);
   const markdownHeadings = await markdownHeadingIndex(vaultRoot, files);
@@ -752,6 +783,7 @@ export async function verifyObsidianVault({ projectRoot, vaultRoot }: VerifyObsi
   await verifyStageReviewHubs(resolvedVaultRoot, files, issues);
   await verifyAgentHandoff(resolvedProjectRoot, resolvedVaultRoot, files, issues);
   await verifyShotReviewPages(resolvedVaultRoot, files, issues);
+  await verifyMediaReviewPages(resolvedProjectRoot, resolvedVaultRoot, issues);
   await verifyGeneratedMarkdown(resolvedProjectRoot, resolvedVaultRoot, files, manifest, issues);
   await verifyNoAbsoluteLinks(resolvedVaultRoot, files, issues);
   await verifyMarkdownLinks(resolvedVaultRoot, files, issues);

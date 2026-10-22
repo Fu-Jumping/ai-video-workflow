@@ -176,7 +176,7 @@ describe("libtv apply with mock backend", () => {
     expect(backend.getGenerationCallCount(failedNodeId)).toBe(callsAfterFailure + 1);
   });
 
-  test("timeout marks failed node and continues other nodes", async () => {
+  test("timeout marks the node as status-unknown and continues other nodes", async () => {
     const projectRoot = await makeProject();
     const backend = new MockLibTvBackend();
     await uploadAnchors(projectRoot, backend);
@@ -191,11 +191,18 @@ describe("libtv apply with mock backend", () => {
       pollIntervalMs: 1,
       timeoutMs: 30
     });
-    const failed = result.state.keyframes.find((item) => item.status === "failed");
-    expect(failed).toBeDefined();
-    expect(failed?.generationError).toContain("超时");
+    // B4：超时属于"远端状态未知"，不再写成 failed；先查状态再决定是否重跑。
+    const unknown = result.state.keyframes.find((item) => item.status === "unknown");
+    expect(unknown).toBeDefined();
+    expect(unknown?.failureClass).toBe("remote-unknown");
+    expect(unknown?.generationError).toContain("超时");
+    expect(result.state.keyframes.find((item) => item.status === "failed")).toBeUndefined();
+    expect(result.summary.keyframes.unknown).toBe(1);
+    expect(result.summary.keyframes.failed).toBe(0);
     expect(result.state.keyframes.filter((item) => item.status === "pending-approval").length).toBeGreaterThanOrEqual(1);
-    expect(result.summary.keyframes.failures.some((failure) => failure.reason === "timeout")).toBe(true);
+    expect(
+      result.summary.keyframes.failures.some((failure) => failure.reason === "timeout" && failure.failureClass === "remote-unknown")
+    ).toBe(true);
   });
 });
 

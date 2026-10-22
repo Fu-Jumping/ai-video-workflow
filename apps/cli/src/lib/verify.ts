@@ -10,9 +10,10 @@ import {
   sharedAgentDocsDir,
   sharedAgentEntryPath
 } from "./agent-workspace.js";
-import { STEP0_FILES, STEP6_FILES, STEP7_FILES, STEP_DIR_BY_NUMBER, researchStepEnabled } from "./constants.js";
+import { MIGRATED_SNAPSHOT_DIRECTORY, STEP0_FILES, STEP6_FILES, STEP7_FILES, STEP_DIR_BY_NUMBER, researchStepEnabled } from "./constants.js";
 import { applyAcceptedDeviations, readDeviations } from "./deviations.js";
-import { readProjectConfig } from "./project-config.js";
+import { verifyMediaRecords } from "./media-records.js";
+import { contentFormatVersion, isSupportedContentFormatVersion, readProjectConfig } from "./project-config.js";
 import { projectRootIssues } from "./project-root.js";
 import {
   declaredReferenceAssetTokens,
@@ -47,6 +48,9 @@ const step7AvoidHeadingPattern = /^##\s*避免[：:]\s*$/mu;
 // constraint beyond these defaults, otherwise the negative block is not per-shot customized.
 const step5GenericNegativeDefaults = [
   "不得超过 15 秒。",
+  "不得超过 6 个连续编号的镜头段。",
+  // Kept so projects written before the 4→6 contract change are still recognized as
+  // carrying only template-default negatives instead of looking customized.
   "不得超过 4 个连续编号的镜头段。",
   "不得丢失 Step 4 已选关键帧和语义参考素材。",
   "不得把 `{{Mixed n}}` 槽位号写成事实源引用。",
@@ -82,7 +86,8 @@ function sectionAfterHeading(content: string, headingText: string): string {
   return body.join("\n");
 }
 const ignoredMarkdownDirs = new Set(["node_modules", ".git"]);
-const ignoredGeneratedViewRootDirs = ["_views", ".obsidian"] as const;
+// 迁移快照目录：迁移后的旧文件在这里保留为只读快照，不参与当前内容的链接检查与投影。
+const ignoredGeneratedViewRootDirs = ["_views", ".obsidian", MIGRATED_SNAPSHOT_DIRECTORY] as const;
 const ignoredRootMarkdownDirs = new Set([...cherryHostSurfaceDirs, ...ignoredGeneratedViewRootDirs]);
 const ignoredRootMarkdownFiles = new Set(cherryHostSurfaceFiles);
 const absoluteLinkPattern = /([A-Za-z]:\\|[A-Za-z]:\/|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
@@ -598,10 +603,10 @@ function verifyShotGraphContract(graph: ShotGraph, issues: VerificationIssue[], 
     }
     const segments = shot.storyboardSegments;
     const consecutive = segments.every((value, index) => value === index + 1);
-    if (segments.length < 1 || segments.length > 4 || !consecutive) {
+    if (segments.length < 1 || segments.length > 6 || !consecutive) {
       pushIssue(issues, {
         code: "invalid-storyboard-segment-count",
-        message: `Storyboard ${shot.id} must declare 1-4 consecutive 分镜 sections — use \`### 分镜 N\` headings numbered 1..4 (entry-style \`- 分镜 1：...\` lines are not supported)`,
+        message: `Storyboard ${shot.id} must declare 1-6 consecutive 分镜 sections — use \`### 分镜 N\` headings numbered 1..6 (entry-style \`- 分镜 1：...\` lines are not supported)`,
         path: shot.storyboard.relPath
       });
     }
@@ -638,10 +643,10 @@ function verifyShotGraphContract(graph: ShotGraph, issues: VerificationIssue[], 
     if (shot.videoPrompt) {
       const videoShots = shot.videoPromptShots;
       const videoConsecutive = videoShots.every((value, index) => value === index + 1);
-      if (videoShots.length < 1 || videoShots.length > 4 || !videoConsecutive || videoShots.length !== segments.length) {
+      if (videoShots.length < 1 || videoShots.length > 6 || !videoConsecutive || videoShots.length !== segments.length) {
         pushIssue(issues, {
           code: "invalid-step5-contract",
-          message: `Step 5 ${shot.id} must contain 1-4 continuous 镜头N sections matching Step 3 分镜 count`,
+          message: `Step 5 ${shot.id} must contain 1-6 continuous 镜头N sections matching Step 3 分镜 count`,
           path: shot.videoPrompt.relPath
         });
       }
@@ -1002,6 +1007,17 @@ export async function verifyProject({
     pushIssue(issues, issue);
   }
   if (config) {
+    const declaredContentVersion = contentFormatVersion(config);
+    if (!isSupportedContentFormatVersion(declaredContentVersion)) {
+      pushIssue(issues, {
+        code: "unsupported-content-format",
+        message:
+          "project.config.yaml 声明的内容树格式版本 " +
+          String(declaredContentVersion) +
+          " 本工具还不支持；请升级工具或改回受支持的版本（缺这个键的旧项目按旧格式读取，不受影响）",
+        path: "project.config.yaml"
+      });
+    }
     if (!config.platforms?.image?.default) {
       pushIssue(issues, {
         code: "missing-image-default-platform",
@@ -1057,6 +1073,7 @@ export async function verifyProject({
   await verifyRelativeMarkdownLinkTargets(projectRoot, issues, step);
   await verifyIdeRuntime(projectRoot, ide, issues);
   await verifySharedAgentWorkspace(projectRoot, ide, issues);
+  await verifyMediaRecords(projectRoot, issues);
 
   const { mode, deviations, shots, issues: deviationIssues } = await readDeviations(projectRoot);
   for (const issue of deviationIssues) {

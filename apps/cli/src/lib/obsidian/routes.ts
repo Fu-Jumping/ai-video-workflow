@@ -9,6 +9,7 @@ export const stageReviewDirectory = "01_阶段审核";
 export const shotLookupDirectory = "02_按镜头联查";
 export const reviewToolsDirectory = "03_审阅工具";
 export const userNotesDirectory = "04_个人笔记";
+export const mediaReviewDirectory = "05_素材审阅";
 
 export const stepDisplayDirectories: Readonly<Record<number, string>> = Object.freeze({
   0: "00_前期研究",
@@ -73,6 +74,23 @@ export function shotReviewNotePath(shotId: string): string {
 
 export const notesIndexPath = `${userNotesDirectory}/说明.md`;
 export const notesIndexLink = notesIndexPath.slice(0, -3);
+
+// 素材审阅（B3）：参考媒体与产出文件的独立查看器。每个素材一页，
+// 与素材记录同构：身份键决定页面位置，展示名只影响标题。
+export const mediaReviewIndexPath = `${mediaReviewDirectory}/00_素材总览.md`;
+export const mediaReviewReferenceDirectory = `${mediaReviewDirectory}/参考素材`;
+export const mediaReviewKeyframeDirectory = `${mediaReviewDirectory}/关键帧`;
+export const mediaReviewVideoDirectory = `${mediaReviewDirectory}/视频`;
+
+export function mediaReviewCategoryDirectory(category: string): string {
+  if (category === "keyframe") return mediaReviewKeyframeDirectory;
+  if (category === "video") return mediaReviewVideoDirectory;
+  return mediaReviewReferenceDirectory;
+}
+
+export function mediaReviewPagePath(category: string, objectId: string, purpose: string): string {
+  return `${mediaReviewCategoryDirectory(category)}/${objectId}/${purpose}.md`;
+}
 
 // Naming aliases keep the route contract readable at call sites that refer
 // to the top-level areas as entry, tools, or personal-notes directories.

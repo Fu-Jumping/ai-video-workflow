@@ -5,11 +5,18 @@ import type { LibTvBackend } from "./backend.js";
 import { buildLibTvPlan } from "./assets.js";
 import { runNodeGeneration, LibTvGenerationError } from "./execution.js";
 import { readState, requireBinding, writeState } from "./project-binding.js";
+import { classifyLibTvGenerationError, describeLibTvFailureClass } from "./failures.js";
+import { firstNodeOutputUrl, saveNodeOutput, saveUrlOutput, type LibTvDownloadResult } from "./download.js";
 import type {
   LibTvApplyOptions,
   LibTvApplySummary,
   LibTvApplySectionSummary,
   LibTvKeyframeState,
+  LibTvFailureClass,
+  LibTvFetchLike,
+  LibTvRedownloadItem,
+  LibTvRedownloadOptions,
+  LibTvRedownloadSummary,
   LibTvState,
   LibTvVideoState
 } from "./types.js";
@@ -19,22 +26,35 @@ function fileSha256(filePath: string): string {
   return createHash("sha256").update(content).digest("hex");
 }
 
-async function downloadNodeOutput(node: { data?: { url?: unknown } }, outputDir: string, fileNameBase: string): Promise<string | undefined> {
-  const urls = (node.data?.url ?? []) as string[];
-  if (urls.length === 0) return undefined;
-  await fs.ensureDir(outputDir);
-  const url = urls[0];
-  try {
-    const response = await fetch(url);
-    if (!response.ok) return undefined;
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const ext = path.extname(new URL(url).pathname) || ".bin";
-    const target = path.join(outputDir, `${fileNameBase}${ext}`);
-    await fs.writeFile(target, buffer);
-    return target;
-  } catch {
-    return undefined;
+/**
+ * 生成成功后的本地保存。失败只记 local-save-failed，绝不改动平台的生成结果，
+ * 也不清掉 taskId/cdnUrl —— 补下载要靠它们。
+ */
+async function persistNodeOutput(
+  node: { data?: { url?: unknown } },
+  outputDir: string,
+  fileNameBase: string,
+  fetchImpl: LibTvFetchLike | undefined,
+  item: { localOutput?: string; downloadError?: string; failureClass?: LibTvFailureClass },
+  actions: string[],
+  label: string
+): Promise<LibTvDownloadResult> {
+  const result = await saveNodeOutput(node, { outputDir, fileNameBase, fetchImpl });
+  if (result.status === "saved") {
+    item.localOutput = result.path;
+    item.downloadError = undefined;
+    return result;
   }
+  if (result.status === "no-url") {
+    // 平台还没给出产物地址：不是失败，保持已生成状态，留给补下载。
+    actions.push(`警告：${label} 生成后没有媒体地址，暂不下载`);
+    return result;
+  }
+  item.localOutput = undefined;
+  item.downloadError = result.error;
+  item.failureClass = "local-save-failed";
+  actions.push(`${label} 已生成，但本地保存失败：${result.error}`);
+  return result;
 }
 
 function displayNameForAnchor(token: string): string {
@@ -110,7 +130,7 @@ function isKeyframeApproved(item: LibTvKeyframeState): boolean {
 }
 
 function emptySection(total: number): LibTvApplySectionSummary {
-  return { total, skipped: 0, generated: 0, failed: 0, failures: [] };
+  return { total, skipped: 0, generated: 0, failed: 0, unknown: 0, failures: [] };
 }
 
 function buildSummary(dryRun: boolean, allowGeneration: boolean, keyframes: LibTvApplySectionSummary, videos: LibTvApplySectionSummary): LibTvApplySummary {
@@ -232,6 +252,12 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
         continue;
       }
 
+      if (existing?.status === "unknown" && !retrySet.has(key)) {
+        keyframeSummary.skipped += 1;
+        actions.push(`关键帧状态未知，先查状态再决定 ${key}`);
+        continue;
+      }
+
       if (existing?.status === "failed" && !retrySet.has(key)) {
         keyframeSummary.skipped += 1;
         actions.push(`关键帧失败但未指定重试 ${key}`);
@@ -326,21 +352,31 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
           }
         });
 
+        // 平台生成成功：先把生成结果写实，再单独尝试下载。
         item.status = "pending-approval";
         item.taskId = result.taskId;
         item.progressPercent = 100;
         item.generationError = undefined;
+        item.failureClass = undefined;
+        item.downloadError = undefined;
+        item.cdnUrl = firstNodeOutputUrl(result.node);
         item.attempts = (item.attempts ?? 0) + 1;
-        const localOutput = await downloadNodeOutput(
+        keyframeSummary.generated += 1;
+        await writeState(projectRoot, state);
+
+        // 下载与生成分开捕错：这里失败只记 local-save-failed，不改平台状态、不丢 taskId/cdnUrl。
+        const download = await persistNodeOutput(
           result.node,
           path.join(projectRoot, "outputs", "images", keyframe.groupId, keyframe.shotId),
-          keyframe.keyframeId
+          keyframe.keyframeId,
+          options.fetchImpl,
+          item,
+          actions,
+          `关键帧 ${key}`
         );
-        const urls = (result.node.data?.url ?? []) as string[];
-        item.localOutput = localOutput;
-        item.cdnUrl = typeof urls[0] === "string" ? urls[0] : undefined;
-        keyframeSummary.generated += 1;
-        actions.push(`生成关键帧 ${key} -> ${item.nodeId}${localOutput ? ` (${localOutput})` : ""}`);
+        actions.push(
+          `生成关键帧 ${key} -> ${item.nodeId}${download.status === "saved" ? ` (${download.path})` : ""}`
+        );
         await writeState(projectRoot, state);
       } catch (error) {
         item = item ?? {
@@ -353,13 +389,35 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
         if (!state.keyframes.includes(item)) {
           state.keyframes.push(item);
         }
-        item.status = "failed";
+        const classified = classifyLibTvGenerationError(error);
+        item.status = classified.status;
+        item.failureClass = classified.failureClass;
         item.generationError = errorMessage(error);
+        item.downloadError = undefined;
         item.attempts = (item.attempts ?? 0) + 1;
-        keyframeSummary.failed += 1;
         const reason = error instanceof LibTvGenerationError ? error.reason : "execution-error";
-        keyframeSummary.failures.push({ id: key, reason, message: errorMessage(error), nodeId: item.nodeId || undefined });
-        actions.push(`关键帧失败 ${key}: ${errorMessage(error)}`);
+        if (classified.status === "unknown") {
+          // 状态未知不等于失败：不消耗 --retry 语义，重跑前应先查。
+          keyframeSummary.unknown += 1;
+          keyframeSummary.failures.push({
+            id: key,
+            reason,
+            message: errorMessage(error),
+            nodeId: item.nodeId || undefined,
+            failureClass: classified.failureClass
+          });
+          actions.push(`关键帧状态未知 ${key}：${errorMessage(error)}（先查再重跑）`);
+        } else {
+          keyframeSummary.failed += 1;
+          keyframeSummary.failures.push({
+            id: key,
+            reason,
+            message: errorMessage(error),
+            nodeId: item.nodeId || undefined,
+            failureClass: classified.failureClass
+          });
+          actions.push(`关键帧失败 ${key}: ${errorMessage(error)}`);
+        }
         await writeState(projectRoot, state);
       }
     }
@@ -374,6 +432,12 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
       if (existing && isVideoComplete(existing)) {
         videoSummary.skipped += 1;
         actions.push(`视频已存在 ${key}`);
+        continue;
+      }
+
+      if (existing?.status === "unknown" && !retrySet.has(key)) {
+        videoSummary.skipped += 1;
+        actions.push(`视频状态未知，先查状态再决定 ${key}`);
         continue;
       }
 
@@ -489,26 +553,34 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
           }
         });
 
+        // 平台生成成功：先把生成结果写实，再单独尝试下载。
         item.status = "generated";
         item.taskId = result.taskId;
         item.progressPercent = 100;
         item.generationError = undefined;
+        item.failureClass = undefined;
+        item.downloadError = undefined;
+        item.cdnUrl = firstNodeOutputUrl(result.node);
         item.attempts = (item.attempts ?? 0) + 1;
-        const localOutput = await downloadNodeOutput(
-          result.node,
-          path.join(projectRoot, "outputs", "video", video.groupId, video.shotId),
-          video.shotId
-        );
+        videoSummary.generated += 1;
         const dataParams = (result.node.data?.params ?? {}) as Record<string, unknown>;
         const orderAfterRun = (dataParams.mixedListOrder ?? dataParams.imageListOrder) as string[] | undefined;
         if (!orderAfterRun || orderAfterRun.length === 0) {
           actions.push(`警告：视频 ${key} 生成后缺少 imageListOrder/mixedListOrder`);
         }
-        const urls = (result.node.data?.url ?? []) as string[];
-        item.localOutput = localOutput;
-        item.cdnUrl = typeof urls[0] === "string" ? urls[0] : undefined;
-        videoSummary.generated += 1;
-        actions.push(`生成视频 ${key} -> ${item.nodeId}${localOutput ? ` (${localOutput})` : ""}`);
+        await writeState(projectRoot, state);
+
+        // 下载与生成分开捕错：这里失败只记 local-save-failed，不改平台状态、不丢 taskId/cdnUrl。
+        const download = await persistNodeOutput(
+          result.node,
+          path.join(projectRoot, "outputs", "video", video.groupId, video.shotId),
+          video.shotId,
+          options.fetchImpl,
+          item,
+          actions,
+          `视频 ${key}`
+        );
+        actions.push(`生成视频 ${key} -> ${item.nodeId}${download.status === "saved" ? ` (${download.path})` : ""}`);
         await writeState(projectRoot, state);
       } catch (error) {
         item = item ?? {
@@ -521,13 +593,35 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
         if (!state.videos.includes(item)) {
           state.videos.push(item);
         }
-        item.status = "failed";
+        const classified = classifyLibTvGenerationError(error);
+        item.status = classified.status;
+        item.failureClass = classified.failureClass;
         item.generationError = errorMessage(error);
+        item.downloadError = undefined;
         item.attempts = (item.attempts ?? 0) + 1;
-        videoSummary.failed += 1;
         const reason = error instanceof LibTvGenerationError ? error.reason : "execution-error";
-        videoSummary.failures.push({ id: key, reason, message: errorMessage(error), nodeId: item.nodeId || undefined });
-        actions.push(`视频失败 ${key}: ${errorMessage(error)}`);
+        if (classified.status === "unknown") {
+          // 状态未知不等于失败：不消耗 --retry 语义，重跑前应先查。
+          videoSummary.unknown += 1;
+          videoSummary.failures.push({
+            id: key,
+            reason,
+            message: errorMessage(error),
+            nodeId: item.nodeId || undefined,
+            failureClass: classified.failureClass
+          });
+          actions.push(`视频状态未知 ${key}：${errorMessage(error)}（先查再重跑）`);
+        } else {
+          videoSummary.failed += 1;
+          videoSummary.failures.push({
+            id: key,
+            reason,
+            message: errorMessage(error),
+            nodeId: item.nodeId || undefined,
+            failureClass: classified.failureClass
+          });
+          actions.push(`视频失败 ${key}: ${errorMessage(error)}`);
+        }
         await writeState(projectRoot, state);
       }
     }
@@ -551,11 +645,126 @@ export function renderApplySummary(result: { actions: string[]; state: LibTvStat
   ];
   if (result.summary) {
     lines.push("");
-    lines.push(`关键帧：总 ${result.summary.keyframes.total}，跳过 ${result.summary.keyframes.skipped}，成功 ${result.summary.keyframes.generated}，失败 ${result.summary.keyframes.failed}`);
-    lines.push(`视频：总 ${result.summary.videos.total}，跳过 ${result.summary.videos.skipped}，成功 ${result.summary.videos.generated}，失败 ${result.summary.videos.failed}`);
+    lines.push(`关键帧：总 ${result.summary.keyframes.total}，跳过 ${result.summary.keyframes.skipped}，成功 ${result.summary.keyframes.generated}，失败 ${result.summary.keyframes.failed}，状态未知 ${result.summary.keyframes.unknown}`);
+    lines.push(`视频：总 ${result.summary.videos.total}，跳过 ${result.summary.videos.skipped}，成功 ${result.summary.videos.generated}，失败 ${result.summary.videos.failed}，状态未知 ${result.summary.videos.unknown}`);
     for (const failure of [...result.summary.keyframes.failures, ...result.summary.videos.failures]) {
-      lines.push(`- 失败 ${failure.id} [${failure.reason}] ${failure.message}${failure.nodeId ? ` (${failure.nodeId})` : ""}`);
+      const label = describeLibTvFailureClass(failure.failureClass);
+      lines.push(`- ${label ? label : "失败"} ${failure.id} [${failure.reason}] ${failure.message}${failure.nodeId ? ` (${failure.nodeId})` : ""}`);
     }
+  }
+  return lines.join("\n");
+}
+
+/**
+ * 只补下载：把「生成成功但本地没存下来」的产物重新落盘，绝不重新提交生成。
+ *
+ * 判据：节点已有 cdnUrl 但 localOutput 缺失（或文件已不在）。
+ * 不碰 status、不改 taskId、不调用任何生成接口；generationCalls 恒为 0，便于审计。
+ */
+export async function redownloadLibTvOutputs(
+  projectRoot: string,
+  options: LibTvRedownloadOptions = {}
+): Promise<LibTvRedownloadSummary> {
+  const state = await readState(projectRoot);
+  const only = options.only ?? ["keyframes", "videos"];
+  const idSet = options.ids && options.ids.length > 0 ? new Set(options.ids) : undefined;
+  const items: LibTvRedownloadItem[] = [];
+
+  const needsDownload = (item: { localOutput?: string }): boolean => {
+    if (!item.localOutput) return true;
+    return !fs.existsSync(item.localOutput);
+  };
+
+  if (only.includes("keyframes")) {
+    for (const item of state.keyframes) {
+      const id = keyframeKey(item.groupId, item.shotId, item.keyframeId);
+      if (idSet && !idSet.has(id)) continue;
+      if (!needsDownload(item)) {
+        items.push({ id, kind: "keyframes", outcome: "skipped", localOutput: item.localOutput, taskId: item.taskId, message: "本地已存在" });
+        continue;
+      }
+      if (!item.cdnUrl) {
+        items.push({ id, kind: "keyframes", outcome: "no-url", taskId: item.taskId, message: "没有媒体地址，无法补下载" });
+        continue;
+      }
+      const result = await saveUrlOutput(item.cdnUrl, {
+        outputDir: path.join(projectRoot, "outputs", "images", item.groupId, item.shotId),
+        fileNameBase: item.keyframeId,
+        fetchImpl: options.fetchImpl
+      });
+      if (result.status === "saved") {
+        item.localOutput = result.path;
+        item.downloadError = undefined;
+        item.failureClass = undefined;
+        items.push({ id, kind: "keyframes", outcome: "saved", localOutput: result.path, taskId: item.taskId });
+      } else {
+        const message = result.status === "failed" ? result.error : "没有媒体地址，无法补下载";
+        item.localOutput = undefined;
+        item.downloadError = message;
+        item.failureClass = "local-save-failed";
+        items.push({ id, kind: "keyframes", outcome: result.status === "failed" ? "failed" : "no-url", taskId: item.taskId, message, failureClass: "local-save-failed" });
+      }
+    }
+  }
+
+  if (only.includes("videos")) {
+    for (const item of state.videos) {
+      const id = videoKey(item.groupId, item.shotId);
+      if (idSet && !idSet.has(id)) continue;
+      if (!needsDownload(item)) {
+        items.push({ id, kind: "videos", outcome: "skipped", localOutput: item.localOutput, taskId: item.taskId, message: "本地已存在" });
+        continue;
+      }
+      if (!item.cdnUrl) {
+        items.push({ id, kind: "videos", outcome: "no-url", taskId: item.taskId, message: "没有媒体地址，无法补下载" });
+        continue;
+      }
+      const result = await saveUrlOutput(item.cdnUrl, {
+        outputDir: path.join(projectRoot, "outputs", "video", item.groupId, item.shotId),
+        fileNameBase: item.shotId,
+        fetchImpl: options.fetchImpl
+      });
+      if (result.status === "saved") {
+        item.localOutput = result.path;
+        item.downloadError = undefined;
+        item.failureClass = undefined;
+        items.push({ id, kind: "videos", outcome: "saved", localOutput: result.path, taskId: item.taskId });
+      } else {
+        const message = result.status === "failed" ? result.error : "没有媒体地址，无法补下载";
+        item.localOutput = undefined;
+        item.downloadError = message;
+        item.failureClass = "local-save-failed";
+        items.push({ id, kind: "videos", outcome: result.status === "failed" ? "failed" : "no-url", taskId: item.taskId, message, failureClass: "local-save-failed" });
+      }
+    }
+  }
+
+  state.updatedAt = new Date().toISOString();
+  await writeState(projectRoot, state);
+
+  return {
+    generationCalls: 0,
+    saved: items.filter((item) => item.outcome === "saved").length,
+    failed: items.filter((item) => item.outcome === "failed").length,
+    skipped: items.filter((item) => item.outcome === "skipped" || item.outcome === "no-url").length,
+    items
+  };
+}
+
+export function renderRedownloadSummary(result: LibTvRedownloadSummary): string {
+  const lines: string[] = [
+    `补下载结果：成功 ${result.saved}，失败 ${result.failed}，跳过 ${result.skipped}（本次生成调用 ${result.generationCalls} 次）`
+  ];
+  for (const item of result.items) {
+    if (item.outcome === "saved") {
+      lines.push(`- 已保存 ${item.id} -> ${item.localOutput}`);
+      continue;
+    }
+    if (item.outcome === "skipped") {
+      lines.push(`- 跳过 ${item.id}：${item.message ?? "本地已存在"}`);
+      continue;
+    }
+    lines.push(`- 未完成 ${item.id} [${item.outcome}] ${item.message ?? ""}`);
   }
   return lines.join("\n");
 }

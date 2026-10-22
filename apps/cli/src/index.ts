@@ -50,6 +50,14 @@ import { verifyProject } from "./lib/verify.js";
 import { assertCanInitializeProject, assertExistingDirectory } from "./lib/project-root.js";
 import { assertSingleObsidianTarget, resolveInProjectObsidianView } from "./lib/view-layer.js";
 import { registerLibTvCommands } from "./lib/libtv/register.js";
+import {
+  backupIssueKindLabels,
+  createMediaBackup,
+  inspectProjectReferences,
+  restoreMediaBackup,
+  verifyBackup
+} from "./lib/media-backup.js";
+import { listMediaRecords, renderMediaOverview } from "./lib/media-records.js";
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -626,6 +634,82 @@ program
     console.log(renderRebuildViewSummary(result));
     if (options.dryRun) {
       console.log("Dry run complete for in-project Obsidian view rebuild; no files were written or deleted.");
+    }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+program
+  .command("media-list")
+  .description("List media records with platform, download, review and selection states kept separate")
+  .requiredOption("--project <path>")
+  .action((options) => runCliAction(async () => {
+    const records = await listMediaRecords(path.resolve(options.project));
+    console.log(renderMediaOverview(records));
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+program
+  .command("backup-media")
+  .description("Copy a project's media library, outputs and media records into a backup directory with a per-file hash manifest")
+  .requiredOption("--project <path>")
+  .requiredOption("--out <path>", "Backup directory; must be outside the project")
+  .action((options) => runCliAction(async () => {
+    const result = await createMediaBackup(path.resolve(options.project), path.resolve(options.out));
+    console.log("备份目录：" + result.backupRoot);
+    console.log("清单文件：" + result.manifestPath);
+    console.log("备份文件：" + result.manifest.entries.length + " 个，共 " + result.manifest.totalBytes + " 字节");
+    if (result.missingRoots.length > 0) {
+      console.log("项目里还不存在的内容：" + result.missingRoots.join("、") + "（不参与本次备份）");
+    }
+    if (result.excluded.length > 0) {
+      console.log("按规则排除：" + result.excluded.length + " 项（缓存、依赖、临时目录、凭证类文件不进备份）");
+    }
+    if (result.skipped.length > 0) {
+      console.log("跳过无法读取的条目：" + result.skipped.length + " 项");
+      for (const item of result.skipped) console.log("  [跳过] " + item);
+    }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+program
+  .command("verify-media-backup")
+  .description("Verify a media backup directory against its manifest")
+  .requiredOption("--backup <path>")
+  .action((options) => runCliAction(async () => {
+    const report = await verifyBackup(path.resolve(options.backup));
+    for (const line of report.lines) console.log(line);
+    if (!report.ok) {
+      for (const issue of report.issues) {
+        console.error("- [" + backupIssueKindLabels[issue.kind] + "] " + issue.message);
+      }
+      process.exitCode = 1;
+    }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+program
+  .command("restore-media-backup")
+  .description("Restore a media backup into a directory; verifies first and never overwrites existing files unless allowed")
+  .requiredOption("--backup <path>")
+  .requiredOption("--to <path>", "Target project directory to restore into")
+  .option("--allow-overwrite", "Overwrite files that already exist in the target directory", false)
+  .option("--no-rewrite-references", "Do not rewrite absolute paths in media records to the new location")
+  .action((options) => runCliAction(async () => {
+    const report = await restoreMediaBackup(path.resolve(options.backup), path.resolve(options.to), {
+      allowOverwrite: options.allowOverwrite === true,
+      rewriteReferences: options.rewriteReferences !== false
+    });
+    for (const line of report.lines) console.log(line);
+    if (!report.ok) {
+      process.exitCode = 1;
+    }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+program
+  .command("check-media-references")
+  .description("Check whether the file references inside media records still resolve after moving a project")
+  .requiredOption("--project <path>")
+  .action((options) => runCliAction(async () => {
+    const inspection = await inspectProjectReferences(path.resolve(options.project));
+    for (const line of inspection.lines) console.log(line);
+    if (!inspection.valid) {
+      process.exitCode = 1;
     }
   }, () => program.opts<{ debug?: boolean }>().debug === true));
 

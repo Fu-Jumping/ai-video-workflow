@@ -1038,17 +1038,67 @@ test("accepts a custom pack name in project.config.yaml", async () => {
     expect(result).toEqual({ ok: true, issues: [] });
   });
 
-  test("rejects a fifth storyboard segment", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-five-segment-shot-"));
+  test("accepts six storyboard segments, the product limit", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-six-segment-shot-"));
     tempRoots.push(root);
     const projectRoot = await createSyncedProject(root, "codex");
-    await seedSegmentContract(projectRoot, 5, [3]);
+    await seedSegmentContract(projectRoot, 6, [2, 6]);
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+
+    expect(result).toEqual({ ok: true, issues: [] });
+  });
+
+  test("rejects a seventh storyboard segment", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-seven-segment-shot-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await seedSegmentContract(projectRoot, 7, [3]);
 
     const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
 
     expect(result.ok).toBe(false);
     expect(result.issues).toEqual(
       expect.arrayContaining([expect.objectContaining({ code: "invalid-storyboard-segment-count", path: storyboardRelPath })])
+    );
+  });
+
+  test("rejects more keyframes than the shot has storyboard segments", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-keyframes-over-segments-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await seedSegmentContract(projectRoot, 2, [1, 1, 2]);
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "invalid-keyframe-mapping" })])
+    );
+  });
+
+  test("accepts one keyframe per storyboard segment up to the shot segment count", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-keyframes-equal-segments-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await seedSegmentContract(projectRoot, 2, [1, 2]);
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+
+    expect(result).toEqual({ ok: true, issues: [] });
+  });
+
+  test("rejects a keyframe that points at a storyboard segment the shot does not have", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-keyframe-unmapped-segment-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await seedSegmentContract(projectRoot, 2, [1, 3]);
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "invalid-keyframe-mapping" })])
     );
   });
 

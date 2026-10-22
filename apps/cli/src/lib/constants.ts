@@ -57,6 +57,21 @@ export const PLATFORM_DISPLAY_NAMES: Record<Platform, string> = {
 export const DEFAULT_VIDEO_PLATFORM: Platform = "seedance";
 export const DEFAULT_PACK = "official-ai-video";
 
+/**
+ * 内容树（内容/ 目录）的格式版本号，写在 project.config.yaml 的 content.format_version。
+ *
+ * 旧项目没有这个键，读取时按旧格式（legacy）处理、不报错；只有明确声明了本工具
+ * 不认识的版本号时才报错，避免把新结构当旧结构读、或把旧项目当新结构写。
+ */
+export const CONTENT_FORMAT_VERSION = 1;
+export const SUPPORTED_CONTENT_FORMAT_VERSIONS: readonly number[] = [1];
+
+/** 内容树根目录名（C0 实施后启用；本轮只登记常量，不创建目录）。 */
+export const CONTENT_ROOT_DIRECTORY = "内容";
+
+/** 迁移快照目录名：迁移后的旧文件在此保留为只读快照，不参与当前内容检查与投影。 */
+export const MIGRATED_SNAPSHOT_DIRECTORY = "已迁移";
+
 export function researchStepEnabled(config: ProjectConfig): boolean {
   return config.workflow.research_step?.enabled === true;
 }

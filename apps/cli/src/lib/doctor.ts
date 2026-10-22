@@ -217,7 +217,7 @@ export async function diagnoseProject({
         lines.push("  保证镜头编号在项目内全局唯一，并让同一镜头的 Step 3/4/5 文件位于同一个镜头组。");
       }
       if (issue.code === "invalid-storyboard-segment-count") {
-        lines.push("  在 Step 3 使用 1-4 个从 `分镜 1` 开始连续编号的分镜；默认 1-2 个，复杂内容最多 4 个。");
+        lines.push("  在 Step 3 使用 1-6 个从 `分镜 1` 开始连续编号的分镜；默认 1-2 个，复杂内容最多 6 个。");
       }
       if (issue.code === "invalid-keyframe-mapping") {
         lines.push("  使用 `镜头-001-关键帧-01.md`，在 Step 4 元信息写清镜头组、镜头编号、对应分镜和关键时刻，并让 Step 3 链接全部已选关键帧。");

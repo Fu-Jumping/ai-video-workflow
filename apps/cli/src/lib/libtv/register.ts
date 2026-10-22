@@ -14,7 +14,7 @@ import type { LibTvBackend } from "./backend.js";
 import { readBinding, resolveProjectRoot, writeBinding, clearBinding, writeGroupBinding, clearGroupBinding, readState, writeState, writeWorkspaceBinding, clearWorkspaceBinding } from "./project-binding.js";
 import { buildLibTvPlan } from "./assets.js";
 import { renderPlan } from "./plan.js";
-import { applyPlan, renderApplySummary } from "./apply.js";
+import { applyPlan, redownloadLibTvOutputs, renderApplySummary, renderRedownloadSummary } from "./apply.js";
 import { buildStatus, renderStatus } from "./status.js";
 import { verifyLibtvProject, renderVerifyIssues } from "./verify.js";
 import { verifyLibtvOrder, renderOrderVerifyIssues, writeOrderContracts } from "./order.js";
@@ -953,6 +953,22 @@ ${loginUrl}
       } else {
         console.log(renderApplySummary(result));
       }
+    }, () => getAncestorOption(command, "debug") === true));
+
+  libtv
+    .command("redownload")
+    .description("只补下载已生成但本地没存下来的产物；不会重新触发生成")
+    .option("--project <path>", "本地项目目录")
+    .option("--id <id>", "只补指定节点，可重复", collect, [])
+    .option("--only <kind>", "只补 keyframes|videos，可重复", collect, [])
+    .action((options, command) => runCliAction(async () => {
+      const projectRoot = await resolveProjectRoot(options.project, process.cwd());
+      const result = await redownloadLibTvOutputs(projectRoot, {
+        ids: options.id.length > 0 ? options.id : undefined,
+        only: options.only.length > 0 ? (options.only as Array<"keyframes" | "videos">) : undefined
+      });
+      console.log(renderRedownloadSummary(result));
+      if (result.failed > 0) process.exitCode = 1;
     }, () => getAncestorOption(command, "debug") === true));
 
   libtv

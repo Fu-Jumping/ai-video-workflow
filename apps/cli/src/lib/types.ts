@@ -103,7 +103,16 @@ export type IssueCode =
   | "obsidian-vault-not-directory"
   | "unsafe-obsidian-force-target"
   | "invalid-deviations-yaml"
-  | "invalid-deviation-entry";
+  | "invalid-deviation-entry"
+  | "invalid-media-record"
+  | "duplicate-media-record"
+  | "media-record-identity-mismatch"
+  | "duplicate-media-version"
+  | "media-record-missing-file"
+  | "media-record-empty-file"
+  | "media-record-size-mismatch"
+  | "media-record-selection-missing"
+  | "unsupported-content-format";
 
 export interface LibTvProjectConfig {
   image_model?: string;
@@ -126,6 +135,9 @@ export interface ProjectConfig {
     enhanced_flow: {
       enabled: boolean;
     };
+  };
+  content?: {
+    format_version?: number;
   };
   libtv?: LibTvProjectConfig;
 }

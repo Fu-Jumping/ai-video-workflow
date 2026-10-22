@@ -12,8 +12,10 @@ import {
   renderProjectionManifest
 } from "./manifest.js";
 import { renderGeneratedWorkflowNote, workflowVaultPath } from "./markdown.js";
+import { planMediaReviewAssets, renderMediaReviewFiles, type MediaReviewAsset } from "./media-viewer.js";
 import { hasGeneratedFrontmatterMarker } from "./properties.js";
 import { sourcePathToFsPath } from "./paths.js";
+import { mediaReviewDirectory } from "./routes.js";
 import { scanProjectForObsidian } from "./scan.js";
 import type {
   ObsidianExportOperation,
@@ -34,6 +36,8 @@ import { verifyProject } from "../verify.js";
 
 const legacyUserNotesDirectory = "笔记";
 const userNotesDirectory = "04_个人笔记";
+// 素材副本的 vault 内子树（页面目录 05_素材审阅/关键帧 等存放页面，副本另起 _素材/）。
+const mediaReviewAssetsVaultDirectory = `${mediaReviewDirectory}/_素材`;
 
 function isInsidePath(child: string, parent: string): boolean {
   const relative = path.relative(path.resolve(parent), path.resolve(child));
@@ -94,7 +98,7 @@ async function assertSafeForceOutput(outRoot: string): Promise<void> {
   }
 }
 
-const currentVaultTopDirectories = ["00_开始审阅", "01_阶段审核", "02_按镜头联查", "03_审阅工具", "04_个人笔记"] as const;
+const currentVaultTopDirectories = ["00_开始审阅", "01_阶段审核", "02_按镜头联查", "03_审阅工具", "04_个人笔记", "05_素材审阅"] as const;
 
 function isCurrentVaultLayout(manifest: ObsidianProjectionManifest | null): boolean {
   return (manifest?.files ?? []).some((entry) =>
@@ -379,6 +383,79 @@ async function planGeneratedFiles(
   return operations;
 }
 
+/**
+ * 素材审阅（B3）：把 05_素材审阅 页面里引用的素材文件复制进 vault。
+ *
+ * 外部 vault 里没有项目的 outputs/ 目录，页面必须嵌入 vault 内的副本，
+ * 否则 Obsidian 显示不出图片。源文件缺失时跳过复制：页面那边已经写成
+ * 「文件缺失：<原相对路径>」，导出不因此失败。
+ */
+async function copyMediaReviewAssets(outRoot: string, assets: MediaReviewAsset[]): Promise<void> {
+  for (const asset of assets) {
+    if (!asset.exists) {
+      continue;
+    }
+    const destinationPath = vaultFsPath(outRoot, asset.vaultPath);
+    await fs.ensureDir(path.dirname(destinationPath));
+    await fs.copy(asset.sourcePath, destinationPath);
+  }
+}
+
+/**
+ * 素材审阅（B3）：清理 vault 里已经没有对应素材记录的旧副本。
+ *
+ * 复制只增不删，素材记录里删掉某个候选后 vault 会留下孤儿副本。清理范围严格限定在
+ * 05_素材审阅/_素材 这一棵子树内：先递归列出该目录下的所有文件，凡是 vault 路径
+ * （POSIX 形式）不在本次计划清单里的就删除，删完把空目录一并收掉。目录不存在时直接
+ * 返回。05_素材审阅 下的页面 md 与 04_个人笔记 等其它目录不在遍历起点之内，不会被碰到。
+ */
+export async function removeOrphanedMediaAssets(outRoot: string, plannedAssets: MediaReviewAsset[]): Promise<void> {
+  const assetsRoot = vaultFsPath(outRoot, mediaReviewAssetsVaultDirectory);
+  if (!(await fs.pathExists(assetsRoot))) {
+    return;
+  }
+  const plannedFullPaths = new Set(plannedAssets.map((asset) => path.resolve(vaultFsPath(outRoot, asset.vaultPath))));
+  const removedDirectories: string[] = [];
+
+  const walk = async (current: string): Promise<void> => {
+    const entries = await fs.readdir(current, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        await walk(fullPath);
+        removedDirectories.push(fullPath);
+        continue;
+      }
+      if (!entry.isFile()) {
+        continue;
+      }
+      // 安全边界：只删 _素材 子树内的文件，且只删这次没有计划到的。
+      if (!isInsidePath(fullPath, assetsRoot)) {
+        continue;
+      }
+      if (plannedFullPaths.has(path.resolve(fullPath))) {
+        continue;
+      }
+      await fs.remove(fullPath);
+    }
+  };
+
+  await walk(assetsRoot);
+  // 由深到浅收掉空目录（walk 是后序收集，_素材 本身排在最后）；非空目录保留。
+  for (const directory of [...removedDirectories, assetsRoot]) {
+    if (!isInsidePath(directory, assetsRoot) && !sameFsPath(directory, assetsRoot)) {
+      continue;
+    }
+    if (!(await fs.pathExists(directory))) {
+      continue;
+    }
+    const remaining = await fs.readdir(directory);
+    if (remaining.length === 0) {
+      await fs.remove(directory);
+    }
+  }
+}
+
 async function writeGeneratedFiles(outRoot: string, files: ObsidianGeneratedFile[], operations: ObsidianExportOperation[]): Promise<void> {
   const writablePaths = new Set(operations.filter((operation) => operation.status === "created" || operation.status === "updated").map((operation) => operation.vaultPath));
   for (const file of files.filter((generatedFile) => writablePaths.has(generatedFile.vaultPath))) {
@@ -472,9 +549,20 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
 
     const deviationContext = await readDeviations(projectRoot);
     const libtvState = await readState(projectRoot);
+    // 素材审阅（B3）：项目里没有 素材记录/ 目录时返回空数组，导出结果与之前完全一致。
+    const mediaReviewFiles = await renderMediaReviewFiles(projectRoot);
+    const mediaReviewAssets = mediaReviewFiles.length > 0 ? await planMediaReviewAssets(projectRoot) : [];
     const files = [
       ...workflowFiles,
-      ...renderDashboardFiles(projectName, sourceFiles, options.includePluginRecipes, deviationContext, libtvState),
+      ...renderDashboardFiles(
+        projectName,
+        sourceFiles,
+        options.includePluginRecipes,
+        deviationContext,
+        libtvState,
+        mediaReviewFiles.length > 0
+      ),
+      ...mediaReviewFiles,
       ...renderBaseFiles(),
       renderWorkflowCanvas(sourceFiles),
       renderShotPipelineCanvas(sourceFiles),
@@ -487,6 +575,9 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
     const manifest = createManifest(projectRoot, outRoot, projectName, files, operations, previousManifest);
     if (!options.dryRun) {
       await writeGeneratedFiles(outRoot, files, operations);
+      await copyMediaReviewAssets(outRoot, mediaReviewAssets);
+      // 素材记录被删掉或候选被移除后，vault 里对应的旧副本要跟着清理（dryRun 分支不会走到这里）。
+      await removeOrphanedMediaAssets(outRoot, mediaReviewAssets);
       await removeSafeOrphanedGeneratedFiles(outRoot, operations, false);
       await restoreUserNoteBackups(outRoot, userNoteBackups, false, operations);
       await fs.writeFile(vaultFsPath(outRoot, projectionManifestPath), renderProjectionManifest(manifest), "utf8");

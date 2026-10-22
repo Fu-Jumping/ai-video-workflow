@@ -19,6 +19,7 @@ import {
   stageReviewHubPath,
   stageReviewOverviewPath,
   stageReviewPath,
+  mediaReviewIndexPath,
   shotReviewNotePath,
   workflowBasePath,
   workflowCanvasPath,
@@ -556,7 +557,8 @@ export function renderDashboardFiles(
   sourceFiles: ObsidianSourceFile[],
   includePluginRecipes: boolean,
   deviationsContext: DeviationsReadResult = { mode: "standard", deviations: [], shots: [], issues: [] },
-  libtvState?: LibTvState | null
+  libtvState?: LibTvState | null,
+  hasMediaReviewIndex = false
 ): ObsidianGeneratedFile[] {
   const shotIds = uniqueShotIds(sourceFiles);
   const shotGroupIds = uniqueShotGroupIds(sourceFiles);
@@ -580,6 +582,10 @@ ${stageReviewLinks}
 发现跨阶段不一致时，再进入 [[${shotLookupIndexPath}|按镜头联查]]。
 `
   };
+  // 素材审阅（B3）：仅当本次导出确实生成了素材总览页时，首页才给出入口。
+  const mediaReviewEntry = hasMediaReviewIndex
+    ? "\n- [[" + mediaReviewIndexPath + "|素材审阅]]"
+    : "";
   const deviationsMarkdown = renderDeviationsMarkdown(deviationsContext);
   const files: ObsidianGeneratedFile[] = [
     {
@@ -607,7 +613,7 @@ ${stageReviewLinks}
 - [[${shotLookupIndexPath}|按镜头联查]]
 - [[${productionBoardPath}|制作看板]]
 - [[${agentHandoffPath}|智能体交接]]
-- [[${notesIndexLink}|用户笔记]]
+- [[${notesIndexLink}|用户笔记]]${mediaReviewEntry}
 
 ## 3. 镜头审阅
 
