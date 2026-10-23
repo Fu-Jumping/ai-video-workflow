@@ -386,8 +386,20 @@
   - 整理：`apps/cli/src/lib/content-assemble.ts` 负责两张总表、场／组总览、镜头汇总自动区块与 04／05 完整执行文件的刷新；`apps/cli/src/lib/migration-preview.ts` 负责旧项目迁移的逐文件预览与写入。
   - 命令：`content assemble` / `content check` / `content migrate --preview | --apply --yes`。
   - 自动／人工区块标记：`<!-- avw:auto:start name=X -->` 与 `<!-- avw:manual:start name=X -->`；自动区块被手改报 `content-summary-manual-drift`，默认不覆盖，需 `--force`（覆盖前把旧内容备份到 `.tmp/`）。
-  - 迁移：旧 `03/04/05` 正文复制到项目根 `已迁移/` 作只读快照并标注「已迁移」，不删除任何用户文件；必须先预览再确认写入；测试创作项目 `examples/官方示例-云上早市` 保持旧格式以验证兼容，不作迁移目标。
+  - 迁移：旧 `03/04/05` 正文复制到项目根 `已迁移/` 作只读快照并标注「已迁移」，不删除任何用户文件；必须先预览再确认写入；测试创作项目 `examples/官方示例-云上早市` 原定保持旧格式以验证兼容；2026-10-23 用户授权后已迁移为内容树项目（见 Q40），旧正文完整保留在 `已迁移/` 只读快照，旧格式兼容性改由测试夹具派生的旧口径副本覆盖。
   - 实施细节与风险处置见 `.tmp/stage-02-design-check.md`（阶段 02 设计自检，不进版本库）。
+
+### Q40 阶段 02 收尾：示例项目迁移、越界改动追认与既有缺陷登记 `[已处理]` 2026-10-23
+
+- 来源：阶段 02（C0 正式实施 + C1—C2）收尾审核包的三项待拍板，用户答复（2026-10-23）：①追认越界改动；②两项既有缺陷登记进本台账、另开一轮修；③先保留阶段工作树，暂不合并、不清理。
+- 示例项目迁移：用户另行授权「现在就把 `examples/官方示例-云上早市` 迁移到内容树」，并接受迁移后段落之间多一个空行的排版规范化。执行结果：`content migrate --preview` 15 条（新建 9、合并 6、冲突 0），`--apply --yes` 写入 30 个文件；`内容/` 下 13 个文件、`03_分镜脚本/00_内容树索引.md` 1 个、`已迁移/` 下 9 份只读快照；`project.config.yaml` 追加 `content.format_version: 1`；旧文件一个未删。迁移后 `verify` 与 `content check` 均通过。
+- 因迁移失效的旧格式断言：不再依赖示例项目本身保持旧格式，改为 `apps/cli/tests/legacy-example.ts` 派生的旧口径副本（复制示例项目 → 删 `内容/` 与 `03_分镜脚本/00_内容树索引.md` → 删配置里的 `content` 键 → 用 `已迁移/` 快照还原旧 `03/04/05`）。`obsidian-export.test.ts`、`obsidian-verify.test.ts`、`maintenance.test.ts`、`libtv-plan.test.ts` 的旧口径用例改用它。
+- 越界改动追认：`apps/cli/src/lib/mcp/resources.ts`（+10 行）。内容树与旧第 3 步共用步骤编号 3，会生成同一个 MCP URI，客户端因重复地址拒绝启动；改为重复时追加 `/${encodeURIComponent(step.directory)}` 区分。该文件不在任务书第九节白名单内，用户已追认。
+- 既有缺陷登记（本轮不修，另开一轮）：
+  - `apps/cli/tests/libtv-failures.test.ts` 的「状态未知的节点：不传 --retry 时不会被重新提交」偶发失败。证据：单独跑该文件三次为通过／失败／通过交替；把 `apps/cli/src/lib/libtv/assets.ts` 换回 base 版本连跑 8 次仍失败 1 次（`BASELINE_ASSETS_FAILS=1/8`），`git diff` 显示 `apps/cli/src/lib/libtv/` 下只有 `assets.ts` 有改动。结论：base 代码同样偶发，属测试对时序敏感，与内容树无关。
+  - `apps/cli/tests/cli-dist.test.ts` 与 `apps/cli/tests/libtv-cli.test.ts` 每个用例内部自己跑 `tsup build`，vitest 多文件并行时互相踩踏 `dist` 目录，产生 `ERR_MODULE_NOT_FOUND`、「does not provide an export named ...」等假失败；`--no-file-parallelism` 单文件串行全过。属既有测试基础设施的并发缺陷。
+- 影响：两条均不影响本轮功能正确性，但会让 `pnpm test` 偶发红灯；在修复前，判定结果需用 `--no-file-parallelism` 复跑或单文件复跑确认。
+- 未合并：阶段工作树 `E:/project/code/ai-video-workflow-stage-02`（分支 `feature/workflow-next-stage-02`）按用户选择保留，等实机试用内容树后再决定合并与清理；不推送远端。
 
 ## 3. 缺口登记规则 `[通用规则]`
 
