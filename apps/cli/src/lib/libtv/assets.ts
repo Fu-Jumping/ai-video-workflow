@@ -137,7 +137,10 @@ export async function buildVideoRefs(projectRoot: string): Promise<LibTvVideoRef
     if (!shotId || !groupId) continue;
     const tokens = extractReferenceAssets(file.content);
     const keyframePaths = [...file.content.matchAll(/关键帧文件[^：:]*[：:]\s*`([^`]+)`/gu)].map((match) => match[1] ?? "");
-    const orderMatch = file.content.match(/素材上传顺序\s*[：:]\s*([^\n]+)/u);
+    // 05 执行文件把「素材上传顺序」写成表格行（| 素材上传顺序 | A、B、C |），
+    // 旧模板写的是列表行（- 素材上传顺序：A、B、C）。两种写法都要认，否则内容树项目的
+    // 引用顺序校验会因为取不到 orderTokens 而静默失效。
+    const orderMatch = file.content.match(/素材上传顺序\s*(?:\||[：:])\s*([^\n|]+)/u);
     const orderTokens = orderMatch
       ? orderMatch[1].split(/[、,，]/u).map((item) => item.trim()).filter(Boolean)
       : undefined;

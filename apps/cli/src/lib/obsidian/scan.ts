@@ -2,7 +2,8 @@ import fs from "fs-extra";
 import path from "node:path";
 
 import { CONTENT_ROOT_DIRECTORY, activeWorkflowSteps } from "../constants.js";
-import { resolveContentMode } from "../content-tree.js";
+import { expectedExecutionPaths } from "../content-assemble.js";
+import { hasMigrationSnapshot, resolveContentMode } from "../content-tree.js";
 import { readWorkflowProjectConfig } from "../project-root.js";
 import { extractReferenceAssets } from "../reference-assets.js";
 import { shotGroupIdFromPath, shotIdFromFileName } from "../shot-graph.js";
@@ -43,6 +44,10 @@ export async function scanProjectForObsidian(projectRoot: string): Promise<Obsid
     step: step.step,
     sourceKind: step.sourceKind
   }));
+  // 内容树模式下，04／05 的原路径已被重新生成的执行文件占用；只有「有迁移快照、又不是当前执行文件」
+  // 的才是旧正文。这类旧正文只是历史快照（规范 §7.8）：原件留在原路径，但不再投影，
+  // 否则观看层里会同时出现两套正文，读者分不清哪套是当前原文。
+  const executionPaths = await expectedExecutionPaths(projectRoot);
   for (const stepDir of stepDirs) {
     const fullDir = path.join(projectRoot, stepDir.dir);
     if (!(await fs.pathExists(fullDir))) {
@@ -51,6 +56,10 @@ export async function scanProjectForObsidian(projectRoot: string): Promise<Obsid
     const entries = await walkMarkdownFiles(fullDir);
     for (const entry of entries) {
       const filePath = path.join(fullDir, ...entry.split("/"));
+      const projectRelPath = path.posix.join(stepDir.dir, entry);
+      if (!executionPaths.has(projectRelPath) && (await hasMigrationSnapshot(projectRoot, projectRelPath))) {
+        continue;
+      }
       const content = await fs.readFile(filePath, "utf8");
       const sourcePath = toVaultPath(path.posix.join(stepDir.dir, entry));
       files.push({

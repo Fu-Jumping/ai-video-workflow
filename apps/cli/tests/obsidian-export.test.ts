@@ -1,7 +1,7 @@
 import fs from "fs-extra";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterAll, afterEach, describe, expect, test } from "vitest";
 
 import { assembleContentTree } from "../src/lib/content-assemble.js";
 import { renderAutoBlock, renderManualBlock } from "../src/lib/content-tree.js";
@@ -14,17 +14,19 @@ import type { ObsidianProjectionManifest } from "../src/lib/obsidian/types.js";
 import { verifyObsidianVault } from "../src/lib/obsidian/verify.js";
 import { syncProject } from "../src/lib/sync.js";
 
+import { disposeLegacyExampleRoots, legacyExampleRoot, officialExampleRoot } from "./legacy-example.js";
+
 const tempRoots: string[] = [];
 
 afterEach(async () => {
   await Promise.all(tempRoots.splice(0).map((dir) => fs.remove(dir)));
 });
 
-const repoRoot = path.resolve(__dirname, "..", "..", "..");
+afterAll(async () => {
+  await disposeLegacyExampleRoots();
+});
 
-function officialExampleRoot(): string {
-  return path.resolve(__dirname, "..", "..", "..", "examples", "官方示例-云上早市");
-}
+const repoRoot = path.resolve(__dirname, "..", "..", "..");
 
 function baseViewOrder(baseContent: string, viewName: string): string[] {
   const lines = baseContent.split(/\r?\n/);
@@ -210,7 +212,7 @@ describe("Obsidian export of a content-tree project", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-legacy-vault-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     await expect(fs.pathExists(path.join(outRoot, "02_按镜头联查", "00_内容树.md"))).resolves.toBe(false);
     await expect(fs.pathExists(path.join(outRoot, "01_阶段审核", "内容"))).resolves.toBe(false);
@@ -253,7 +255,7 @@ describe("Obsidian projection manifests", () => {
 
 describe("scanProjectForObsidian", () => {
   test("scans the official example into workflow source files", async () => {
-    const files = await scanProjectForObsidian(officialExampleRoot());
+    const files = await scanProjectForObsidian(await legacyExampleRoot());
 
     expect(files).toEqual(
       expect.arrayContaining([
@@ -273,7 +275,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-stage-review-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const storyboardHub = await fs.readFile(path.join(outRoot, "01_阶段审核", "03_分镜脚本", "00_阶段审核.md"), "utf8");
     const imageHub = await fs.readFile(path.join(outRoot, "01_阶段审核", "04_图片提示词", "00_阶段审核.md"), "utf8");
@@ -310,7 +312,7 @@ describe("exportObsidianVault", () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-empty-source-"));
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-empty-vault-"));
     tempRoots.push(projectRoot, outRoot);
-    await fs.copy(officialExampleRoot(), projectRoot);
+    await fs.copy(await legacyExampleRoot(), projectRoot);
     for (const stepDir of ["01_概念策划", "02_世界设定", "03_分镜脚本", "04_图片提示词", "05_视频提示词", "06_执行计划"]) {
       await fs.emptyDir(path.join(projectRoot, stepDir));
     }
@@ -321,7 +323,7 @@ describe("exportObsidianVault", () => {
   test("rejects output paths that are files or ordinary project-internal directories", async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-output-safety-"));
     tempRoots.push(projectRoot);
-    await fs.copy(officialExampleRoot(), projectRoot);
+    await fs.copy(await legacyExampleRoot(), projectRoot);
     const fileOut = path.join(path.dirname(projectRoot), "vault.md");
     const internalOut = path.join(projectRoot, "notes-vault");
     const inProjectPathAsOut = path.join(projectRoot, "_views", "obsidian");
@@ -349,10 +351,10 @@ describe("exportObsidianVault", () => {
     await fs.writeFile(path.join(plainVault, "manual.md"), "# Manual\n", "utf8");
 
     await expect(
-      exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot: gitVault, force: true, includePluginRecipes: true, dryRun: true })
+      exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot: gitVault, force: true, includePluginRecipes: true, dryRun: true })
     ).rejects.toThrow("containing .git");
     await expect(
-      exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot: plainVault, force: true, includePluginRecipes: true })
+      exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot: plainVault, force: true, includePluginRecipes: true })
     ).rejects.toThrow("without 投影清单.json");
     await expect(fs.pathExists(path.join(gitVault, ".git", "config"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(plainVault, "manual.md"))).resolves.toBe(true);
@@ -361,11 +363,11 @@ describe("exportObsidianVault", () => {
   test("refuses to export into a vault owned by another project", async () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-ownership-"));
     tempRoots.push(outRoot);
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: false, includePluginRecipes: true });
 
     const otherProject = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-other-project-"));
     tempRoots.push(otherProject);
-    await fs.copy(officialExampleRoot(), otherProject);
+    await fs.copy(await legacyExampleRoot(), otherProject);
 
     await expect(exportObsidianVault({ projectRoot: otherProject, outRoot, force: false, includePluginRecipes: true })).rejects.toThrow(
       "owned by another project"
@@ -378,7 +380,7 @@ describe("exportObsidianVault", () => {
   test("refuses to export while another export lock is active and removes its own lock afterwards", async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-lock-project-"));
     tempRoots.push(projectRoot);
-    await fs.copy(officialExampleRoot(), projectRoot);
+    await fs.copy(await legacyExampleRoot(), projectRoot);
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-lock-"));
     tempRoots.push(outRoot);
     const lockPath = `${outRoot}.ai-video-workflow-export.lock`;
@@ -397,7 +399,7 @@ describe("exportObsidianVault", () => {
   test("writes a privacy-safe schema v2 manifest for in-project view exports", async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-in-project-manifest-"));
     tempRoots.push(projectRoot);
-    await fs.copy(officialExampleRoot(), projectRoot);
+    await fs.copy(await legacyExampleRoot(), projectRoot);
     const outRoot = path.join(projectRoot, "_views", "obsidian");
 
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, inProjectView: true });
@@ -428,7 +430,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-external-manifest-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const manifest = await readProjectionManifest(outRoot);
     const manifestJson = JSON.stringify(manifest);
@@ -447,7 +449,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const storyboard = await fs.readFile(path.join(outRoot, "01_阶段审核", "03_分镜脚本", "镜头组-001", "镜头 001 - 分镜脚本.md"), "utf8");
     expect(storyboard).toContain("投影生成: 是");
@@ -488,7 +490,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-dashboard-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const home = await fs.readFile(path.join(outRoot, "00_开始审阅", "00_项目首页.md"), "utf8");
     expect(home).toContain("## 1. 打开路线");
@@ -556,7 +558,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-readme-path-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const readme = await fs.readFile(path.join(outRoot, "00_开始审阅", "02_观看层说明.md"), "utf8");
     expect(readme).toContain("[[00_开始审阅/00_项目首页.md|项目首页]]");
@@ -570,7 +572,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-agent-handoff-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const handoff = await fs.readFile(path.join(outRoot, "03_审阅工具", "01_智能体交接.md"), "utf8");
     expect(handoff).toContain("# 智能体交接");
@@ -599,7 +601,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-shot-review-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const shotReview = await fs.readFile(path.join(outRoot, "02_按镜头联查", "单镜头", "shot-001.md"), "utf8");
     expect(shotReview).toContain('标题: "镜头 001：清晨前的邀请"');
@@ -650,7 +652,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-bases-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const shotsBase = await fs.readFile(path.join(outRoot, "03_审阅工具", "数据看板", "镜头.base"), "utf8");
     expect(shotsBase).toContain("file.hasTag(\"ai-video/shot\")");
@@ -755,7 +757,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-canvas-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const workflowMap = await fs.readJson(path.join(outRoot, "03_审阅工具", "全局画布", "流程图.canvas"));
     expect(workflowMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "group", label: "步骤 3" })]));
@@ -832,10 +834,10 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-incremental-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
     const userNote = path.join(outRoot, "04_个人笔记", "manual-review.md");
     await fs.writeFile(userNote, "# Manual Review\n\nKeep this note.\n", "utf8");
-    const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true });
+    const result = await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: false, includePluginRecipes: true });
 
     await expect(fs.readFile(userNote, "utf8")).resolves.toContain("Keep this note.");
     expect(result.operations).toEqual(expect.arrayContaining([expect.objectContaining({ status: "unchanged", vaultPath: "00_开始审阅/00_项目首页.md" })]));
@@ -871,7 +873,7 @@ describe("exportObsidianVault", () => {
       "utf8"
     );
 
-    const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true });
+    const result = await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: false, includePluginRecipes: true });
     const manifest = await readProjectionManifest(outRoot);
 
     await expect(fs.pathExists(legacyGeneratedFullPath)).resolves.toBe(false);
@@ -909,7 +911,7 @@ describe("exportObsidianVault", () => {
       "utf8"
     );
 
-    const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true });
+    const result = await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: false, includePluginRecipes: true });
     const manifest = await readProjectionManifest(outRoot);
 
     await expect(fs.readFile(legacyGeneratedFullPath, "utf8")).resolves.toContain("人工补充");
@@ -921,14 +923,14 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-legacy-note-conflict-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
     const currentNote = path.join(outRoot, "04_个人笔记", "shared.md");
     const legacyNote = path.join(outRoot, "笔记", "shared.md");
     await fs.writeFile(currentNote, "# 新目录笔记\n", "utf8");
     await fs.ensureDir(path.dirname(legacyNote));
     await fs.writeFile(legacyNote, "# 旧目录笔记\n", "utf8");
 
-    const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    const result = await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     await expect(fs.readFile(currentNote, "utf8")).resolves.toContain("新目录笔记");
     await expect(fs.readFile(legacyNote, "utf8")).resolves.toContain("旧目录笔记");
@@ -945,10 +947,10 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-conflict-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
     const generatedFile = path.join(outRoot, "01_阶段审核", "03_分镜脚本", "镜头组-001", "镜头 001 - 分镜脚本.md");
     await fs.appendFile(generatedFile, "\nUser edit inside Obsidian.\n", "utf8");
-    const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true });
+    const result = await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: false, includePluginRecipes: true });
 
     expect(result.operations).toEqual(
       expect.arrayContaining([
@@ -965,7 +967,7 @@ describe("exportObsidianVault", () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-project-"));
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-update-"));
     tempRoots.push(projectRoot, outRoot);
-    await fs.copy(officialExampleRoot(), projectRoot);
+    await fs.copy(await legacyExampleRoot(), projectRoot);
 
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
     await fs.appendFile(path.join(projectRoot, "03_分镜脚本", "镜头组-001", "镜头-001.md"), "\nUpdated source beat.\n", "utf8");
@@ -987,10 +989,10 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-force-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
     const userNote = path.join(outRoot, "04_个人笔记", "manual-review.md");
     await fs.writeFile(userNote, "# Manual Review\n", "utf8");
-    const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    const result = await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     await expect(fs.pathExists(userNote)).resolves.toBe(true);
     await expect(fs.readFile(userNote, "utf8")).resolves.toContain("Manual Review");
@@ -1004,7 +1006,7 @@ describe("exportObsidianVault", () => {
     await fs.writeFile(path.join(outRoot, ".git", "config"), "[core]\n", "utf8");
 
     await expect(
-      exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true })
+      exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true })
     ).rejects.toThrow("Refusing to force-remove an Obsidian output directory containing .git");
     await expect(fs.pathExists(path.join(outRoot, ".git", "config"))).resolves.toBe(true);
   });
@@ -1014,7 +1016,7 @@ describe("exportObsidianVault", () => {
     tempRoots.push(parentRoot);
     const outRoot = path.join(parentRoot, "vault");
 
-    const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true, dryRun: true });
+    const result = await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: false, includePluginRecipes: true, dryRun: true });
 
     expect(result.operations).toEqual(expect.arrayContaining([expect.objectContaining({ status: "created", vaultPath: "00_开始审阅/00_项目首页.md" })]));
     await expect(fs.pathExists(outRoot)).resolves.toBe(false);
@@ -1024,7 +1026,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-ui-default-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     await expect(fs.pathExists(path.join(outRoot, ".obsidian"))).resolves.toBe(false);
   });
@@ -1033,7 +1035,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-ui-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true, includeObsidianUi: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true, includeObsidianUi: true });
 
     await expect(fs.pathExists(path.join(outRoot, ".obsidian", "bookmarks.json"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(outRoot, ".obsidian", "workspace.json"))).resolves.toBe(true);
@@ -1081,7 +1083,7 @@ describe("exportObsidianVault", () => {
     await fs.writeFile(bookmarksPath, "{\"items\":[{\"title\":\"User Bookmark\"}]}\n", "utf8");
 
     const result = await exportObsidianVault({
-      projectRoot: officialExampleRoot(),
+      projectRoot: await legacyExampleRoot(),
       outRoot,
       force: false,
       includePluginRecipes: true,
@@ -1106,7 +1108,7 @@ describe("exportObsidianVault", () => {
     const outRoot = path.join(parentRoot, "vault");
 
     const result = await exportObsidianVault({
-      projectRoot: officialExampleRoot(),
+      projectRoot: await legacyExampleRoot(),
       outRoot,
       force: false,
       includePluginRecipes: true,

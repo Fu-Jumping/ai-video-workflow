@@ -477,6 +477,28 @@ export function step5FileRelPath(shot: ContentTreeShot): string {
   return toPosix(path.join(STEP_DIR_BY_NUMBER[5], shotGroupDirectoryName(shot.groupId), shotLabel(shot) + ".md"));
 }
 
+/**
+ * 内容树自己生成的 04／05 执行文件路径集合。
+ *
+ * 迁移后旧文件仍留在原路径，但 04／05 的原路径已被重新生成的执行文件占用；
+ * 判断「这份文件是旧正文还是当前执行文件」只能靠这份集合，不能只看有没有迁移快照。
+ */
+export async function expectedExecutionPaths(projectRoot: string): Promise<Set<string>> {
+  const resolution = await resolveContentMode(projectRoot);
+  if (resolution.mode !== "content-tree") return new Set();
+  const tree = await buildContentTree(projectRoot);
+  const paths = new Set<string>();
+  for (const shot of tree.shots) {
+    paths.add(step5FileRelPath(shot));
+    for (const storyboard of shot.storyboards) {
+      for (const keyframe of storyboard.document.keyframes) {
+        paths.add(step4FileRelPath(shot, keyframe.id));
+      }
+    }
+  }
+  return paths;
+}
+
 /** 03 内容树索引相对路径：03_分镜脚本/00_内容树索引.md。 */
 export function contentIndexRelPath(): string {
   return toPosix(path.join(STEP_DIR_BY_NUMBER[3], CONTENT_INDEX_FILE));
@@ -571,6 +593,10 @@ export function renderStep5File(shot: ContentTreeShot, platform: Platform, index
           .map((id) => "[" + "关键帧 " + keyframeLabel(id) + "](" + relativeLink(relPath, step4FileRelPath(shot, id)) + ")")
           .join("、")
       : "无独立关键帧";
+  const uploadOrder = [
+    ...assets.map((token) => token.token.replace(/^@/u, "")),
+    ...keyframeIds.map((id) => shotLabel(shot) + " 关键帧 " + keyframeLabel(id))
+  ].join("、");
 
   const lines: string[] = [
     "# " + shotLabel(shot) + "：" + displayName,
@@ -595,7 +621,7 @@ export function renderStep5File(shot: ContentTreeShot, platform: Platform, index
     "| 目标时长 | " + targetDuration + " |",
     "| 画幅 | 16:9 |",
     "| 参考素材 | " + (assets.length > 0 ? assets.map((token) => token.token).join("、") : "无额外参考素材") + " |",
-    "| 素材上传顺序 | 先上传关键帧，再上传角色三视图与场景图，最后上传道具参考 |",
+    "| 素材上传顺序 | " + (uploadOrder || "无额外参考素材，只上传本镜关键帧") + " |",
     "| 负面约束 | 见文末「负面约束」，逐条粘贴到平台 |",
     "",
     "## 参考素材映射",

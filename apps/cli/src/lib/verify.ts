@@ -20,7 +20,7 @@ import {
   researchStepEnabled
 } from "./constants.js";
 import { autoBlockDrifted, step4FileRelPath, step5FileRelPath, stripBlockHash } from "./content-assemble.js";
-import { buildContentTree, resolveContentMode } from "./content-tree.js";
+import { buildContentTree, hasMigrationSnapshot, resolveContentMode } from "./content-tree.js";
 import { applyAcceptedDeviations, readDeviations } from "./deviations.js";
 import { verifyMediaRecords } from "./media-records.js";
 import { contentFormatVersion, isSupportedContentFormatVersion, readProjectConfig } from "./project-config.js";
@@ -1037,14 +1037,6 @@ const contentTreeOverlappingCodes = new Set<string>(["invalid-storyboard-segment
  * 内容树自己生成在 04／05 的执行文件（镜头-NNN.md、镜头-NNN-关键帧-NN.md）不算旧正文，
  * 由 expectedExecution 排除，否则新格式项目会误报「两套正文并存」。
  */
-async function hasMigrationSnapshot(projectRoot: string, projectRelPath: string): Promise<boolean> {
-  const snapshotDir = path.join(projectRoot, MIGRATED_SNAPSHOT_DIRECTORY, path.dirname(projectRelPath));
-  if (!(await fs.pathExists(snapshotDir))) return false;
-  const base = path.basename(projectRelPath);
-  const entries = await fs.readdir(snapshotDir);
-  return entries.some((entry) => entry === base || entry.startsWith(base + ".conflict-"));
-}
-
 async function listLegacyShotMarkdownFiles(projectRoot: string, expectedExecution: Set<string>): Promise<string[]> {
   const found: string[] = [];
   for (const step of [3, 4, 5] as const) {

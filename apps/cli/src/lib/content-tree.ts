@@ -770,6 +770,20 @@ async function listMarkdownFiles(root: string): Promise<string[]> {
 }
 
 /**
+ * 判断某个旧格式文件是否已经在「已迁移/」里留下只读快照。
+ *
+ * 迁移不删除用户文件，原件仍留在 03／04／05 原路径；但只要快照存在，原件就只是历史副本，
+ * 不再参与链接检查、一致性校验与 Obsidian 投影（规范 §7.8），否则同一段正文会被当成两套当前原文。
+ */
+export async function hasMigrationSnapshot(projectRoot: string, projectRelPath: string): Promise<boolean> {
+  const snapshotDir = path.join(projectRoot, MIGRATED_SNAPSHOT_DIRECTORY, path.dirname(projectRelPath));
+  if (!(await fs.pathExists(snapshotDir))) return false;
+  const base = path.basename(projectRelPath);
+  const entries = await fs.readdir(snapshotDir);
+  return entries.some((entry) => entry === base || entry.startsWith(base + ".conflict-"));
+}
+
+/**
  * 判定项目当前的正文读取模式。
  *
  * 缺 content.format_version → legacy；=1 → content-tree；其他数值 → 不支持（记错误，不降级猜测）。

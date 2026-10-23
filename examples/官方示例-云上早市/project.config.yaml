@@ -10,3 +10,5 @@ workflow:
     enabled: true
   enhanced_flow:
     enabled: true
+content:
+  format_version: 1

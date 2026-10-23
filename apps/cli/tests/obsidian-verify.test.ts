@@ -1,18 +1,24 @@
 import fs from "fs-extra";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterAll, afterEach, describe, expect, test } from "vitest";
 
 import { createProject } from "../src/lib/init.js";
 import { exportObsidianVault } from "../src/lib/obsidian/export.js";
 import { hashContent, projectionManifestPath, readProjectionManifest, renderProjectionManifest } from "../src/lib/obsidian/manifest.js";
 import { verifyObsidianVault } from "../src/lib/obsidian/verify.js";
+
+import { disposeLegacyExampleRoots, legacyExampleRoot } from "./legacy-example.js";
 import type { ObsidianProjectionManifest } from "../src/lib/obsidian/types.js";
 
 const tempRoots: string[] = [];
 
 afterEach(async () => {
   await Promise.all(tempRoots.splice(0).map((dir) => fs.remove(dir)));
+});
+
+afterAll(async () => {
+  await disposeLegacyExampleRoots();
 });
 
 function officialExampleRoot(): string {
@@ -128,7 +134,7 @@ describe("verifyObsidianVault", () => {
   test("fails when a generated file no longer matches the manifest hash", async () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-hash-mismatch-"));
     tempRoots.push(outRoot);
-    const projectRoot = officialExampleRoot();
+    const projectRoot = await legacyExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, inProjectView: true });
     await fs.appendFile(path.join(outRoot, "01_阶段审核", "03_分镜脚本", "镜头组-001", "镜头 001 - 分镜脚本.md"), "\nManual generated-file edit.\n", "utf8");
 
@@ -141,7 +147,7 @@ describe("verifyObsidianVault", () => {
   test("fails when a generated Markdown link points to a missing vault file", async () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-broken-markdown-link-"));
     tempRoots.push(outRoot);
-    const projectRoot = officialExampleRoot();
+    const projectRoot = await legacyExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
     const vaultPath = "01_阶段审核/03_分镜脚本/镜头组-001/镜头 001 - 分镜脚本.md";
     const generatedPath = path.join(outRoot, ...vaultPath.split("/"));
@@ -217,7 +223,7 @@ describe("verifyObsidianVault", () => {
   test("fails when a Chinese generated note is missing source path", async () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-cn-source-"));
     tempRoots.push(outRoot);
-    const projectRoot = officialExampleRoot();
+    const projectRoot = await legacyExampleRoot();
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
     const generatedPath = path.join(outRoot, "01_阶段审核", "03_分镜脚本", "镜头组-001", "镜头 001 - 分镜脚本.md");
     const content = await fs.readFile(generatedPath, "utf8");
@@ -232,7 +238,7 @@ describe("verifyObsidianVault", () => {
   test("fails when source files changed after an in-project view export", async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-stale-project-"));
     tempRoots.push(projectRoot);
-    await fs.copy(officialExampleRoot(), projectRoot);
+    await fs.copy(await legacyExampleRoot(), projectRoot);
     const outRoot = path.join(projectRoot, "_views", "obsidian");
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, inProjectView: true });
     await fs.appendFile(path.join(projectRoot, "03_分镜脚本", "镜头组-001", "镜头-001.md"), "\nSource changed after projection export.\n", "utf8");

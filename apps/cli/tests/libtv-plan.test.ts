@@ -7,6 +7,7 @@ import { renderAutoBlock, renderManualBlock } from "../src/lib/content-tree.js";
 import { createProject } from "../src/lib/init.js";
 import { buildLibTvPlan } from "../src/lib/libtv/assets.js";
 import { buildPlan, renderPlan } from "../src/lib/libtv/plan.js";
+import { parseYaml, stringifyYaml } from "../src/lib/yaml.js";
 import { syncProject } from "../src/lib/sync.js";
 
 const exampleRoot = path.resolve(__dirname, "..", "..", "..", "examples", "官方示例-云上早市");
@@ -198,6 +199,35 @@ async function createContentTreePlanProject(): Promise<string> {
   return projectRoot;
 }
 
+/**
+ * 造一个真正的旧格式项目：先按新项目初始化，再去掉 content 键、删掉内容树，
+ * 然后把官方示例迁移前留下的旧 03／04／05 原文放回去。
+ *
+ * 不能直接拿 examples/官方示例-云上早市 当旧项目——它已经迁移成内容树了。
+ */
+async function createLegacyPlanProject(): Promise<string> {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "avw-libtv-plan-legacy-"));
+  tempRoots.push(root);
+  await createProject({
+    targetRoot: root,
+    projectName: "legacy-plan",
+    pack: "official-ai-video",
+    ide: "codex",
+    imagePlatform: "openai",
+    videoPlatform: "seedance"
+  });
+  const projectRoot = path.join(root, "legacy-plan");
+  await syncProject({ repoRoot, projectRoot, ide: "codex", pack: "official-ai-video" });
+
+  const configPath = path.join(projectRoot, "project.config.yaml");
+  const config = parseYaml(await fs.readFile(configPath, "utf8")) as Record<string, unknown>;
+  delete config.content;
+  await fs.writeFile(configPath, stringifyYaml(config), "utf8");
+  await fs.remove(path.join(projectRoot, "内容"));
+  await fs.copy(path.join(exampleRoot, "已迁移"), projectRoot);
+  return projectRoot;
+}
+
 describe("libtv order tokens", () => {
   test("official example video refs include upload order tokens", async () => {
     const plan = await buildLibTvPlan(exampleRoot);
@@ -234,7 +264,10 @@ describe("libtv generation plan carries storyboard identity in content-tree mode
   });
 
   test("legacy projects never grow a storyboards field", async () => {
-    const plan = await buildPlan(exampleRoot);
+    const projectRoot = await createLegacyPlanProject();
+    const plan = await buildPlan(projectRoot);
+    // 旧项目确实有镜头可读，只是不带分镜身份。
+    expect(plan.videos.length).toBeGreaterThan(0);
     expect(plan.storyboards).toBeUndefined();
     expect(renderPlan(plan)).not.toContain("分镜=");
   });
