@@ -10,6 +10,7 @@ import {
   renderMigrationPreview
 } from "../src/lib/migration-preview.js";
 import { syncProject } from "../src/lib/sync.js";
+import { verifyProject } from "../src/lib/verify.js";
 import { parseYaml, stringifyYaml } from "../src/lib/yaml.js";
 
 const repoRoot = path.resolve(__dirname, "..", "..", "..");
@@ -236,14 +237,23 @@ describe("迁移执行：保留原件、快照标注、不覆盖冲突目标", (
     expect(await fs.pathExists(path.join(projectRoot, LEGACY_KEYFRAME_MERGE))).toBe(true);
     expect(await fs.pathExists(path.join(projectRoot, LEGACY_KEYFRAME_CONFLICT))).toBe(true);
     expect(await fs.pathExists(path.join(projectRoot, LEGACY_VIDEO))).toBe(true);
-    // 03 的旧镜头文件不会被改写：内容树模式下 03 只放 00_内容树索引.md，镜头正文落在「内容/」。
-    expect(await fs.readFile(path.join(projectRoot, LEGACY_STORYBOARD), "utf8")).toBe(originalStoryboard);
+    // 03 的旧镜头文件留在原位，但首行加一行标注：读的人一眼知道它不是当前正文。
+    const keptStoryboard = await fs.readFile(path.join(projectRoot, LEGACY_STORYBOARD), "utf8");
+    const keptFirstLine = keptStoryboard.split(NL)[0]!;
+    expect(keptFirstLine.startsWith("> 已迁移：")).toBe(true);
+    expect(keptFirstLine).toContain("非当前正文");
+    expect(keptFirstLine).toContain("正文以「内容/」为准");
+    expect(keptFirstLine).toMatch(/\d{4}-\d{2}-\d{2}/u);
+    // 除了这一行标注和它后面的空行，原件正文一个字都不改。
+    expect(keptStoryboard.slice(keptFirstLine.length + 2)).toBe(originalStoryboard);
 
     // 04／05 的旧路径正是执行文件的固定路径，迁移后会放按内容树重新生成的执行文件；
     // 旧 05 原文不丢，完整保存在「已迁移」快照里（下面校验）。
     const regeneratedVideo = await fs.readFile(path.join(projectRoot, LEGACY_VIDEO), "utf8");
     expect(regeneratedVideo).not.toBe(originalVideo);
     expect(regeneratedVideo).toContain("## 可复制提示词");
+    // 04／05 的原件位置放的是重新生成的执行文件，不打「已迁移」标注。
+    expect(regeneratedVideo.startsWith("> 已迁移：")).toBe(false);
 
     // 只读快照存在，首行是迁移标注。
     const snapshotRelPath = "已迁移/" + LEGACY_STORYBOARD;
@@ -290,6 +300,23 @@ describe("迁移执行：保留原件、快照标注、不覆盖冲突目标", (
     expect(await fs.pathExists(snapshotAbs)).toBe(true);
     expect(await fs.readFile(snapshotAbs, "utf8")).toContain("雾塔门前的门缝特写");
     expect(conflictSource).toContain("雾塔门前的门缝特写");
+  });
+
+  test("迁移后校验不再报「两套正文并存」：03 原件带标注、03 只多一份索引", async () => {
+    const projectRoot = await createLegacyProject();
+    await seedLegacyProject(projectRoot);
+
+    const preview = await buildMigrationPreview(projectRoot);
+    await applyMigration(projectRoot, preview);
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    const codes = result.issues.map((issue) => issue.code);
+    expect(codes).not.toContain("content-legacy-and-tree-coexist");
+
+    // 03 原件保留原位并带标注，同时 03 下补出内容树索引（正文不复制到 03）。
+    const kept = await fs.readFile(path.join(projectRoot, LEGACY_STORYBOARD), "utf8");
+    expect(kept.split(NL)[0]).toContain("非当前正文");
+    expect(await fs.pathExists(path.join(projectRoot, "03_分镜脚本/00_内容树索引.md"))).toBe(true);
   });
 
   test("迁移后项目按内容树读取", async () => {

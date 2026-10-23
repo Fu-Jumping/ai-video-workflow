@@ -1,7 +1,12 @@
 import fs from "fs-extra";
 import path from "node:path";
 
-import { CONTENT_FORMAT_VERSION, MIGRATED_SNAPSHOT_DIRECTORY, STEP_DIR_BY_NUMBER } from "./constants.js";
+import {
+  CONTENT_FORMAT_VERSION,
+  CONTENT_ROOT_DIRECTORY,
+  MIGRATED_SNAPSHOT_DIRECTORY,
+  STEP_DIR_BY_NUMBER
+} from "./constants.js";
 import {
   buildContentTree,
   getContentBlockBody,
@@ -337,6 +342,22 @@ function snapshotBanner(sourceRelPath: string, today: string): string {
   return "> 已迁移：本文件是 " + today + " 从 " + sourceRelPath + " 迁移的只读快照，不再参与当前检查。\n\n";
 }
 
+/** 保留在原位的旧 03 正文原件首行标注：和快照首行同一句式，只把「快照」换成「原件」。 */
+const KEPT_LEGACY_BANNER_PREFIX = "> 已迁移：";
+
+function keptLegacyBanner(today: string): string {
+  return (
+    KEPT_LEGACY_BANNER_PREFIX +
+    "本文件是 " +
+    today +
+    " 迁移到「" +
+    CONTENT_ROOT_DIRECTORY +
+    "/」时保留在原位的旧正文原件，非当前正文，正文以「" +
+    CONTENT_ROOT_DIRECTORY +
+    "/」为准，不再参与当前检查。\n\n"
+  );
+}
+
 /** 同一天里重跑迁移时的冲突后缀：.conflict-1、.conflict-2 … */
 async function conflictSnapshotRelPath(projectRoot: string, snapshotRelPath: string): Promise<string> {
   for (let index = 1; index < 100; index += 1) {
@@ -366,6 +387,32 @@ async function writeSnapshot(projectRoot: string, entry: MigrationPreviewEntry):
   await fs.ensureDir(path.dirname(targetAbs));
   await fs.writeFile(targetAbs, next, "utf8");
   return targetRelPath;
+}
+
+/**
+ * 旧 03 正文原件留在原位时补一行标注。
+ *
+ * 03 在迁移后不再被生成器覆盖，原件就停在原位；不标注的话，读的人分不清它和「内容/」里
+ * 哪一份算数。04／05 的原件位置会被按内容树重新生成的执行文件占用，没有「原位旧正文」这回事，
+ * 所以只处理 03。已经有标注的跳过，重跑迁移不会叠加。
+ */
+async function markKeptLegacyOriginals(projectRoot: string, preview: MigrationPreview): Promise<string[]> {
+  const marked: string[] = [];
+  const today = new Date().toISOString().slice(0, 10);
+  const seen = new Set<string>();
+  for (const entry of preview.entries) {
+    const relPath = normalizeRelPath(entry.sourceRelPath);
+    if (seen.has(relPath)) continue;
+    seen.add(relPath);
+    if (relPath.split("/")[0] !== STEP_DIR_BY_NUMBER[3]) continue;
+    const absPath = path.join(projectRoot, relPath);
+    if (!(await fs.pathExists(absPath))) continue;
+    const original = await fs.readFile(absPath, "utf8");
+    if (original.startsWith(KEPT_LEGACY_BANNER_PREFIX)) continue;
+    await fs.writeFile(absPath, keptLegacyBanner(today) + original, "utf8");
+    marked.push(relPath);
+  }
+  return marked;
 }
 
 /** 旧镜头文件 H1 冒号后面的展示名，例如「# 镜头 001：清晨前的邀请」→「清晨前的邀请」。 */
@@ -571,6 +618,9 @@ export async function applyMigration(projectRoot: string, preview: MigrationPrev
   }
   issues.push(...assembled.issues);
 
+  // 03 原件既不被生成器覆盖、也不该被悄悄删掉：给它加一行标注，说明它不是当前正文。
+  const markedOriginals = await markKeptLegacyOriginals(projectRoot, preview);
+
   const { config } = await readProjectConfig(projectRoot);
   const version = config?.content?.format_version ?? null;
   if (version !== CONTENT_FORMAT_VERSION) {
@@ -589,6 +639,16 @@ export async function applyMigration(projectRoot: string, preview: MigrationPrev
     "  写入 " + String(written.length) + " 个文件；旧文件没有删除，已另存为「" + MIGRATED_SNAPSHOT_DIRECTORY + "」下的只读快照。",
     "  已按内容树重新整理总表与 04/05 执行文件。"
   ];
+  if (markedOriginals.length > 0) {
+    summaryLines.push(
+      "  已给 " +
+        String(markedOriginals.length) +
+        " 个留在原位的旧 " +
+        STEP_DIR_BY_NUMBER[3] +
+        " 正文原件加上「已迁移」标注：" +
+        markedOriginals.join("、")
+    );
+  }
   if (issues.length > 0) {
     summaryLines.push("  需要注意 " + String(issues.length) + " 条：");
     for (const issue of issues) summaryLines.push("  ! [" + issue.code + "] " + issue.message);
