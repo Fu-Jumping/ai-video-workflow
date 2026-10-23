@@ -392,9 +392,10 @@
 ### Q40 阶段 02 收尾：示例项目迁移、越界改动追认与既有缺陷登记 `[已处理]` 2026-10-23
 
 - 来源：阶段 02（C0 正式实施 + C1—C2）收尾审核包的三项待拍板，用户答复（2026-10-23）：①追认越界改动；②两项既有缺陷登记进本台账、另开一轮修；③先保留阶段工作树，暂不合并、不清理。
-- 示例项目迁移：用户另行授权「现在就把 `examples/官方示例-云上早市` 迁移到内容树」，并接受迁移后段落之间多一个空行的排版规范化。执行结果：`content migrate --preview` 15 条（新建 9、合并 6、冲突 0），`--apply --yes` 写入 30 个文件；`内容/` 下 13 个文件、`03_分镜脚本/00_内容树索引.md` 1 个、`已迁移/` 下 9 份只读快照；`project.config.yaml` 追加 `content.format_version: 1`；旧文件一个未删。迁移后 `verify` 与 `content check` 均通过。
+- 示例项目迁移：用户另行授权「现在就把 `examples/官方示例-云上早市` 迁移到内容树」，并接受迁移后段落之间多一个空行的排版规范化。执行结果：`content migrate --preview` 15 条（新建 9、合并 6、冲突 0），`--apply --yes` 写入 30 个文件；`内容/` 下 13 个文件、`03_分镜脚本/00_内容树索引.md` 1 个、`已迁移/` 下 9 份只读快照；`project.config.yaml` 追加 `content.format_version: 1`；旧文件一个未删。迁移后 `verify` 与 `content check` 均通过。收尾修正时按 §9.3.2 的新建口径删除 `03_分镜脚本/镜头组-001/` 下 3 个镜头正文与 `00_镜头组说明.md`（正文在 `内容/` 与 `已迁移/` 各有一份，删前逐文件核对），`03_分镜脚本` 下只留 `00_内容树索引.md`。
 - 因迁移失效的旧格式断言：不再依赖示例项目本身保持旧格式，改为 `apps/cli/tests/legacy-example.ts` 派生的旧口径副本（复制示例项目 → 删 `内容/` 与 `03_分镜脚本/00_内容树索引.md` → 删配置里的 `content` 键 → 用 `已迁移/` 快照还原旧 `03/04/05`）。`obsidian-export.test.ts`、`obsidian-verify.test.ts`、`maintenance.test.ts`、`libtv-plan.test.ts` 的旧口径用例改用它。
 - 越界改动追认：`apps/cli/src/lib/mcp/resources.ts`（+10 行）。内容树与旧第 3 步共用步骤编号 3，会生成同一个 MCP URI，客户端因重复地址拒绝启动；改为重复时追加 `/${encodeURIComponent(step.directory)}` 区分。该文件不在任务书第九节白名单内，用户已追认。
+- 越界改动追认：`apps/cli/src/lib/libtv/assets.ts`（+4/−1，落在 8b6cfad）。`buildVideoRefs` 读 05 执行文件里「素材上传顺序」的正则从 `/素材上传顺序\s*[：:]\s*([^\n]+)/u` 改为 `/素材上传顺序\s*(?:\||[：:])\s*([^\n|]+)/u`：内容树生成的 05 执行文件把这一行写成表格行（`| 素材上传顺序 | A、B、C |`），旧正则只认冒号，取不到 `orderTokens`，内容树项目的引用顺序校验会静默失效。该文件不在任务书第九节白名单内，用户已追认。
 - 既有缺陷登记（本轮不修，另开一轮）：
   - `apps/cli/tests/libtv-failures.test.ts` 的「状态未知的节点：不传 --retry 时不会被重新提交」偶发失败。证据：单独跑该文件三次为通过／失败／通过交替；把 `apps/cli/src/lib/libtv/assets.ts` 换回 base 版本连跑 8 次仍失败 1 次（`BASELINE_ASSETS_FAILS=1/8`），`git diff` 显示 `apps/cli/src/lib/libtv/` 下只有 `assets.ts` 有改动。结论：base 代码同样偶发，属测试对时序敏感，与内容树无关。
   - `apps/cli/tests/cli-dist.test.ts` 与 `apps/cli/tests/libtv-cli.test.ts` 每个用例内部自己跑 `tsup build`，vitest 多文件并行时互相踩踏 `dist` 目录，产生 `ERR_MODULE_NOT_FOUND`、「does not provide an export named ...」等假失败；`--no-file-parallelism` 单文件串行全过。属既有测试基础设施的并发缺陷。
