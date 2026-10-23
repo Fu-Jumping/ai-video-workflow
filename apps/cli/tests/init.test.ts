@@ -275,7 +275,9 @@ describe("createProject", () => {
     await expect(fs.pathExists(path.join(projectRoot, "00_前期研究", "00_研究总览.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, "00_前期研究", "04_创作简报.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, "01_概念策划"))).resolves.toBe(true);
-    await expect(fs.pathExists(path.join(projectRoot, "03_分镜脚本", "镜头组-001", "00_镜头组说明.md"))).resolves.toBe(true);
+    // 内容树项目 03 只留索引（规范 §9.3.2）：不播种 00_镜头组说明.md，也不留空的 镜头组-001。
+    await expect(fs.readdir(path.join(projectRoot, "03_分镜脚本"))).resolves.toEqual(["00_内容树索引.md"]);
+    await expect(fs.pathExists(path.join(projectRoot, "03_分镜脚本", "镜头组-001"))).resolves.toBe(false);
     await expect(fs.pathExists(path.join(projectRoot, "04_图片提示词", "镜头组-001"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, "05_视频提示词", "镜头组-001"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, "06_执行计划", "00_执行计划.md"))).resolves.toBe(true);

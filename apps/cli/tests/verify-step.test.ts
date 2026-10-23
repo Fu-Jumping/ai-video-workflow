@@ -34,6 +34,19 @@ async function dropContentFormatVersion(projectRoot: string): Promise<void> {
   await fs.writeFile(configPath, stringifyYaml(parsed), "utf8");
 }
 
+/**
+ * 旧格式项目在 Step 3 组目录必须有 `00_镜头组说明.md`（quality-gates §Step 3）。
+ * init 现在按内容树口径播种（03 只留索引，不再带这份组说明），所以旧格式夹具改回
+ * 旧口径时自己补回来：内容取自 pack 模板，与改动前 init 播种的完全一致。
+ */
+async function seedLegacyShotGroupDescription(projectRoot: string): Promise<void> {
+  await fs.outputFile(
+    path.join(projectRoot, "03_分镜脚本", shotGroupDir, "00_镜头组说明.md"),
+    await fs.readFile(path.join(repoRoot, "packs", "official-ai-video", "templates", "03_分镜脚本", "镜头组说明.md"), "utf8"),
+    "utf8"
+  );
+}
+
 async function createSyncedProject(root: string): Promise<string> {
   await createProject({
     targetRoot: root,
@@ -47,6 +60,7 @@ async function createSyncedProject(root: string): Promise<string> {
   const projectRoot = path.join(root, "verify-step-project");
   await syncProject({ repoRoot, projectRoot, pack: "official-ai-video", ide: "codex" });
   await dropContentFormatVersion(projectRoot);
+  await seedLegacyShotGroupDescription(projectRoot);
   return projectRoot;
 }
 

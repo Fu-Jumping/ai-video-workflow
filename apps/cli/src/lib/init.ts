@@ -80,13 +80,13 @@ async function seedProjectDirectories(repoRoot: string, projectRoot: string, sta
     path.join(projectRoot, mediaRecordsDirectory, mediaRecordGuideFileName),
     await readPackTemplate(repoRoot, pack, path.join(mediaRecordsDirectory, mediaRecordGuideFileName))
   );
-  for (const step of [3, 4, 5]) {
+  // 03 只留内容树索引（规范 §9.3.2）：新建项目一律声明 content.format_version，镜头组
+  // 描述的唯一来源是 内容/场-XXX/镜头组-XXX/00_镜头组总览.md，所以这里不再往 03 下播种
+  // 00_镜头组说明.md，也不留空的 镜头组-001 目录（留空目录只会让人以为该往里放正文）。
+  // packs 的 templates/03_分镜脚本/镜头组说明.md 仍然保留：旧格式项目与迁移流程还要用它。
+  for (const step of [4, 5]) {
     await fs.ensureDir(path.join(projectRoot, STEP_DIR_BY_NUMBER[step], "镜头组-001"));
   }
-  await writeSeededFile(
-    path.join(projectRoot, STEP_DIR_BY_NUMBER[3], "镜头组-001", "00_镜头组说明.md"),
-    await readPackTemplate(repoRoot, pack, path.join("03_分镜脚本", "镜头组说明.md"))
-  );
   // Step 2 世界设定 templates are seeded directly: the character/scene setting files are the
   // deliverables themselves, filled in place rather than copied per shot.
   for (const file of ["角色设定.md", "场景设定.md"]) {
