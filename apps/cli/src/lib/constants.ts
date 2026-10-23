@@ -66,11 +66,54 @@ export const DEFAULT_PACK = "official-ai-video";
 export const CONTENT_FORMAT_VERSION = 1;
 export const SUPPORTED_CONTENT_FORMAT_VERSIONS: readonly number[] = [1];
 
-/** 内容树根目录名（C0 实施后启用；本轮只登记常量，不创建目录）。 */
+/** 内容树根目录名。 */
 export const CONTENT_ROOT_DIRECTORY = "内容";
 
 /** 迁移快照目录名：迁移后的旧文件在此保留为只读快照，不参与当前内容检查与投影。 */
 export const MIGRATED_SNAPSHOT_DIRECTORY = "已迁移";
+
+/** 内容树顶层两张总表。 */
+export const CONTENT_SHOT_OVERVIEW_FILE = "00_镜头总表.md";
+export const CONTENT_STORYBOARD_OVERVIEW_FILE = "01_分镜总表.md";
+
+/** 场／镜头组的总览文件名（各自目录内固定同名）。 */
+export const SCENE_OVERVIEW_FILE = "00_场总览.md";
+export const SHOT_GROUP_OVERVIEW_FILE = "00_镜头组总览.md";
+
+/** 目录名前缀：场-001 / 镜头组-001 / 镜头-001。 */
+export const SCENE_DIRECTORY_PREFIX = "场-";
+export const SHOT_GROUP_DIRECTORY_PREFIX = "镜头组-";
+export const SHOT_DIRECTORY_PREFIX = "镜头-";
+
+/** 单分镜文件名前缀：分镜-01.md（两位补零）。 */
+export const STORYBOARD_FILE_PREFIX = "分镜-";
+
+/** Step 3 目录下的内容树索引文件名（只放索引，不复制正文）。 */
+export const CONTENT_INDEX_FILE = "00_内容树索引.md";
+
+/** 单镜头内分镜数量上限（与 Step 3 门槛一致：1—6）。 */
+export const MAX_STORYBOARD_SEGMENTS = 6;
+
+/** 单镜头内关键帧数量上限（与 Step 4 门槛一致：不超过 4，也不超过分镜数）。 */
+export const MAX_KEYFRAMES_PER_SHOT = 4;
+
+/**
+ * 自动区块与人工区块的标记名。
+ *
+ * 自动区块由工具刷新时整块替换，人工区块永不覆盖；区块以外的正文一律视为人工内容。
+ */
+export const CONTENT_BLOCK_NAMES = {
+  shotOverview: "镜头总表",
+  storyboardOverview: "分镜总表",
+  sceneGroups: "场镜头组表",
+  groupShots: "组镜头表",
+  shotSegmentDigest: "分镜速览",
+  shotImagePrompts: "图片提示词",
+  shotSegments: "镜头段拼装",
+  shotPromptBefore: "视频提示词前段",
+  shotPromptAfter: "视频提示词后段",
+  manualSummary: "人工摘要"
+} as const;
 
 export function researchStepEnabled(config: ProjectConfig): boolean {
   return config.workflow.research_step?.enabled === true;

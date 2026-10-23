@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 
+import { parseShotDocument, parseStoryboardDocument } from "../src/lib/content-tree.js";
 import { createProject } from "../src/lib/init.js";
 import { extractReferenceAssets, findMissingCharacterTriViews, findMissingSceneReferenceImages } from "../src/lib/reference-assets.js";
 import { verifyProject } from "../src/lib/verify.js";
@@ -67,6 +68,126 @@ describe("template compliance", () => {
     const scenes = await fs.readFile(path.join(packTemplatesRoot, "02_世界设定", "场景设定.md"), "utf8");
     expect(findMissingCharacterTriViews(characters)).toEqual([]);
     expect(findMissingSceneReferenceImages(scenes)).toEqual([]);
+  });
+
+  test("content tree templates exist at the spec paths", async () => {
+    const expected = [
+      path.join("内容", "00_镜头总表.md"),
+      path.join("内容", "01_分镜总表.md"),
+      path.join("内容", "场-XXX", "00_场总览.md"),
+      path.join("内容", "场-XXX", "镜头组-XXX", "00_镜头组总览.md"),
+      path.join("内容", "场-XXX", "镜头组-XXX", "镜头-NNN", "00_镜头-NNN.md"),
+      path.join("内容", "场-XXX", "镜头组-XXX", "镜头-NNN", "分镜-NN.md"),
+      path.join("内容", "场-XXX", "镜头组-XXX", "镜头-NNN", "分镜-NN-无关键帧示例.md")
+    ];
+    for (const relPath of expected) {
+      expect(await fs.pathExists(path.join(packTemplatesRoot, relPath))).toBe(true);
+    }
+  });
+
+  test("content tree templates stay placeholder-only and use relative paths", async () => {
+    const expected = [
+      path.join("内容", "00_镜头总表.md"),
+      path.join("内容", "01_分镜总表.md"),
+      path.join("内容", "场-XXX", "00_场总览.md"),
+      path.join("内容", "场-XXX", "镜头组-XXX", "00_镜头组总览.md"),
+      path.join("内容", "场-XXX", "镜头组-XXX", "镜头-NNN", "00_镜头-NNN.md"),
+      path.join("内容", "场-XXX", "镜头组-XXX", "镜头-NNN", "分镜-NN.md"),
+      path.join("内容", "场-XXX", "镜头组-XXX", "镜头-NNN", "分镜-NN-无关键帧示例.md")
+    ];
+    for (const relPath of expected) {
+      const template = await fs.readFile(path.join(packTemplatesRoot, relPath), "utf8");
+      // 每份都要有文件用途说明与占位符骨架，避免被填成某个具体项目的内容。
+      expect(template).toContain("## 文件用途");
+      expect(template).toMatch(/<[^>\n]+>/u);
+      // 只允许相对路径：不得出现盘符、file:// 或 vscode://。
+      expect(template).not.toMatch(/[A-Za-z]:[\\/]|file:\/\/|vscode:\/\//u);
+    }
+  });
+
+  test("content tree overview templates declare their auto blocks", async () => {
+    const shotOverview = await fs.readFile(path.join(packTemplatesRoot, "内容", "00_镜头总表.md"), "utf8");
+    const storyboardOverview = await fs.readFile(path.join(packTemplatesRoot, "内容", "01_分镜总表.md"), "utf8");
+    const sceneOverview = await fs.readFile(path.join(packTemplatesRoot, "内容", "场-XXX", "00_场总览.md"), "utf8");
+    const groupOverview = await fs.readFile(
+      path.join(packTemplatesRoot, "内容", "场-XXX", "镜头组-XXX", "00_镜头组总览.md"),
+      "utf8"
+    );
+
+    expect(shotOverview).toContain("<!-- avw:auto:start name=镜头总表 -->");
+    expect(shotOverview).toContain("<!-- avw:auto:end name=镜头总表 -->");
+    expect(storyboardOverview).toContain("<!-- avw:auto:start name=分镜总表 -->");
+    expect(storyboardOverview).toContain("<!-- avw:auto:end name=分镜总表 -->");
+    expect(sceneOverview).toContain("<!-- avw:auto:start name=场镜头组表 -->");
+    expect(sceneOverview).toContain("<!-- avw:auto:end name=场镜头组表 -->");
+    expect(groupOverview).toContain("<!-- avw:auto:start name=组镜头表 -->");
+    expect(groupOverview).toContain("<!-- avw:auto:end name=组镜头表 -->");
+  });
+
+  test("shot summary template declares the five content tree blocks", async () => {
+    const shotSummary = await fs.readFile(
+      path.join(packTemplatesRoot, "内容", "场-XXX", "镜头组-XXX", "镜头-NNN", "00_镜头-NNN.md"),
+      "utf8"
+    );
+    for (const name of ["分镜速览", "图片提示词", "镜头段拼装"]) {
+      expect(shotSummary).toContain(`<!-- avw:auto:start name=${name} -->`);
+      expect(shotSummary).toContain(`<!-- avw:auto:end name=${name} -->`);
+    }
+    for (const name of ["视频提示词前段", "视频提示词后段"]) {
+      expect(shotSummary).toContain(`<!-- avw:manual:start name=${name} -->`);
+      expect(shotSummary).toContain(`<!-- avw:manual:end name=${name} -->`);
+    }
+  });
+
+  test("storyboard template keeps the three required parts and a prompt code fence", async () => {
+    const storyboardDir = path.join(packTemplatesRoot, "内容", "场-XXX", "镜头组-XXX", "镜头-NNN");
+    for (const fileName of ["分镜-NN.md", "分镜-NN-无关键帧示例.md"]) {
+      const storyboard = await fs.readFile(path.join(storyboardDir, fileName), "utf8");
+      // 解析器按小节标题识别三部分：含「本段正文」的小节、含「关键帧」的小节、含「视频提示词」的小节。
+      expect(storyboard).toMatch(/^#{2,3}\s+[^\n]*本段正文[^\n]*$/mu);
+      expect(storyboard).toMatch(/^#{2,3}\s+[^\n]*关键帧[^\n]*$/mu);
+      expect(storyboard).toMatch(/^#{2,3}\s+[^\n]*视频提示词[^\n]*$/mu);
+      // 视频提示词片段必须写在代码块里，否则整镜拼装拿不到正文。
+      expect(storyboard).toContain("```text");
+      expect(storyboard).toContain("整段视频提交请用");
+      expect(storyboard).toContain("镜头汇总");
+    }
+  });
+
+  test("storyboard template keeps keyframe headings at level four", async () => {
+    const storyboard = await fs.readFile(
+      path.join(packTemplatesRoot, "内容", "场-XXX", "镜头组-XXX", "镜头-NNN", "分镜-NN.md"),
+      "utf8"
+    );
+    // 解析器只在 ##/### 处切小节：关键帧标题若写成 ### 级，会被当成新小节，导致本段关键帧解析为空。
+    expect(storyboard).toMatch(/^####\s*关键帧 01\s*$/mu);
+    expect(storyboard).not.toMatch(/^###\s*关键帧 \d+\s*$/mu);
+    expect(storyboard).toContain("对应分镜：");
+    expect(storyboard).toContain("关键时刻：");
+  });
+
+  test("content tree templates parse cleanly with the content tree reader", async () => {
+    const storyboardDir = path.join(packTemplatesRoot, "内容", "场-XXX", "镜头组-XXX", "镜头-NNN");
+    const shotDirRel = "内容/场-001/镜头组-001/镜头-001";
+
+    const withKeyframes = await fs.readFile(path.join(storyboardDir, "分镜-NN.md"), "utf8");
+    const withKeyframeDoc = parseStoryboardDocument(path.posix.join(shotDirRel, "分镜-01.md"), withKeyframes);
+    expect(withKeyframeDoc.issues).toEqual([]);
+    expect(withKeyframeDoc.keyframes).toHaveLength(1);
+    expect(withKeyframeDoc.videoPromptSegment).toBeTruthy();
+
+    const withoutKeyframes = await fs.readFile(path.join(storyboardDir, "分镜-NN-无关键帧示例.md"), "utf8");
+    const withoutKeyframeDoc = parseStoryboardDocument(path.posix.join(shotDirRel, "分镜-02.md"), withoutKeyframes);
+    expect(withoutKeyframeDoc.issues).toEqual([]);
+    expect(withoutKeyframeDoc.keyframes).toHaveLength(0);
+    expect(withoutKeyframeDoc.videoPromptSegment).toBeTruthy();
+
+    const shotSummary = await fs.readFile(path.join(storyboardDir, "00_镜头-NNN.md"), "utf8");
+    const shotDoc = parseShotDocument(path.posix.join(shotDirRel, "00_镜头-001.md"), shotSummary);
+    expect(shotDoc.issues).toEqual([]);
+    for (const body of [shotDoc.segmentDigest, shotDoc.imagePrompt, shotDoc.segmentsBody, shotDoc.promptBefore, shotDoc.promptAfter]) {
+      expect(body).toBeTruthy();
+    }
   });
 
   test("a freshly initialized project with seeded templates passes full verification", async () => {

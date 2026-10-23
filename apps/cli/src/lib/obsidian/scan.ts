@@ -1,7 +1,8 @@
 import fs from "fs-extra";
 import path from "node:path";
 
-import { activeWorkflowSteps } from "../constants.js";
+import { CONTENT_ROOT_DIRECTORY, activeWorkflowSteps } from "../constants.js";
+import { resolveContentMode } from "../content-tree.js";
 import { readWorkflowProjectConfig } from "../project-root.js";
 import { extractReferenceAssets } from "../reference-assets.js";
 import { shotGroupIdFromPath, shotIdFromFileName } from "../shot-graph.js";
@@ -63,6 +64,45 @@ export async function scanProjectForObsidian(projectRoot: string): Promise<Obsid
         referenceAssets: extractReferenceAssets(content)
       });
     }
+  }
+  files.push(...(await scanContentTree(projectRoot)));
+  return files;
+}
+
+// 内容树是正文唯一事实源（content.format_version=1 时）。它不在 activeWorkflowSteps 里，
+// 必须单独扫描并投影，否则内容树页面在观看层里不存在，索引页指向它们的链接全部失效。
+const contentStoryboardFilePattern = /^(?:分镜[-_ ]?\d+|00_镜头[-_ ]?\d+)\.md$/iu;
+
+async function scanContentTree(projectRoot: string): Promise<ObsidianSourceFile[]> {
+  const resolution = await resolveContentMode(projectRoot);
+  if (resolution.mode !== "content-tree") {
+    return [];
+  }
+  const contentRoot = path.join(projectRoot, CONTENT_ROOT_DIRECTORY);
+  if (!(await fs.pathExists(contentRoot))) {
+    return [];
+  }
+  const entries = await walkMarkdownFiles(contentRoot);
+  const files: ObsidianSourceFile[] = [];
+  for (const entry of entries) {
+    const filePath = path.join(contentRoot, ...entry.split("/"));
+    const content = await fs.readFile(filePath, "utf8");
+    const sourcePath = toVaultPath(path.posix.join(CONTENT_ROOT_DIRECTORY, entry));
+    const fileName = path.posix.basename(entry);
+    const sourceKind: ObsidianSourceKind = contentStoryboardFilePattern.test(fileName) ? "storyboard" : "index";
+    // 内容树的文件名是编号（00_镜头-001.md、分镜-01.md），拿它当标题只会显示成 "00 镜头 001"；
+    // 展示名取 H1，编号身份另由目录与文件名推导。
+    const fallbackTitle = titleForEntry(fileName);
+    files.push({
+      sourcePath,
+      sourceKind,
+      step: 3,
+      title: titleFromMarkdownContent(content, fallbackTitle),
+      headingTitle: titleFromMarkdownContent(content, fallbackTitle),
+      shotGroupId: shotGroupIdFromPath(sourcePath),
+      shotId: shotIdFromFileName(fileName),
+      referenceAssets: extractReferenceAssets(content)
+    });
   }
   return files;
 }

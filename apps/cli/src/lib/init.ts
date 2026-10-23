@@ -2,7 +2,21 @@ import fs from "fs-extra";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { CONTENT_FORMAT_VERSION, DEFAULT_PACK, DEFAULT_VIDEO_PLATFORM, STEP0_FILES, STEP6_FILES, STEP7_FILES, STEP_DIR_BY_NUMBER, STORY_KERNEL_FILE, activeStepDirs } from "./constants.js";
+import {
+  CONTENT_FORMAT_VERSION,
+  CONTENT_ROOT_DIRECTORY,
+  CONTENT_SHOT_OVERVIEW_FILE,
+  CONTENT_STORYBOARD_OVERVIEW_FILE,
+  DEFAULT_PACK,
+  DEFAULT_VIDEO_PLATFORM,
+  STEP0_FILES,
+  STEP6_FILES,
+  STEP7_FILES,
+  STEP_DIR_BY_NUMBER,
+  STORY_KERNEL_FILE,
+  activeStepDirs
+} from "./constants.js";
+import { assembleContentTree } from "./content-assemble.js";
 import { CliUserError } from "./cli-errors.js";
 import { copyDirectory } from "./fs-utils.js";
 import { mediaProjectDirectories, mediaRecordGuideFileName, mediaRecordsDirectory } from "./media-records.js";
@@ -92,6 +106,15 @@ async function seedProjectDirectories(repoRoot: string, projectRoot: string, sta
     path.join(projectRoot, STEP_DIR_BY_NUMBER[5], "镜头组-001", "视频提示词.md"),
     await readPackTemplate(repoRoot, pack, path.join("05_视频提示词", "视频提示词.md"))
   );
+  // 内容树（C0）：新项目声明 content.format_version，所以必须自带「内容/」骨架，
+  // 否则一建出来就是「声明了新格式却没有内容树」。只播种两张总表：空项目本来没有场／
+  // 镜头组／镜头，场与组目录由创作过程按需建立（内容树校验不会因空树报错）。
+  for (const file of [CONTENT_SHOT_OVERVIEW_FILE, CONTENT_STORYBOARD_OVERVIEW_FILE]) {
+    await writeSeededFile(
+      path.join(projectRoot, CONTENT_ROOT_DIRECTORY, file),
+      await readPackTemplate(repoRoot, pack, path.join(CONTENT_ROOT_DIRECTORY, file))
+    );
+  }
   if (startFrom === "research") {
     for (const file of STEP0_FILES) {
       await writeSeededFile(
@@ -229,6 +252,10 @@ export async function createProject(options: CreateProjectOptions): Promise<stri
   await seedStarterFiles(repoRoot, projectRoot, options.pack);
   await seedProjectDirectories(repoRoot, projectRoot, startFrom, options.pack);
   await writeProjectConfig(projectRoot, options);
+  // 内容树骨架播种完之后立刻整理一次：把两张总表的自动区块刷成当前数据，并生成
+  // 03_分镜脚本/00_内容树索引.md。整理是幂等的，空项目整理出来就是一份合法骨架，
+  // 所以「新建 → verify」能直接通过。此时没有旧内容可备份，跳过备份目录。
+  await assembleContentTree(projectRoot, { skipBackup: true });
   await fs.writeFile(path.join(projectRoot, "README.md"), renderProjectReadme(projectName, options.ide, startFrom), "utf8");
   await syncProject({
     repoRoot,

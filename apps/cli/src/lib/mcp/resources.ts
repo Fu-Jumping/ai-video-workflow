@@ -109,9 +109,17 @@ export function buildMcpResources(context: McpProjectContext): McpResourceDefini
     }
   ];
 
+  const usedStepUris = new Set<string>();
   for (const step of context.steps) {
+    // 内容树（内容/）与步骤三共用编号 3：两个步骤各有自己的目录，必须各自拿到唯一地址，
+    // 否则 MCP 客户端会因为重复 URI 直接拒绝启动。
+    let uri = `ai-video-workflow://workflow/step/${step.step}`;
+    if (usedStepUris.has(uri)) {
+      uri = `ai-video-workflow://workflow/step/${step.step}/${encodeURIComponent(step.directory)}`;
+    }
+    usedStepUris.add(uri);
     resources.push({
-      uri: `ai-video-workflow://workflow/step/${step.step}`,
+      uri,
       name: `工作流步骤 ${step.step}: ${step.label}`,
       mimeType: "application/json",
       text: asJson(step)

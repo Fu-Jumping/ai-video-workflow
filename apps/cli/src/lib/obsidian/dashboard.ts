@@ -2,6 +2,9 @@ import type { ObsidianGeneratedFile, ObsidianSourceFile } from "./types.js";
 import { wikiLinkTargetForVaultPath, workflowVaultPath } from "./markdown.js";
 import { shotReviewCanvasPath } from "./canvas.js";
 import {
+  contentScenePagePath,
+  contentStoryboardPagePath,
+  contentTreeIndexPath,
   notesIndexLink,
   notesIndexPath,
   agentHandoffPath,
@@ -26,6 +29,13 @@ import {
   shotPipelineCanvasPath,
   productionStatusBasePath
 } from "./routes.js";
+import { CONTENT_ROOT_DIRECTORY } from "../constants.js";
+import {
+  sceneIdFromDirectory,
+  shotGroupIdFromDirectory,
+  shotIdFromDirectory,
+  storyboardIdFromFileName
+} from "../content-tree.js";
 import { obsidianProperties, obsidianPropertyValues } from "./properties.js";
 import { deviationScopeMatches, type DeviationsReadResult } from "../deviations.js";
 import { formatReferenceAssets } from "../reference-assets.js";
@@ -293,6 +303,18 @@ function renderLibtvDecisionText(libtvState: LibTvState | null | undefined, shot
   }).join("\n");
 }
 
+/** 内容树模式下，这个镜头自己的分镜页面入口；旧格式没有内容树，返回空串。 */
+function contentStoryboardLinksForShot(shotId: string, sourceFiles: ObsidianSourceFile[]): string {
+  const entries = contentTreeEntries(sourceFiles).filter((entry) => entry.shotId === shotId && entry.storyboardId);
+  if (entries.length === 0) {
+    return "";
+  }
+  return entries
+    .sort((left, right) => left.sourcePath.localeCompare(right.sourcePath))
+    .map((entry) => `- 分镜 ${entry.storyboardId}：[[${contentStoryboardPagePath(shotId, entry.storyboardId ?? "")}|${entry.storyboardId}]]`)
+    .join("\n");
+}
+
 function renderShotHub(
   shotId: string,
   shotFiles: ObsidianSourceFile[],
@@ -326,6 +348,7 @@ function renderShotHub(
   const groupLine = shotGroupId ? `${obsidianProperties.shotGroupId}: ${shotGroupId}\n` : "";
   const groupTag = shotGroupId ? `  - ai-video/shot-group/${shotGroupId}\n` : "";
   const groupNavigation = shotGroupId ? `- 镜头组：[[${shotGroupPagePath(shotGroupId)}|${shotGroupDisplayName(shotGroupId, allSourceFiles)}]]\n` : "";
+  const contentStoryboards = contentStoryboardLinksForShot(shotId, allSourceFiles);
   return {
     vaultPath: singleShotPagePath(shotId),
     content: `---
@@ -372,7 +395,7 @@ ${groupTag}  - ai-video/type/index
 - 审阅总览：[[${reviewOverviewPath}|审阅总览]]
 - 制作看板：[[${productionBoardPath}|制作看板]]
 - 审阅地图：[[${reviewMapCanvasPath}|审阅地图]]
-${groupNavigation}${shotNavigation(shotId, shotIds, allSourceFiles)}
+${groupNavigation}${contentStoryboards ? `- 本镜分镜（内容树）：\n${contentStoryboards}\n` : ""}${shotNavigation(shotId, shotIds, allSourceFiles)}
 
 ## 3. 源文件序列
 
@@ -552,6 +575,182 @@ function shotModesForShot(context: DeviationsReadResult, shotId: string): Workfl
 }
 
 
+// 内容树（内容/）在观看层里的投影。
+//
+// 旧投影按「阶段 + 镜头组」平铺，内容树里的分镜文件没有自己的页面，索引页也就无处可点。
+// 这里按内容树自己的四层（场 / 镜头组 / 镜头 / 分镜）补入口页；只投影「内容/」下真实存在的
+// 文件，链接目标全部在本函数组里一起产出，避免出现指向不存在文件的链接。
+interface ContentTreeEntry {
+  sourcePath: string;
+  sceneId: string | null;
+  groupId: string | null;
+  shotId: string | null;
+  storyboardId: string | null;
+}
+
+function contentTreeEntries(sourceFiles: ObsidianSourceFile[]): ContentTreeEntry[] {
+  const prefix = `${CONTENT_ROOT_DIRECTORY}/`;
+  return sourceFiles
+    .filter((file) => file.sourcePath.startsWith(prefix))
+    .map((file) => {
+      const segments = file.sourcePath.split("/");
+      const fileName = segments.at(-1) ?? "";
+      return {
+        sourcePath: file.sourcePath,
+        sceneId: segments[1] ? sceneIdFromDirectory(segments[1]) : null,
+        groupId: segments[2] ? shotGroupIdFromDirectory(segments[2]) : null,
+        shotId: segments[3] ? shotIdFromDirectory(segments[3]) : null,
+        storyboardId: storyboardIdFromFileName(fileName)
+      };
+    });
+}
+
+function contentEntryLink(entry: ContentTreeEntry, sourceFiles: ObsidianSourceFile[], label?: string): string {
+  const file = sourceFiles.find((candidate) => candidate.sourcePath === entry.sourcePath);
+  if (!file) {
+    return label ?? entry.sourcePath;
+  }
+  return `[[${wikiLinkTargetForVaultPath(workflowVaultPath(file))}|${label ?? file.headingTitle ?? file.title}]]`;
+}
+
+function contentOverviewEntries(entries: ContentTreeEntry[]): ContentTreeEntry[] {
+  return entries.filter((entry) => !entry.sceneId && !entry.groupId && !entry.shotId && !entry.storyboardId);
+}
+
+function renderContentTreeIndex(sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedFile | null {
+  const entries = contentTreeEntries(sourceFiles);
+  if (entries.length === 0) {
+    return null;
+  }
+  const overviews = contentOverviewEntries(entries)
+    .map((entry) => `- ${contentEntryLink(entry, sourceFiles)}`)
+    .join("\n");
+  const sceneIds = [...new Set(entries.map((entry) => entry.sceneId).filter((id): id is string => Boolean(id)))].sort();
+  const sceneLinks = sceneIds
+    .map((sceneId) => {
+      const sceneEntry = entries.find((entry) => entry.sceneId === sceneId && entry.groupId === null);
+      return `- [[${contentScenePagePath(sceneId)}|${sceneId}]]${sceneEntry ? ` - ${contentEntryLink(sceneEntry, sourceFiles)}` : ""}`;
+    })
+    .join("\n");
+  const storyboardEntries = entries
+    .filter((entry) => entry.storyboardId && entry.shotId)
+    .sort((left, right) => left.sourcePath.localeCompare(right.sourcePath));
+  const storyboardLinks = storyboardEntries
+    .map((entry) => `- [[${contentStoryboardPagePath(entry.shotId ?? "", entry.storyboardId ?? "")}|${entry.storyboardId}]] - ${contentEntryLink(entry, sourceFiles)}`)
+    .join("\n");
+  return {
+    vaultPath: contentTreeIndexPath,
+    content: `# 内容树
+
+内容树是正文的唯一事实源，按「场 → 镜头组 → 镜头 → 分镜」分层。这里只做入口索引，正文仍在源文件里。
+
+## 1. 总表
+
+${overviews || "- 尚未发现内容树总表。"}
+
+## 2. 场
+
+${sceneLinks || "- 尚未发现场目录。"}
+
+## 3. 分镜
+
+${storyboardLinks || "- 尚未发现分镜文件。"}
+`
+  };
+}
+
+function renderContentScenePage(sceneId: string, sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedFile {
+  const entries = contentTreeEntries(sourceFiles).filter((entry) => entry.sceneId === sceneId);
+  const sceneOverview = entries.find((entry) => entry.groupId === null && entry.shotId === null);
+  const groupIds = [...new Set(entries.map((entry) => entry.groupId).filter((id): id is string => Boolean(id)))].sort();
+  const groupSections = groupIds.map((groupId) => {
+    const groupOverview = entries.find((entry) => entry.groupId === groupId && entry.shotId === null);
+    const shots = entries.filter((entry) => entry.groupId === groupId && entry.shotId && !entry.storyboardId);
+    const shotLinks = shots
+      .map((shot) => {
+        const shotStoryboards = entries.filter((entry) => entry.groupId === groupId && entry.shotId === shot.shotId && entry.storyboardId);
+        const storyboardLinks = shotStoryboards
+          .map((storyboard) => `  - [[${contentStoryboardPagePath(shot.shotId ?? "", storyboard.storyboardId ?? "")}|${storyboard.storyboardId}]]`)
+          .join("\n");
+        return [`- ${contentEntryLink(shot, sourceFiles)}`, storyboardLinks].filter(Boolean).join("\n");
+      })
+      .join("\n");
+    return `### ${groupId}
+
+${groupOverview ? `- 组总览：${contentEntryLink(groupOverview, sourceFiles)}` : "- 组总览：缺失"}
+
+${shotLinks || "- 尚未发现镜头。"}`;
+  });
+  return {
+    vaultPath: contentScenePagePath(sceneId),
+    content: `# ${sceneId}
+
+## 1. 导航
+
+- [[${contentTreeIndexPath}|内容树]]
+- [[${shotLookupIndexPath}|按镜头联查]]
+
+## 2. 场总览
+
+${sceneOverview ? `![[${wikiLinkTargetForVaultPath(workflowVaultPath(sourceFiles.find((file) => file.sourcePath === sceneOverview.sourcePath)!))}]]` : "> 场总览：缺失"}
+
+## 3. 镜头组与镜头
+
+${groupSections.join("\n\n") || "- 尚未发现镜头组。"}
+`
+  };
+}
+
+function renderContentStoryboardPage(
+  shotId: string,
+  storyboardId: string,
+  sourceFiles: ObsidianSourceFile[]
+): ObsidianGeneratedFile {
+  const entries = contentTreeEntries(sourceFiles).filter((entry) => entry.shotId === shotId);
+  const storyboard = entries.find((entry) => entry.storyboardId === storyboardId);
+  const shotEntry = entries.find((entry) => !entry.storyboardId);
+  const storyboardFile = sourceFiles.find((file) => file.sourcePath === storyboard?.sourcePath);
+  return {
+    vaultPath: contentStoryboardPagePath(shotId, storyboardId),
+    content: `# ${storyboardFile?.headingTitle?.trim() || storyboardId}
+
+## 1. 导航
+
+- [[${contentTreeIndexPath}|内容树]]
+- 所属镜头：${shotEntry ? contentEntryLink(shotEntry, sourceFiles) : shotId}
+- 镜头页：[[${singleShotPagePath(shotId)}|${shotDisplayName(shotId, sourceFiles)}]]
+
+## 2. 本段正文
+
+${storyboardFile ? `![[${wikiLinkTargetForVaultPath(workflowVaultPath(storyboardFile))}]]` : "> 分镜文件：缺失"}
+`
+  };
+}
+
+function contentTreeFiles(sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedFile[] {
+  const index = renderContentTreeIndex(sourceFiles);
+  if (!index) {
+    return [];
+  }
+  const entries = contentTreeEntries(sourceFiles);
+  const sceneIds = [...new Set(entries.map((entry) => entry.sceneId).filter((id): id is string => Boolean(id)))].sort();
+  const storyboardKeys = [
+    ...new Set(
+      entries
+        .filter((entry) => entry.storyboardId && entry.shotId)
+        .map((entry) => `${entry.shotId ?? ""}/${entry.storyboardId ?? ""}`)
+    )
+  ].sort();
+  return [
+    index,
+    ...sceneIds.map((sceneId) => renderContentScenePage(sceneId, sourceFiles)),
+    ...storyboardKeys.map((key) => {
+      const [shotId, storyboardId] = key.split("/");
+      return renderContentStoryboardPage(shotId ?? "", storyboardId ?? "", sourceFiles);
+    })
+  ];
+}
+
 export function renderDashboardFiles(
   projectName: string,
   sourceFiles: ObsidianSourceFile[],
@@ -586,6 +785,10 @@ ${stageReviewLinks}
   const mediaReviewEntry = hasMediaReviewIndex
     ? "\n- [[" + mediaReviewIndexPath + "|素材审阅]]"
     : "";
+  // 内容树入口：只有项目里真的有「内容/」文件时才出现，旧格式项目的首页一字不变。
+  const contentTreeEntry = contentTreeEntries(sourceFiles).length > 0
+    ? `\n- [[${contentTreeIndexPath}|内容树]]`
+    : "";
   const deviationsMarkdown = renderDeviationsMarkdown(deviationsContext);
   const files: ObsidianGeneratedFile[] = [
     {
@@ -613,7 +816,7 @@ ${stageReviewLinks}
 - [[${shotLookupIndexPath}|按镜头联查]]
 - [[${productionBoardPath}|制作看板]]
 - [[${agentHandoffPath}|智能体交接]]
-- [[${notesIndexLink}|用户笔记]]${mediaReviewEntry}
+- [[${notesIndexLink}|用户笔记]]${mediaReviewEntry}${contentTreeEntry}
 
 ## 3. 镜头审阅
 
@@ -753,7 +956,8 @@ tags:
     ...stageReviewHubs,
     renderAgentHandoffPage(shotIds, sourceFiles),
     ...shotGroupIds.map((groupId) => renderShotGroupHub(groupId, sourceFiles)),
-    ...shotIds.map((shotId) => renderShotHub(shotId, sourceFiles.filter((file) => file.shotId === shotId), sourceFiles, shotIds, deviationsContext, libtvState))
+    ...shotIds.map((shotId) => renderShotHub(shotId, sourceFiles.filter((file) => file.shotId === shotId), sourceFiles, shotIds, deviationsContext, libtvState)),
+    ...contentTreeFiles(sourceFiles)
   ];
   if (includePluginRecipes) {
     files.push(renderCommunityPluginRecipes());

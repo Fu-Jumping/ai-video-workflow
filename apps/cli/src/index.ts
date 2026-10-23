@@ -58,6 +58,8 @@ import {
   verifyBackup
 } from "./lib/media-backup.js";
 import { listMediaRecords, renderMediaOverview } from "./lib/media-records.js";
+import { assembleContentTree, checkContentConsistency, renderAssembleSummary } from "./lib/content-assemble.js";
+import { buildMigrationPreview, renderMigrationPreview } from "./lib/migration-preview.js";
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -710,6 +712,79 @@ program
     for (const line of inspection.lines) console.log(line);
     if (!inspection.valid) {
       process.exitCode = 1;
+    }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+const contentCommand = program
+  .command("content")
+  .description("Maintain the content tree (内容/) that holds the canonical shot and storyboard text");
+
+contentCommand
+  .command("assemble")
+  .description("Refresh the shot overview, storyboard overview, shot summaries and the 04/05 execution files from 内容/")
+  .requiredOption("--project <path>")
+  .option("--force", "Also overwrite auto blocks that were edited by hand (the old content is backed up first)", false)
+  .option("--dry-run", "Only report what would change, do not write anything", false)
+  .action((options) => runCliAction(async () => {
+    const result = await assembleContentTree(path.resolve(options.project), {
+      force: options.force === true,
+      dryRun: options.dryRun === true
+    });
+    console.log(renderAssembleSummary(result));
+    if (!result.ok) {
+      process.exitCode = 1;
+    }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+contentCommand
+  .command("check")
+  .description("Check that the content tree, the overview tables and the 04/05 execution files still agree")
+  .requiredOption("--project <path>")
+  .action((options) => runCliAction(async () => {
+    const result = await checkContentConsistency(path.resolve(options.project));
+    if (result.issues.length === 0) {
+      console.log("内容树、总表与执行文件一致。");
+      return;
+    }
+    for (const issue of result.issues) {
+      console.log(`[${issue.code}] ${issue.message}`);
+    }
+    process.exitCode = 1;
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+contentCommand
+  .command("migrate")
+  .description("Move legacy 03/04/05 text into the content tree and keep a read-only snapshot of the old files")
+  .requiredOption("--project <path>")
+  .option("--preview", "Only show the per-file migration plan, write nothing", false)
+  .option("--apply", "Write the migration (requires --yes)", false)
+  .option("--yes", "Confirm the migration described by the preview", false)
+  .action((options) => runCliAction(async () => {
+    const projectRoot = path.resolve(options.project);
+    const preview = await buildMigrationPreview(projectRoot);
+    console.log(renderMigrationPreview(preview));
+    // 不认识的格式版本属于「拒绝」，不是「可预览的问题」：命令必须报错退出，
+    // 不能降级猜测，也不能让调用方以为拿到了可执行的迁移计划。
+    if (preview.issues.some((issue) => issue.code === "unsupported-content-format")) {
+      console.error("项目声明了本工具还不支持的内容树格式版本，迁移不会执行。请升级工具或改回受支持的版本。");
+      process.exitCode = 1;
+      return;
+    }
+    if (options.apply === true) {
+      if (options.yes !== true) {
+        console.error("迁移会写入文件。确认无误后请加 --yes 再执行。");
+        process.exitCode = 1;
+        return;
+      }
+      if (preview.issues.length > 0) {
+        console.error("预览里还有冲突或问题，先处理完再执行迁移。");
+        process.exitCode = 1;
+        return;
+      }
+      const { applyMigration } = await import("./lib/migration-preview.js");
+      const applied = await applyMigration(projectRoot, preview);
+      console.log(applied.summary);
+      if (!applied.ok) process.exitCode = 1;
     }
   }, () => program.opts<{ debug?: boolean }>().debug === true));
 

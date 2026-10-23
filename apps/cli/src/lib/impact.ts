@@ -1,7 +1,8 @@
 import fs from "fs-extra";
 import path from "node:path";
 
-import { WORKFLOW_STEPS } from "./constants.js";
+import { CONTENT_ROOT_DIRECTORY, WORKFLOW_STEPS } from "./constants.js";
+import { buildContentTree, resolveContentMode } from "./content-tree.js";
 import { extractReferenceAssets } from "./reference-assets.js";
 import {
   buildShotGraph,
@@ -20,6 +21,8 @@ export interface ImpactFileHit {
   stepLabel: string;
   groupId?: string;
   shotId?: string;
+  /** 内容树模式下命中分镜文件时的分镜身份（storyboard-01）；旧格式项目不填。 */
+  storyboardId?: string;
   occurrences: number;
 }
 
@@ -36,8 +39,70 @@ for (const item of WORKFLOW_STEPS) {
   stepByDirectory.set(item.directory, { step: item.step, label: item.label });
 }
 
+/** 内容树（内容/）的步骤归类：它是步骤三的正文，目录却不在 WORKFLOW_STEPS 里。 */
+const CONTENT_TREE_STEP = 3;
+const CONTENT_TREE_STEP_LABEL = "内容树";
+
 function normalizeRelPath(value: string): string {
   return value.replace(/\\/g, "/");
+}
+
+/**
+ * 内容树（内容/）在影响分析里的检索索引。
+ *
+ * 内容树不在 WORKFLOW_STEPS 里，必须单独纳入检索集，否则改了某个分镜或镜头汇总，
+ * 影响分析根本看不见它。旧格式项目返回 null，行为不变。
+ */
+interface ContentTreeIndex {
+  /** 项目相对路径，正斜杠。 */
+  files: string[];
+  shotIdByPath: Map<string, string>;
+  groupIdByPath: Map<string, string>;
+  storyboardIdByPath: Map<string, string>;
+}
+
+async function readContentTreeIndex(projectRoot: string): Promise<ContentTreeIndex | null> {
+  const resolution = await resolveContentMode(projectRoot);
+  if (resolution.mode !== "content-tree" || !resolution.contentRootExists) {
+    return null;
+  }
+  const tree = await buildContentTree(projectRoot);
+  const files: string[] = [];
+  const shotIdByPath = new Map<string, string>();
+  const groupIdByPath = new Map<string, string>();
+  const storyboardIdByPath = new Map<string, string>();
+
+  const register = (relPath: string, groupId: string, shotId: string): void => {
+    files.push(relPath);
+    shotIdByPath.set(relPath, shotId);
+    groupIdByPath.set(relPath, groupId);
+  };
+
+  for (const relPath of [tree.shotOverviewRelPath, tree.storyboardOverviewRelPath]) {
+    if (await fs.pathExists(path.join(projectRoot, ...relPath.split("/")))) {
+      files.push(relPath);
+    }
+  }
+  for (const scene of tree.scenes) {
+    if (await fs.pathExists(path.join(projectRoot, ...scene.overviewRelPath.split("/")))) {
+      files.push(scene.overviewRelPath);
+    }
+    for (const group of scene.groups) {
+      if (await fs.pathExists(path.join(projectRoot, ...group.overviewRelPath.split("/")))) {
+        files.push(group.overviewRelPath);
+      }
+    }
+  }
+  for (const shot of tree.shots) {
+    if (await fs.pathExists(path.join(projectRoot, ...shot.relPath.split("/")))) {
+      register(shot.relPath, shot.groupId, shot.shotId);
+    }
+    for (const storyboard of shot.storyboards) {
+      register(storyboard.relPath, shot.groupId, shot.shotId);
+      storyboardIdByPath.set(storyboard.relPath, storyboard.document.storyboardId);
+    }
+  }
+  return { files, shotIdByPath, groupIdByPath, storyboardIdByPath };
 }
 
 async function walkMarkdownFiles(root: string, current = root): Promise<string[]> {
@@ -69,21 +134,36 @@ function countOccurrences(content: string, needle: string): number {
   return count;
 }
 
-function toHit(relPath: string, stepDir: string, occurrences: number): ImpactFileHit {
+function toHit(relPath: string, stepDir: string, occurrences: number, contentTree?: ContentTreeIndex | null): ImpactFileHit {
   const meta = stepByDirectory.get(stepDir);
   const fileName = path.posix.basename(relPath);
-  return {
+  // 内容树里既有镜头文件，也有两张总表、场总览、镜头组总览；按目录判断，
+  // 这些文件都要归到步骤三的正文口径里，不能因为不是镜头文件就退化成 -1。
+  const inContentTree = stepDir === CONTENT_ROOT_DIRECTORY;
+  const hit: ImpactFileHit = {
     relPath,
-    step: meta?.step ?? -1,
+    // 内容树是正文唯一事实源，归到步骤三分镜脚本的口径里；目录名不是 03 目录，
+    // 所以 stepDir 保留「内容」，另用 stepLabel 说明。
+    step: inContentTree ? CONTENT_TREE_STEP : (meta?.step ?? -1),
     stepDir,
-    stepLabel: meta?.label ?? stepDir,
-    groupId: shotGroupIdFromPath(relPath),
-    shotId: shotIdFromFileName(fileName),
+    stepLabel: inContentTree ? CONTENT_TREE_STEP_LABEL : (meta?.label ?? stepDir),
+    groupId: contentTree?.groupIdByPath.get(relPath) ?? shotGroupIdFromPath(relPath),
+    shotId: contentTree?.shotIdByPath.get(relPath) ?? shotIdFromFileName(fileName),
     occurrences
   };
+  const storyboardId = contentTree?.storyboardIdByPath.get(relPath);
+  if (storyboardId) {
+    hit.storyboardId = storyboardId;
+  }
+  return hit;
 }
 
-function shotIdsForPath(graph: ShotGraph, relPath: string): string[] {
+function shotIdsForPath(graph: ShotGraph, relPath: string, contentTree?: ContentTreeIndex | null): string[] {
+  // 内容树的镜头汇总与分镜文件直接带镜头身份：命中分镜时也能落到所属镜头。
+  const contentTreeShotId = contentTree?.shotIdByPath.get(relPath);
+  if (contentTreeShotId) {
+    return [contentTreeShotId];
+  }
   const matching = graph.files.filter((file) => file.relPath === relPath);
   if (matching.length > 0) {
     return [...new Set(matching.map((file) => file.shotId).filter((value): value is string => Boolean(value)))];
@@ -110,15 +190,17 @@ function collectShotDownstream(graph: ShotGraph, relPath: string, sourceStep: nu
 function collectReferenceTokenFiles(
   projectRoot: string,
   matchedTokens: string[],
-  directPaths: Set<string>
+  directPaths: Set<string>,
+  contentTree?: ContentTreeIndex | null
 ): Promise<Set<string>> {
-  return collectFilesContainingAny(projectRoot, matchedTokens, directPaths);
+  return collectFilesContainingAny(projectRoot, matchedTokens, directPaths, contentTree);
 }
 
 async function collectFilesContainingAny(
   projectRoot: string,
   needles: string[],
-  directPaths: Set<string>
+  directPaths: Set<string>,
+  contentTree?: ContentTreeIndex | null
 ): Promise<Set<string>> {
   const result = new Set<string>();
   if (needles.length === 0) {
@@ -146,6 +228,19 @@ async function collectFilesContainingAny(
       }
     }
   }
+  for (const relPath of contentTree?.files ?? []) {
+    if (directPaths.has(relPath)) {
+      continue;
+    }
+    const absPath = path.join(projectRoot, ...relPath.split("/"));
+    if (!(await fs.pathExists(absPath))) {
+      continue;
+    }
+    const lower = (await fs.readFile(absPath, "utf8")).toLocaleLowerCase();
+    if (normalizedNeedles.some((needle) => lower.includes(needle))) {
+      result.add(relPath);
+    }
+  }
   return result;
 }
 
@@ -162,6 +257,7 @@ export async function analyzeImpact(projectRoot: string, keyword: string): Promi
     throw new Error("Impact keyword must not be empty.");
   }
 
+  const contentTree = await readContentTreeIndex(projectRoot);
   const matches = new Map<string, ImpactFileHit>();
   for (const item of WORKFLOW_STEPS) {
     const stepRoot = path.join(projectRoot, item.directory);
@@ -174,8 +270,19 @@ export async function analyzeImpact(projectRoot: string, keyword: string): Promi
       const content = await fs.readFile(path.join(projectRoot, ...relPath.split("/")), "utf8");
       const count = countOccurrences(content, trimmed);
       if (count > 0) {
-        matches.set(relPath, toHit(relPath, item.directory, count));
+        matches.set(relPath, toHit(relPath, item.directory, count, contentTree));
       }
+    }
+  }
+  // 内容树（内容/）是正文唯一事实源，必须一起检索；否则改分镜／镜头汇总会被漏掉。
+  for (const relPath of contentTree?.files ?? []) {
+    const absPath = path.join(projectRoot, ...relPath.split("/"));
+    if (!(await fs.pathExists(absPath))) {
+      continue;
+    }
+    const count = countOccurrences(await fs.readFile(absPath, "utf8"), trimmed);
+    if (count > 0) {
+      matches.set(relPath, toHit(relPath, CONTENT_ROOT_DIRECTORY, count, contentTree));
     }
   }
 
@@ -201,7 +308,7 @@ export async function analyzeImpact(projectRoot: string, keyword: string): Promi
       }
     }
   }
-  const tokenFiles = await collectReferenceTokenFiles(projectRoot, [...matchedTokens], directPaths);
+  const tokenFiles = await collectReferenceTokenFiles(projectRoot, [...matchedTokens], directPaths, contentTree);
   for (const relPath of tokenFiles) {
     reviewPaths.add(relPath);
   }
@@ -216,7 +323,7 @@ export async function analyzeImpact(projectRoot: string, keyword: string): Promi
   const affectedShots = new Set<string>();
   const allAffected = [...directPaths, ...reviewPaths];
   for (const relPath of allAffected) {
-    for (const shotId of shotIdsForPath(graph, relPath)) {
+    for (const shotId of shotIdsForPath(graph, relPath, contentTree)) {
       affectedShots.add(shotId);
     }
   }
@@ -225,7 +332,7 @@ export async function analyzeImpact(projectRoot: string, keyword: string): Promi
     .map((relPath) => {
       const stepDir = relPath.split("/")[0] ?? "";
       const direct = matches.get(relPath);
-      return toHit(relPath, stepDir, direct?.occurrences ?? 0);
+      return toHit(relPath, stepDir, direct?.occurrences ?? 0, contentTree);
     })
     .sort((left, right) => left.step - right.step || left.relPath.localeCompare(right.relPath));
 
@@ -315,18 +422,32 @@ export async function analyzeImageNodeImpact(projectRoot: string, imageNode: str
   };
 }
 
+/**
+ * 命中身份后缀。
+ *
+ * 旧格式保持原来的 ` [shotId]` 写法；内容树模式命中分镜时，额外标出镜头组与分镜，
+ * 说明这一段属于哪个镜头、哪个组。
+ */
+function hitIdentity(hit: ImpactFileHit): string {
+  if (hit.storyboardId) {
+    const parts = [hit.groupId, hit.shotId, hit.storyboardId].filter((value): value is string => Boolean(value));
+    return ` [${parts.join(" / ")}]`;
+  }
+  return hit.shotId ? ` [${hit.shotId}]` : "";
+}
+
 export function renderImpactResult(result: ImpactResult): string {
   const lines: string[] = [];
   lines.push(`Impact analysis for "${result.keyword}"`);
   lines.push("");
   lines.push(`Direct matches (${result.matches.length}):`);
   for (const hit of result.matches) {
-    lines.push(`- [Step ${hit.step} ${hit.stepLabel}] ${hit.relPath} (${hit.occurrences})${hit.shotId ? ` [${hit.shotId}]` : ""}`);
+    lines.push(`- [Step ${hit.step} ${hit.stepLabel}] ${hit.relPath} (${hit.occurrences})${hitIdentity(hit)}`);
   }
   lines.push("");
   lines.push(`Additional review candidates (${result.reviewCandidates.length}):`);
   for (const hit of result.reviewCandidates) {
-    lines.push(`- [Step ${hit.step} ${hit.stepLabel}] ${hit.relPath}${hit.shotId ? ` [${hit.shotId}]` : ""}`);
+    lines.push(`- [Step ${hit.step} ${hit.stepLabel}] ${hit.relPath}${hitIdentity(hit)}`);
   }
   lines.push("");
   lines.push(`Affected shots (${result.affectedShots.length}): ${result.affectedShots.length > 0 ? result.affectedShots.join(", ") : "none"}`);

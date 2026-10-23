@@ -21,6 +21,19 @@ afterEach(async () => {
   await Promise.all(tempRoots.splice(0).map((dir) => fs.remove(dir)));
 });
 
+/**
+ * 本文件的用例检验的是旧的 03／04／05 目录合同，所以项目必须是「旧格式项目」：
+ * 建好之后删掉 project.config.yaml 里的 content 键（缺这个键＝按旧格式读取）。
+ * 新格式（内容树）的等价覆盖在 content-tree.test.ts。
+ */
+async function dropContentFormatVersion(projectRoot: string): Promise<void> {
+  const { parseYaml, stringifyYaml } = await import("../src/lib/yaml.js");
+  const configPath = path.join(projectRoot, "project.config.yaml");
+  const parsed = parseYaml<Record<string, unknown>>(await fs.readFile(configPath, "utf8"));
+  delete parsed.content;
+  await fs.writeFile(configPath, stringifyYaml(parsed), "utf8");
+}
+
 async function createSyncedProject(root: string): Promise<string> {
   await createProject({
     targetRoot: root,
@@ -33,6 +46,7 @@ async function createSyncedProject(root: string): Promise<string> {
   });
   const projectRoot = path.join(root, "verify-step-project");
   await syncProject({ repoRoot, projectRoot, pack: "official-ai-video", ide: "codex" });
+  await dropContentFormatVersion(projectRoot);
   return projectRoot;
 }
 

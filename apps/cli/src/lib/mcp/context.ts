@@ -1,4 +1,5 @@
-import { STEP6_FILES, STEP_DIR_BY_NUMBER, activeWorkflowSteps } from "../constants.js";
+import { CONTENT_ROOT_DIRECTORY, STEP6_FILES, STEP_DIR_BY_NUMBER, activeWorkflowSteps } from "../constants.js";
+import { buildContentTree, resolveContentMode } from "../content-tree.js";
 import { readState } from "../libtv/project-binding.js";
 import { readWorkflowProjectConfig } from "../project-root.js";
 import { buildShotGraph } from "../shot-graph.js";
@@ -7,6 +8,19 @@ import type { ProjectConfig } from "../types.js";
 export interface BuildMcpContextOptions {
   projectRoot: string;
   pack: string;
+}
+
+export interface McpStoryboardContext {
+  /** 稳定身份：storyboard-01。 */
+  id: string;
+  /** 展示名（H1 标题冒号后的文字），可改，不影响身份。 */
+  title: string;
+  /** 项目相对路径（正斜杠）。 */
+  sourcePath: string;
+  /** 本段的分镜序号，从 1 开始。 */
+  number: number;
+  /** 本段关键帧身份：keyframe-01。 */
+  keyframes: string[];
 }
 
 export interface McpShotContext {
@@ -20,6 +34,8 @@ export interface McpShotContext {
     videoPrompt: string;
     executionPlan: string[];
   };
+  /** 内容树模式下才有的分镜身份；旧格式项目不出现这个字段。 */
+  storyboards?: McpStoryboardContext[];
 }
 
 export interface McpWorkflowStepContext {
@@ -82,9 +98,17 @@ export interface McpProjectContext {
     };
   };
   libtv: McpLibtvContext;
+  /** 正文读取模式：缺 content.format_version 的旧项目是 legacy。 */
+  contentMode?: "legacy" | "content-tree";
+  /** 内容树相对路径（内容）；只有 content-tree 模式才设置。 */
+  contentRoot?: string;
 }
 
 const step6Dir = STEP_DIR_BY_NUMBER[6];
+
+/** 内容树在步骤列表里的归类：它是步骤三的正文，目录却不在 WORKFLOW_STEPS 里。 */
+const CONTENT_TREE_STEP = 3;
+const CONTENT_TREE_STEP_LABEL = "内容树";
 
 function titleFromMarkdown(content: string, fallback: string): string {
   const heading = content.match(/^#\s+(.+)$/m);
@@ -95,6 +119,37 @@ async function assertValidProjectShape(projectRoot: string): Promise<ProjectConf
   return readWorkflowProjectConfig(projectRoot);
 }
 
+/**
+ * 内容树模式下的分镜身份：一个镜头下可能有 1—6 个分镜。
+ *
+ * 旧格式项目没有分镜这一层，返回空表（调用方据此不写 storyboards 字段），
+ * 从而保持旧格式输出与原来逐字一致。
+ */
+async function readStoryboardsByShot(projectRoot: string): Promise<Map<string, McpStoryboardContext[]>> {
+  const resolution = await resolveContentMode(projectRoot);
+  if (resolution.mode !== "content-tree") {
+    return new Map();
+  }
+  const tree = await buildContentTree(projectRoot);
+  const byShot = new Map<string, McpStoryboardContext[]>();
+  for (const shot of tree.shots) {
+    if (shot.storyboards.length === 0) {
+      continue;
+    }
+    byShot.set(
+      shot.shotId,
+      shot.storyboards.map((storyboard) => ({
+        id: storyboard.document.storyboardId,
+        title: storyboard.document.displayName?.trim() || storyboard.document.storyboardId,
+        sourcePath: storyboard.relPath,
+        number: storyboard.document.storyboardNumber,
+        keyframes: storyboard.document.keyframes.map((keyframe) => keyframe.id)
+      }))
+    );
+  }
+  return byShot;
+}
+
 export async function buildMcpContext(options: BuildMcpContextOptions): Promise<McpProjectContext> {
   const config = await assertValidProjectShape(options.projectRoot);
   const workflowSteps: McpWorkflowStepContext[] = activeWorkflowSteps(config).map((step) => ({
@@ -103,12 +158,27 @@ export async function buildMcpContext(options: BuildMcpContextOptions): Promise<
     directory: step.directory
   }));
 
+  // 内容树模式下正文在「内容/」里，它不在 WORKFLOW_STEPS 里，必须单独列一项，
+  // 否则智能体拿到的步骤清单里没有正文所在目录。旧格式项目不加这一项，输出形状不变。
+  const contentResolution = await resolveContentMode(options.projectRoot);
+  const contentTreeMode = contentResolution.mode === "content-tree";
+  if (contentTreeMode) {
+    // 按步骤号插到步骤三之后，保持步骤清单递增，读者不用在一堆数字里找它。
+    const insertAt = workflowSteps.findIndex((step) => step.step > CONTENT_TREE_STEP);
+    workflowSteps.splice(insertAt < 0 ? workflowSteps.length : insertAt, 0, {
+      step: CONTENT_TREE_STEP,
+      label: CONTENT_TREE_STEP_LABEL,
+      directory: CONTENT_ROOT_DIRECTORY
+    });
+  }
+
   const graph = await buildShotGraph(options.projectRoot);
+  const storyboardsByShot = await readStoryboardsByShot(options.projectRoot);
   const shots: McpShotContext[] = graph.shots
     .filter((shot) => shot.storyboard)
     .map((shot) => {
       const imagePrompts = shot.imagePrompts.map((file) => file.relPath);
-      return {
+      const context: McpShotContext = {
         id: shot.id,
         groupId: shot.groupId ?? "ungrouped",
         title: titleFromMarkdown(shot.storyboard?.content ?? "", shot.id),
@@ -120,6 +190,11 @@ export async function buildMcpContext(options: BuildMcpContextOptions): Promise<
           executionPlan: STEP6_FILES.map((file) => `${step6Dir}/${file}`)
         }
       };
+      const storyboards = storyboardsByShot.get(shot.id);
+      if (storyboards) {
+        context.storyboards = storyboards;
+      }
+      return context;
     });
 
   const libtvState = await readState(options.projectRoot);
@@ -199,6 +274,9 @@ export async function buildMcpContext(options: BuildMcpContextOptions): Promise<
         refreshCommand: "ai-video-workflow export-obsidian --project <path> --in-project-view"
       }
     },
-    libtv
+    libtv,
+    contentMode: contentTreeMode ? "content-tree" : "legacy",
+    // 内容树相对路径只在内容树模式下有意义；旧格式项目不出现这个字段。
+    ...(contentTreeMode ? { contentRoot: CONTENT_ROOT_DIRECTORY } : {})
   };
 }

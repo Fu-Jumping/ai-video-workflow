@@ -12,6 +12,21 @@ import { verifyProject } from "../src/lib/verify.js";
 const tempRoots: string[] = [];
 const repoRoot = path.resolve(__dirname, "../../..");
 
+/**
+ * 把这个测试项目改回「旧格式项目」：删掉 project.config.yaml 里的 content 键。
+ *
+ * 本文件所有用例检验的都是旧的 03／04／05 目录合同，所以项目必须是缺
+ * content.format_version 的旧格式；新格式（内容树）的等价覆盖在 content-tree.test.ts。
+ */
+async function dropContentFormatVersion(projectRoot: string): Promise<void> {
+  const { parseYaml, stringifyYaml } = await import("../src/lib/yaml.js");
+  const configPath = path.join(projectRoot, "project.config.yaml");
+  const parsed = parseYaml<Record<string, unknown>>(await fs.readFile(configPath, "utf8"));
+  delete parsed.content;
+  await fs.writeFile(configPath, stringifyYaml(parsed), "utf8");
+}
+
+/** 建一个同步好的旧格式项目（见 dropContentFormatVersion）。 */
 async function createSyncedProject(root: string, ide: Ide, videoPlatform: Platform = "veo"): Promise<string> {
   await createProject({
     targetRoot: root,
@@ -28,6 +43,7 @@ async function createSyncedProject(root: string, ide: Ide, videoPlatform: Platfo
     ide,
     pack: "official-ai-video"
   });
+  await dropContentFormatVersion(projectRoot);
   return projectRoot;
 }
 

@@ -50,6 +50,23 @@ export function shotReviewCanvasPath(shotId: string): string {
 
 export const shotLookupIndexPath = `${shotLookupDirectory}/00_镜头联查.md`;
 
+// 内容树（内容/）在观看层里的入口：内容树是分层目录，按场／镜头组／镜头／分镜投影，
+// 让「这个镜头有几段分镜」可以直接点开看。
+export const contentTreeDirectory = `${shotLookupDirectory}/内容树`;
+export const contentTreeIndexPath = `${shotLookupDirectory}/00_内容树.md`;
+export const contentSceneDirectory = `${contentTreeDirectory}/场`;
+export const contentStoryboardDirectory = `${contentTreeDirectory}/分镜`;
+
+export function contentScenePagePath(sceneId: string): string {
+  return `${contentSceneDirectory}/${sceneId}.md`;
+}
+
+// 分镜身份在镜头内唯一（每个镜头都有自己的 分镜-01），所以路径按镜头分目录，避免不同镜头的
+// storyboard-01 撞到同一个 vault 文件。
+export function contentStoryboardPagePath(shotId: string, storyboardId: string): string {
+  return `${contentStoryboardDirectory}/${shotId}/${storyboardId}.md`;
+}
+
 export const reviewToolsDashboardDirectory = `${reviewToolsDirectory}/数据看板`;
 export const globalCanvasDirectory = `${reviewToolsDirectory}/全局画布`;
 export const collaborationTemplatesDirectory = `${reviewToolsDirectory}/协作模板`;

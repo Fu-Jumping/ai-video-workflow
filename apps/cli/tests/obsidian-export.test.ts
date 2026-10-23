@@ -3,17 +3,24 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 
+import { assembleContentTree } from "../src/lib/content-assemble.js";
+import { renderAutoBlock, renderManualBlock } from "../src/lib/content-tree.js";
+import { createProject } from "../src/lib/init.js";
 import { exportObsidianVault } from "../src/lib/obsidian/export.js";
 import { hashContent, projectionManifestPath, readProjectionManifest, renderProjectionManifest } from "../src/lib/obsidian/manifest.js";
 import { toVaultPath } from "../src/lib/obsidian/paths.js";
 import { scanProjectForObsidian } from "../src/lib/obsidian/scan.js";
 import type { ObsidianProjectionManifest } from "../src/lib/obsidian/types.js";
+import { verifyObsidianVault } from "../src/lib/obsidian/verify.js";
+import { syncProject } from "../src/lib/sync.js";
 
 const tempRoots: string[] = [];
 
 afterEach(async () => {
   await Promise.all(tempRoots.splice(0).map((dir) => fs.remove(dir)));
 });
+
+const repoRoot = path.resolve(__dirname, "..", "..", "..");
 
 function officialExampleRoot(): string {
   return path.resolve(__dirname, "..", "..", "..", "examples", "官方示例-云上早市");
@@ -61,6 +68,154 @@ function expectOnlyDefaultVisibleColumns(baseContent: string, viewNames: string[
     expect(order.every((column) => defaultVisibleColumns.has(column)), `${viewName} only uses user-approved default columns`).toBe(true);
   }
 }
+
+
+
+/* ---------------------- 内容树：Obsidian 投影 ---------------------- */
+
+const FENCE = "\u0060\u0060\u0060";
+const NL = String.fromCharCode(10);
+
+/** 内容树项目夹具：声明 content.format_version=1，正文在 内容/ 下，04／05 由内容树整理生成。 */
+async function createContentTreeObsidianProject(): Promise<string> {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-content-"));
+  tempRoots.push(root);
+  await createProject({
+    targetRoot: root,
+    projectName: "content-obsidian",
+    pack: "official-ai-video",
+    ide: "codex",
+    imagePlatform: "openai",
+    videoPlatform: "seedance"
+  });
+  const projectRoot = path.join(root, "content-obsidian");
+  await syncProject({ repoRoot, projectRoot, ide: "codex", pack: "official-ai-video" });
+
+  const shotDirectory = path.join(projectRoot, "内容", "场-001", "镜头组-001", "镜头-001");
+  await fs.ensureDir(shotDirectory);
+  await fs.writeFile(
+    path.join(projectRoot, "内容", "场-001", "00_场总览.md"),
+    "# 场-001 场总览" + NL + NL + "## 这一场讲什么" + NL + NL + "雾塔门前的清晨。" + NL,
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(projectRoot, "内容", "场-001", "镜头组-001", "00_镜头组总览.md"),
+    "# 镜头组-001 镜头组总览" + NL + NL + "## 这一组讲什么" + NL + NL + "开场。" + NL,
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(shotDirectory, "00_镜头-001.md"),
+    [
+      "# 镜头 001：雾塔门前",
+      "",
+      "- 观看顺序：1",
+      "- 目标时长：15 秒",
+      "",
+      "## 一、分镜速览",
+      "",
+      renderAutoBlock("分镜速览", "（待刷新）"),
+      "",
+      "## 二、图片提示词",
+      "",
+      renderAutoBlock("图片提示词", "（待刷新）"),
+      "",
+      "## 三、完整视频提示词",
+      "",
+      renderManualBlock("视频提示词前段", "整镜公共说明：@阿岚三视图 绑定到本镜。"),
+      "",
+      renderAutoBlock("镜头段拼装", "（待拼装）"),
+      "",
+      renderManualBlock("视频提示词后段", "写实电影画风，无配乐、无字幕。"),
+      ""
+    ].join(NL),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(shotDirectory, "分镜-01.md"),
+    [
+      "# 分镜-01：停步抬头",
+      "",
+      "## 一、本段正文（画面与动作）",
+      "",
+      "- **景别与视角**：中景正面。",
+      "- **人物与位置**：阿岚居中。",
+      "",
+      "## 二、关键帧",
+      "",
+      "#### 关键帧 01",
+      "",
+      "- 对应分镜：分镜 1",
+      "- 关键时刻：抬头的一瞬",
+      "",
+      FENCE + "text",
+      "阿岚站在雾塔门前抬头，冷调自然光。",
+      FENCE,
+      "",
+      "## 三、视频提示词片段",
+      "",
+      FENCE + "text",
+      "镜头1：中景正面，阿岚在雾塔门前停步抬头，风声。",
+      FENCE,
+      ""
+    ].join(NL),
+    "utf8"
+  );
+
+  const assembled = await assembleContentTree(projectRoot, { force: true });
+  expect(assembled.ok).toBe(true);
+  return projectRoot;
+}
+
+describe("Obsidian export of a content-tree project", () => {
+  test("projects the four content-tree layers and keeps every link resolvable", async () => {
+    const projectRoot = await createContentTreeObsidianProject();
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-content-vault-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+
+    // 内容树四层都要有可点击的页面。
+    await expect(fs.pathExists(path.join(outRoot, "02_按镜头联查", "00_内容树.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, "02_按镜头联查", "内容树", "场", "scene-001.md"))).resolves.toBe(true);
+    await expect(
+      fs.pathExists(path.join(outRoot, "02_按镜头联查", "内容树", "分镜", "shot-001", "storyboard-01.md"))
+    ).resolves.toBe(true);
+
+    // 内容树源文件本身也要投影出来（镜头汇总与分镜）。
+    await expect(
+      fs.pathExists(path.join(outRoot, "01_阶段审核", "内容", "场-001", "镜头组-001", "镜头-001", "00_镜头-001.md"))
+    ).resolves.toBe(true);
+    await expect(
+      fs.pathExists(path.join(outRoot, "01_阶段审核", "内容", "场-001", "镜头组-001", "镜头-001", "分镜-01.md"))
+    ).resolves.toBe(true);
+
+    const index = await fs.readFile(path.join(outRoot, "02_按镜头联查", "00_内容树.md"), "utf8");
+    expect(index).toContain("## 1. 总表");
+    expect(index).toContain("## 2. 场");
+    expect(index).toContain("## 3. 分镜");
+    expect(index).toContain("scene-001");
+    expect(index).toContain("storyboard-01");
+
+    const shotHub = await fs.readFile(path.join(outRoot, "02_按镜头联查", "单镜头", "shot-001.md"), "utf8");
+    expect(shotHub).toContain("本镜分镜（内容树）");
+    expect(shotHub).toContain("02_按镜头联查/内容树/分镜/shot-001/storyboard-01");
+
+    // 投影里的相对链接必须真实存在，否则 verify-obsidian 会报断链。
+    const verified = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+    expect(verified.issues).toEqual([]);
+    expect(verified.ok).toBe(true);
+  });
+
+  test("legacy projects still project only 03／04／05 and no content tree pages", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-legacy-vault-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+
+    await expect(fs.pathExists(path.join(outRoot, "02_按镜头联查", "00_内容树.md"))).resolves.toBe(false);
+    await expect(fs.pathExists(path.join(outRoot, "01_阶段审核", "内容"))).resolves.toBe(false);
+  });
+});
 
 describe("Obsidian export paths", () => {
   test("normalizes Windows paths to vault-relative POSIX paths", () => {

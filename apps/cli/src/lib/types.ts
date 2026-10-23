@@ -112,7 +112,19 @@ export type IssueCode =
   | "media-record-empty-file"
   | "media-record-size-mismatch"
   | "media-record-selection-missing"
-  | "unsupported-content-format";
+  | "unsupported-content-format"
+  | "content-tree-missing"
+  | "content-tree-incomplete"
+  | "content-legacy-and-tree-coexist"
+  | "content-block-marker-invalid"
+  | "content-index-missing"
+  | "content-index-stale"
+  | "content-identity-invalid"
+  | "content-segment-prefix-mismatch"
+  | "content-summary-stale"
+  | "content-execution-stale"
+  | "content-summary-execution-mismatch"
+  | "content-summary-manual-drift";
 
 export interface LibTvProjectConfig {
   image_model?: string;
@@ -167,6 +179,14 @@ export interface VerificationIssue {
 }
 
 export type WorkflowMode = "standard" | "scene-basis" | "minimal-video" | "hybrid";
+
+/**
+ * 正文读取模式。
+ *
+ * legacy：项目没有 content.format_version，只读旧 03/04/05。
+ * content-tree：项目声明 content.format_version=1，只读 内容/ 内容树。
+ */
+export type ContentMode = "legacy" | "content-tree";
 
 export interface WorkflowDeviation {
   rule: string;

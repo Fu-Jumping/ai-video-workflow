@@ -69,7 +69,9 @@
 - Step 4 服务给模型看，默认平台为 项目默认图片平台，默认模型为 项目默认模型配置。
 - Step 4 正式文件固定包含 `快速导读`、`中文完整版本`、`可复制提示词`。
 - Step 5 默认消费 Step 4 的 `可复制提示词`，必要时回读 `中文完整版本`。
-- Step 3、Step 4、Step 5 默认分别按一镜头卡、一关键帧文件、一动作链文件组织。
+- 项目正文格式先判一次：`project.config.yaml` 有 `content.format_version: 1` 时只读 `内容/` 内容树；缺这个键时只读旧的 `03_分镜脚本`／`04_图片提示词`／`05_视频提示词`。两种格式不混读，也不自动改写项目。
+- 内容树模式下：正文唯一事实源是 `内容/`，Step 3 只放 `00_内容树索引.md` 索引，Step 4／Step 5 保留完整执行文件并由内容树生成。
+- Step 3、Step 4、Step 5 默认分别按一镜头汇总（含分镜）、一关键帧文件、一动作链文件组织。
 - 若维护的是官方 pack，修改 `packs/official-ai-video/` 后必须同步 `.codex/ai-video-workflow/`；修改 `packs/official-ai-video/skills/` 后还必须同步 `.codex/skills/`。
 
 ### 路由映射
