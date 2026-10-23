@@ -400,7 +400,7 @@
   - `apps/cli/tests/libtv-failures.test.ts` 的「状态未知的节点：不传 --retry 时不会被重新提交」偶发失败。证据：单独跑该文件三次为通过／失败／通过交替；把 `apps/cli/src/lib/libtv/assets.ts` 换回 base 版本连跑 8 次仍失败 1 次（`BASELINE_ASSETS_FAILS=1/8`），`git diff` 显示 `apps/cli/src/lib/libtv/` 下只有 `assets.ts` 有改动。结论：base 代码同样偶发，属测试对时序敏感，与内容树无关。
   - `apps/cli/tests/cli-dist.test.ts` 与 `apps/cli/tests/libtv-cli.test.ts` 每个用例内部自己跑 `tsup build`，vitest 多文件并行时互相踩踏 `dist` 目录，产生 `ERR_MODULE_NOT_FOUND`、「does not provide an export named ...」等假失败；`--no-file-parallelism` 单文件串行全过。属既有测试基础设施的并发缺陷。
 - 影响：两条均不影响本轮功能正确性，但会让 `pnpm test` 偶发红灯；在修复前，判定结果需用 `--no-file-parallelism` 复跑或单文件复跑确认。
-- 未合并：阶段工作树 `E:/project/code/ai-video-workflow-stage-02`（分支 `feature/workflow-next-stage-02`）按用户选择保留，等实机试用内容树后再决定合并与清理；不推送远端。
+- 未合并：阶段 02 工作树（分支 `feature/workflow-next-stage-02`，base `2451086`）按用户选择保留，等实机试用内容树后再决定合并与清理；不推送远端。
 
 ## 3. 缺口登记规则 `[通用规则]`
 
