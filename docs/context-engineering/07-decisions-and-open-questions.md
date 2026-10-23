@@ -400,6 +400,7 @@
   - `apps/cli/tests/libtv-failures.test.ts` 的「状态未知的节点：不传 --retry 时不会被重新提交」偶发失败。证据：单独跑该文件三次为通过／失败／通过交替；把 `apps/cli/src/lib/libtv/assets.ts` 换回 base 版本连跑 8 次仍失败 1 次（`BASELINE_ASSETS_FAILS=1/8`），`git diff` 显示 `apps/cli/src/lib/libtv/` 下只有 `assets.ts` 有改动。结论：base 代码同样偶发，属测试对时序敏感，与内容树无关。
   - `apps/cli/tests/cli-dist.test.ts` 与 `apps/cli/tests/libtv-cli.test.ts` 每个用例内部自己跑 `tsup build`，vitest 多文件并行时互相踩踏 `dist` 目录，产生 `ERR_MODULE_NOT_FOUND`、「does not provide an export named ...」等假失败；`--no-file-parallelism` 单文件串行全过。属既有测试基础设施的并发缺陷。
 - 影响：两条均不影响本轮功能正确性，但会让 `pnpm test` 偶发红灯；在修复前，判定结果需用 `--no-file-parallelism` 复跑或单文件复跑确认。
+- 收尾修正（第二批）：复核发现 `apps/cli/src/lib/init.ts` 仍给每个新项目播种 `03_分镜脚本/镜头组-001/00_镜头组说明.md`，而新建项目一律声明 `content.format_version: 1`，与 §9.3.2「新建项目 03 只生成索引、不复制正文」冲突，也与模板 `packs/official-ai-video/templates/03_分镜脚本/镜头组说明.md` 自述的「内容树模式下本文件由 `00_镜头组总览.md` 承担」矛盾。已修为：`init` 不再播种该文件、也不再建空的 `03_分镜脚本/镜头组-001/` 目录；`04/05` 的镜头组目录照旧生成；packs 里的模板保留（旧格式项目与迁移流程仍需要）。受影响断言改按新口径，旧格式夹具改为自己补回组说明（内容取自同一模板）。验证：新建项目 `03_分镜脚本/` 下只有 `00_内容树索引.md`，`verify` 与 `content check` 均通过。
 - 未合并：阶段 02 工作树（分支 `feature/workflow-next-stage-02`，base `2451086`）按用户选择保留，等实机试用内容树后再决定合并与清理；不推送远端。
 
 ## 3. 缺口登记规则 `[通用规则]`

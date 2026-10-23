@@ -26,7 +26,9 @@ The machine checks in `verify` cover **structural contracts** (section existence
 
 ## What init seeds
 
-`init` seeds: the five Step 0 research files (research mode), `01_概念策划/故事内核.md`, `02_世界设定/角色设定.md` and `场景设定.md`, `03_分镜脚本/镜头组-001/00_镜头组说明.md`, `04_图片提示词/镜头组-001/图片提示词.md` and `05_视频提示词/镜头组-001/视频提示词.md` (the latter two are "copy-and-comply" template references — a fresh project passes `verify` out of the box), and the three Step 6 execution plans.
+`init` seeds: the five Step 0 research files (research mode), `01_概念策划/故事内核.md`, `02_世界设定/角色设定.md` and `场景设定.md`, `04_图片提示词/镜头组-001/图片提示词.md` and `05_视频提示词/镜头组-001/视频提示词.md` (the latter two are "copy-and-comply" template references — a fresh project passes `verify` out of the box), and the three Step 6 execution plans.
+
+A fresh project is always a content-tree project: `03_分镜脚本/` holds only `00_内容树索引.md` — no shot-group description is seeded and no empty shot-group directory is created. The only source for the shot-group description is `内容/场-XXX/镜头组-XXX/00_镜头组总览.md` (workflow-spec.md §9.3.2).
 
 - Step 2 character/scene settings are **filled in place**: each character/scene must be its own `## <name>` section declaring `主角色：是` + `@<name>三视图` (same for scenes), with the name matching the title exactly.
 - The Step 4/5 template files are reference copies; for formal delivery, copy them per shot as `镜头-NNN-关键帧-NN.md` / `镜头-NNN.md`.
