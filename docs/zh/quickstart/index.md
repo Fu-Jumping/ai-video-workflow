@@ -10,7 +10,7 @@
 4. 运行 `node apps/cli/dist/index.js verify --project <project-path> --ide <ide>`。
 5. 如果校验失败，运行 `node apps/cli/dist/index.js doctor --project <project-path> --ide <ide>`。
 6. 如果缺少 IDE 运行文件，运行 `node apps/cli/dist/index.js sync --project <project-path> --ide <ide>`。
-7. 默认从 `00_前期研究/00_研究总览.md` 开始推进项目；如果已有完整剧本，可初始化时加 `--start-from script`，从 `01_概念策划/故事内核.md` 开始。
+7. 默认从 `00_前期研究/00_研究总览.md` 开始推进项目；如果已有完整剧本，可初始化时加 `--start-from script`，从 `01_概念策划/故事内核.md` 开始。按场完整剧情写到 `01_概念策划/剧本.md`。
 
 交互式初始化：
 
