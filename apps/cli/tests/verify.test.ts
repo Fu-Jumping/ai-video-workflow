@@ -733,7 +733,8 @@ describe("verifyProject", () => {
       expect.arrayContaining([
         expect.objectContaining({
           code: "undeclared-reference-asset",
-          path: "03_分镜脚本/镜头组-001/镜头-001.md"
+          path: "03_分镜脚本/镜头组-001/镜头-001.md",
+          message: expect.stringContaining("主角色：是")
         })
       ])
     );
@@ -1024,7 +1025,11 @@ test("accepts a custom pack name in project.config.yaml", async () => {
     expect(result.ok).toBe(false);
     expect(result.issues).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: "missing-step5-platform-execution-setting", path: videoPromptRelPath })
+        expect.objectContaining({
+          code: "missing-step5-platform-execution-setting",
+          path: videoPromptRelPath,
+          message: expect.stringContaining("素材上传顺序")
+        })
       ])
     );
   });
@@ -1143,12 +1148,20 @@ test("accepts a custom pack name in project.config.yaml", async () => {
     const videoPath = path.join(projectRoot, "05_视频提示词", shotGroupDir, "镜头-001.md");
     const content = await fs.readFile(videoPath, "utf8");
     await fs.writeFile(videoPath, content.replace("无配乐、无字幕", replacement), "utf8");
+    // 被替换掉的那个词才是缺失项：音乐用例缺「无配乐」，字幕用例缺「无字幕」。
+    const missingWord = replacement === "无字幕" ? "无配乐" : "无字幕";
 
     const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
 
     expect(result.ok).toBe(false);
     expect(result.issues).toEqual(
-      expect.arrayContaining([expect.objectContaining({ code: "invalid-step5-contract", path: videoPromptRelPath })])
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "invalid-step5-contract",
+          path: videoPromptRelPath,
+          message: expect.stringContaining(missingWord)
+        })
+      ])
     );
   });
 

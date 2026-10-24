@@ -21,6 +21,7 @@ import {
   renderManualBlock,
   replaceContentBlockBody,
   resolveContentMode,
+  sceneDirectoryName,
   shotGroupDirectoryName,
   type ContentTree,
   type ContentTreeGroup,
@@ -30,9 +31,9 @@ import {
 import {
   describeMediaCandidateState,
   listMediaRecords,
+  mediaIdentityCanonicalKey,
   mediaIdentityKey,
   videoPurpose,
-  type MediaIdentity,
   type MediaRecord
 } from "./media-records.js";
 import { readProjectConfig } from "./project-config.js";
@@ -178,18 +179,18 @@ export function autoBlockDrifted(body: string): boolean {
 
 export interface MaterialIndex {
   records: Map<string, MediaRecord>;
-}
-
-function identityKey(category: MediaIdentity["category"], objectId: string, purpose: string): string {
-  return mediaIdentityKey({ category, objectId, purpose });
+  /** 身份经规范化的索引：人读编号与内部编号的素材记录落到同一个键。 */
+  canonicalRecords: Map<string, MediaRecord>;
 }
 
 export async function loadMaterialIndex(projectRoot: string): Promise<MaterialIndex> {
   const records = new Map<string, MediaRecord>();
+  const canonicalRecords = new Map<string, MediaRecord>();
   for (const record of await listMediaRecords(projectRoot)) {
     records.set(mediaIdentityKey(record.identity), record);
+    canonicalRecords.set(mediaIdentityCanonicalKey(record.identity), record);
   }
-  return { records };
+  return { records, canonicalRecords };
 }
 
 function recordState(record: MediaRecord | undefined): string | null {
@@ -203,11 +204,13 @@ function recordState(record: MediaRecord | undefined): string | null {
 }
 
 export function keyframeStatusText(index: MaterialIndex, shot: ContentTreeShot, keyframeId: string): string {
-  return recordState(index.records.get(identityKey("keyframe", shot.shotId, keyframeId))) ?? "未生成";
+  const key = mediaIdentityCanonicalKey({ category: "keyframe", objectId: shot.shotId, purpose: keyframeId });
+  return recordState(index.canonicalRecords.get(key)) ?? "未生成";
 }
 
 export function videoStatusText(index: MaterialIndex, shot: ContentTreeShot): string {
-  return recordState(index.records.get(identityKey("video", shot.shotId, videoPurpose))) ?? "未生成";
+  const key = mediaIdentityCanonicalKey({ category: "video", objectId: shot.shotId, purpose: videoPurpose });
+  return recordState(index.canonicalRecords.get(key)) ?? "未生成";
 }
 
 export function shotKeyframeIds(shot: ContentTreeShot): string[] {
@@ -264,7 +267,7 @@ export function renderShotOverviewBody(tree: ContentTree, index: MaterialIndex):
         [
           watchOrderLabel(shot),
           shotLabel(shot),
-          shot.sceneId + " / " + shot.groupId,
+          sceneDirectoryName(shot.sceneId) + " / " + shotGroupDirectoryName(shot.groupId),
           tableCell(singleLine(shot.document.displayName) || "（未写展示名）"),
           tableCell(shot.document.targetDuration ?? "—"),
           String(shot.storyboards.length),
@@ -321,7 +324,7 @@ export function renderSceneGroupTable(scene: ContentTreeScene, tree: ContentTree
     lines.push(
       "| " +
         [
-          group.groupId,
+          shotGroupDirectoryName(group.groupId),
           tableCell(names.length > 0 ? names : "（还没有镜头）"),
           String(group.shots.length),
           "[打开](" + relativeLink(scene.overviewRelPath, group.overviewRelPath) + ")"
@@ -535,8 +538,8 @@ export function renderStep4File(
     "",
     "## 维护元信息",
     "",
-    "- 镜头组：" + shot.groupId,
-    "- 镜头编号：" + shot.shotId,
+    "- 镜头组：" + shotGroupDirectoryName(shot.groupId),
+    "- 镜头编号：" + shotLabel(shot),
     "- 对应分镜：分镜 " + String(keyframe.mappedSegment ?? "?"),
     "- 关键时刻：" + (keyframe.moment ?? "（未写）"),
     "- 来源：[" + storyboardLabel(storyboard.document.storyboardId) + "](" + relativeLink(relPath, storyboard.relPath) + ")",
@@ -603,9 +606,9 @@ export function renderStep5File(shot: ContentTreeShot, platform: Platform, index
     "",
     "## 元信息",
     "",
-    "- 镜头组：" + shot.groupId,
-    "- 镜头编号：" + shot.shotId,
-    "- 场景事件范围：" + shot.sceneId + " / " + shot.groupId,
+    "- 镜头组：" + shotGroupDirectoryName(shot.groupId),
+    "- 镜头编号：" + shotLabel(shot),
+    "- 场景事件范围：" + sceneDirectoryName(shot.sceneId) + " / " + shotGroupDirectoryName(shot.groupId),
     "- 目标时长：" + targetDuration,
     "- 分镜数量：" + String(shot.storyboards.length) + "（1—6 段）",
     "- 关键帧文件：" + keyframeLink,
@@ -674,11 +677,11 @@ export function renderContentIndex(tree: ContentTree): string {
     ""
   ];
   for (const scene of tree.scenes) {
-    lines.push("### " + scene.sceneId);
+    lines.push("### " + sceneDirectoryName(scene.sceneId));
     lines.push("");
     lines.push("- [场总览](" + relativeLink(indexRelPath, scene.overviewRelPath) + ")");
     for (const group of scene.groups) {
-      lines.push("- [镜头组 " + group.groupId + "](" + relativeLink(indexRelPath, group.overviewRelPath) + ")");
+      lines.push("- [" + shotGroupDirectoryName(group.groupId) + "](" + relativeLink(indexRelPath, group.overviewRelPath) + ")");
     }
     lines.push("");
   }
@@ -822,13 +825,18 @@ function storyboardOverviewSkeleton(): string {
 
 function sceneOverviewSkeleton(sceneId: string): string {
   return [
-    "# " + sceneId + " 场总览",
+    "# " + sceneDirectoryName(sceneId) + " 场总览",
     "",
     "> 这一场包含哪些镜头组、观看顺序如何。下面的表是自动生成的。",
     "",
     "## 这一场讲什么",
     "",
     "（写这一场在故事里的位置与作用。）",
+    "",
+    "## 对应剧本",
+    "",
+    "- 剧本文件：`01_概念策划/剧本.md`",
+    "- 片段范围：<待补充>",
     "",
     "## 所属镜头组",
     "",
@@ -839,7 +847,7 @@ function sceneOverviewSkeleton(sceneId: string): string {
 
 function groupOverviewSkeleton(groupId: string): string {
   return [
-    "# " + groupId + " 镜头组总览",
+    "# " + shotGroupDirectoryName(groupId) + " 镜头组总览",
     "",
     "> 这一组包含哪些镜头、观看顺序如何。下面的表是自动生成的。",
     "",

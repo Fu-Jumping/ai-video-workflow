@@ -20,7 +20,7 @@ import {
   researchStepEnabled
 } from "./constants.js";
 import { autoBlockDrifted, step4FileRelPath, step5FileRelPath, stripBlockHash } from "./content-assemble.js";
-import { buildContentTree, hasMigrationSnapshot, resolveContentMode } from "./content-tree.js";
+import { buildContentTree, hasMigrationSnapshot, resolveContentMode, shotGroupDirectoryName } from "./content-tree.js";
 import { applyAcceptedDeviations, readDeviations } from "./deviations.js";
 import { verifyMediaRecords } from "./media-records.js";
 import { contentFormatVersion, isSupportedContentFormatVersion, readProjectConfig } from "./project-config.js";
@@ -642,8 +642,16 @@ function verifyShotGraphContract(
     }
     for (const imagePrompt of shot.imagePrompts) {
       const mappedSegment = keyframeMappedSegment(imagePrompt.content);
-      const declaredGroup = imagePrompt.content.match(/镜头组\s*[：:]\s*(group-\d{3})/iu)?.[1]?.toLowerCase();
-      const declaredShot = imagePrompt.content.match(/镜头编号\s*[：:]\s*(shot-\d{3})/iu)?.[1]?.toLowerCase();
+      // 元信息里的人读编号（镜头组-001 / 镜头-001）与内部标识（group-001 / shot-001）指向同一实体：
+      // 两种写法都接受，旧项目无需迁移，新项目按人读编号生成也能通过同一映射校验。
+      const declaredGroup = imagePrompt.content
+        .match(/镜头组\s*[：:]\s*((?:group|镜头组)-\d{3})/iu)?.[1]
+        ?.toLowerCase()
+        .replace(/^镜头组-/u, "group-");
+      const declaredShot = imagePrompt.content
+        .match(/镜头编号\s*[：:]\s*((?:shot|镜头)-\d{3})/iu)?.[1]
+        ?.toLowerCase()
+        .replace(/^镜头-/u, "shot-");
       const hasMoment = /关键时刻\s*[：:]\s*\S+/u.test(imagePrompt.content);
       if (
         !imagePrompt.keyframeId ||
@@ -733,7 +741,7 @@ async function verifyStep2DeclaredAssetUsage(projectRoot: string, graph: ShotGra
       if (!declaredTokens.has(asset.token)) {
         pushIssue(issues, {
           code: "undeclared-reference-asset",
-          message: `Reference asset ${asset.token} is used in Step ${file.step} but not declared in Step 2 (${asset.name})`,
+          message: `Reference asset ${asset.token} is used in Step ${file.step} but not declared in Step 2 (${asset.name}). Only sections with 主角色：是 or 需要场景图：是 declare a token.`,
           path: file.relPath
         });
       }
@@ -870,6 +878,17 @@ async function verifyStep5PlatformExecutionSettings(
     const seedanceSettingsMissing =
       defaultVideoPlatform === "seedance" && (!content.includes("Seedance 2.0") || !content.includes("全能参考模式"));
     const driftingMixedSlot = /\{\{Mixed\s*\d+\}\}/iu.test(content);
+    // 只改消息：把缺失项逐条点名，通过／失败条件与 issue code 仍由下面同一组布尔值决定。
+    const missingSeedanceSettings = ["Seedance 2.0", "全能参考模式"].filter(
+      (word) => defaultVideoPlatform === "seedance" && !content.includes(word)
+    );
+    const missingCopyPromptMarkers = ["无配乐", "无字幕"].filter((word) => !copyPrompt.includes(word));
+    const missingItems: string[] = [];
+    if (missingSection) missingItems.push("小节 " + missingSection);
+    if (missingMarker) missingItems.push("平台执行项 " + missingMarker);
+    if (!content.includes(defaultVideoPlatform)) missingItems.push("平台名 " + defaultVideoPlatform);
+    missingItems.push(...missingSeedanceSettings, ...missingCopyPromptMarkers);
+    if (driftingMixedSlot) missingItems.push("提示词里仍有 {{Mixed N}} 占位");
     if (
       missingSection ||
       missingMarker ||
@@ -883,7 +902,7 @@ async function verifyStep5PlatformExecutionSettings(
         code: missingSection || !copyPrompt.includes("无配乐") || !copyPrompt.includes("无字幕") || driftingMixedSlot
           ? "invalid-step5-contract"
           : "missing-step5-platform-execution-setting",
-        message: `Step 5 must use the formal prompt contract for ${defaultVideoPlatform}, semantic references, 无配乐 and 无字幕`,
+        message: `Step 5 缺少必需内容：${missingItems.join("、")}（平台 ${defaultVideoPlatform}；正式提示词契约见 workflow-spec Step 5）`,
         path: relPath
       });
     }
@@ -1207,7 +1226,7 @@ async function verifyContentTree(
         code: "content-execution-stale",
         message:
           shotLabel + " 缺少 05 执行文件（" + STEP_DIR_BY_NUMBER[5] + " 下应有一份由内容树生成的完整执行文件）；请重新整理。",
-        path: path.posix.join(STEP_DIR_BY_NUMBER[5], shot.groupId, shotLabel + ".md")
+        path: path.posix.join(STEP_DIR_BY_NUMBER[5], shotGroupDirectoryName(shot.groupId), shotLabel + ".md")
       });
       continue;
     }

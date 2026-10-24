@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import { createProject } from "../src/lib/init.js";
 import {
+  describeMediaFile,
   mediaOutputDirectory,
   mediaRecordPath,
   mediaRecordsDirectory,
@@ -150,8 +151,8 @@ describe("素材审阅页（B3）", () => {
     expect(page).toContain("平台失败");
     expect(page).toContain("下载失败");
     expect(page).toContain("状态未知");
-    // 状态列没有被合并成一列
-    expect(page).toContain("| 版本 | 候选 | 文件 | 平台 | 下载 | 审核 | 选用 | 当前状态 | 说明 |");
+    // 状态列没有被合并成一列；新增的人工审核列不改变原来四列的含义
+    expect(page).toContain("| 版本 | 候选 | 文件 | 平台 | 下载 | 审核 | 选用 | 人工审核 | 当前状态 | 说明 |");
     expect(page).toContain("v001");
     expect(page).toContain("v002");
     expect(page).toContain("v003");
@@ -198,6 +199,62 @@ describe("素材审阅页（B3）", () => {
     const secondPage = second.files.find((file) => file.vaultPath === pagePath)!.content;
     expect(secondPage).toContain("文件缺失：" + relativeFile);
     expect(secondPage).not.toContain(embed);
+  });
+
+  test("四态随文件与审核变化：等你看 → 你已接受 → 改过了需要重看", async () => {
+    const projectRoot = await makeProject();
+    const selected = candidate({ selected: true });
+    await writeRecord(projectRoot, recordWith(characterIdentity, "女主 阿云", [selected], selected.fileName));
+    const relativeFile = await writeMediaFile(projectRoot, characterIdentity, selected.fileName);
+    const absoluteFile = path.join(projectRoot, ...relativeFile.split("/"));
+    const pagePath = mediaReviewPagePath("character", "角色-001", "造型-01");
+
+    const waiting = await renderMediaReviewFiles(projectRoot);
+    const waitingIndex = waiting.find((file) => file.vaultPath === mediaReviewIndexPath)!.content;
+    const waitingPage = waiting.find((file) => file.vaultPath === pagePath)!.content;
+    expect(waitingIndex).toContain("等你看");
+    expect(waitingPage).toContain("- 人工审核：**等你看**");
+    expect(waitingPage).toContain("| 未审 | 是 | 等你看 |");
+    // 图片不加时间锚点
+    expect(waitingPage).not.toContain("#t=");
+
+    const described = await describeMediaFile(absoluteFile);
+    await writeRecord(
+      projectRoot,
+      recordWith(
+        characterIdentity,
+        "女主 阿云",
+        [candidate({ selected: true, reviewStatus: "accepted", sha256: described!.sha256 })],
+        selected.fileName
+      )
+    );
+    const accepted = await renderMediaReviewFiles(projectRoot);
+    expect(accepted.find((file) => file.vaultPath === mediaReviewIndexPath)!.content).toContain("你已接受");
+    expect(accepted.find((file) => file.vaultPath === pagePath)!.content).toContain("- 人工审核：**你已接受**");
+
+    // 审核后文件被替换：哈希与记录不一致，提示重看。
+    await fs.writeFile(absoluteFile, "replaced-media-bytes", "utf8");
+    const recheck = await renderMediaReviewFiles(projectRoot);
+    expect(recheck.find((file) => file.vaultPath === mediaReviewIndexPath)!.content).toContain("改过了需要重看");
+    expect(recheck.find((file) => file.vaultPath === pagePath)!.content).toContain("- 人工审核：**改过了需要重看**");
+  });
+
+  test("视频候选有时间位置时嵌入带 #t= 并显示原文", async () => {
+    const projectRoot = await makeProject();
+    const video = candidate({ fileName: "镜头-015_v001_c01.mp4", timecode: "00:12", selected: true });
+    await writeRecord(projectRoot, recordWith(videoIdentity, "镜头-015 视频", [video], video.fileName));
+    await writeMediaFile(projectRoot, videoIdentity, video.fileName);
+
+    const files = await renderMediaReviewFiles(projectRoot);
+    const pagePath = mediaReviewPagePath("video", "镜头-015", "视频");
+    const page = files.find((file) => file.vaultPath === pagePath)!.content;
+    expect(page).toContain("![[05_素材审阅/_素材/视频/镜头-015/镜头-015_v001_c01.mp4#t=12]]");
+    expect(page).toContain("时间位置：00:12");
+    // 播放器行为依赖环境，页面必须同时保留文字与说明。
+    expect(page).toContain(
+      "> 时间位置只作文字提示：Obsidian 播放器是否按 #t= 跳到该时间点取决于实际环境。"
+    );
+    expect(page).toContain("| 版本 | 候选 | 文件 | 平台 | 下载 | 审核 | 选用 | 人工审核 | 当前状态 | 说明 |");
   });
 
   test("总览页每类素材都有相对链接，且链接目标文件确实被生成", async () => {

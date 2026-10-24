@@ -27,6 +27,11 @@ export const generationBatchesDirectory = "素材记录/生成批次";
 export const workRecordsDirectory = "工作记录";
 export const pendingProposalDirectory = "工作记录/修改提案/待确认";
 export const handledProposalDirectory = "工作记录/修改提案/已处理";
+export const workRecordExploreDirectory = "工作记录/探索";
+export const workRecordHandoverDirectory = "工作记录/交接";
+export const workRecordGuideFileName = "00_工作记录说明.md";
+export const workRecordProposalTemplateFileName = "00_修改提案模板.md";
+export const workRecordHandoverTemplateFileName = "00_交接模板.md";
 export const mediaRecordGuideFileName = "00_素材记录说明.md";
 
 export const mediaProjectDirectories = [
@@ -39,7 +44,9 @@ export const mediaProjectDirectories = [
   generationBatchesDirectory,
   workRecordsDirectory,
   pendingProposalDirectory,
-  handledProposalDirectory
+  handledProposalDirectory,
+  workRecordExploreDirectory,
+  workRecordHandoverDirectory
 ] as const;
 
 export const mediaCategoryLabels = {
@@ -138,6 +145,75 @@ export function mediaIdentityKey(identity: MediaIdentity): string {
   return identity.category + ":" + identity.objectId + "/" + identity.purpose;
 }
 
+/** 人读编号前缀 → 内部编号前缀。长的先匹配，避免「镜头组-001」被当成「镜头」。 */
+const mediaObjectIdPrefixes: ReadonlyArray<{ prefix: string; canonical: string }> = [
+  { prefix: "镜头组", canonical: "group" },
+  { prefix: "镜头", canonical: "shot" },
+  { prefix: "场", canonical: "scene" }
+];
+
+const canonicalObjectIdPattern = /^(shot|scene|group)-(\d+)$/u;
+const canonicalKeyframePurposePattern = /^(?:关键帧|keyframe)[\s_-]*(\d+)$/u;
+
+function padDigits(digits: string, width: number): string {
+  return String(Number.parseInt(digits, 10)).padStart(width, "0");
+}
+
+/**
+ * 读取匹配用的规范化对象编号。
+ *
+ * 素材记录的稳定身份写作人读编号（镜头-001 / 场-001 / 镜头组-001），
+ * 内容树内部用 shot-001 / scene-001 / group-001；读取匹配时两种写法统一。
+ * 记录文件、路径与已存的编号一律不改，展示仍用记录里的原值。
+ * 其他对象编号（如 角色-001）原样返回，不猜语义。
+ */
+export function canonicalMediaObjectId(objectId: string): string {
+  const trimmed = objectId.trim();
+  for (const { prefix, canonical } of mediaObjectIdPrefixes) {
+    const head = prefix + "-";
+    if (!trimmed.startsWith(head)) continue;
+    const digits = trimmed.slice(head.length);
+    if (/^\d+$/u.test(digits)) {
+      return canonical + "-" + padDigits(digits, 3);
+    }
+  }
+  const internal = canonicalObjectIdPattern.exec(trimmed);
+  if (internal) {
+    return internal[1] + "-" + padDigits(internal[2]!, 3);
+  }
+  return objectId;
+}
+
+/**
+ * 读取匹配用的规范化用途。只归一关键帧（关键帧-01 / 关键帧 01 / keyframe-01），
+ * 视频与其他类别保持原样。
+ */
+export function canonicalMediaPurpose(category: MediaCategory, purpose: string): string {
+  if (category !== "keyframe") return purpose;
+  const matched = canonicalKeyframePurposePattern.exec(purpose.trim());
+  if (!matched) return purpose;
+  return "keyframe-" + padDigits(matched[1]!, 2);
+}
+
+/** 读取匹配键：身份经规范化后比较；记录文件键与路径仍用 mediaIdentityKey。 */
+export function mediaIdentityCanonicalKey(identity: MediaIdentity): string {
+  return (
+    identity.category +
+    ":" +
+    canonicalMediaObjectId(identity.objectId) +
+    "/" +
+    canonicalMediaPurpose(identity.category, identity.purpose)
+  );
+}
+
+/** 人读页面上的用途写法：关键帧统一显示为「关键帧 01」，其他类别原样返回。 */
+export function mediaPurposeDisplayName(category: MediaCategory, purpose: string): string {
+  if (category !== "keyframe") return purpose;
+  const matched = canonicalKeyframePurposePattern.exec(purpose.trim());
+  if (!matched) return purpose;
+  return "关键帧 " + padDigits(matched[1]!, 2);
+}
+
 export function parseMediaIdentityKey(key: string): MediaIdentity | undefined {
   const match = key.trim().match(/^([a-z-]+):([^/]+)\/(.+)$/u);
   if (!match) return undefined;
@@ -198,6 +274,30 @@ export function parseMediaFileName(fileName: string): ParsedMediaFileName | unde
   };
 }
 
+const minutesSecondsPattern = /^(\d{2}):([0-5]\d)$/u;
+const hoursMinutesSecondsPattern = /^(\d{2}):([0-5]\d):([0-5]\d)$/u;
+
+/**
+ * 把记录里的时间位置文字换算成秒数，供嵌入写法 `![[file.mp4#t=<秒>]]` 使用。
+ * 只认 `MM:SS` 与 `HH:MM:SS` 两种写法；空值或格式不认识返回 undefined，
+ * 页面仍然显示原始文字。
+ */
+export function mediaTimecodeSeconds(timecode?: string): number | undefined {
+  const text = timecode?.trim();
+  if (!text) {
+    return undefined;
+  }
+  const short = minutesSecondsPattern.exec(text);
+  if (short) {
+    return Number.parseInt(short[1]!, 10) * 60 + Number.parseInt(short[2]!, 10);
+  }
+  const long = hoursMinutesSecondsPattern.exec(text);
+  if (long) {
+    return Number.parseInt(long[1]!, 10) * 3600 + Number.parseInt(long[2]!, 10) * 60 + Number.parseInt(long[3]!, 10);
+  }
+  return undefined;
+}
+
 export function mediaOutputDirectory(identity: MediaIdentity): string {
   if (identity.category === "keyframe") {
     return outputsImagesDirectory + "/" + identity.objectId + "/" + identity.purpose;
@@ -247,6 +347,8 @@ export interface MediaCandidateRecord {
   sha256?: string;
   failureClass?: MediaFailureClass;
   note?: string;
+  /** 视频在成片里的时间位置（MM:SS 或 HH:MM:SS）；关键帧等图片候选不写。 */
+  timecode?: string;
 }
 
 export interface MediaRecord {
@@ -354,6 +456,7 @@ export function renderMediaRecord(record: MediaRecord): string {
       ...(candidate.taskId ? { 任务编号: candidate.taskId } : {}),
       ...(candidate.bytes !== undefined ? { 字节: candidate.bytes } : {}),
       ...(candidate.sha256 ? { 哈希: candidate.sha256 } : {}),
+      ...(candidate.timecode ? { 时间位置: candidate.timecode } : {}),
       ...(candidate.note ? { 说明: candidate.note } : {})
     }))
   };
@@ -363,6 +466,7 @@ export function renderMediaRecord(record: MediaRecord): string {
       formatMediaVersion(candidate.version),
       formatMediaCandidate(candidate.candidate),
       candidate.fileName,
+      candidate.timecode ?? "-",
       mediaPlatformStatusLabels[candidate.platformStatus],
       mediaDownloadStatusLabels[candidate.downloadStatus],
       mediaReviewStatusLabels[candidate.reviewStatus],
@@ -376,8 +480,8 @@ export function renderMediaRecord(record: MediaRecord): string {
   const table =
     rows.length > 0
       ? [
-          "| 版本 | 候选 | 文件 | 平台 | 下载 | 审核 | 选用 | 当前状态 | 说明 |",
-          "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+          "| 版本 | 候选 | 文件 | 时间位置 | 平台 | 下载 | 审核 | 选用 | 当前状态 | 说明 |",
+          "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
           ...rows
         ].join("\n")
       : "> 还没有候选。提交一次任务后这里会出现版本与候选。";
@@ -425,6 +529,7 @@ export function parseMediaRecord(content: string): MediaRecord | undefined {
     const failureClass = failureLabel ? failureClassByLabel.get(failureLabel) : undefined;
     const bytes = asNumber(item["字节"]);
     const sha256 = asText(item["哈希"]);
+    const timecode = asText(item["时间位置"]);
     const note = asText(item["说明"]);
     const taskId = asText(item["任务编号"]);
     candidates.push({
@@ -439,6 +544,7 @@ export function parseMediaRecord(content: string): MediaRecord | undefined {
       ...(bytes !== undefined ? { bytes } : {}),
       ...(sha256 ? { sha256 } : {}),
       ...(failureClass ? { failureClass: failureClass as MediaFailureClass } : {}),
+      ...(timecode ? { timecode } : {}),
       ...(note ? { note } : {})
     });
   }

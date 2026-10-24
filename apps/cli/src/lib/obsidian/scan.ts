@@ -81,6 +81,29 @@ export async function scanProjectForObsidian(projectRoot: string): Promise<Obsid
 // 内容树是正文唯一事实源（content.format_version=1 时）。它不在 activeWorkflowSteps 里，
 // 必须单独扫描并投影，否则内容树页面在观看层里不存在，索引页指向它们的链接全部失效。
 const contentStoryboardFilePattern = /^(?:分镜[-_ ]?\d+|00_镜头[-_ ]?\d+)\.md$/iu;
+// 只有「分镜-NN.md」会声明关键帧小节；镜头汇总文件不参与。
+const contentStoryboardOnlyFilePattern = /^分镜[-_ ]?\d+\.md$/iu;
+const keyframeHeadingPattern = /^####\s*关键帧\s*(\d+)\s*$/iu;
+
+/** 从分镜正文里读出 `#### 关键帧 01` 声明，转成内部 id keyframe-01。 */
+function keyframeIdsFromContent(content: string): string[] {
+  const ids: string[] = [];
+  for (const line of content.split(/\r?\n/)) {
+    const matched = keyframeHeadingPattern.exec(line.trim());
+    if (!matched) {
+      continue;
+    }
+    const number = Number.parseInt(matched[1]!, 10);
+    if (!Number.isFinite(number)) {
+      continue;
+    }
+    const id = "keyframe-" + String(number).padStart(2, "0");
+    if (!ids.includes(id)) {
+      ids.push(id);
+    }
+  }
+  return ids;
+}
 
 async function scanContentTree(projectRoot: string): Promise<ObsidianSourceFile[]> {
   const resolution = await resolveContentMode(projectRoot);
@@ -102,6 +125,7 @@ async function scanContentTree(projectRoot: string): Promise<ObsidianSourceFile[
     // 内容树的文件名是编号（00_镜头-001.md、分镜-01.md），拿它当标题只会显示成 "00 镜头 001"；
     // 展示名取 H1，编号身份另由目录与文件名推导。
     const fallbackTitle = titleForEntry(fileName);
+    const keyframeIds = contentStoryboardOnlyFilePattern.test(fileName) ? keyframeIdsFromContent(content) : [];
     files.push({
       sourcePath,
       sourceKind,
@@ -110,7 +134,8 @@ async function scanContentTree(projectRoot: string): Promise<ObsidianSourceFile[
       headingTitle: titleFromMarkdownContent(content, fallbackTitle),
       shotGroupId: shotGroupIdFromPath(sourcePath),
       shotId: shotIdFromFileName(fileName),
-      referenceAssets: extractReferenceAssets(content)
+      referenceAssets: extractReferenceAssets(content),
+      ...(keyframeIds.length > 0 ? { keyframeIds } : {})
     });
   }
   return files;

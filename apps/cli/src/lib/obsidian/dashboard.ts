@@ -23,6 +23,7 @@ import {
   stageReviewOverviewPath,
   stageReviewPath,
   mediaReviewIndexPath,
+  mediaReviewPagePath,
   shotReviewNotePath,
   workflowBasePath,
   workflowCanvasPath,
@@ -42,6 +43,29 @@ import { formatReferenceAssets } from "../reference-assets.js";
 import type { ReferenceAssetToken } from "../reference-assets.js";
 import type { WorkflowDeviation, WorkflowShotMode } from "../types.js";
 import type { LibTvState } from "../libtv/types.js";
+import {
+  canonicalMediaObjectId,
+  canonicalMediaPurpose,
+  formatMediaCandidate,
+  formatMediaVersion,
+  mediaIdentityCanonicalKey,
+  mediaOutputDirectory,
+  mediaPurposeDisplayName,
+  mediaTimecodeSeconds,
+  type MediaCandidateRecord,
+  type MediaRecord
+} from "../media-records.js";
+import {
+  humanReviewStateLabels,
+  primaryMediaCandidate,
+  summarizeHumanReviewStates,
+  type HumanReviewState
+} from "../media-human-state.js";
+import {
+  mediaCandidateKey,
+  recordHumanReviewState,
+  type MediaReviewDisplay
+} from "./media-viewer.js";
 
 function uniqueShotIds(sourceFiles: ObsidianSourceFile[]): string[] {
   return [...new Set(sourceFiles.map((file) => file.shotId).filter((shotId): shotId is string => Boolean(shotId)))].sort();
@@ -315,13 +339,139 @@ function contentStoryboardLinksForShot(shotId: string, sourceFiles: ObsidianSour
     .join("\n");
 }
 
+/**
+ * 镜头页与分镜页共用的媒体片段（C3）。
+ *
+ * 素材记录仍然是唯一事实源；这里只读展示：当前选用、原文件相对路径、素材审阅页入口、
+ * 选中版本嵌入与全部候选的文字表。旧版本图片不嵌入，避免页面变重。
+ */
+function shotMediaRecords(shotId: string, display?: MediaReviewDisplay): { keyframes: MediaRecord[]; videos: MediaRecord[] } {
+  const records = display?.records ?? [];
+  const keyframes = records
+    .filter(
+      (record) =>
+        record.identity.category === "keyframe" && canonicalMediaObjectId(record.identity.objectId) === shotId
+    )
+    .sort((left, right) =>
+      canonicalMediaPurpose("keyframe", left.identity.purpose).localeCompare(
+        canonicalMediaPurpose("keyframe", right.identity.purpose),
+        "zh-Hans-CN"
+      )
+    );
+  const videos = records.filter(
+    (record) => record.identity.category === "video" && canonicalMediaObjectId(record.identity.objectId) === shotId
+  );
+  return { keyframes, videos };
+}
+
+function mediaRecordRelativePath(record: MediaRecord, candidate: MediaCandidateRecord): string {
+  return mediaOutputDirectory(record.identity) + "/" + candidate.fileName;
+}
+
+function escapeMediaCell(value: string): string {
+  return value.split("|").join("｜").split("\n").join(" ").trim();
+}
+
+function candidateHumanState(
+  record: MediaRecord,
+  candidate: MediaCandidateRecord,
+  display: MediaReviewDisplay
+): HumanReviewState {
+  return display.humanStates.get(mediaCandidateKey(record.identity, candidate.fileName)) ?? "not-ready";
+}
+
+/** 镜头汇总：只看每条素材的主候选；没有主候选就记一条「还没准备好」。 */
+function shotHumanReviewState(shotId: string, display?: MediaReviewDisplay): HumanReviewState {
+  const { keyframes, videos } = shotMediaRecords(shotId, display);
+  const states = [...keyframes, ...videos].map((record) =>
+    display ? recordHumanReviewState(record, display.humanStates) : "not-ready"
+  );
+  return summarizeHumanReviewStates(states);
+}
+
+function renderMediaRecordBlock(record: MediaRecord, display: MediaReviewDisplay): string[] {
+  const primary = primaryMediaCandidate(record);
+  const state = recordHumanReviewState(record, display.humanStates);
+  const lines = [
+    "#### " + mediaPurposeDisplayName(record.identity.category, record.identity.purpose) + "（" + humanReviewStateLabels[state] + "）",
+    ""
+  ];
+  if (primary) {
+    lines.push("- 当前选用：v" + String(primary.version) + " / 候选 " + String(primary.candidate));
+  } else if (record.currentSelection) {
+    lines.push("- 当前选用：版本未知（当前选用在候选里找不到）");
+  } else {
+    lines.push("- 当前选用：未选用（版本未知）");
+  }
+  const relativePath = primary ? mediaRecordRelativePath(record, primary) : undefined;
+  lines.push("- 原文件（项目内相对路径）：" + (relativePath ?? "（没有当前选用）"));
+  const pageTarget = wikiLinkTargetForVaultPath(
+    mediaReviewPagePath(record.identity.category, record.identity.objectId, record.identity.purpose)
+  );
+  lines.push("- 素材审阅页：[[" + pageTarget + "|打开素材审阅页（全部候选版本）]]");
+  if (primary) {
+    const asset = display.assetsByCandidate.get(mediaCandidateKey(record.identity, primary.fileName));
+    if (asset?.exists) {
+      const seconds = record.identity.category === "video" ? mediaTimecodeSeconds(primary.timecode) : undefined;
+      lines.push("", "![[" + asset.embedTarget + (seconds !== undefined ? "#t=" + String(seconds) : "") + "]]");
+      if (primary.timecode) {
+        lines.push("", "时间位置：" + primary.timecode);
+      }
+    } else if (relativePath) {
+      lines.push("", "- 缺少：" + relativePath);
+    }
+  }
+  lines.push("", "| 版本 | 候选 | 人工审核 | 时间位置 | 文件 |", "| --- | --- | --- | --- | --- |");
+  if (record.candidates.length === 0) {
+    lines.push("| - | - | - | - | 暂无候选 |");
+  }
+  for (const candidate of record.candidates) {
+    lines.push(
+      "| " +
+        formatMediaVersion(candidate.version) +
+        " | " +
+        formatMediaCandidate(candidate.candidate) +
+        " | " +
+        humanReviewStateLabels[candidateHumanState(record, candidate, display)] +
+        " | " +
+        (candidate.timecode ?? "-") +
+        " | " +
+        escapeMediaCell(candidate.fileName) +
+        " |"
+    );
+  }
+  return lines;
+}
+
+function renderShotMediaSection(shotId: string, display?: MediaReviewDisplay): string {
+  const { keyframes, videos } = shotMediaRecords(shotId, display);
+  if (!display || keyframes.length + videos.length === 0) {
+    return "> 本镜媒体：还没准备好（还没有关键帧或视频素材记录）。";
+  }
+  const blocks: string[] = [];
+  if (keyframes.length > 0) {
+    blocks.push("### 关键帧");
+    for (const record of keyframes) {
+      blocks.push(renderMediaRecordBlock(record, display).join("\n"));
+    }
+  }
+  if (videos.length > 0) {
+    blocks.push("### 整镜视频");
+    for (const record of videos) {
+      blocks.push(renderMediaRecordBlock(record, display).join("\n"));
+    }
+  }
+  return blocks.join("\n\n");
+}
+
 function renderShotHub(
   shotId: string,
   shotFiles: ObsidianSourceFile[],
   allSourceFiles: ObsidianSourceFile[],
   shotIds: string[],
   deviationsContext: DeviationsReadResult,
-  libtvState?: LibTvState | null
+  libtvState?: LibTvState | null,
+  mediaDisplay?: MediaReviewDisplay
 ): ObsidianGeneratedFile {
   const sourcePath = shotFiles.find((file) => file.sourceKind === "storyboard")?.sourcePath ?? shotFiles[0]?.sourcePath;
   const sourcePathLine = sourcePath ? `${obsidianProperties.sourcePath}: ${sourcePath}\n` : "";
@@ -349,6 +499,18 @@ function renderShotHub(
   const groupTag = shotGroupId ? `  - ai-video/shot-group/${shotGroupId}\n` : "";
   const groupNavigation = shotGroupId ? `- 镜头组：[[${shotGroupPagePath(shotGroupId)}|${shotGroupDisplayName(shotGroupId, allSourceFiles)}]]\n` : "";
   const contentStoryboards = contentStoryboardLinksForShot(shotId, allSourceFiles);
+  const shotMedia = shotMediaRecords(shotId, mediaDisplay);
+  const hasShotMediaRecords = shotMedia.keyframes.length + shotMedia.videos.length > 0;
+  const shotHasContentTree = contentTreeEntries(allSourceFiles).some((entry) => entry.shotId === shotId);
+  // 旧格式项目（没有内容树、没有素材记录）不追加任何媒体行，页面保持原样。
+  const showShotMedia = mediaDisplay !== undefined && (hasShotMediaRecords || shotHasContentTree);
+  const shotHumanReviewLine = showShotMedia
+    ? "- 人工审核：**" + humanReviewStateLabels[shotHumanReviewState(shotId, mediaDisplay)] + "**"
+    : "";
+  const shotMediaReviewLine = hasShotMediaRecords
+    ? "- 素材审阅：[[" + wikiLinkTargetForVaultPath(mediaReviewIndexPath) + "|素材审阅]]"
+    : "";
+  const shotMediaInfoBlock = [shotHumanReviewLine, shotMediaReviewLine].filter(Boolean).join("\n");
   return {
     vaultPath: singleShotPagePath(shotId),
     content: `---
@@ -390,7 +552,7 @@ ${groupTag}  - ai-video/type/index
 - 审阅画布：[[${reviewCanvasPath}|镜头审阅画布]]
 - 用户审阅笔记：[[${shotReviewNotePath(shotId)}|${displayName} 审阅笔记]]
 
-## 2. 审阅路径
+${shotMediaInfoBlock ? shotMediaInfoBlock + "\n\n" : ""}## 2. 审阅路径
 
 - 审阅总览：[[${reviewOverviewPath}|审阅总览]]
 - 制作看板：[[${productionBoardPath}|制作看板]]
@@ -416,7 +578,11 @@ ${renderLibtvDecisionText(libtvState, shotId)}
 检查步骤五视频提示词是否保留步骤四视觉画面，并且只增加运动、时长、镜头行为和平台执行设置。
 
 ${embeddedFileForKind(shotFiles, "video-prompt", "视频提示词")}
+${showShotMedia ? `
+## 5.1 本镜媒体与版本
 
+${renderShotMediaSection(shotId, mediaDisplay)}
+` : ""}
 ## 6. 执行检查
 
 - 分镜脚本、图片提示词和视频提示词逐镜头对齐。
@@ -701,10 +867,77 @@ ${groupSections.join("\n\n") || "- 尚未发现镜头组。"}
   };
 }
 
+function storyboardKeyframeIds(storyboardFile: ObsidianSourceFile | undefined): string[] {
+  return storyboardFile?.keyframeIds ?? [];
+}
+
+function renderStoryboardFrame(
+  shotId: string,
+  keyframeId: string,
+  mediaDisplay?: MediaReviewDisplay
+): string {
+  const targetKey = mediaIdentityCanonicalKey({ category: "keyframe", objectId: shotId, purpose: keyframeId });
+  const record = mediaDisplay?.records.find(
+    (candidate) => mediaIdentityCanonicalKey(candidate.identity) === targetKey
+  );
+  if (!record || !mediaDisplay) {
+    return [
+      "#### " + mediaPurposeDisplayName("keyframe", keyframeId) + "（" + humanReviewStateLabels["not-ready"] + "）",
+      "",
+      "- 还没有素材记录。"
+    ].join("\n");
+  }
+  return renderMediaRecordBlock(record, mediaDisplay).join("\n");
+}
+
+function renderStoryboardFrames(
+  shotId: string,
+  storyboardFile: ObsidianSourceFile | undefined,
+  mediaDisplay?: MediaReviewDisplay
+): string {
+  const keyframeIds = storyboardKeyframeIds(storyboardFile);
+  if (keyframeIds.length === 0) {
+    return "- 本段没有独立关键帧。";
+  }
+  return keyframeIds.map((keyframeId) => renderStoryboardFrame(shotId, keyframeId, mediaDisplay)).join("\n\n");
+}
+
+function storyboardPromptLink(file: ObsidianSourceFile): string {
+  return "[[" + wikiLinkTargetForVaultPath(workflowVaultPath(file)) + "|" + (file.headingTitle?.trim() || file.title) + "]]";
+}
+
+function renderStoryboardPrompts(shotId: string, sourceFiles: ObsidianSourceFile[], storyboardFile?: ObsidianSourceFile): string {
+  const keyframeLabels = storyboardKeyframeIds(storyboardFile).map((keyframeId) => keyframeId.replace(/^keyframe-/u, ""));
+  const step4Files = sourceFiles.filter(
+    (file) =>
+      file.sourceKind === "image-prompt" &&
+      file.shotId === shotId &&
+      keyframeLabels.some((label) => file.sourcePath.includes("关键帧-" + label))
+  );
+  const step5Files = sourceFiles.filter((file) => file.sourceKind === "video-prompt" && file.shotId === shotId);
+  const missingLine = (step: string, label: string): string =>
+    "- " + step + " 执行文件（" + label + "）：缺失（运行 content assemble 生成执行文件）";
+  const step4Lines =
+    step4Files.length > 0
+      ? step4Files.map((file) => "- Step 4 执行文件（关键帧图片提示词）：" + storyboardPromptLink(file)).join("\n")
+      : missingLine("Step 4", "关键帧图片提示词");
+  const step5Lines =
+    step5Files.length > 0
+      ? step5Files.map((file) => "- Step 5 执行文件（整镜视频提示词）：" + storyboardPromptLink(file)).join("\n")
+      : missingLine("Step 5", "整镜视频提示词");
+  return [
+    step4Lines,
+    step5Lines,
+    "",
+    "指回正文：本段画面见第 2 节「本段画面」，提示词执行文件见第 3 节「本段提示词」，完整正文见第 4 节「本段正文」。"
+  ].join("\n");
+}
+
 function renderContentStoryboardPage(
   shotId: string,
   storyboardId: string,
-  sourceFiles: ObsidianSourceFile[]
+  sourceFiles: ObsidianSourceFile[],
+  mediaDisplay?: MediaReviewDisplay
 ): ObsidianGeneratedFile {
   const entries = contentTreeEntries(sourceFiles).filter((entry) => entry.shotId === shotId);
   const storyboard = entries.find((entry) => entry.storyboardId === storyboardId);
@@ -720,14 +953,22 @@ function renderContentStoryboardPage(
 - 所属镜头：${shotEntry ? contentEntryLink(shotEntry, sourceFiles) : shotId}
 - 镜头页：[[${singleShotPagePath(shotId)}|${shotDisplayName(shotId, sourceFiles)}]]
 
-## 2. 本段正文
+## 2. 本段画面
+
+${renderStoryboardFrames(shotId, storyboardFile, mediaDisplay)}
+
+## 3. 本段提示词
+
+${renderStoryboardPrompts(shotId, sourceFiles, storyboardFile)}
+
+## 4. 本段正文
 
 ${storyboardFile ? `![[${wikiLinkTargetForVaultPath(workflowVaultPath(storyboardFile))}]]` : "> 分镜文件：缺失"}
 `
   };
 }
 
-function contentTreeFiles(sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedFile[] {
+function contentTreeFiles(sourceFiles: ObsidianSourceFile[], mediaDisplay?: MediaReviewDisplay): ObsidianGeneratedFile[] {
   const index = renderContentTreeIndex(sourceFiles);
   if (!index) {
     return [];
@@ -746,7 +987,7 @@ function contentTreeFiles(sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedF
     ...sceneIds.map((sceneId) => renderContentScenePage(sceneId, sourceFiles)),
     ...storyboardKeys.map((key) => {
       const [shotId, storyboardId] = key.split("/");
-      return renderContentStoryboardPage(shotId ?? "", storyboardId ?? "", sourceFiles);
+      return renderContentStoryboardPage(shotId ?? "", storyboardId ?? "", sourceFiles, mediaDisplay);
     })
   ];
 }
@@ -757,7 +998,8 @@ export function renderDashboardFiles(
   includePluginRecipes: boolean,
   deviationsContext: DeviationsReadResult = { mode: "standard", deviations: [], shots: [], issues: [] },
   libtvState?: LibTvState | null,
-  hasMediaReviewIndex = false
+  hasMediaReviewIndex = false,
+  mediaDisplay?: MediaReviewDisplay
 ): ObsidianGeneratedFile[] {
   const shotIds = uniqueShotIds(sourceFiles);
   const shotGroupIds = uniqueShotGroupIds(sourceFiles);
@@ -956,8 +1198,8 @@ tags:
     ...stageReviewHubs,
     renderAgentHandoffPage(shotIds, sourceFiles),
     ...shotGroupIds.map((groupId) => renderShotGroupHub(groupId, sourceFiles)),
-    ...shotIds.map((shotId) => renderShotHub(shotId, sourceFiles.filter((file) => file.shotId === shotId), sourceFiles, shotIds, deviationsContext, libtvState)),
-    ...contentTreeFiles(sourceFiles)
+    ...shotIds.map((shotId) => renderShotHub(shotId, sourceFiles.filter((file) => file.shotId === shotId), sourceFiles, shotIds, deviationsContext, libtvState, mediaDisplay)),
+    ...contentTreeFiles(sourceFiles, mediaDisplay)
   ];
   if (includePluginRecipes) {
     files.push(renderCommunityPluginRecipes());

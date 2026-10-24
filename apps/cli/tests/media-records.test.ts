@@ -7,15 +7,20 @@ import { createProject } from "../src/lib/init.js";
 import { verifyProject } from "../src/lib/verify.js";
 import {
   allocateMediaTarget,
+  canonicalMediaObjectId,
+  canonicalMediaPurpose,
   describeMediaFile,
   existingMediaVersions,
   formatMediaCandidate,
   formatMediaVersion,
   mediaFileStem,
+  mediaIdentityCanonicalKey,
   mediaIdentityKey,
   mediaOutputDirectory,
   mediaProjectDirectories,
+  mediaPurposeDisplayName,
   mediaRecordPath,
+  mediaTimecodeSeconds,
   nextMediaVersion,
   parseMediaFileName,
   parseMediaRecord,
@@ -112,6 +117,57 @@ describe("素材记录：稳定身份与命名", () => {
     expect(formatMediaVersion(12)).toBe("v012");
     expect(formatMediaCandidate(1)).toBe("c01");
     expect(formatMediaCandidate(9)).toBe("c09");
+  });
+});
+
+describe("素材记录：人读编号与内部编号归一", () => {
+  test("人读编号与内部编号得到同一个 canonical 键", () => {
+    const human: MediaIdentity = { category: "keyframe", objectId: "镜头-001", purpose: "关键帧-01" };
+    const internal: MediaIdentity = { category: "keyframe", objectId: "shot-001", purpose: "keyframe-01" };
+    expect(mediaIdentityCanonicalKey(human)).toBe("keyframe:shot-001/keyframe-01");
+    expect(mediaIdentityCanonicalKey(internal)).toBe(mediaIdentityCanonicalKey(human));
+
+    const humanVideo: MediaIdentity = { category: "video", objectId: "镜头-015", purpose: "视频" };
+    const internalVideo: MediaIdentity = { category: "video", objectId: "shot-015", purpose: "视频" };
+    expect(mediaIdentityCanonicalKey(humanVideo)).toBe("video:shot-015/视频");
+    expect(mediaIdentityCanonicalKey(internalVideo)).toBe(mediaIdentityCanonicalKey(humanVideo));
+  });
+
+  test("场与镜头组的人读编号同样归一，数字补到三位", () => {
+    expect(canonicalMediaObjectId("场-001")).toBe("scene-001");
+    expect(canonicalMediaObjectId("镜头组-002")).toBe("group-002");
+    expect(canonicalMediaObjectId("镜头-1")).toBe("shot-001");
+    expect(canonicalMediaObjectId("shot-1")).toBe("shot-001");
+    expect(canonicalMediaObjectId("scene-001")).toBe("scene-001");
+    expect(canonicalMediaObjectId("group-001")).toBe("group-001");
+  });
+
+  test("非镜头对象编号不被误改", () => {
+    expect(canonicalMediaObjectId("角色-001")).toBe("角色-001");
+    expect(canonicalMediaObjectId("场景-001")).toBe("场景-001");
+    expect(canonicalMediaObjectId("道具-01")).toBe("道具-01");
+  });
+
+  test("关键帧用途三种写法都归一到 keyframe-01，视频与其他类别原样", () => {
+    expect(canonicalMediaPurpose("keyframe", "关键帧-01")).toBe("keyframe-01");
+    expect(canonicalMediaPurpose("keyframe", "关键帧 01")).toBe("keyframe-01");
+    expect(canonicalMediaPurpose("keyframe", "keyframe-01")).toBe("keyframe-01");
+    expect(canonicalMediaPurpose("keyframe", "关键帧-1")).toBe("keyframe-01");
+    expect(canonicalMediaPurpose("video", "视频")).toBe("视频");
+    expect(canonicalMediaPurpose("character", "造型-01")).toBe("造型-01");
+  });
+
+  test("人读页面用途显示名：关键帧统一为「关键帧 01」", () => {
+    expect(mediaPurposeDisplayName("keyframe", "关键帧-01")).toBe("关键帧 01");
+    expect(mediaPurposeDisplayName("keyframe", "keyframe-01")).toBe("关键帧 01");
+    expect(mediaPurposeDisplayName("keyframe", "关键帧 01")).toBe("关键帧 01");
+    expect(mediaPurposeDisplayName("video", "视频")).toBe("视频");
+    expect(mediaPurposeDisplayName("character", "造型-01")).toBe("造型-01");
+  });
+
+  test("canonical 归一不改变记录身份键与记录路径", () => {
+    expect(mediaIdentityKey(shotIdentity)).toBe("keyframe:镜头-015/关键帧-01");
+    expect(mediaRecordPath(shotIdentity)).toBe("素材记录/镜头-015_关键帧-01.md");
   });
 });
 
@@ -415,6 +471,60 @@ describe("素材记录：三类失败与自检", () => {
     const issues: Parameters<typeof verifyMediaRecords>[1] = [];
     await verifyMediaRecords(projectRoot, issues);
     expect(issues.map((issue) => issue.code)).toContain("media-record-selection-missing");
+  });
+});
+
+describe("素材记录：视频时间位置", () => {
+  test("时间位置写入 frontmatter 与正文表，并能原样读回", () => {
+    const record: MediaRecord = {
+      identity: videoIdentity,
+      displayName: "镜头-015 视频",
+      source: "generated",
+      candidates: [
+        candidate({
+          fileName: "镜头-015_v001_c01.mp4",
+          timecode: "00:12",
+          selected: true
+        })
+      ],
+      createdAt: "2026-10-24T00:00:00.000Z",
+      updatedAt: "2026-10-24T00:00:00.000Z"
+    };
+    const rendered = renderMediaRecord(record);
+    expect(rendered).toContain("| 版本 | 候选 | 文件 | 时间位置 | 平台 | 下载 | 审核 | 选用 | 当前状态 | 说明 |");
+    expect(rendered).toContain("| 镜头-015_v001_c01.mp4 | 00:12 |");
+    expect(rendered).toContain("时间位置: 00:12");
+
+    const parsed = parseMediaRecord(rendered);
+    expect(parsed!.candidates[0].timecode).toBe("00:12");
+  });
+
+  test("没有时间位置时候选不写 时间位置 字段，表格显示 -", () => {
+    const record: MediaRecord = {
+      identity: characterIdentity,
+      displayName: "女主",
+      source: "generated",
+      candidates: [candidate()],
+      createdAt: "2026-10-24T00:00:00.000Z",
+      updatedAt: "2026-10-24T00:00:00.000Z"
+    };
+    const rendered = renderMediaRecord(record);
+    expect(rendered).not.toContain("时间位置:");
+    expect(rendered).toContain("| 角色-001_造型-01_v001_c01.png | - | 平台已完成 |");
+    expect(parseMediaRecord(rendered)!.candidates[0].timecode).toBeUndefined();
+  });
+
+  test("时间位置换算成秒：MM:SS 与 HH:MM:SS 都认，非法值返回 undefined", () => {
+    expect(mediaTimecodeSeconds("00:12")).toBe(12);
+    expect(mediaTimecodeSeconds("01:02:03")).toBe(3723);
+    expect(mediaTimecodeSeconds(" 00:12 ")).toBe(12);
+    expect(mediaTimecodeSeconds("12")).toBeUndefined();
+    expect(mediaTimecodeSeconds("1:02")).toBeUndefined();
+    expect(mediaTimecodeSeconds("00:60")).toBeUndefined();
+    expect(mediaTimecodeSeconds("01:02:60")).toBeUndefined();
+    expect(mediaTimecodeSeconds("01:2:03")).toBeUndefined();
+    expect(mediaTimecodeSeconds("")).toBeUndefined();
+    expect(mediaTimecodeSeconds(undefined)).toBeUndefined();
   });
 });
 

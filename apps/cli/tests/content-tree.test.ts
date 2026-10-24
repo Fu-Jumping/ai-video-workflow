@@ -16,6 +16,13 @@ import {
   validateShotKeyframes
 } from "../src/lib/content-tree.js";
 import { createProject } from "../src/lib/init.js";
+import {
+  mediaRecordPath,
+  renderMediaRecord,
+  type MediaCandidateRecord,
+  type MediaIdentity,
+  type MediaRecord
+} from "../src/lib/media-records.js";
 import { syncProject } from "../src/lib/sync.js";
 import { verifyProject } from "../src/lib/verify.js";
 import { parseYaml, stringifyYaml } from "../src/lib/yaml.js";
@@ -255,6 +262,47 @@ async function seedShot(projectRoot: string, options: ShotOptions): Promise<stri
 
 async function assemble(projectRoot: string) {
   return assembleContentTree(projectRoot, { force: true });
+}
+
+function selectedCandidate(fileName: string): MediaCandidateRecord {
+  return {
+    version: 1,
+    candidate: 1,
+    fileName,
+    platformStatus: "completed",
+    downloadStatus: "downloaded",
+    reviewStatus: "unreviewed",
+    selected: true
+  };
+}
+
+/** 按播种说明写人读编号（镜头-001 / 关键帧-01 / 视频）的素材记录；候选文件不要求存在。 */
+async function seedHumanNumberedMedia(projectRoot: string): Promise<void> {
+  const keyframeIdentity: MediaIdentity = { category: "keyframe", objectId: "镜头-001", purpose: "关键帧-01" };
+  const keyframeFile = "镜头-001_关键帧-01_v001_c01.png";
+  const keyframeRecord: MediaRecord = {
+    identity: keyframeIdentity,
+    displayName: "镜头-001 关键帧 01",
+    source: "generated",
+    currentSelection: keyframeFile,
+    candidates: [selectedCandidate(keyframeFile)],
+    createdAt: "2026-10-24T00:00:00.000Z",
+    updatedAt: "2026-10-24T00:00:00.000Z"
+  };
+  await writeFile(projectRoot, mediaRecordPath(keyframeIdentity), renderMediaRecord(keyframeRecord));
+
+  const videoIdentity: MediaIdentity = { category: "video", objectId: "镜头-001", purpose: "视频" };
+  const videoFile = "镜头-001_v001_c01.mp4";
+  const videoRecord: MediaRecord = {
+    identity: videoIdentity,
+    displayName: "镜头-001 视频",
+    source: "generated",
+    currentSelection: videoFile,
+    candidates: [selectedCandidate(videoFile)],
+    createdAt: "2026-10-24T00:00:00.000Z",
+    updatedAt: "2026-10-24T00:00:00.000Z"
+  };
+  await writeFile(projectRoot, mediaRecordPath(videoIdentity), renderMediaRecord(videoRecord));
 }
 
 const SHOT_OVERVIEW = "内容/场-001/镜头组-001/镜头-001/00_镜头-001.md";
@@ -661,6 +709,104 @@ describe("内容树：汇总与执行文件一致性", () => {
 
     const verified = await verify(projectRoot);
     expect(codesOf(verified.issues)).toContain("content-summary-execution-mismatch");
+  });
+});
+
+describe("内容树：人读编号素材记录", () => {
+  test("人读编号的素材记录出现在 04/05 素材状态与镜头总表", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    await seedShot(projectRoot, { segments: [{ keyframes: [{ number: 1, mappedSegment: 1 }] }] });
+    await seedHumanNumberedMedia(projectRoot);
+
+    const result = await assemble(projectRoot);
+    expect(result.issues).toEqual([]);
+
+    const step4 = await readFile(projectRoot, "04_图片提示词/镜头组-001/镜头-001-关键帧-01.md");
+    expect(step4).toContain("素材状态：已选用");
+    const step5 = await readFile(projectRoot, STEP5_FILE);
+    expect(step5).toContain("素材状态：已选用");
+
+    const overview = await readFile(projectRoot, "内容/00_镜头总表.md");
+    const row = overview.split("\n").find((line) => line.startsWith("| ") && line.includes("镜头-001"));
+    expect(row, "镜头总表里有这个镜头的一行").toBeDefined();
+    expect(row).toContain("1 张（已选用）");
+    expect(row).toContain("| 已选用 |");
+    expect(row).not.toContain("未生成");
+  });
+
+  test("缺少 05 执行文件时报出的路径使用镜头组中文目录", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    await seedShot(projectRoot, { segments: [{}] });
+    await assemble(projectRoot);
+    await fs.remove(path.join(projectRoot, STEP5_FILE));
+
+    const verified = await verify(projectRoot);
+    const missing = verified.issues.filter(
+      (issue) => issue.code === "content-execution-stale" && issue.message.includes("缺少 05 执行文件")
+    );
+    expect(missing).toHaveLength(1);
+    expect(missing[0]!.path).toBe(STEP5_FILE);
+    expect(verified.issues.filter((issue) => issue.path?.includes("group-001"))).toEqual([]);
+  });
+});
+
+describe("内容树：人读位置使用中文编号", () => {
+  test("镜头总表、场总览、索引与 04/05 元信息显示 场-001 / 镜头组-001 / 镜头-001", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    await seedShot(projectRoot, { segments: [{ keyframes: [{ number: 1, mappedSegment: 1 }] }] });
+
+    const result = await assemble(projectRoot);
+    expect(result.issues).toEqual([]);
+
+    const shotOverview = await readFile(projectRoot, "内容/00_镜头总表.md");
+    expect(shotOverview).toContain("| 场-001 / 镜头组-001 |");
+    expect(shotOverview).not.toContain("scene-001");
+    expect(shotOverview).not.toContain("group-001");
+
+    const sceneOverview = await readFile(projectRoot, "内容/场-001/00_场总览.md");
+    expect(sceneOverview).toContain("| 镜头组-001 |");
+    expect(sceneOverview).not.toContain("group-001");
+
+    const index = await readFile(projectRoot, "03_分镜脚本/00_内容树索引.md");
+    expect(index).toContain("### 场-001");
+    expect(index).toContain("- [镜头组-001](");
+    expect(index).not.toContain("镜头组 镜头组-001");
+    expect(index).not.toContain("scene-001");
+    expect(index).not.toContain("group-001");
+
+    const step4 = await readFile(projectRoot, "04_图片提示词/镜头组-001/镜头-001-关键帧-01.md");
+    expect(step4).toContain("- 镜头组：镜头组-001");
+    expect(step4).toContain("- 镜头编号：镜头-001");
+    expect(step4).not.toContain("group-001");
+    expect(step4).not.toContain("shot-001");
+
+    const step5 = await readFile(projectRoot, STEP5_FILE);
+    expect(step5).toContain("- 镜头组：镜头组-001");
+    expect(step5).toContain("- 镜头编号：镜头-001");
+    expect(step5).toContain("- 场景事件范围：场-001 / 镜头组-001");
+    expect(step5).not.toContain("group-001");
+    expect(step5).not.toContain("shot-001");
+  });
+
+  test("删掉场总览后重新整理，新建文件 H1 是「场-001 场总览」", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    await seedShot(projectRoot, { segments: [{}] });
+    await assemble(projectRoot);
+    await fs.remove(path.join(projectRoot, "内容/场-001/00_场总览.md"));
+
+    const result = await assemble(projectRoot);
+    expect(result.issues).toEqual([]);
+
+    const sceneOverview = await readFile(projectRoot, "内容/场-001/00_场总览.md");
+    expect(sceneOverview.split("\n")[0]).toBe("# 场-001 场总览");
+    expect(sceneOverview).not.toContain("scene-001");
+    expect(sceneOverview).toContain("| 镜头组-001 |");
+    expect(sceneOverview).toContain("## 对应剧本");
+    expect(sceneOverview).toContain("01_概念策划/剧本.md");
   });
 });
 

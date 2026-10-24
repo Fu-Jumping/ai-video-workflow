@@ -13,6 +13,7 @@ import path from "node:path";
 
 import {
   describeMediaCandidateState,
+  describeMediaFile,
   formatMediaCandidate,
   formatMediaVersion,
   mediaCategoryLabels,
@@ -26,11 +27,20 @@ import {
   mediaReviewStatusLabels,
   mediaSelectionLabels,
   mediaSourceLabels,
+  mediaTimecodeSeconds,
   parseMediaRecord,
   type MediaCandidateRecord,
   type MediaCategory,
+  type MediaIdentity,
   type MediaRecord
 } from "../media-records.js";
+import {
+  deriveCandidateHumanState,
+  humanReviewStateLabels,
+  primaryMediaCandidate,
+  summarizeHumanReviewStates,
+  type HumanReviewState
+} from "../media-human-state.js";
 import { wikiLinkTargetForVaultPath } from "./markdown.js";
 import { mediaReviewCategoryDirectory, mediaReviewDirectory, mediaReviewIndexPath, mediaReviewPagePath } from "./routes.js";
 import type { ObsidianGeneratedFile } from "./types.js";
@@ -120,11 +130,64 @@ function linkToRecordPage(record: MediaRecord, label?: string): string {
   return "[[" + wikiLinkTargetForVaultPath(mediaPagePathFor(record)) + "|" + (label ?? record.displayName) + "]]";
 }
 
+/** 候选在展示层的稳定键：身份键 + 文件名。 */
+export function mediaCandidateKey(identity: MediaIdentity, fileName: string): string {
+  return mediaIdentityKey(identity) + "|" + fileName;
+}
+
+/** 素材审阅页一次构建的展示数据：记录、素材副本、按候选索引与四态。 */
+export interface MediaReviewDisplay {
+  records: MediaRecord[];
+  /** vaultPath -> asset */
+  assets: Map<string, MediaReviewAsset>;
+  /** mediaCandidateKey(identity,fileName) -> asset */
+  assetsByCandidate: Map<string, MediaReviewAsset>;
+  /** mediaCandidateKey(identity,fileName) -> 四态 */
+  humanStates: Map<string, HumanReviewState>;
+}
+
+/**
+ * 读取全部素材记录、规划素材副本，并按候选计算当前文件哈希与四态。
+ *
+ * 导出流程只调用这一次：素材页、镜头页与分镜页共用同一份哈希结果，
+ * 不在各处重复读记录或重复算哈希。
+ */
+export async function buildMediaReviewDisplay(projectRoot: string): Promise<MediaReviewDisplay> {
+  const records = await readProjectMediaRecords(projectRoot);
+  const assets = new Map<string, MediaReviewAsset>();
+  for (const asset of await planAssetsForRecords(projectRoot, records)) {
+    assets.set(asset.vaultPath, asset);
+  }
+  const assetsByCandidate = new Map<string, MediaReviewAsset>();
+  const humanStates = new Map<string, HumanReviewState>();
+  for (const record of records) {
+    for (const candidate of record.candidates) {
+      const key = mediaCandidateKey(record.identity, candidate.fileName);
+      const asset = assets.get(mediaAssetVaultPath(record, candidate));
+      if (asset) {
+        assetsByCandidate.set(key, asset);
+      }
+      const described = asset && asset.exists ? await describeMediaFile(asset.sourcePath) : undefined;
+      humanStates.set(key, deriveCandidateHumanState({ candidate, currentSha256: described?.sha256 }));
+    }
+  }
+  return { records, assets, assetsByCandidate, humanStates };
+}
+
+/** 一条素材记录的主候选四态；没有主候选时按「还没准备好」处理。 */
+export function recordHumanReviewState(
+  record: MediaRecord,
+  humanStates: Map<string, HumanReviewState>
+): HumanReviewState {
+  const candidate = primaryMediaCandidate(record);
+  if (!candidate) {
+    return "not-ready";
+  }
+  return humanStates.get(mediaCandidateKey(record.identity, candidate.fileName)) ?? "not-ready";
+}
+
 function selectedCandidate(record: MediaRecord): MediaCandidateRecord | undefined {
-  const bySelection = record.currentSelection
-    ? record.candidates.find((candidate) => candidate.fileName === record.currentSelection)
-    : undefined;
-  return bySelection ?? record.candidates.find((candidate) => candidate.selected);
+  return primaryMediaCandidate(record);
 }
 
 function describeCurrentSelection(record: MediaRecord): string {
@@ -177,8 +240,9 @@ export async function expectedMediaReviewPages(
   }));
 }
 
-function renderIndexRow(record: MediaRecord): string {
+function renderIndexRow(record: MediaRecord, humanStates: Map<string, HumanReviewState>): string {
   const selected = selectedCandidate(record);
+  const humanState = humanStateFor(record, selected, humanStates);
   const cells = [
     escapeCell(record.displayName),
     escapeCell(describeCurrentSelection(record)),
@@ -186,25 +250,42 @@ function renderIndexRow(record: MediaRecord): string {
     selected ? mediaDownloadStatusLabels[selected.downloadStatus] : "-",
     selected ? mediaReviewStatusLabels[selected.reviewStatus] : "-",
     selected && selected.selected ? mediaSelectionLabels.yes : mediaSelectionLabels.no,
+    humanReviewStateLabels[humanState],
     linkToRecordPage(record, "打开单条页")
   ];
   return "| " + cells.join(" | ") + " |";
 }
 
-function renderIndexCategorySection(category: MediaCategory, bucket: MediaRecord[], order: number): string {
+function humanStateFor(
+  record: MediaRecord,
+  candidate: MediaCandidateRecord | undefined,
+  humanStates: Map<string, HumanReviewState>
+): HumanReviewState {
+  if (!candidate) {
+    return "not-ready";
+  }
+  return humanStates.get(mediaCandidateKey(record.identity, candidate.fileName)) ?? "not-ready";
+}
+
+function renderIndexCategorySection(
+  category: MediaCategory,
+  bucket: MediaRecord[],
+  order: number,
+  humanStates: Map<string, HumanReviewState>
+): string {
   const heading = "## " + order + ". " + mediaCategoryLabels[category];
   if (bucket.length === 0) {
     return heading + "\n\n- 暂无" + mediaCategoryLabels[category] + "素材记录。\n";
   }
   const rows = [
-    "| 展示名 | 当前选用 | 平台状态 | 下载状态 | 审核状态 | 是否选用 | 单条页 |",
-    "| --- | --- | --- | --- | --- | --- | --- |",
-    ...bucket.map(renderIndexRow)
+    "| 展示名 | 当前选用 | 平台状态 | 下载状态 | 审核状态 | 是否选用 | 人工审核 | 单条页 |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    ...bucket.map((record) => renderIndexRow(record, humanStates))
   ];
   return heading + "\n\n" + rows.join("\n") + "\n";
 }
 
-function renderIndexPage(records: MediaRecord[]): ObsidianGeneratedFile {
+function renderIndexPage(records: MediaRecord[], humanStates: Map<string, HumanReviewState>): ObsidianGeneratedFile {
   const grouped = new Map<MediaCategory, MediaRecord[]>();
   for (const category of categoryOrder) {
     grouped.set(category, []);
@@ -216,7 +297,7 @@ function renderIndexPage(records: MediaRecord[]): ObsidianGeneratedFile {
     .map((category) => mediaCategoryLabels[category] + " " + (grouped.get(category)?.length ?? 0) + " 条")
     .join(" / ");
   const sections = categoryOrder.map((category, index) =>
-    renderIndexCategorySection(category, grouped.get(category) ?? [], index + 1)
+    renderIndexCategorySection(category, grouped.get(category) ?? [], index + 1, humanStates)
   );
   const content = [
     "# 素材总览",
@@ -225,13 +306,15 @@ function renderIndexPage(records: MediaRecord[]): ObsidianGeneratedFile {
     "",
     "- 素材记录数：" + records.length,
     "- 分类：" + summary,
+    "- 人工审核：" + humanReviewStateLabels["not-ready"] + " / " + humanReviewStateLabels.waiting + " / " +
+      humanReviewStateLabels.accepted + " / " + humanReviewStateLabels["needs-recheck"],
     "",
     ...sections
   ].join("\n");
   return { vaultPath: mediaReviewIndexPath, content };
 }
 
-function renderCandidateRow(candidate: MediaCandidateRecord): string {
+function renderCandidateRow(candidate: MediaCandidateRecord, humanState: HumanReviewState): string {
   const cells = [
     formatMediaVersion(candidate.version),
     formatMediaCandidate(candidate.candidate),
@@ -240,6 +323,7 @@ function renderCandidateRow(candidate: MediaCandidateRecord): string {
     mediaDownloadStatusLabels[candidate.downloadStatus],
     mediaReviewStatusLabels[candidate.reviewStatus],
     candidate.selected ? mediaSelectionLabels.yes : mediaSelectionLabels.no,
+    humanReviewStateLabels[humanState],
     escapeCell(describeMediaCandidateState(candidate)),
     escapeCell(candidate.note ?? (candidate.failureClass ? "失败分类：" + candidate.failureClass : "-"))
   ];
@@ -254,22 +338,35 @@ function renderCandidateFileSection(record: MediaRecord, assets: Map<string, Med
   for (const candidate of record.candidates) {
     const relativePath = mediaFileRelativePath(record, candidate);
     const asset = assets.get(mediaAssetVaultPath(record, candidate));
-    blocks.push(
-      "### " + formatMediaVersion(candidate.version) + " / " + formatMediaCandidate(candidate.candidate),
-      "",
-      asset?.exists ? "![[" + asset.embedTarget + "]]" : "文件缺失：" + relativePath
-    );
+    const seconds = record.identity.category === "video" ? mediaTimecodeSeconds(candidate.timecode) : undefined;
+    const embed = asset?.exists
+      ? "![[" + asset.embedTarget + (seconds !== undefined ? "#t=" + String(seconds) : "") + "]]"
+      : "文件缺失：" + relativePath;
+    blocks.push("### " + formatMediaVersion(candidate.version) + " / " + formatMediaCandidate(candidate.candidate), "", embed);
+    if (candidate.timecode) {
+      blocks.push("", "时间位置：" + candidate.timecode);
+    }
+    if (seconds !== undefined) {
+      blocks.push("", "> 时间位置只作文字提示：Obsidian 播放器是否按 #t= 跳到该时间点取决于实际环境。");
+    }
   }
   return blocks;
 }
 
-function renderRecordPage(record: MediaRecord, assets: Map<string, MediaReviewAsset>): ObsidianGeneratedFile {
+function renderRecordPage(
+  record: MediaRecord,
+  assets: Map<string, MediaReviewAsset>,
+  humanStates: Map<string, HumanReviewState>
+): ObsidianGeneratedFile {
   const identity = record.identity;
   const selected = selectedCandidate(record);
+  const selectedState = humanStateFor(record, selected, humanStates);
   const candidateTable = [
-    "| 版本 | 候选 | 文件 | 平台 | 下载 | 审核 | 选用 | 当前状态 | 说明 |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
-    ...record.candidates.map((candidate) => renderCandidateRow(candidate))
+    "| 版本 | 候选 | 文件 | 平台 | 下载 | 审核 | 选用 | 人工审核 | 当前状态 | 说明 |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    ...record.candidates.map((candidate) =>
+      renderCandidateRow(candidate, humanStateFor(record, candidate, humanStates))
+    )
   ];
   const fileBlocks = renderCandidateFileSection(record, assets);
   const selectionLines = selected
@@ -277,9 +374,10 @@ function renderRecordPage(record: MediaRecord, assets: Map<string, MediaReviewAs
         "- 选用：**" + describeCurrentSelection(record) + "**（" + selected.fileName + "）",
         "- 平台状态：" + mediaPlatformStatusLabels[selected.platformStatus],
         "- 下载状态：" + mediaDownloadStatusLabels[selected.downloadStatus],
-        "- 审核状态：" + mediaReviewStatusLabels[selected.reviewStatus]
+        "- 审核状态：" + mediaReviewStatusLabels[selected.reviewStatus],
+        "- 人工审核：**" + humanReviewStateLabels[selectedState] + "**"
       ]
-    : ["- 尚未选用任何候选。"];
+    : ["- 尚未选用任何候选。", "- 人工审核：**" + humanReviewStateLabels[humanStateFor(record, undefined, humanStates)] + "**"];
   const content = [
     "# " + record.displayName,
     "",
@@ -311,18 +409,17 @@ function renderRecordPage(record: MediaRecord, assets: Map<string, MediaReviewAs
 }
 
 /** 生成素材审阅页；没有素材记录时返回空数组（导出结果不变）。 */
-export async function renderMediaReviewFiles(projectRoot: string): Promise<ObsidianGeneratedFile[]> {
-  const records = await readProjectMediaRecords(projectRoot);
-  if (records.length === 0) {
+export async function renderMediaReviewFiles(
+  projectRoot: string,
+  display?: MediaReviewDisplay
+): Promise<ObsidianGeneratedFile[]> {
+  const resolved = display ?? (await buildMediaReviewDisplay(projectRoot));
+  if (resolved.records.length === 0) {
     return [];
   }
-  const assets = new Map<string, MediaReviewAsset>();
-  for (const asset of await planAssetsForRecords(projectRoot, records)) {
-    assets.set(asset.vaultPath, asset);
-  }
-  const files: ObsidianGeneratedFile[] = [renderIndexPage(records)];
-  for (const record of records) {
-    files.push(renderRecordPage(record, assets));
+  const files: ObsidianGeneratedFile[] = [renderIndexPage(resolved.records, resolved.humanStates)];
+  for (const record of resolved.records) {
+    files.push(renderRecordPage(record, resolved.assets, resolved.humanStates));
   }
   return files;
 }

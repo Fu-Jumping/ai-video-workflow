@@ -6,6 +6,14 @@ import { afterAll, afterEach, describe, expect, test } from "vitest";
 import { assembleContentTree } from "../src/lib/content-assemble.js";
 import { renderAutoBlock, renderManualBlock } from "../src/lib/content-tree.js";
 import { createProject } from "../src/lib/init.js";
+import {
+  mediaOutputDirectory,
+  mediaRecordPath,
+  renderMediaRecord,
+  type MediaCandidateRecord,
+  type MediaIdentity,
+  type MediaRecord
+} from "../src/lib/media-records.js";
 import { exportObsidianVault } from "../src/lib/obsidian/export.js";
 import { hashContent, projectionManifestPath, readProjectionManifest, renderProjectionManifest } from "../src/lib/obsidian/manifest.js";
 import { toVaultPath } from "../src/lib/obsidian/paths.js";
@@ -168,6 +176,112 @@ async function createContentTreeObsidianProject(): Promise<string> {
   return projectRoot;
 }
 
+function mediaCandidate(overrides: Partial<MediaCandidateRecord> = {}): MediaCandidateRecord {
+  return {
+    version: 1,
+    candidate: 1,
+    fileName: "shot-001_keyframe-01_v001_c01.png",
+    platformStatus: "completed",
+    downloadStatus: "downloaded",
+    reviewStatus: "unreviewed",
+    selected: false,
+    ...overrides
+  };
+}
+
+async function writeContentTreeMedia(projectRoot: string): Promise<void> {
+  const keyframeIdentity: MediaIdentity = { category: "keyframe", objectId: "shot-001", purpose: "keyframe-01" };
+  const keyframeFile = "shot-001_keyframe-01_v001_c01.png";
+  const keyframeRecord: MediaRecord = {
+    identity: keyframeIdentity,
+    displayName: "镜头-001 关键帧 01",
+    source: "generated",
+    currentSelection: keyframeFile,
+    candidates: [mediaCandidate({ fileName: keyframeFile, selected: true })],
+    createdAt: "2026-10-24T00:00:00.000Z",
+    updatedAt: "2026-10-24T00:00:00.000Z"
+  };
+  await fs.outputFile(
+    path.join(projectRoot, ...mediaRecordPath(keyframeIdentity).split("/")),
+    renderMediaRecord(keyframeRecord),
+    "utf8"
+  );
+  await fs.outputFile(
+    path.join(projectRoot, ...(mediaOutputDirectory(keyframeIdentity) + "/" + keyframeFile).split("/")),
+    "keyframe-bytes",
+    "utf8"
+  );
+
+  const videoIdentity: MediaIdentity = { category: "video", objectId: "shot-001", purpose: "视频" };
+  const videoFile = "shot-001_v001_c01.mp4";
+  const videoRecord: MediaRecord = {
+    identity: videoIdentity,
+    displayName: "镜头-001 视频",
+    source: "generated",
+    currentSelection: videoFile,
+    candidates: [mediaCandidate({ fileName: videoFile, timecode: "00:12", selected: true })],
+    createdAt: "2026-10-24T00:00:00.000Z",
+    updatedAt: "2026-10-24T00:00:00.000Z"
+  };
+  await fs.outputFile(
+    path.join(projectRoot, ...mediaRecordPath(videoIdentity).split("/")),
+    renderMediaRecord(videoRecord),
+    "utf8"
+  );
+  await fs.outputFile(
+    path.join(projectRoot, ...(mediaOutputDirectory(videoIdentity) + "/" + videoFile).split("/")),
+    "video-bytes",
+    "utf8"
+  );
+}
+
+/** 按播种说明写人读编号（镜头-001 / 关键帧-01）的素材记录。 */
+async function writeHumanNumberedContentTreeMedia(projectRoot: string): Promise<void> {
+  const keyframeIdentity: MediaIdentity = { category: "keyframe", objectId: "镜头-001", purpose: "关键帧-01" };
+  const keyframeFile = "镜头-001_关键帧-01_v001_c01.png";
+  const keyframeRecord: MediaRecord = {
+    identity: keyframeIdentity,
+    displayName: "镜头-001 关键帧 01",
+    source: "generated",
+    currentSelection: keyframeFile,
+    candidates: [mediaCandidate({ fileName: keyframeFile, selected: true })],
+    createdAt: "2026-10-24T00:00:00.000Z",
+    updatedAt: "2026-10-24T00:00:00.000Z"
+  };
+  await fs.outputFile(
+    path.join(projectRoot, ...mediaRecordPath(keyframeIdentity).split("/")),
+    renderMediaRecord(keyframeRecord),
+    "utf8"
+  );
+  await fs.outputFile(
+    path.join(projectRoot, ...(mediaOutputDirectory(keyframeIdentity) + "/" + keyframeFile).split("/")),
+    "keyframe-bytes",
+    "utf8"
+  );
+
+  const videoIdentity: MediaIdentity = { category: "video", objectId: "镜头-001", purpose: "视频" };
+  const videoFile = "镜头-001_v001_c01.mp4";
+  const videoRecord: MediaRecord = {
+    identity: videoIdentity,
+    displayName: "镜头-001 视频",
+    source: "generated",
+    currentSelection: videoFile,
+    candidates: [mediaCandidate({ fileName: videoFile, timecode: "00:12", selected: true })],
+    createdAt: "2026-10-24T00:00:00.000Z",
+    updatedAt: "2026-10-24T00:00:00.000Z"
+  };
+  await fs.outputFile(
+    path.join(projectRoot, ...mediaRecordPath(videoIdentity).split("/")),
+    renderMediaRecord(videoRecord),
+    "utf8"
+  );
+  await fs.outputFile(
+    path.join(projectRoot, ...(mediaOutputDirectory(videoIdentity) + "/" + videoFile).split("/")),
+    "video-bytes",
+    "utf8"
+  );
+}
+
 describe("Obsidian export of a content-tree project", () => {
   test("projects the four content-tree layers and keeps every link resolvable", async () => {
     const projectRoot = await createContentTreeObsidianProject();
@@ -208,6 +322,101 @@ describe("Obsidian export of a content-tree project", () => {
     expect(verified.ok).toBe(true);
   });
 
+  test("projects shot and storyboard media sections with four-state review", async () => {
+    const projectRoot = await createContentTreeObsidianProject();
+    await writeContentTreeMedia(projectRoot);
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-content-media-vault-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+
+    const shotHub = await fs.readFile(path.join(outRoot, "02_按镜头联查", "单镜头", "shot-001.md"), "utf8");
+    expect(shotHub).toContain("## 5.1 本镜媒体与版本");
+    expect(shotHub).toContain("- 人工审核：**等你看**");
+    expect(shotHub).toContain("- 素材审阅：[[05_素材审阅/00_素材总览|素材审阅]]");
+    // 原文件始终按项目内相对路径显示，不输出绝对路径。
+    expect(shotHub).toContain("原文件（项目内相对路径）：outputs/");
+    expect(shotHub).not.toContain(projectRoot.replace(/\\/g, "/"));
+    // 素材审阅页入口与选中版本嵌入
+    expect(shotHub).toContain("[[05_素材审阅/关键帧/shot-001/keyframe-01|打开素材审阅页（全部候选版本）]]");
+    expect(shotHub).toContain("![[05_素材审阅/_素材/关键帧/shot-001/shot-001_keyframe-01_v001_c01.png]]");
+    expect(shotHub).toContain("![[05_素材审阅/_素材/视频/shot-001/shot-001_v001_c01.mp4#t=12]]");
+    expect(shotHub).toContain("#### 关键帧 01（等你看）");
+    expect(shotHub).toContain("### 整镜视频");
+    // 候选版本表只列文字，不嵌入旧版本图片
+    expect(shotHub).toContain("| 版本 | 候选 | 人工审核 | 时间位置 | 文件 |");
+    expect(shotHub.match(/!\[\[05_素材审阅\/_素材\/关键帧\/shot-001\//g)).toHaveLength(1);
+
+    const storyboard = await fs.readFile(
+      path.join(outRoot, "02_按镜头联查", "内容树", "分镜", "shot-001", "storyboard-01.md"),
+      "utf8"
+    );
+    const frameIndex = storyboard.indexOf("## 2. 本段画面");
+    const promptIndex = storyboard.indexOf("## 3. 本段提示词");
+    const bodyIndex = storyboard.indexOf("## 4. 本段正文");
+    expect(frameIndex).toBeGreaterThanOrEqual(0);
+    expect(promptIndex).toBeGreaterThan(frameIndex);
+    expect(bodyIndex).toBeGreaterThan(promptIndex);
+    expect(storyboard).not.toContain("## 2. 本段正文");
+    expect(storyboard).toContain("#### 关键帧 01（等你看）");
+    expect(storyboard).toContain("Step 4 执行文件（关键帧图片提示词）：[[");
+    expect(storyboard).toContain("Step 5 执行文件（整镜视频提示词）：[[");
+    expect(storyboard).toContain("第 4 节「本段正文」");
+
+    const verified = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+    expect(verified.issues).toEqual([]);
+    expect(verified.ok).toBe(true);
+  });
+
+  test("matches human-numbered media records to internal shot ids", async () => {
+    const projectRoot = await createContentTreeObsidianProject();
+    await writeHumanNumberedContentTreeMedia(projectRoot);
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-content-human-media-vault-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+
+    const shotHub = await fs.readFile(path.join(outRoot, "02_按镜头联查", "单镜头", "shot-001.md"), "utf8");
+    expect(shotHub).toContain("## 5.1 本镜媒体与版本");
+    expect(shotHub).toContain("- 人工审核：**等你看**");
+    expect(shotHub).toContain("#### 关键帧 01（等你看）");
+    // 人读记录自己的页面路径与素材副本路径保持不变。
+    expect(shotHub).toContain("[[05_素材审阅/关键帧/镜头-001/关键帧-01|打开素材审阅页（全部候选版本）]]");
+    expect(shotHub).toContain("![[05_素材审阅/_素材/关键帧/镜头-001/镜头-001_关键帧-01_v001_c01.png]]");
+
+    const storyboard = await fs.readFile(
+      path.join(outRoot, "02_按镜头联查", "内容树", "分镜", "shot-001", "storyboard-01.md"),
+      "utf8"
+    );
+    expect(storyboard).toContain("#### 关键帧 01（等你看）");
+    expect(storyboard).not.toContain("#### 关键帧 01（还没准备好）");
+
+    const verified = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+    expect(verified.issues).toEqual([]);
+    expect(verified.ok).toBe(true);
+  });
+
+  test("content-tree shots without media records say not ready", async () => {
+    const projectRoot = await createContentTreeObsidianProject();
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-content-no-media-vault-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+
+    const shotHub = await fs.readFile(path.join(outRoot, "02_按镜头联查", "单镜头", "shot-001.md"), "utf8");
+    expect(shotHub).toContain("## 5.1 本镜媒体与版本");
+    expect(shotHub).toContain("- 人工审核：**还没准备好**");
+    expect(shotHub).toContain("> 本镜媒体：还没准备好（还没有关键帧或视频素材记录）。");
+    expect(shotHub).not.toContain("- 素材审阅：");
+
+    const storyboard = await fs.readFile(
+      path.join(outRoot, "02_按镜头联查", "内容树", "分镜", "shot-001", "storyboard-01.md"),
+      "utf8"
+    );
+    expect(storyboard).toContain("## 2. 本段画面");
+    expect(storyboard).toContain("#### 关键帧 01（还没准备好）");
+  });
+
   test("legacy projects still project only 03／04／05 and no content tree pages", async () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-legacy-vault-"));
     tempRoots.push(outRoot);
@@ -216,6 +425,12 @@ describe("Obsidian export of a content-tree project", () => {
 
     await expect(fs.pathExists(path.join(outRoot, "02_按镜头联查", "00_内容树.md"))).resolves.toBe(false);
     await expect(fs.pathExists(path.join(outRoot, "01_阶段审核", "内容"))).resolves.toBe(false);
+
+    // 旧格式项目没有媒体记录也没有内容树：镜头页不多出任何媒体行或 5.1 小节。
+    const legacyShotHub = await fs.readFile(path.join(outRoot, "02_按镜头联查", "单镜头", "shot-001.md"), "utf8");
+    expect(legacyShotHub).not.toContain("## 5.1 本镜媒体与版本");
+    expect(legacyShotHub).not.toContain("人工审核");
+    expect(legacyShotHub).not.toContain("素材审阅");
   });
 });
 

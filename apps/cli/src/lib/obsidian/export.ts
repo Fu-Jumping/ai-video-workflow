@@ -12,7 +12,7 @@ import {
   renderProjectionManifest
 } from "./manifest.js";
 import { renderGeneratedWorkflowNote, workflowVaultPath } from "./markdown.js";
-import { planMediaReviewAssets, renderMediaReviewFiles, type MediaReviewAsset } from "./media-viewer.js";
+import { buildMediaReviewDisplay, renderMediaReviewFiles, type MediaReviewAsset } from "./media-viewer.js";
 import { hasGeneratedFrontmatterMarker } from "./properties.js";
 import { sourcePathToFsPath } from "./paths.js";
 import { mediaReviewDirectory } from "./routes.js";
@@ -549,9 +549,12 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
 
     const deviationContext = await readDeviations(projectRoot);
     const libtvState = await readState(projectRoot);
-    // 素材审阅（B3）：项目里没有 素材记录/ 目录时返回空数组，导出结果与之前完全一致。
-    const mediaReviewFiles = await renderMediaReviewFiles(projectRoot);
-    const mediaReviewAssets = mediaReviewFiles.length > 0 ? await planMediaReviewAssets(projectRoot) : [];
+    // 素材审阅（B3／C3）：读一次记录、算一次哈希，素材页、镜头页与分镜页共用这份展示数据。
+    // 项目里没有素材记录时 records 为空，导出结果与之前完全一致。
+    const mediaDisplay = await buildMediaReviewDisplay(projectRoot);
+    const mediaReviewFiles =
+      mediaDisplay.records.length > 0 ? await renderMediaReviewFiles(projectRoot, mediaDisplay) : [];
+    const mediaReviewAssets = [...mediaDisplay.assets.values()];
     const files = [
       ...workflowFiles,
       ...renderDashboardFiles(
@@ -560,7 +563,8 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
         options.includePluginRecipes,
         deviationContext,
         libtvState,
-        mediaReviewFiles.length > 0
+        mediaReviewFiles.length > 0,
+        mediaDisplay
       ),
       ...mediaReviewFiles,
       ...renderBaseFiles(),
