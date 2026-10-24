@@ -68,7 +68,7 @@ describe("libtv 失败三态", () => {
     const projectRoot = await makeProject();
     const backend = new MockLibTvBackend();
     await uploadAnchors(projectRoot, backend);
-    backend.configureGeneration({ timeoutNodeKeys: ["镜头组-001"] });
+    backend.configureGeneration({ timeoutNodeKeys: ["group-001 shot-001 keyframe-01"] });
 
     const result = await applyPlan(projectRoot, backend, {
       only: ["keyframes"],
@@ -203,7 +203,7 @@ describe("libtv 失败三态", () => {
     const projectRoot = await makeProject();
     const backend = new MockLibTvBackend();
     await uploadAnchors(projectRoot, backend);
-    backend.configureGeneration({ timeoutNodeKeys: ["镜头组-001"] });
+    backend.configureGeneration({ timeoutNodeKeys: ["group-001 shot-001 keyframe-01"] });
     await applyPlan(projectRoot, backend, { only: ["keyframes"], allowGeneration: true, pollIntervalMs: 1, timeoutMs: 5 });
 
     const callsAfterFirst = backend.getTotalGenerationCallCount();

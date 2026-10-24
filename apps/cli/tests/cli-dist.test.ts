@@ -35,13 +35,16 @@ afterEach(async () => {
 });
 
 async function buildCli(cliRoot: string): Promise<void> {
+  const outDir = path.join(cliRoot, "dist-cli-test");
+  await fs.remove(outDir);
+  tempRoots.push(outDir);
   await build({
     cwd: cliRoot,
     entry: ["src/index.ts"],
     format: ["esm"],
     dts: false,
     clean: true,
-    outDir: "dist",
+    outDir,
     silent: true,
     target: "es2022",
     tsconfig: "tsconfig.json"
@@ -83,7 +86,7 @@ async function seedOfficialExampleProject(prefix: string): Promise<string> {
 
 async function exportInProjectView(cliRoot: string, projectRoot: string): Promise<void> {
   const repoRoot = path.resolve(cliRoot, "..", "..");
-  await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "export-obsidian", "--project", projectRoot, "--in-project-view"], repoRoot);
+  await run(process.execPath, [path.join(cliRoot, "dist-cli-test", "index.js"), "export-obsidian", "--project", projectRoot, "--in-project-view"], repoRoot);
 }
 
 describe("built CLI", () => {
@@ -94,7 +97,7 @@ describe("built CLI", () => {
     await seedWorkflowProject(projectRoot);
 
     await buildCli(cliRoot);
-    await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "sync", "--project", projectRoot, "--ide", "codex"], cliRoot);
+    await run(process.execPath, [path.join(cliRoot, "dist-cli-test", "index.js"), "sync", "--project", projectRoot, "--ide", "codex"], cliRoot);
 
     await expect(fs.pathExists(path.join(projectRoot, ".codex", "ai-video-workflow", "WORKFLOW_OVERVIEW.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, ".codex", "skills", "film-workflow", "SKILL.md"))).resolves.toBe(true);
@@ -107,7 +110,7 @@ describe("built CLI", () => {
     await seedWorkflowProject(projectRoot, "cursor");
 
     await buildCli(cliRoot);
-    await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "sync", "--project", projectRoot, "--ide", "cursor"], cliRoot);
+    await run(process.execPath, [path.join(cliRoot, "dist-cli-test", "index.js"), "sync", "--project", projectRoot, "--ide", "cursor"], cliRoot);
 
     await expect(fs.pathExists(path.join(projectRoot, ".cursor", "skills", "film-workflow", "SKILL.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, ".cursor", "rules", "ai-video-workflow.mdc"))).resolves.toBe(true);
@@ -121,7 +124,7 @@ describe("built CLI", () => {
     await seedWorkflowProject(projectRoot, "claude-code");
 
     await buildCli(cliRoot);
-    await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "sync", "--project", projectRoot, "--ide", "claude-code"], cliRoot);
+    await run(process.execPath, [path.join(cliRoot, "dist-cli-test", "index.js"), "sync", "--project", projectRoot, "--ide", "claude-code"], cliRoot);
 
     await expect(fs.pathExists(path.join(projectRoot, "CLAUDE.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, ".claude", "skills", "film-workflow", "SKILL.md"))).resolves.toBe(true);
@@ -136,7 +139,7 @@ describe("built CLI", () => {
     await seedWorkflowProject(projectRoot, "trae");
 
     await buildCli(cliRoot);
-    await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "sync", "--project", projectRoot, "--ide", "trae"], cliRoot);
+    await run(process.execPath, [path.join(cliRoot, "dist-cli-test", "index.js"), "sync", "--project", projectRoot, "--ide", "trae"], cliRoot);
 
     await expect(fs.pathExists(path.join(projectRoot, "AGENTS.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, "CLAUDE.md"))).resolves.toBe(false);
@@ -155,7 +158,7 @@ describe("built CLI", () => {
     const result = await run(
       process.execPath,
       [
-        path.join(cliRoot, "dist", "index.js"),
+        path.join(cliRoot, "dist-cli-test", "index.js"),
         "init",
         "--name",
         "scripted-demo",
@@ -201,7 +204,7 @@ describe("built CLI", () => {
     await buildCli(cliRoot);
     const result = await runExpectFailure(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "init", "--name", "sub-proj"],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "init", "--name", "sub-proj"],
       existing
     );
     expect(result.stderr).toContain("Refusing to create a nested project");
@@ -219,7 +222,7 @@ describe("built CLI", () => {
     await buildCli(cliRoot);
     const result = await runExpectFailure(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "init", "--name", "cancel-demo"],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "init", "--name", "cancel-demo"],
       targetRoot
     );
     expect(result.stderr).toContain("Interactive prompt was cancelled");
@@ -244,7 +247,7 @@ describe("built CLI", () => {
     const result = await run(
       process.execPath,
       [
-        path.join(cliRoot, "dist", "index.js"),
+        path.join(cliRoot, "dist-cli-test", "index.js"),
         "init",
         "--name",
         "custom-pack-demo",
@@ -279,7 +282,7 @@ describe("built CLI", () => {
     const result = await runExpectFailure(
       process.execPath,
       [
-        path.join(cliRoot, "dist", "index.js"),
+        path.join(cliRoot, "dist-cli-test", "index.js"),
         "init",
         "--name",
         "bad-pack-demo",
@@ -310,7 +313,7 @@ describe("built CLI", () => {
     const result = await run(
       process.execPath,
       [
-        path.join(cliRoot, "dist", "index.js"),
+        path.join(cliRoot, "dist-cli-test", "index.js"),
         "init",
         "--name",
         "script-demo",
@@ -344,7 +347,7 @@ describe("built CLI", () => {
     await buildCli(cliRoot);
     const result = await runExpectFailure(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "init", "--name", "demo", "--ide", "codx", "--image", "openai", "--video", "runway"],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "init", "--name", "demo", "--ide", "codx", "--image", "openai", "--video", "runway"],
       targetRoot
     );
     const output = `${result.stdout}\n${result.stderr}`;
@@ -365,7 +368,7 @@ describe("built CLI", () => {
     await buildCli(cliRoot);
     const result = await runExpectFailure(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "verify", "--project", targetRoot, "--ide", "codx"],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "verify", "--project", targetRoot, "--ide", "codx"],
       targetRoot
     );
     const output = `${result.stdout}\n${result.stderr}`;
@@ -385,7 +388,7 @@ describe("built CLI", () => {
     await buildCli(cliRoot);
     const result = await runExpectFailure(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "sync", "--project", targetRoot, "--ide", "codx"],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "sync", "--project", targetRoot, "--ide", "codx"],
       targetRoot
     );
     const output = `${result.stdout}\n${result.stderr}`;
@@ -405,7 +408,7 @@ describe("built CLI", () => {
     await buildCli(cliRoot);
     const result = await runExpectFailure(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "doctor", "--project", targetRoot, "--ide", "codx"],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "doctor", "--project", targetRoot, "--ide", "codx"],
       targetRoot
     );
     const output = `${result.stdout}\n${result.stderr}`;
@@ -427,7 +430,7 @@ describe("built CLI", () => {
     await buildCli(cliRoot);
     const result = await runExpectFailure(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "impact", "--project", projectPath, "关键词"],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "impact", "--project", projectPath, "关键词"],
       targetRoot
     );
     const output = `${result.stdout}\n${result.stderr}`;
@@ -449,7 +452,7 @@ describe("built CLI", () => {
     await buildCli(cliRoot);
     const result = await runExpectFailure(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "deviation", "add", "--project", projectPath, "--rule", "missing-step6-file"],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "deviation", "add", "--project", projectPath, "--rule", "missing-step6-file"],
       targetRoot
     );
     const output = `${result.stdout}\n${result.stderr}`;
@@ -470,7 +473,7 @@ describe("built CLI", () => {
     await run(
       process.execPath,
       [
-        path.join(cliRoot, "dist", "index.js"),
+        path.join(cliRoot, "dist-cli-test", "index.js"),
         "init",
         "--name",
         "step7-demo",
@@ -488,7 +491,7 @@ describe("built CLI", () => {
     const projectRoot = path.join(targetRoot, "step7-demo");
     const result = await run(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "verify", "--project", projectRoot, "--ide", "codex", "--step", "7"],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "verify", "--project", projectRoot, "--ide", "codex", "--step", "7"],
       targetRoot
     );
 
@@ -505,7 +508,7 @@ describe("built CLI", () => {
     await run(
       process.execPath,
       [
-        path.join(cliRoot, "dist", "index.js"),
+        path.join(cliRoot, "dist-cli-test", "index.js"),
         "init",
         "--name",
         "hint-demo",
@@ -525,7 +528,7 @@ describe("built CLI", () => {
 
     const result = await runExpectFailure(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "verify", "--project", projectRoot, "--ide", "codex", "--step", "7"],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "verify", "--project", projectRoot, "--ide", "codex", "--step", "7"],
       targetRoot
     );
     expect(result.stderr).toContain("Hint:");
@@ -543,7 +546,7 @@ describe("built CLI", () => {
     await run(
       process.execPath,
       [
-        path.join(cliRoot, "dist", "index.js"),
+        path.join(cliRoot, "dist-cli-test", "index.js"),
         "export-obsidian",
         "--project",
         path.join(repoRoot, "examples", "官方示例-云上早市"),
@@ -571,12 +574,12 @@ describe("built CLI", () => {
     await buildCli(cliRoot);
     const exportResult = await run(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "export-obsidian", "--project", projectRoot, "--in-project-view"],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "export-obsidian", "--project", projectRoot, "--in-project-view"],
       repoRoot
     );
     const verifyResult = await run(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "verify-obsidian", "--project", projectRoot, "--in-project-view"],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "verify-obsidian", "--project", projectRoot, "--in-project-view"],
       repoRoot
     );
 
@@ -588,7 +591,7 @@ describe("built CLI", () => {
     const conflictingTarget = await runExpectFailure(
       process.execPath,
       [
-        path.join(cliRoot, "dist", "index.js"),
+        path.join(cliRoot, "dist-cli-test", "index.js"),
         "export-obsidian",
         "--project",
         projectRoot,
@@ -602,7 +605,7 @@ describe("built CLI", () => {
 
     const missingVaultTarget = await runExpectFailure(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "verify-obsidian", "--project", projectRoot],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "verify-obsidian", "--project", projectRoot],
       repoRoot
     );
     expect(`${missingVaultTarget.stdout}\n${missingVaultTarget.stderr}`).toContain("Missing --vault");
@@ -619,10 +622,10 @@ describe("built CLI", () => {
     await fs.remove(path.join(projectRoot, "_views"));
 
     await buildCli(cliRoot);
-    await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "export-obsidian", "--project", projectRoot, "--in-project-view"], repoRoot);
+    await run(process.execPath, [path.join(cliRoot, "dist-cli-test", "index.js"), "export-obsidian", "--project", projectRoot, "--in-project-view"], repoRoot);
     const { stdout } = await run(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "clean-view", "--project", projectRoot, "--dry-run"],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "clean-view", "--project", projectRoot, "--dry-run"],
       repoRoot
     );
 
@@ -642,7 +645,7 @@ describe("built CLI", () => {
     await exportInProjectView(cliRoot, projectRoot);
     const { stdout } = await run(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "clean-view", "--project", projectRoot, "--step", "4", "--dry-run"],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "clean-view", "--project", projectRoot, "--step", "4", "--dry-run"],
       repoRoot
     );
 
@@ -672,10 +675,10 @@ describe("built CLI", () => {
     await fs.remove(path.join(projectRoot, "_views"));
 
     await buildCli(cliRoot);
-    await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "export-obsidian", "--project", projectRoot, "--in-project-view"], repoRoot);
+    await run(process.execPath, [path.join(cliRoot, "dist-cli-test", "index.js"), "export-obsidian", "--project", projectRoot, "--in-project-view"], repoRoot);
     await fs.writeFile(userNote, "# 手写审阅\n\n保留这条笔记。\n", "utf8");
     await fs.appendFile(path.join(projectRoot, "01_概念策划", "故事内核.md"), "\nCLI 重建后应该进入观看层。\n", "utf8");
-    const { stdout } = await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "rebuild-view", "--project", projectRoot], repoRoot);
+    const { stdout } = await run(process.execPath, [path.join(cliRoot, "dist-cli-test", "index.js"), "rebuild-view", "--project", projectRoot], repoRoot);
 
     expect(stdout).toContain("Obsidian view rebuild:");
     expect(stdout).toContain("sync: ran");
@@ -700,7 +703,7 @@ describe("built CLI", () => {
     await fs.appendFile(path.join(projectRoot, "04_图片提示词", "镜头组-001", "镜头-002-关键帧-01.md"), "\nCLI 局部重建后应该进入镜头 002。\n", "utf8");
     const { stdout } = await run(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "rebuild-view", "--project", projectRoot, "--shot", "2"],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "rebuild-view", "--project", projectRoot, "--shot", "2"],
       repoRoot
     );
 
@@ -720,7 +723,7 @@ describe("built CLI", () => {
     await exportInProjectView(cliRoot, projectRoot);
     const result = await runExpectFailure(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "clean-view", "--project", projectRoot, "--kind", "unknown"],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "clean-view", "--project", projectRoot, "--kind", "unknown"],
       path.resolve(cliRoot, "..", "..")
     );
     const output = `${result.stdout}\n${result.stderr}`;
@@ -742,7 +745,7 @@ describe("built CLI", () => {
     await buildCli(cliRoot);
     const result = await runExpectFailure(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "export-obsidian", "--project", missingProject, "--out", outRoot],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "export-obsidian", "--project", missingProject, "--out", outRoot],
       repoRoot
     );
     const output = `${result.stdout}\n${result.stderr}`;
@@ -765,7 +768,7 @@ describe("built CLI", () => {
     const result = await runExpectFailure(
       process.execPath,
       [
-        path.join(cliRoot, "dist", "index.js"),
+        path.join(cliRoot, "dist-cli-test", "index.js"),
         "verify-obsidian",
         "--project",
         path.join(repoRoot, "examples", "官方示例-云上早市"),
@@ -791,7 +794,7 @@ describe("built CLI", () => {
     await buildCli(cliRoot);
     const result = await runExpectFailure(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "mcp-context", "--project", projectPath],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "mcp-context", "--project", projectPath],
       cliRoot
     );
     const output = `${result.stdout}\n${result.stderr}`;
@@ -812,7 +815,7 @@ describe("built CLI", () => {
     const { stdout } = await run(
       process.execPath,
       [
-        path.join(cliRoot, "dist", "index.js"),
+        path.join(cliRoot, "dist-cli-test", "index.js"),
         "export-obsidian",
         "--project",
         path.join(repoRoot, "examples", "官方示例-云上早市"),
@@ -838,7 +841,7 @@ describe("built CLI", () => {
     await run(
       process.execPath,
       [
-        path.join(cliRoot, "dist", "index.js"),
+        path.join(cliRoot, "dist-cli-test", "index.js"),
         "export-obsidian",
         "--project",
         path.join(repoRoot, "examples", "官方示例-云上早市"),
@@ -866,7 +869,7 @@ describe("built CLI", () => {
     const { stdout } = await run(
       process.execPath,
       [
-        path.join(cliRoot, "dist", "index.js"),
+        path.join(cliRoot, "dist-cli-test", "index.js"),
         "export-obsidian",
         "--project",
         path.join(repoRoot, "examples", "官方示例-云上早市"),
@@ -891,7 +894,7 @@ describe("built CLI", () => {
     const { stdout } = await run(
       process.execPath,
       [
-        path.join(cliRoot, "dist", "index.js"),
+        path.join(cliRoot, "dist-cli-test", "index.js"),
         "mcp-context",
         "--project",
         path.join(repoRoot, "examples", "官方示例-云上早市")
@@ -915,7 +918,7 @@ describe("built CLI", () => {
     await buildCli(cliRoot);
     const { stdout } = await run(
       process.execPath,
-      [path.join(cliRoot, "dist", "index.js"), "impact", "测试关键词", "--project", projectRoot],
+      [path.join(cliRoot, "dist-cli-test", "index.js"), "impact", "测试关键词", "--project", projectRoot],
       cliRoot
     );
 
@@ -927,7 +930,7 @@ describe("built CLI", () => {
     const cliRoot = path.resolve(__dirname, "..");
 
     await buildCli(cliRoot);
-    const { stdout } = await run(process.execPath, [path.join(cliRoot, "dist", "index.js"), "--help"], cliRoot);
+    const { stdout } = await run(process.execPath, [path.join(cliRoot, "dist-cli-test", "index.js"), "--help"], cliRoot);
 
     expect(stdout).toContain("mcp-context");
     expect(stdout).toContain("mcp-server");
