@@ -9,6 +9,7 @@ import {
   CONTENT_STORYBOARD_OVERVIEW_FILE,
   DEFAULT_PACK,
   DEFAULT_VIDEO_PLATFORM,
+  SCRIPT_FILE,
   STEP0_FILES,
   STEP6_FILES,
   STEP7_FILES,
@@ -19,7 +20,16 @@ import {
 import { assembleContentTree } from "./content-assemble.js";
 import { CliUserError } from "./cli-errors.js";
 import { copyDirectory } from "./fs-utils.js";
-import { mediaProjectDirectories, mediaRecordGuideFileName, mediaRecordsDirectory } from "./media-records.js";
+import {
+  mediaProjectDirectories,
+  mediaRecordGuideFileName,
+  mediaRecordsDirectory,
+  workRecordGuideFileName,
+  workRecordHandoverDirectory,
+  workRecordHandoverTemplateFileName,
+  workRecordProposalTemplateFileName,
+  workRecordsDirectory
+} from "./media-records.js";
 import { validateSafeDirectoryName } from "./name-validation.js";
 import { packRootExists, resolvePackRoot, resolveRepoRoot } from "./paths.js";
 import { assertCanInitializeProject } from "./project-root.js";
@@ -80,6 +90,25 @@ async function seedProjectDirectories(repoRoot: string, projectRoot: string, sta
     path.join(projectRoot, mediaRecordsDirectory, mediaRecordGuideFileName),
     await readPackTemplate(repoRoot, pack, path.join(mediaRecordsDirectory, mediaRecordGuideFileName))
   );
+  // 工作记录（C4／C6）：说明、修改提案模板与交接模板随项目一起播种。提案模板放在
+  // 「修改提案/」而不是「待确认/」：放进待确认会被误当成一份真的待确认提案。
+  const workRecordSeeds = [
+    {
+      templatePath: path.join(workRecordsDirectory, workRecordGuideFileName),
+      targetPath: path.join(workRecordsDirectory, workRecordGuideFileName)
+    },
+    {
+      templatePath: path.join(workRecordsDirectory, "修改提案", workRecordProposalTemplateFileName),
+      targetPath: path.join(workRecordsDirectory, "修改提案", workRecordProposalTemplateFileName)
+    },
+    {
+      templatePath: path.join(workRecordHandoverDirectory, workRecordHandoverTemplateFileName),
+      targetPath: path.join(workRecordHandoverDirectory, workRecordHandoverTemplateFileName)
+    }
+  ];
+  for (const seed of workRecordSeeds) {
+    await writeSeededFile(path.join(projectRoot, seed.targetPath), await readPackTemplate(repoRoot, pack, seed.templatePath));
+  }
   // 03 只留内容树索引（规范 §9.3.2）：新建项目一律声明 content.format_version，镜头组
   // 描述的唯一来源是 内容/场-XXX/镜头组-XXX/00_镜头组总览.md，所以这里不再往 03 下播种
   // 00_镜头组说明.md，也不留空的 镜头组-001 目录（留空目录只会让人以为该往里放正文）。
@@ -126,6 +155,11 @@ async function seedProjectDirectories(repoRoot: string, projectRoot: string, sta
   await writeSeededFile(
     path.join(projectRoot, "01_概念策划", STORY_KERNEL_FILE),
     await readPackTemplate(repoRoot, pack, path.join("01_概念策划", STORY_KERNEL_FILE))
+  );
+  // 按场完整剧本（C0.2 / D-487=A）：与故事内核同段播种，新建项目自带正式剧情源。
+  await writeSeededFile(
+    path.join(projectRoot, "01_概念策划", SCRIPT_FILE),
+    await readPackTemplate(repoRoot, pack, path.join("01_概念策划", SCRIPT_FILE))
   );
   for (const file of STEP6_FILES) {
     await writeSeededFile(
@@ -187,6 +221,11 @@ function renderProjectReadme(projectName: string, ide: string, startFrom: StartF
     `2. 让智能体先读取 \`AGENTS.md\` 和 \`${sharedAgentDocsReadmePath}\`。`,
     `3. 从 \`${startPath}\` 开始补全${startLabel}。`,
     startFrom === "research" ? "4. 以步骤零到步骤七的源文件作为事实源。" : "4. 以步骤一到步骤七的源文件作为事实源。",
+    `5. 按场完整剧情写在 \`01_概念策划/${SCRIPT_FILE}\`。`,
+    "",
+    "## 提示词模板与执行文件",
+    "",
+    "`04_图片提示词/镜头组-001/图片提示词.md` 与 `05_视频提示词/镜头组-001/视频提示词.md` 只是参考模板，不是执行文件；每个镜头的执行文件由 `content assemble` 按镜头生成到对应步骤目录。",
     "",
     "## 常用命令",
     "",
@@ -227,6 +266,8 @@ export function renderInitNextSteps({
     "",
     "可以复制给智能体的第一句话：",
     `我想继续处理这个 ai-video-workflow 创作项目。请先读取 AGENTS.md 和 ${sharedAgentDocsReadmePath}，然后带我从 ${startPath} 开始。不要把 _views/obsidian 或 IDE 运行镜像当作源文件。`,
+    "",
+    `按场完整剧情写在 \`01_概念策划/${SCRIPT_FILE}\`。`,
     "",
     "校验项目：",
     `ai-video-workflow verify --project ${quotedProjectRoot} --ide ${ide}`,

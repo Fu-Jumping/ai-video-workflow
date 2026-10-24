@@ -31,6 +31,37 @@ describe("template compliance", () => {
     expect(selfCheck).not.toMatch(/@[^@\s，。、；;：:（）()【】\[\]<>《》"'`]+?(三视图|场景图)/u);
   });
 
+  test("Step 4/5 top-level templates are marked as reference templates, not execution files", async () => {
+    for (const templateRelPath of [
+      path.join("04_图片提示词", "图片提示词.md"),
+      path.join("05_视频提示词", "视频提示词.md")
+    ]) {
+      const template = await fs.readFile(path.join(packTemplatesRoot, templateRelPath), "utf8");
+      expect(template).toContain("参考模板，不是执行文件");
+      expect(template).toContain("content assemble");
+    }
+  });
+
+  test("storyboard template explains how gpt-image-2 handles the second prompt segment", async () => {
+    const storyboard = await fs.readFile(
+      path.join(packTemplatesRoot, "内容", "场-XXX", "镜头组-XXX", "镜头-NNN", "分镜-NN.md"),
+      "utf8"
+    );
+    expect(storyboard).toContain("删掉这一整段");
+    expect(storyboard).toContain("不要用英文另写第二段");
+  });
+
+  test("Step 1 script template declares the by-scene contract and stays placeholder-only", async () => {
+    const script = await fs.readFile(path.join(packTemplatesRoot, "01_概念策划", "剧本.md"), "utf8");
+    expect(script).toContain("剧本模板");
+    expect(script).toContain("## 文件用途");
+    expect(script).toContain("## 使用方式");
+    expect(script).toContain("## 第 1 场");
+    expect(script).toMatch(/<[^>\n]+>/u);
+    // 只允许相对路径：不得出现盘符、file:// 或 vscode://。
+    expect(script).not.toMatch(/[A-Za-z]:[\\/]|file:\/\/|vscode:\/\//u);
+  });
+
   test("reference asset extraction ignores self-check sections with literal placeholders", async () => {
     const content = [
       "## 中文完整版本",
@@ -190,6 +221,51 @@ describe("template compliance", () => {
     }
   });
 
+  test("work record templates exist at the spec paths with the confirmation contract", async () => {
+    const workRecordRoot = path.join(packTemplatesRoot, "工作记录");
+    const guidePath = path.join(workRecordRoot, "00_工作记录说明.md");
+    const proposalPath = path.join(workRecordRoot, "修改提案", "00_修改提案模板.md");
+    const handoverPath = path.join(workRecordRoot, "交接", "00_交接模板.md");
+    for (const filePath of [guidePath, proposalPath, handoverPath]) {
+      expect(await fs.pathExists(filePath)).toBe(true);
+    }
+
+    const proposal = await fs.readFile(proposalPath, "utf8");
+    expect(proposal).toContain("未确认不得写入");
+    expect(proposal).toContain("基线哈希");
+    const proposalHeadings = [
+      "## 1. 本次目标",
+      "## 2. 原文与基线",
+      "## 3. 逐文件改法",
+      "## 4. 保留项与影响范围",
+      "## 5. 确认范围",
+      "## 6. 实际写入结果"
+    ];
+    for (const heading of proposalHeadings) {
+      expect(proposal).toContain(heading + "\n");
+    }
+    expect(proposal.match(/^## \d+\./gmu)).toHaveLength(proposalHeadings.length);
+
+    const handover = await fs.readFile(handoverPath, "utf8");
+    const handoverHeadings = ["## 1. 本次目标", "## 2. 已确认结论", "## 3. 提案位置", "## 4. 实际改动", "## 5. 下一动作"];
+    for (const heading of handoverHeadings) {
+      expect(handover).toContain(heading + "\n");
+    }
+    expect(handover.match(/^## \d+\./gmu)).toHaveLength(handoverHeadings.length);
+  });
+
+  test("work record templates use relative paths only", async () => {
+    for (const relPath of [
+      path.join("工作记录", "00_工作记录说明.md"),
+      path.join("工作记录", "修改提案", "00_修改提案模板.md"),
+      path.join("工作记录", "交接", "00_交接模板.md")
+    ]) {
+      const template = await fs.readFile(path.join(packTemplatesRoot, relPath), "utf8");
+      // 只允许相对路径：不得出现盘符、file:// 或 vscode://。
+      expect(template).not.toMatch(/[A-Za-z]:[\\/]|file:\/\/|vscode:\/\//u);
+    }
+  });
+
   test("a freshly initialized project with seeded templates passes full verification", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-template-compliance-"));
     tempRoots.push(root);
@@ -208,6 +284,10 @@ describe("template compliance", () => {
     expect(await fs.pathExists(path.join(projectRoot, "02_世界设定", "场景设定.md"))).toBe(true);
     expect(await fs.pathExists(path.join(projectRoot, "04_图片提示词", "镜头组-001", "图片提示词.md"))).toBe(true);
     expect(await fs.pathExists(path.join(projectRoot, "05_视频提示词", "镜头组-001", "视频提示词.md"))).toBe(true);
+    // 工作记录三份模板播种后不应影响完整校验。
+    expect(await fs.pathExists(path.join(projectRoot, "工作记录", "00_工作记录说明.md"))).toBe(true);
+    expect(await fs.pathExists(path.join(projectRoot, "工作记录", "修改提案", "00_修改提案模板.md"))).toBe(true);
+    expect(await fs.pathExists(path.join(projectRoot, "工作记录", "交接", "00_交接模板.md"))).toBe(true);
 
     const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
     expect(result).toEqual({ ok: true, issues: [] });
