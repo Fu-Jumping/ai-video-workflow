@@ -189,7 +189,8 @@ describe("libtv apply with mock backend", () => {
       only: ["keyframes"],
       allowGeneration: true,
       pollIntervalMs: 1,
-      timeoutMs: 30
+      // 预算需远大于正常节点耗时：满载并行时正常节点也可能被拖慢，避免第二个节点误判超时（Q45）；悬挂节点永不完成，任何预算都必然超时。
+      timeoutMs: 2000
     });
     // B4：超时属于"远端状态未知"，不再写成 failed；先查状态再决定是否重跑。
     const unknown = result.state.keyframes.find((item) => item.status === "unknown");
