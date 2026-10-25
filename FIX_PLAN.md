@@ -272,3 +272,52 @@
 1. 定向测试（verify / libtv-credentials）+ 全量门禁 `pnpm verify:v0.2` 全绿（串行）+ `git diff --check` 通过。
 2. 手工重放两条最小复现路径（离线等价形式）确认修复生效。
 3. 更新 `docs/context-engineering/07-decisions-and-open-questions.md` Q14、Q15 状态与 CHANGELOG。
+
+---
+
+## 九、R4 隔离测试发现（2026-10-25，I1—I7，登记待修）
+
+- 依据：第 4 轮隔离端到端测试（坟场段同题重做，被测提交 `6519694`；测试根 `avw-r4-e2e-20261025/REPORT.md`，路径按 D12 机器映射解析；报告含主对话终审区）。用户 2026-10-25 拍板「登记」。LibTV 真实生成链因本机凭据失效未验证（外部状态，已拍板归档留待下次整测）。同轮拍板的「05 执行文件调序、可复制提示词前置」随本批直接修复，不占本节编号。
+
+| 编号 | 问题 | 严重度 | 状态 |
+| --- | --- | --- | --- |
+| I1 | content check 的恢复指引未提示手改后需 `--force` | 一般 | 待修 |
+| I2 | `libtv --mock` 画布注册表为进程内存态，跨进程不可用 | 一般（限制） | 待修 |
+| I3 | `libtv apply --dry-run` 与 `plan` 不一致：未绑定画布时无法预演 | 一般 | 待修 |
+| I4 | Obsidian 单镜头页镜头组链接标签错（显示为分镜名） | 提示 | 待修 |
+| I5 | 07_发布物料模板「来源亮点」仍指向旧结构路径 | 提示 | 待修 |
+| I6 | `--allow-generation` 门禁检查位于鉴权之后 | 提示 | 待修 |
+| I7 | `research ingest` 对本地文件 platform 记为 web，与 source_kind 不一致 | 提示 | 待修 |
+
+#### I1 content check 的恢复指引未提示需要 --force（一般）
+- 现象：手改 05 执行文件后 `content check` 报「请重新整理」，但裸 `content assemble` 因 manual-drift 保护不覆盖手改内容，按提示操作后 mismatch 仍在。
+- 最小复现：手改任一 05 执行文件可复制提示词 → `content check` → `content assemble` → mismatch 仍在；须 `content assemble --force`（覆盖前备份到 `.tmp/`）才恢复。
+- 修复方向：`content-summary-execution-mismatch` / `content-execution-stale` 文案补充「自动区块被手改时需 `content assemble --force`」。
+
+#### I2 libtv --mock 非持久化，跨进程不可用（一般·限制）
+- 现象：`libtv --mock project create` 的画布注册表为进程内存态，新进程即报 `Mock project not found`；mock 实际只服务仓库自身测试，无法用于离线链路演示。
+- 修复方向：提供可选的 mock 状态持久化，或在 libtv 文档标注该限制。
+
+#### I3 libtv apply --dry-run 也要求画布绑定（一般）
+- 现象：`plan` 无需绑定即可出计划；`apply --dry-run` 未绑定时先报「缺少画布」，两者不一致，无法预演 apply。
+- 修复方向：dry-run 在未绑定时按「未绑定」出预演计划。
+
+#### I4 Obsidian 单镜头页链接标签错误（提示）
+- 现象：单镜头页指向镜头组文件的链接标签显示为分镜名（如「分镜-01」），应为「镜头组-001」。
+- 修复方向：修正投影层标签模板。
+
+#### I5 发布物料模板旧结构路径（提示）
+- 现象：07_发布物料模板的「来源亮点」引用 `../03_分镜脚本/镜头组-001/00_镜头组说明.md`，内容树模式下不存在。
+- 修复方向：模板路径改为指向 `../内容/…`。
+
+#### I6 --allow-generation 门禁检查位于鉴权之后（提示）
+- 现象：凭据失效时不带旗标先报「用户未授权」，门禁提示文案本身无法验证（R4 环境）。
+- 修复方向：把缺 `--allow-generation` 的检查前移到鉴权之前。
+
+#### I7 research ingest 本地文件 platform 记为 web（提示）
+- 现象：本地 md 导入后 source-card 的 platform 为 web 而 source_kind 为 local-file，字段语义不一致。
+- 修复方向：本地文件 platform 置空或标 local。
+
+### 验收门槛（本节）
+
+- I1—I7 逐项修复时按本文件 §一 修复原则（模板与文档服从校验器合同、最小改动、每项带回归测试），修复后更新本节状态与对应测试。
