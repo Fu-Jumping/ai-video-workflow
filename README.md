@@ -116,6 +116,22 @@ Image execution supports review and two-stage refine: `libtv review` records dir
 
 See [LibTV Asset Adapter](docs/en/contributors/libtv-asset-adapter.md) for the full boundary.
 
+## Rough-Cut Delivery
+
+```text
+node apps/cli/dist/index.js roughcut plan --project <project-path>
+node apps/cli/dist/index.js roughcut pack --project <project-path> --out <pack-directory>
+node apps/cli/dist/index.js roughcut draft --project <project-path> --name <draft-name>
+```
+
+`roughcut` turns the selected media into an editable rough cut without rewriting creation content (roadmap batch D):
+
+- `roughcut plan` creates or refreshes `06_执行计划/00_粗剪顺序表.md` from the content tree and media records; the cut-order column may be edited by hand, and `--check` only validates.
+- `roughcut pack` exports a read-only media pack: per-cut-order segment folders plus a top-level manifest (source shot/storyboard, file version, dialogue/subtitle flags, missing items, check status per item). It copies originals and never overwrites or moves project files.
+- `roughcut draft` generates a native JianYing 11.6 draft with fresh ids, encrypted offline by the bundled `jycrypto` tool (see `apps/cli/vendor/README.md`) which calls JianYing's own `videoeditor.dll`. Safety rails: it refuses to run while JianYing is open (tray process included), verifies the `videoeditor.dll` fingerprint (currently 11.6.0.14552) and errors out on mismatch instead of degrading, never overwrites an existing draft directory, and backs up the draft index before registering. Generated drafts always require a manual check in JianYing.
+
+Rough-cut outputs are treated as undecided material: the publishing step (Step 7) neither reads nor checks them.
+
 ## Impact Analysis
 
 ```powershell
