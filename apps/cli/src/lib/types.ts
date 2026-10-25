@@ -126,7 +126,12 @@ export type IssueCode =
   | "content-summary-execution-mismatch"
   | "content-summary-manual-drift"
   | "content-write-failed"
-  | "media-identity-conflict";
+  | "media-identity-conflict"
+  | "roughcut-plan-mismatch"
+  | "roughcut-missing-material"
+  | "media-pack-conflict"
+  | "jianying-draft-error"
+  | "jianying-draft-skip";
 
 export interface LibTvProjectConfig {
   image_model?: string;

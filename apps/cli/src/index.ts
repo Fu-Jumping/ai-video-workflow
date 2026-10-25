@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { confirm, input, select } from "@inquirer/prompts";
 import { Command } from "commander";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -59,6 +60,14 @@ import {
 } from "./lib/media-backup.js";
 import { listMediaRecords, renderMediaOverview } from "./lib/media-records.js";
 import { assembleContentTree, checkContentConsistency, renderAssembleSummary } from "./lib/content-assemble.js";
+import { checkRoughCutPlan, exportMediaPack, refreshRoughCutPlan, renderRoughCutSummary } from "./lib/roughcut.js";
+import {
+  defaultJianyingIndexFilePath,
+  discoverJianyingDir,
+  draftsRootFromIndex,
+  generateJianyingDraft,
+  renderJianyingDraftSummary
+} from "./lib/jianying-draft.js";
 import { buildMigrationPreview, renderMigrationPreview } from "./lib/migration-preview.js";
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
@@ -785,6 +794,95 @@ contentCommand
       const applied = await applyMigration(projectRoot, preview);
       console.log(applied.summary);
       if (!applied.ok) process.exitCode = 1;
+    }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+const roughcutCommand = program
+  .command("roughcut")
+  .description("Rough-cut delivery: shot order and version selection (D1), media pack (D2), JianYing draft (D3)");
+
+roughcutCommand
+  .command("plan")
+  .description("Create or refresh 06_执行计划/00_粗剪顺序表.md from the content tree and media records; the cut-order column may be edited by hand")
+  .requiredOption("--project <path>")
+  .option("--check", "Only validate the existing plan against the content tree and media records, do not write", false)
+  .action((options) => runCliAction(async () => {
+    const projectRoot = path.resolve(options.project);
+    const result = options.check === true ? await checkRoughCutPlan(projectRoot) : await refreshRoughCutPlan(projectRoot);
+    console.log(renderRoughCutSummary(result));
+    if (!result.ok) {
+      process.exitCode = 1;
+    }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+roughcutCommand
+  .command("pack")
+  .description("Export the media pack (D2): per-cut-order segment folders plus a top-level manifest; read-only snapshot, never overwrites")
+  .requiredOption("--project <path>")
+  .requiredOption("--out <path>")
+  .action((options) => runCliAction(async () => {
+    const result = await exportMediaPack(path.resolve(options.project), path.resolve(options.out));
+    for (const segment of result.segments) {
+      console.log("  " + segment.directoryName + "/  " + (segment.copiedFiles.join("、") || "（缺素材，已写说明）"));
+    }
+    console.log("素材包清单：" + result.manifestPath);
+    if (result.issues.length > 0) {
+      for (const issue of result.issues) {
+        console.error("! [" + issue.code + "] " + issue.message);
+      }
+    } else {
+      console.log("素材包导出完成（只读快照，未改动项目内任何原件）。");
+    }
+    if (!result.ok) {
+      process.exitCode = 1;
+    }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+roughcutCommand
+  .command("draft")
+  .description("Generate a native JianYing 11.6 draft (D3) from the rough-cut plan: fresh ids, encrypted via the bundled jycrypto tool, registered in root_meta_info.json")
+  .requiredOption("--project <path>")
+  .option("--name <name>", "Draft name shown in JianYing (default avw-draft-<timestamp>)")
+  .option("--jianying-dir <path>", "JianYing version directory containing videoeditor.dll (default: auto-discover; override with AVW_JIANYING_DIR)")
+  .option("--drafts-root <path>", "JianYing drafts root directory (default: derived from the draft index)")
+  .option("--index-file <path>", "Path of root_meta_info.json (default: %LOCALAPPDATA%\\JianyingPro\\...\\root_meta_info.json)")
+  .option("--jycrypto <path>", "Path of the bundled jycrypto.exe (default: vendor/win-x64 next to the CLI)")
+  .action((options) => runCliAction(async () => {
+    const jianyingDir = options.jianyingDir !== undefined ? path.resolve(options.jianyingDir) : discoverJianyingDir();
+    if (jianyingDir === null) {
+      console.error("! [jianying-draft-error] 没能自动找到剪映安装目录；请用 --jianying-dir 指定剪映版本目录（形如 …\\JianyingPro\\11.6.0.14552），或设置环境变量 AVW_JIANYING_DIR。");
+      process.exitCode = 1;
+      return;
+    }
+    const indexFilePath = options.indexFile !== undefined ? path.resolve(options.indexFile) : defaultJianyingIndexFilePath();
+    if (indexFilePath === "") {
+      console.error("! [jianying-draft-error] 没有可用的剪映草稿索引路径（LOCALAPPDATA 未定义）；请用 --index-file 指定 root_meta_info.json。");
+      process.exitCode = 1;
+      return;
+    }
+    const draftsRoot = options.draftsRoot !== undefined ? path.resolve(options.draftsRoot) : await draftsRootFromIndex(indexFilePath);
+    if (draftsRoot === null) {
+      console.error("! [jianying-draft-error] 没能从草稿索引推断草稿根目录；请用 --drafts-root 指定（剪映「全局设置」里的草稿位置）。");
+      process.exitCode = 1;
+      return;
+    }
+    // 默认工具位置：随包分发的 <模块目录>/vendor；源码树运行（src 或未复制的 dist）回退 <上级>/vendor。
+    const defaultJycrypto = path.join(moduleDir, "vendor", "win-x64", "jycrypto.exe");
+    const fallbackJycrypto = path.join(moduleDir, "..", "vendor", "win-x64", "jycrypto.exe");
+    const jycryptoPath = options.jycrypto !== undefined
+      ? path.resolve(options.jycrypto)
+      : fs.existsSync(defaultJycrypto) ? defaultJycrypto : fallbackJycrypto;
+    const result = await generateJianyingDraft({
+      projectRoot: path.resolve(options.project),
+      jianyingDir,
+      jycryptoPath,
+      draftsRoot,
+      indexFilePath,
+      ...(options.name !== undefined ? { draftName: options.name } : {})
+    });
+    console.log(renderJianyingDraftSummary(result));
+    if (!result.ok) {
+      process.exitCode = 1;
     }
   }, () => program.opts<{ debug?: boolean }>().debug === true));
 

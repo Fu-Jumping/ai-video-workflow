@@ -7,6 +7,9 @@ import { build } from "tsup";
 import { afterEach, describe, expect, test } from "vitest";
 
 const execFileAsync = promisify(execFile);
+// 本文件用例都要先跑 esbuild 构建、再串行启动多个 dist CLI 子进程，满载并行下单个用例实测可达 10 秒量级（Q48 偶发超时）；
+// 显式超时预算统一放宽到 60 秒（满载最坏估值的 3 倍以上，参照 Q45 先例），只放宽预算、不改断言语义。
+const CLI_TEST_TIMEOUT_MS = 60000;
 const tempRoots: string[] = [];
 const stepDirs = ["01_概念策划", "02_世界设定", "03_分镜脚本", "04_图片提示词", "05_视频提示词", "06_执行计划"];
 
@@ -187,7 +190,7 @@ describe("built CLI", () => {
     expect(result.stdout).toContain("请在智能体中打开这个目录");
     expect(result.stdout).toContain("00_前期研究/00_研究总览.md");
     expect(result.stdout).toContain("verify --project");
-  }, 10000);
+  }, CLI_TEST_TIMEOUT_MS);
 
   test("init refuses a nested project before entering any interactive prompt", async () => {
     const cliRoot = path.resolve(__dirname, "..");
@@ -212,7 +215,7 @@ describe("built CLI", () => {
     expect(result.stderr).not.toContain("Project directory name");
     expect(result.stderr).not.toMatch(/^\s+at /m);
     await expect(fs.pathExists(path.join(existing, "sub-proj"))).resolves.toBe(false);
-  }, 10000);
+  }, CLI_TEST_TIMEOUT_MS);
 
   test("init converts a closed interactive prompt into a single readable error", async () => {
     const cliRoot = path.resolve(__dirname, "..");
@@ -230,7 +233,7 @@ describe("built CLI", () => {
     expect(result.stderr).not.toContain("unsettled top-level await");
     expect(result.stderr).not.toContain("node:internal");
     expect(result.stderr).not.toMatch(/^\s+at /m);
-  }, 10000);
+  }, CLI_TEST_TIMEOUT_MS);
 
   test("init accepts --pack and seeds templates from the custom pack with official fallback", async () => {
     const cliRoot = path.resolve(__dirname, "..");
@@ -609,7 +612,7 @@ describe("built CLI", () => {
       repoRoot
     );
     expect(`${missingVaultTarget.stdout}\n${missingVaultTarget.stderr}`).toContain("Missing --vault");
-  }, 10000);
+  }, CLI_TEST_TIMEOUT_MS);
 
   test("clean-view dry-run reports in-project view cleanup without deleting files", async () => {
     const cliRoot = path.resolve(__dirname, "..");
@@ -633,7 +636,7 @@ describe("built CLI", () => {
     expect(stdout).toContain("would remove generated files");
     expect(stdout).toContain("no files were deleted");
     await expect(fs.pathExists(homePath)).resolves.toBe(true);
-  }, 10000);
+  }, CLI_TEST_TIMEOUT_MS);
 
   test("clean-view dry-run supports step filters without deleting files", async () => {
     const cliRoot = path.resolve(__dirname, "..");
@@ -660,7 +663,7 @@ describe("built CLI", () => {
     expect(stdout).toContain("next command:");
     expect(stdout).toContain("--step 4");
     await expect(fs.pathExists(stepFourProjection)).resolves.toBe(true);
-  }, 10000);
+  }, CLI_TEST_TIMEOUT_MS);
 
   test("rebuild-view refreshes the in-project view and preserves user notes", async () => {
     const cliRoot = path.resolve(__dirname, "..");
@@ -685,7 +688,7 @@ describe("built CLI", () => {
     expect(stdout).toContain("verification: passed");
     await expect(fs.readFile(storyProjection, "utf8")).resolves.toContain("CLI 重建后应该进入观看层");
     await expect(fs.readFile(userNote, "utf8")).resolves.toContain("保留这条笔记");
-  }, 10000);
+  }, CLI_TEST_TIMEOUT_MS);
 
   test("rebuild-view supports shot filters and preserves user notes", async () => {
     const cliRoot = path.resolve(__dirname, "..");
@@ -713,7 +716,7 @@ describe("built CLI", () => {
     await expect(fs.readFile(shotTwoProjection, "utf8")).resolves.toContain("CLI 局部重建后应该进入镜头 002");
     await expect(fs.readFile(shotOneProjection, "utf8")).resolves.toBe(shotOneBefore);
     await expect(fs.readFile(userNote, "utf8")).resolves.toContain("局部重建也应该保留");
-  }, 10000);
+  }, CLI_TEST_TIMEOUT_MS);
 
   test("clean-view rejects invalid filters without default stack traces", async () => {
     const cliRoot = path.resolve(__dirname, "..");
@@ -732,7 +735,7 @@ describe("built CLI", () => {
     expect(output).toContain("Expected one of: workflow-notes, shot-pages, canvas, base, dashboard, obsidian-ui");
     expect(output).not.toContain("node:internal");
     expect(output).not.toContain("at Command");
-  }, 10000);
+  }, CLI_TEST_TIMEOUT_MS);
 
   test("export-obsidian rejects missing projects without creating a vault or printing stack traces", async () => {
     const cliRoot = path.resolve(__dirname, "..");
