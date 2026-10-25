@@ -28,6 +28,7 @@ import {
   type ContentTreeScene,
   type ContentTreeShot
 } from "./content-tree.js";
+import { primaryMediaCandidate } from "./media-human-state.js";
 import {
   describeMediaCandidateState,
   listMediaRecords,
@@ -181,26 +182,40 @@ export interface MaterialIndex {
   records: Map<string, MediaRecord>;
   /** 身份经规范化的索引：人读编号与内部编号的素材记录落到同一个键。 */
   canonicalRecords: Map<string, MediaRecord>;
+  /**
+   * 同一规范身份下并存的多套编号记录（如「镜头-001」与「shot-001」各一条）。
+   * 两套编号并用不是推荐用法，出现时给出重复身份诊断，状态仍取索引中的最后一条。
+   */
+  identityConflicts: Array<{ canonicalKey: string; identityKeys: string[] }>;
 }
 
 export async function loadMaterialIndex(projectRoot: string): Promise<MaterialIndex> {
   const records = new Map<string, MediaRecord>();
   const canonicalRecords = new Map<string, MediaRecord>();
+  const canonicalIdentities = new Map<string, string[]>();
   for (const record of await listMediaRecords(projectRoot)) {
     records.set(mediaIdentityKey(record.identity), record);
-    canonicalRecords.set(mediaIdentityCanonicalKey(record.identity), record);
+    const canonicalKey = mediaIdentityCanonicalKey(record.identity);
+    canonicalRecords.set(canonicalKey, record);
+    const identityKey = mediaIdentityKey(record.identity);
+    const seen = canonicalIdentities.get(canonicalKey);
+    if (seen) {
+      if (!seen.includes(identityKey)) seen.push(identityKey);
+    } else {
+      canonicalIdentities.set(canonicalKey, [identityKey]);
+    }
   }
-  return { records, canonicalRecords };
+  const identityConflicts = [...canonicalIdentities.entries()]
+    .filter(([, identityKeys]) => identityKeys.length > 1)
+    .map(([canonicalKey, identityKeys]) => ({ canonicalKey, identityKeys }));
+  return { records, canonicalRecords, identityConflicts };
 }
 
 function recordState(record: MediaRecord | undefined): string | null {
   if (!record) return null;
-  const selected = record.currentSelection
-    ? record.candidates.find((candidate) => String(candidate.candidate) === String(record.currentSelection))
-    : undefined;
-  const candidate = selected ?? record.candidates[record.candidates.length - 1];
-  if (!candidate) return null;
-  return describeMediaCandidateState(candidate);
+  // 与镜头页／素材页四态同口径：当前选用按文件名匹配候选，而不是拿候选编号去比。
+  const candidate = primaryMediaCandidate(record);
+  return candidate ? describeMediaCandidateState(candidate) : null;
 }
 
 export function keyframeStatusText(index: MaterialIndex, shot: ContentTreeShot, keyframeId: string): string {
@@ -414,7 +429,14 @@ export function renderShotSegments(shot: ContentTreeShot): string {
 export function shotReferenceAssets(shot: ContentTreeShot): ReferenceAssetToken[] {
   const tokens: ReferenceAssetToken[] = [];
   const seen = new Set<string>();
-  const sources: string[] = [shot.document.raw];
+  // 镜头汇总原文里只有元信息与人工区块（视频提示词前段/后段）算「输入」；
+  // 三个自动区块是渲染输出，里面的 @ 提及顺序会随刷新漂移，剔除它们整理才是幂等的。
+  let summarySource = shot.document.raw;
+  for (const blockName of [BLOCK.shotSegmentDigest, BLOCK.shotImagePrompts, BLOCK.shotSegments]) {
+    const blockBody = getContentBlockBody(summarySource, blockName);
+    if (blockBody !== null) summarySource = summarySource.replace(blockBody, "");
+  }
+  const sources: string[] = [summarySource];
   for (const storyboard of shot.storyboards) {
     sources.push(storyboard.document.bodySection);
     sources.push(storyboard.document.videoPromptSegment ?? "");
@@ -583,6 +605,18 @@ export function renderStep4File(
   return lines.join("\n") + "\n";
 }
 
+/**
+ * 镜头正文的短指纹：该镜全部分镜正文（画面与动作、对白等）的哈希前 12 位。
+ * 写进 05 执行文件的元信息，让「只改正文、不改提示词」的变化也能被
+ * 执行文件新鲜度检查逐字发现（正文一变指纹就变，渲染结果跟着变）。
+ */
+function shotBodyFingerprint(shot: ContentTreeShot): string {
+  const combined = shot.storyboards
+    .map((storyboard) => stripTrailingNewlines(storyboard.document.bodySection))
+    .join("\n\n");
+  return sha256(combined).slice(0, 12);
+}
+
 /** 单镜的 05 完整执行文件正文（可复制提示词与镜头汇总逐字一致）。 */
 export function renderStep5File(shot: ContentTreeShot, platform: Platform, index: MaterialIndex): string {
   const relPath = step5FileRelPath(shot);
@@ -611,6 +645,7 @@ export function renderStep5File(shot: ContentTreeShot, platform: Platform, index
     "- 场景事件范围：" + sceneDirectoryName(shot.sceneId) + " / " + shotGroupDirectoryName(shot.groupId),
     "- 目标时长：" + targetDuration,
     "- 分镜数量：" + String(shot.storyboards.length) + "（1—6 段）",
+    "- 正文指纹：" + shotBodyFingerprint(shot) + "（分镜正文改动后此行会变，重新整理即可更新）",
     "- 关键帧文件：" + keyframeLink,
     "",
     "## 平台执行设置",
@@ -787,12 +822,27 @@ async function readIfExists(absPath: string): Promise<string | null> {
   return (await fs.pathExists(absPath)) ? await fs.readFile(absPath, "utf8") : null;
 }
 
+/**
+ * 清掉文件的只读位（Windows 的只读属性表现为无写位），让覆盖与重试可行。
+ * 只在缺写位时补写位，不动其他权限；清理失败不在这里报——后续写入会带着真实错误逐项上报。
+ */
+async function ensureWritable(absPath: string): Promise<void> {
+  if (!(await fs.pathExists(absPath))) return;
+  const stat = await fs.stat(absPath);
+  if (stat.mode & 0o200) return;
+  await fs.chmod(absPath, stat.mode | 0o200);
+}
+
 async function backupFile(projectRoot: string, relPath: string, backupRoot: string): Promise<void> {
   const absPath = path.join(projectRoot, relPath);
   if (!(await fs.pathExists(absPath))) return;
   const target = path.join(projectRoot, backupRoot, relPath);
   await fs.ensureDir(path.dirname(target));
+  // 旧备份可能带着只读位（上一轮失败的遗留），先清掉再覆盖；
+  // 源文件只读时 copyFile 的产物也会只读，备份完成后同样清掉，保证失败后可直接重试。
+  await ensureWritable(target);
   await fs.copyFile(absPath, target);
+  await ensureWritable(target);
 }
 
 /* ------------------------------ 骨架（仅在文件不存在时使用） ------------------------------ */
@@ -823,7 +873,8 @@ function storyboardOverviewSkeleton(): string {
   ].join("\n");
 }
 
-function sceneOverviewSkeleton(sceneId: string): string {
+/** 场总览骨架：新建与旧项目迁移共用这一份，保证迁移项目符合内容树契约。 */
+export function sceneOverviewSkeleton(sceneId: string): string {
   return [
     "# " + sceneDirectoryName(sceneId) + " 场总览",
     "",
@@ -882,14 +933,21 @@ export interface AssembleChange {
   blocks: string[];
 }
 
+export interface AssembleWriteFailure {
+  relPath: string;
+  message: string;
+}
+
 export interface AssembleResult {
   ok: boolean;
   mode: ContentMode;
   changes: AssembleChange[];
   issues: VerificationIssue[];
+  /** 写盘失败清单：多文件整理中途失败时逐项报告，失败后可直接重试。dry-run 恒为空。 */
+  writeFailures: AssembleWriteFailure[];
 }
 
-function platformDefaults(config: { platforms?: { image: { default: Platform }; video: { default: Platform } } } | null): {
+export function platformDefaults(config: { platforms?: { image: { default: Platform }; video: { default: Platform } } } | null): {
   image: Platform;
   video: Platform;
 } {
@@ -913,14 +971,24 @@ export async function assembleContentTree(projectRoot: string, options: Assemble
 
   const resolution = await resolveContentMode(projectRoot);
   if (resolution.mode !== "content-tree") {
-    return { ok: false, mode: resolution.mode, changes, issues: resolution.issues };
+    return { ok: false, mode: resolution.mode, changes, issues: resolution.issues, writeFailures: [] };
   }
   if (!resolution.contentRootExists) {
-    return { ok: false, mode: resolution.mode, changes, issues: resolution.issues };
+    return { ok: false, mode: resolution.mode, changes, issues: resolution.issues, writeFailures: [] };
   }
 
   const tree = await buildContentTree(projectRoot);
   const index = await loadMaterialIndex(projectRoot);
+  for (const conflict of index.identityConflicts) {
+    issues.push({
+      code: "media-identity-conflict",
+      message:
+        "同一对象的素材记录存在多套编号身份（" +
+        conflict.identityKeys.join(" 与 ") +
+        "）；两套编号并用会让素材状态显示错位，请保留一套（状态暂取最后一条）。",
+      path: conflict.canonicalKey
+    });
+  }
   const { config } = await readProjectConfig(projectRoot);
   const platforms = platformDefaults(config);
 
@@ -1064,18 +1132,32 @@ export async function assembleContentTree(projectRoot: string, options: Assemble
     changes.push({ relPath: plan.relPath, kind: "create", blocks: [] });
   }
 
+  // 逐项写盘：一项失败（如只读文件的 EPERM）记录原因并继续写其余文件，
+  // 不再半途中断；目标与备份的只读位在写前已清，失败后可直接重试。
+  const writeFailures: AssembleWriteFailure[] = [];
   if (!dryRun) {
     const changedPlans = plans.filter((plan) => {
       const change = changes.find((entry) => entry.relPath === plan.relPath);
       return change !== undefined && change.kind !== "unchanged";
     });
     for (const plan of changedPlans) {
-      if (!options.skipBackup) {
-        await backupFile(projectRoot, plan.relPath, backupDir);
-      }
       const absPath = path.join(projectRoot, plan.relPath);
-      await fs.ensureDir(path.dirname(absPath));
-      await fs.writeFile(absPath, plan.content, "utf8");
+      try {
+        if (!options.skipBackup) {
+          await backupFile(projectRoot, plan.relPath, backupDir);
+        }
+        await fs.ensureDir(path.dirname(absPath));
+        await ensureWritable(absPath);
+        await fs.writeFile(absPath, plan.content, "utf8");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        writeFailures.push({ relPath: plan.relPath, message });
+        issues.push({
+          code: "content-write-failed",
+          message: "「" + plan.relPath + "」写入失败：" + message + "。其余文件已照常写入；处理后可直接重新整理。",
+          path: plan.relPath
+        });
+      }
     }
   }
 
@@ -1089,10 +1171,11 @@ export async function assembleContentTree(projectRoot: string, options: Assemble
   }
 
   return {
-    ok: issues.every((issue) => issue.code !== "content-tree-incomplete"),
+    ok: issues.every((issue) => issue.code !== "content-tree-incomplete") && writeFailures.length === 0,
     mode: resolution.mode,
     changes: [...merged.values()].sort((left, right) => left.relPath.localeCompare(right.relPath)),
-    issues
+    issues,
+    writeFailures
   };
 }
 
@@ -1110,6 +1193,51 @@ function extractCopyablePrompt(content: string): string | null {
 }
 
 /**
+ * 04／05 执行文件整份新鲜度：执行文件是内容树的整份渲染产物（带文件级哈希），
+ * 正文改动后（如画面与动作、展示名、提示词、素材状态）若没有重新整理，这里与
+ * 当前渲染逐字比对就能发现，不再只盯提示词区块。
+ *
+ * 两类文件跳过：没有生成标记的（像是人工写的）；生成标记与正文不符的（被人手改过，
+ * 覆盖与否由 assemble --force 决定，不在这里替用户下判断）。
+ */
+export async function checkExecutionFileFreshness(
+  projectRoot: string,
+  tree: ContentTree,
+  index: MaterialIndex,
+  platforms: { image: Platform; video: Platform },
+  issues: VerificationIssue[]
+): Promise<void> {
+  const rendered: Array<{ relPath: string; content: string }> = [];
+  for (const shot of tree.shots) {
+    for (const storyboard of shot.storyboards) {
+      for (const keyframe of storyboard.document.keyframes) {
+        const content = renderStep4File(shot, storyboard.relPath, keyframe.id, platforms.image, index);
+        if (content) rendered.push({ relPath: step4FileRelPath(shot, keyframe.id), content });
+      }
+    }
+    rendered.push({ relPath: step5FileRelPath(shot), content: renderStep5File(shot, platforms.video, index) });
+  }
+
+  for (const plan of rendered) {
+    const absPath = path.join(projectRoot, plan.relPath);
+    if (!(await fs.pathExists(absPath))) continue;
+    const existing = await fs.readFile(absPath, "utf8");
+    const recorded = readGeneratedFileHash(existing);
+    if (recorded === null) continue;
+    const body = stripGeneratedFileHash(existing);
+    if (recorded !== sha256(stripTrailingNewlines(body))) continue;
+    if (stripTrailingNewlines(body) !== stripTrailingNewlines(stripGeneratedFileHash(plan.content))) {
+      issues.push({
+        code: "content-execution-stale",
+        message:
+          "「" + plan.relPath + "」与内容树当前正文不一致（正文或素材状态改过之后没有重新整理）；请重新整理（content assemble），不要手改执行文件。",
+        path: plan.relPath
+      });
+    }
+  }
+}
+
+/**
  * 内容树、汇总与执行文件三者的一致性检查。
  *
  * 只报差异，不写盘；用于 verify 与整理后的自检。
@@ -1123,6 +1251,18 @@ export async function checkContentConsistency(projectRoot: string): Promise<Cons
 
   const tree = await buildContentTree(projectRoot);
   const index = await loadMaterialIndex(projectRoot);
+  for (const conflict of index.identityConflicts) {
+    issues.push({
+      code: "media-identity-conflict",
+      message:
+        "同一对象的素材记录存在多套编号身份（" +
+        conflict.identityKeys.join(" 与 ") +
+        "）；两套编号并用会让素材状态显示错位，请保留一套（状态暂取最后一条）。",
+      path: conflict.canonicalKey
+    });
+  }
+  const { config } = await readProjectConfig(projectRoot);
+  await checkExecutionFileFreshness(projectRoot, tree, index, platformDefaults(config), issues);
 
   const overviewSpecs: Array<{ relPath: string; name: string; body: string }> = [
     { relPath: tree.shotOverviewRelPath, name: BLOCK.shotOverview, body: renderShotOverviewBody(tree, index) },
@@ -1212,6 +1352,12 @@ export function renderAssembleSummary(result: AssembleResult): string {
   lines.push("  新增 " + String(created.length) + " 个文件，更新 " + String(updated.length) + " 个文件，未变 " + String(unchanged.length) + " 个文件。");
   for (const change of created) lines.push("  + " + change.relPath);
   for (const change of updated) lines.push("  * " + change.relPath);
+  if (result.writeFailures.length > 0) {
+    lines.push("  写入成功 " + String(result.changes.length - result.writeFailures.length) + " 个，未写 " + String(result.writeFailures.length) + " 个：");
+    for (const failure of result.writeFailures) {
+      lines.push("  x " + failure.relPath + "（" + failure.message + "）");
+    }
+  }
   if (result.issues.length > 0) {
     lines.push("  需要注意 " + String(result.issues.length) + " 条：");
     for (const issue of result.issues) {

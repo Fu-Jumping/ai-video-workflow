@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 
-import { assembleContentTree } from "../src/lib/content-assemble.js";
+import { assembleContentTree, checkContentConsistency, renderAssembleSummary } from "../src/lib/content-assemble.js";
 import {
   assembleShotVideoPrompt,
   buildContentTree,
@@ -709,6 +709,279 @@ describe("内容树：汇总与执行文件一致性", () => {
 
     const verified = await verify(projectRoot);
     expect(codesOf(verified.issues)).toContain("content-summary-execution-mismatch");
+  });
+});
+
+describe("内容树：执行文件整份新鲜度与素材诊断", () => {
+  test("改正文标注行后 content check 与 verify 都报 content-execution-stale", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    const directory = await seedShot(projectRoot, { segments: [{ keyframes: [{ number: 1, mappedSegment: 1 }] }] });
+    await assemble(projectRoot);
+    expect(codesOf((await checkContentConsistency(projectRoot)).issues)).toEqual([]);
+
+    // 只改正文（人物与位置进 04 执行文件的「主体状态」），提示词与汇总都没动：
+    // 提示词级比对发现不了，整份新鲜度检查必须能发现。
+    const storyboardPath = directory + "/分镜-01.md";
+    await writeFile(
+      projectRoot,
+      storyboardPath,
+      (await readFile(projectRoot, storyboardPath)).replace("- **人物与位置**：阿岚居中。", "- **人物与位置**：阿岚在门侧。")
+    );
+
+    const checked = await checkContentConsistency(projectRoot);
+    const stalePaths = checked.issues.filter((issue) => issue.code === "content-execution-stale").map((issue) => issue.path);
+    expect(stalePaths).toContain(STEP5_FILE);
+    // 04 的「主体状态」来自该行、05 的正文指纹也来自正文：两份执行文件都要报。
+    expect(stalePaths.some((path) => path!.startsWith("04_图片提示词/"))).toBe(true);
+
+    const verified = await verify(projectRoot);
+    expect(codesOf(verified.issues)).toContain("content-execution-stale");
+    expect(verified.ok).toBe(false);
+  });
+
+  test("改正文摘要行后 verify 也报分镜速览落后", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    const directory = await seedShot(projectRoot, { segments: [{}] });
+    await assemble(projectRoot);
+
+    // 动作起止是「分镜速览」摘要的来源行：改它会让镜头汇总的速览区块落后。
+    const storyboardPath = directory + "/分镜-01.md";
+    await writeFile(
+      projectRoot,
+      storyboardPath,
+      (await readFile(projectRoot, storyboardPath)).replace("- **动作起止**：停步到抬头。", "- **动作起止**：推门到站定。")
+    );
+
+    expect(codesOf((await checkContentConsistency(projectRoot)).issues)).toContain("content-summary-stale");
+    const verified = await verify(projectRoot);
+    expect(codesOf(verified.issues)).toContain("content-summary-stale");
+  });
+
+  test("素材状态变化后执行文件报 stale（行为扩展点锁定）", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    await seedShot(projectRoot, { segments: [{ keyframes: [{ number: 1, mappedSegment: 1 }] }] });
+    await seedHumanNumberedMedia(projectRoot);
+    await assemble(projectRoot);
+
+    // 候选取消选用标记：素材状态从「已选用」变为「下载了但尚未选用」，执行文件与总表都要刷新。
+    const recordPath = mediaRecordPath({ category: "video", objectId: "镜头-001", purpose: "视频" });
+    await writeFile(
+      projectRoot,
+      recordPath,
+      (await readFile(projectRoot, recordPath)).replace("选用: 是", "选用: 否")
+    );
+
+    const checked = await checkContentConsistency(projectRoot);
+    expect(codesOf(checked.issues)).toContain("content-execution-stale");
+  });
+
+  test("currentSelection 按文件名取当前候选，不退化为最后一个候选", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    await seedShot(projectRoot, { segments: [{ keyframes: [{ number: 1, mappedSegment: 1 }] }] });
+
+    // 候选 1 已选用（已审可用），候选 2 只下载未审：当前选用是候选 1，状态应显示「已选用」，
+    // 而不是旧逻辑里永远匹配不上文件名后退化为最后一个候选的「下载了但尚未选用」。
+    const identity: MediaIdentity = { category: "video", objectId: "镜头-001", purpose: "视频" };
+    const firstFile = "镜头-001_v001_c01.mp4";
+    const secondFile = "镜头-001_v001_c02.mp4";
+    const record: MediaRecord = {
+      identity,
+      displayName: "镜头-001 视频",
+      source: "generated",
+      currentSelection: firstFile,
+      candidates: [
+        {
+          version: 1,
+          candidate: 1,
+          fileName: firstFile,
+          platformStatus: "completed",
+          downloadStatus: "downloaded",
+          reviewStatus: "accepted",
+          selected: true,
+          sha256: "a".repeat(64)
+        },
+        {
+          version: 1,
+          candidate: 2,
+          fileName: secondFile,
+          platformStatus: "completed",
+          downloadStatus: "downloaded",
+          reviewStatus: "unreviewed",
+          selected: false
+        }
+      ],
+      createdAt: "2026-10-24T00:00:00.000Z",
+      updatedAt: "2026-10-24T00:00:00.000Z"
+    };
+    await writeFile(projectRoot, mediaRecordPath(identity), renderMediaRecord(record));
+
+    const result = await assemble(projectRoot);
+    expect(result.issues).toEqual([]);
+    const step5 = await readFile(projectRoot, STEP5_FILE);
+    expect(step5).toContain("素材状态：已选用");
+    expect(step5).not.toContain("下载了但尚未选用");
+
+    const overview = await readFile(projectRoot, "内容/00_镜头总表.md");
+    const row = overview.split("\n").find((line) => line.startsWith("| ") && line.includes("镜头-001"));
+    expect(row).toContain("| 已选用 |");
+  });
+
+  test("同镜头双编号素材记录报 media-identity-conflict", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    await seedShot(projectRoot, { segments: [{ keyframes: [{ number: 1, mappedSegment: 1 }] }] });
+    await seedHumanNumberedMedia(projectRoot);
+
+    // 同一镜头再写一份内部编号（shot-001）的视频记录：两套编号并用要给出重复身份诊断。
+    const internalIdentity: MediaIdentity = { category: "video", objectId: "shot-001", purpose: "视频" };
+    const internalFile = "shot-001_v001_c01.mp4";
+    const internalRecord: MediaRecord = {
+      identity: internalIdentity,
+      displayName: "shot-001 视频",
+      source: "generated",
+      currentSelection: internalFile,
+      candidates: [selectedCandidate(internalFile)],
+      createdAt: "2026-10-24T00:00:00.000Z",
+      updatedAt: "2026-10-24T00:00:00.000Z"
+    };
+    await writeFile(projectRoot, mediaRecordPath(internalIdentity), renderMediaRecord(internalRecord));
+
+    const result = await assemble(projectRoot);
+    expect(codesOf(result.issues)).toContain("media-identity-conflict");
+    expect(codesOf((await checkContentConsistency(projectRoot)).issues)).toContain("media-identity-conflict");
+  });
+
+  test("正文指纹让独立对白行的改动也能被检出", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    const directory = await seedShot(projectRoot, { segments: [{}] });
+    const storyboardPath = directory + "/分镜-01.md";
+
+    // 先给正文加一条独立对白行并整理：指纹记录下这一版正文。
+    await writeFile(
+      projectRoot,
+      storyboardPath,
+      (await readFile(projectRoot, storyboardPath)).replace("- **声音**：风声。", "- **声音**：风声。\n- 对白：这伞撑不过雨季了。")
+    );
+    await assemble(projectRoot);
+    expect(codesOf((await checkContentConsistency(projectRoot)).issues)).toEqual([]);
+
+    // 只改对白文字、不改任何提示词：05 元信息里的正文指纹随之变化，必须能被发现。
+    await writeFile(
+      projectRoot,
+      storyboardPath,
+      (await readFile(projectRoot, storyboardPath)).replace("对白：这伞撑不过雨季了。", "对白：伞骨都酥了，将就到雨季结束吧。")
+    );
+
+    const checked = await checkContentConsistency(projectRoot);
+    const stalePaths = checked.issues.filter((issue) => issue.code === "content-execution-stale").map((issue) => issue.path);
+    expect(stalePaths).toContain(STEP5_FILE);
+    const step5 = await readFile(projectRoot, STEP5_FILE);
+    expect(step5).toContain("正文指纹：");
+  });
+
+  test("参考资产提取不受自动区块刷新影响（整理幂等）", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    const directory = await seedShot(projectRoot, {
+      segments: [{ keyframes: [{ number: 1, mappedSegment: 1, prompt: "罗婆婆递出黑伞，参考 @罗婆婆三视图。" }] }]
+    });
+    // 分镜正文先出现另一个 @ 提及：自动区块未刷新时，它先于关键帧提示词进入素材顺序。
+    const storyboardPath = directory + "/分镜-01.md";
+    await writeFile(
+      projectRoot,
+      storyboardPath,
+      (await readFile(projectRoot, storyboardPath)).replace("- **声音**：风声。", "- **声音**：风声。\n- 参考资产：@场景三视图。")
+    );
+    await assemble(projectRoot);
+
+    const step4Path = "04_图片提示词/镜头组-001/镜头-001-关键帧-01.md";
+    const first = await readFile(projectRoot, step4Path);
+    // 顺序断言只看「参考资产」小节：提示词全文里罗婆婆本来就先出现。
+    const assetsSection = first.slice(first.indexOf("## 参考资产"));
+    expect(assetsSection.indexOf("@场景三视图")).toBeGreaterThan(-1);
+    expect(assetsSection.indexOf("@场景三视图")).toBeLessThan(assetsSection.indexOf("@罗婆婆三视图"));
+
+    // 第二次整理必须不再有变化：自动区块是渲染输出，不能反过来改变素材顺序。
+    const again = await assemble(projectRoot);
+    expect(again.changes.every((change) => change.kind === "unchanged")).toBe(true);
+    expect(await readFile(projectRoot, step4Path)).toBe(first);
+  });
+});
+
+describe("内容树：assemble 写盘逐项报告与只读处理", () => {
+  test("目标与备份只读时整理仍成功，失败后可直接重试", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    const directory = await seedShot(projectRoot, { segments: [{ keyframes: [{ number: 1, mappedSegment: 1 }] }] });
+    await assemble(projectRoot);
+
+    // 先制造一轮更新：首轮整理全是新建文件，没有备份；更新过一次后 .tmp/content-backup/ 才有旧内容。
+    const storyboardPath = directory + "/分镜-01.md";
+    await writeFile(projectRoot, storyboardPath, (await readFile(projectRoot, storyboardPath)).replace("停步抬头", "转身离开"));
+    await assemble(projectRoot);
+
+    // 上一轮失败留下的现场：目标执行文件与备份都带只读位。
+    const backupPath = path.join(".tmp", "content-backup", STEP5_FILE);
+    for (const relPath of [STEP5_FILE, backupPath]) {
+      await fs.chmod(path.join(projectRoot, relPath), 0o444);
+    }
+    try {
+      await writeFile(projectRoot, storyboardPath, (await readFile(projectRoot, storyboardPath)).replace("转身离开", "推门张望"));
+
+      const result = await assembleContentTree(projectRoot, { force: true });
+      expect(result.writeFailures).toEqual([]);
+      expect(result.ok).toBe(true);
+      const step5 = await readFile(projectRoot, STEP5_FILE);
+      expect(step5).toContain("推门张望");
+
+      // 再跑一次幂等：不再有变化。
+      const again = await assembleContentTree(projectRoot, { force: true });
+      expect(again.changes.every((change) => change.kind === "unchanged")).toBe(true);
+    } finally {
+      for (const relPath of [STEP5_FILE, backupPath]) {
+        await fs.chmod(path.join(projectRoot, relPath), 0o644);
+      }
+    }
+  });
+
+  test("单项写失败时逐项报告，其余文件照常写入", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    const directory = await seedShot(projectRoot, { segments: [{ keyframes: [{ number: 1, mappedSegment: 1 }] }] });
+    await assemble(projectRoot);
+
+    // 把 05 的镜头组目录变成一个同名文件：这一项写不进去，其他项不受牵连。
+    const groupDir = path.join(projectRoot, "05_视频提示词", "镜头组-001");
+    await fs.remove(groupDir);
+    await fs.writeFile(groupDir, "占位", "utf8");
+    try {
+      const storyboardPath = directory + "/分镜-01.md";
+      await writeFile(
+        projectRoot,
+        storyboardPath,
+        (await readFile(projectRoot, storyboardPath)).replace("停步抬头", "转身离开")
+      );
+
+      const result = await assembleContentTree(projectRoot, { force: true });
+      expect(result.writeFailures.map((failure) => failure.relPath)).toEqual([STEP5_FILE]);
+      expect(result.ok).toBe(false);
+      const summary = renderAssembleSummary(result);
+      expect(summary).toContain("未写 1 个");
+      expect(summary).toContain("x " + STEP5_FILE);
+      // 其余执行文件照常刷新：04 的主体状态所在行没变，但素材状态行与提示词都在，检查它的哈希刷新即可。
+      const indexContent = await readFile(projectRoot, "03_分镜脚本/00_内容树索引.md");
+      expect(indexContent.length).toBeGreaterThan(0);
+      const checked = await checkContentConsistency(projectRoot);
+      const stalePaths = checked.issues.filter((issue) => issue.code === "content-execution-stale").map((issue) => issue.path);
+      expect(stalePaths).toContain(STEP5_FILE);
+    } finally {
+      await fs.remove(groupDir);
+    }
   });
 });
 

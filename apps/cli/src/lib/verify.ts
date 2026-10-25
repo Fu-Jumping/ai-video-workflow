@@ -11,6 +11,7 @@ import {
   sharedAgentEntryPath
 } from "./agent-workspace.js";
 import {
+  CONTENT_BLOCK_NAMES,
   CONTENT_INDEX_FILE,
   MIGRATED_SNAPSHOT_DIRECTORY,
   STEP0_FILES,
@@ -19,8 +20,17 @@ import {
   STEP_DIR_BY_NUMBER,
   researchStepEnabled
 } from "./constants.js";
-import { autoBlockDrifted, step4FileRelPath, step5FileRelPath, stripBlockHash } from "./content-assemble.js";
-import { buildContentTree, hasMigrationSnapshot, resolveContentMode, shotGroupDirectoryName } from "./content-tree.js";
+import {
+  autoBlockDrifted,
+  checkExecutionFileFreshness,
+  loadMaterialIndex,
+  platformDefaults,
+  renderShotSegmentDigest,
+  step4FileRelPath,
+  step5FileRelPath,
+  stripBlockHash
+} from "./content-assemble.js";
+import { buildContentTree, getContentBlockBody, hasMigrationSnapshot, resolveContentMode, shotGroupDirectoryName } from "./content-tree.js";
 import { applyAcceptedDeviations, readDeviations } from "./deviations.js";
 import { verifyMediaRecords } from "./media-records.js";
 import { contentFormatVersion, isSupportedContentFormatVersion, readProjectConfig } from "./project-config.js";
@@ -151,6 +161,10 @@ const ideSharedRuntimeEntryPaths: Record<Ide, string[]> = {
 
 function pushIssue(issues: VerificationIssue[], issue: VerificationIssue): void {
   issues.push(issue);
+}
+
+function stripTrailingNewlines(value: string): string {
+  return value.replace(/\n+$/u, "");
 }
 
 async function listMarkdownFiles(root: string, current = root): Promise<string[]> {
@@ -1260,6 +1274,29 @@ async function verifyContentTree(
           path: step5RelPath
         });
       }
+    }
+  }
+
+  // 分镜速览区块与 04／05 执行文件的新鲜度，与 content check 同口径：
+  // 正文标注行、展示名、素材状态等改动后没有重新整理时，verify 也要能报出来。
+  const materialIndex = await loadMaterialIndex(projectRoot);
+  const { config } = await readProjectConfig(projectRoot);
+  await checkExecutionFileFreshness(projectRoot, tree, materialIndex, platformDefaults(config), issues);
+  for (const shot of tree.shots) {
+    const absPath = path.join(projectRoot, shot.relPath);
+    if (!(await fs.pathExists(absPath))) continue;
+    const content = await fs.readFile(absPath, "utf8");
+    const digestBody = getContentBlockBody(content, CONTENT_BLOCK_NAMES.shotSegmentDigest);
+    if (digestBody === null) continue;
+    const expected = stripTrailingNewlines(renderShotSegmentDigest(shot));
+    const actual = stripTrailingNewlines(stripBlockHash(digestBody));
+    if (actual !== expected) {
+      pushIssue(issues, {
+        code: "content-summary-stale",
+        message:
+          "「" + shot.relPath + "」的自动区块「" + CONTENT_BLOCK_NAMES.shotSegmentDigest + "」与分镜正文不一致；正文改过之后要重新整理（content assemble）。",
+        path: shot.relPath
+      });
     }
   }
 }
