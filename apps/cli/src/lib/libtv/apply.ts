@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import type { LibTvBackend } from "./backend.js";
 import { buildLibTvPlan } from "./assets.js";
 import { runNodeGeneration, LibTvGenerationError } from "./execution.js";
-import { readState, requireBinding, writeState } from "./project-binding.js";
+import { readState, readBinding, requireBinding, writeState } from "./project-binding.js";
 import { classifyLibTvGenerationError, describeLibTvFailureClass } from "./failures.js";
 import { firstNodeOutputUrl, saveNodeOutput, saveUrlOutput, type LibTvDownloadResult } from "./download.js";
 import type {
@@ -162,12 +162,14 @@ async function loadNodeOrThrow(backend: LibTvBackend, projectUuid: string, nodeI
 }
 
 export async function applyPlan(projectRoot: string, backend: LibTvBackend, options: LibTvApplyOptions = {}): Promise<{ actions: string[]; state: LibTvState; summary: LibTvApplySummary }> {
-  const binding = await requireBinding(projectRoot);
+  // --dry-run 与 plan 同口径：未绑定画布也能出预演计划（I3）；真实执行路径仍要求绑定。
+  const isDryRun = options.dryRun === true;
+  const requestedBinding = isDryRun ? await readBinding(projectRoot) : await requireBinding(projectRoot);
   const plan = await buildLibTvPlan(projectRoot);
   const previous = await readState(projectRoot);
   const state: LibTvState = previous ?? {
     version: 1,
-    projectUuid: binding.projectUuid,
+    projectUuid: requestedBinding?.projectUuid ?? "",
     anchors: [],
     keyframes: [],
     videos: [],
@@ -175,7 +177,6 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
   };
   const actions: string[] = [];
   const only = options.only ?? ["anchors", "keyframes", "videos"];
-  const isDryRun = options.dryRun === true;
   const allowGeneration = options.allowGeneration === true && !isDryRun;
   const retrySet = new Set(options.retryIds ?? []);
   const pollIntervalMs = options.pollIntervalMs ?? 2000;
@@ -185,7 +186,11 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
   const videoSummary = emptySection(plan.videos.length);
 
   if (isDryRun) {
-    actions.push(`[dry-run] 项目 ${binding.projectUuid}`);
+    actions.push(
+      requestedBinding?.projectUuid
+        ? `[dry-run] 项目 ${requestedBinding.projectUuid}`
+        : `[dry-run] 未绑定画布：以下为预演计划，与 plan 同口径；真实执行前请先 libtv project use <画布UUID>`
+    );
     actions.push(`[dry-run] 锚点 ${plan.anchors.length} 个，关键帧 ${plan.keyframes.length} 个，视频 ${plan.videos.length} 个`);
     if (only.includes("keyframes") && !allowGeneration) {
       actions.push(`[dry-run] 关键帧生成需要 --allow-generation`);
@@ -195,6 +200,9 @@ export async function applyPlan(projectRoot: string, backend: LibTvBackend, opti
     }
     return { actions, state, summary: buildSummary(true, allowGeneration, keyframeSummary, videoSummary) };
   }
+
+  // 真实执行路径：上面未走 dry-run 分支时，requestedBinding 来自 requireBinding，必有绑定。
+  const binding = requestedBinding!;
 
   // Ensure shot groups.
   if (only.includes("keyframes") || only.includes("videos")) {

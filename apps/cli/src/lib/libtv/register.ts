@@ -193,7 +193,7 @@ export function registerLibTvCommands(program: Command): void {
   const libtv = program
     .command("libtv")
     .description("LibTV 素材适配层：上传、引用、图片/视频生成")
-    .option("--mock", "Use in-memory mock backend for dry runs and tests", false)
+    .option("--mock", "Use in-memory mock backend for dry runs and tests；mock 状态只存在当前进程内存里（画布注册表等跨进程/跨命令不可见，持久化未实现），离线演示请勿依赖", false)
     .option("--base-url <url>", "LibTV account API base URL (default LIBTV_API_BASE_URL or https://api2.liblib.art); canvas API uses LIBTV_CANVAS_API_BASE_URL or https://api.liblib.tv)");
 
   const login = libtv.command("login").description("登录：浏览器（web）或手机验证码");
@@ -936,9 +936,19 @@ ${loginUrl}
     .option("--json", "输出 JSON 结果", false)
     .option("--only <kind>", "只执行 anchors|keyframes|videos，可重复", collect, [])
     .action((options, command) => runCliAction(async () => {
+      // 生成门禁在鉴权之前（I6）：缺 --allow-generation 时先报门禁提示，
+      // 不让凭据错误（如未登录）抢在前面，导致门禁文案本身无法验证。
+      const only = options.only.length > 0 ? options.only : undefined;
+      const willRunGenerationSections =
+        options.dryRun !== true &&
+        (only === undefined || only.some((kind) => kind === "keyframes" || kind === "videos"));
+      if (willRunGenerationSections && options.allowGeneration !== true) {
+        throw new CliUserError(
+          "关键帧/视频生成会消耗真实额度，必须显式传入 --allow-generation；只想预演请加 --dry-run。"
+        );
+      }
       const projectRoot = await resolveProjectRoot(options.project, process.cwd());
       const backend = await backendWithCredentials(command);
-      const only = options.only.length > 0 ? options.only : undefined;
       const retryIds = options.retry.length > 0 ? options.retry : undefined;
       const result = await applyPlan(projectRoot, backend, {
         dryRun: options.dryRun === true,

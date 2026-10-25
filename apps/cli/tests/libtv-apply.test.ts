@@ -298,3 +298,31 @@ test("resumes an in-flight generation using existing taskId without submitting a
   expect(result.state.keyframes[0]?.status).toBe("pending-approval");
   expect(result.state.keyframes[0]?.taskId).toBe(`task-${nodes[0]!.nodeKey}`);
 });
+
+describe("libtv apply --dry-run 未绑定也能预演（I3）", () => {
+  test("未绑定画布时 dry-run 按未绑定出预演计划，真实执行仍要求绑定", async () => {
+    const repoRoot = path.resolve(__dirname, "..", "..", "..");
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "avw-libtv-unbound-"));
+    tempRoots.push(projectRoot);
+    await fs.copy(path.join(repoRoot, "examples", "官方示例-云上早市"), projectRoot);
+    // 与 makeProject 的区别：不写 .libtv/project.json，项目处于未绑定状态。
+
+    const backend = new MockLibTvBackend();
+    const dry = await applyPlan(projectRoot, backend, { dryRun: true });
+    expect(dry.summary.dryRun).toBe(true);
+    expect(dry.actions[0]).toContain("未绑定画布");
+    expect(dry.actions.join("\n")).toContain("锚点");
+    expect(backend.getTotalGenerationCallCount()).toBe(0);
+
+    // 真实执行路径的绑定要求不变：未绑定时仍报「缺少画布」。
+    await expect(applyPlan(projectRoot, backend, {})).rejects.toThrow(/缺少画布/);
+  });
+
+  test("已绑定时 dry-run 行为不变：输出项目 UUID 预演", async () => {
+    const projectRoot = await makeProject();
+    const backend = new MockLibTvBackend();
+    const dry = await applyPlan(projectRoot, backend, { dryRun: true });
+    expect(dry.summary.dryRun).toBe(true);
+    expect(dry.actions[0]).toContain("[dry-run] 项目 mock-project");
+  });
+});
