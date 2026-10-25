@@ -93,3 +93,4 @@ libtv:
 - 上传目前优先尝试 HTTP 直传，未成功时回退到本机官方 `libtv` CLI。
 - `account info` 的 `user.id` 与官方 CLI 可能不完全一致。
 - `login web` 已支持本机回调。
+- `--mock`（mock 后端）状态只存在当前进程内存里：画布注册表等跨进程、跨命令不可见，新开一个进程就会报 `Mock project not found`；mock 只服务仓库自身测试，不能用于离线链路演示，mock 状态持久化尚未实现。

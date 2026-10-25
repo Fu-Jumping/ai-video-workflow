@@ -24,6 +24,8 @@ Scripted initialization:
 node apps/cli/dist/index.js init --name my-ai-video-project --ide codex --image openai --video runway
 ```
 
+> `init` creates the project as a subdirectory of your **current working directory** (e.g. `./my-ai-video-project/`). `cd` into the parent directory where you want the project first, otherwise it will be created wherever you currently are (for example, the repository root).
+
 The default pack is `official-ai-video`. New projects enable Step 0 research and enhanced flow by default. For complete-script projects, use:
 
 ```powershell

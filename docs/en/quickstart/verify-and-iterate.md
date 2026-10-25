@@ -12,6 +12,7 @@ ai-video-workflow verify --project <project-path> --ide <ide> --step 3
 
 - `--step N` means "the project is currently only at step N": it verifies the contracts of Step 0~N and skips checks that need artifacts from Step N+1 onward.
 - **Expected intermediate state for Step 3**: a Step 3 shot card must link to existing Step 4 keyframe files, so right after Step 3 is done — before Step 4 exists — the full `verify` reports `invalid-keyframe-mapping` / `broken-step3-step4-link`. That is an expected intermediate state, not an error: verify with `--step 3`; the full check clears automatically once Step 4 files exist.
+- **Content-tree mode (project declares `content.format_version: 1`) has no such intermediate state**: the 03 directory holds only an index; storyboard bodies and keyframes live in files under the `内容/` directory, and the Step 4/5 execution files are generated from the content tree by `content assemble` — they do not depend on "Step 3 linking to existing Step 4 files". The expected checks at this stage are content-tree structure completeness (a missing overview or shot summary reports `content-tree-incomplete`).
 - The full check without `--step` is unchanged; always run the full check before final delivery.
 
 ## Content review expectations (important)

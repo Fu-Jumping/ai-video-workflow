@@ -24,6 +24,8 @@ node apps/cli/dist/index.js init
 node apps/cli/dist/index.js init --name my-ai-video-project --ide codex --image openai --video runway
 ```
 
+> `init` 会在**当前工作目录**下新建项目子目录（如 `./my-ai-video-project/`）。执行前先用 `cd` 切到你想放项目的父目录，否则项目会建在仓库根或其他当前所在的位置。
+
 默认 pack 是 `official-ai-video`。新建项目默认启用 Step 0 前期研究和增强流程；已有完整剧本时使用：
 
 ```powershell

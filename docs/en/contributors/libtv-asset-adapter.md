@@ -93,3 +93,4 @@ Status: `libtv status` prints each keyframe/anchor with `review` (decision), `fi
 - Upload first tries HTTP direct upload, then falls back to the local official `libtv` CLI.
 - `account info` `user.id` may not exactly match the official CLI.
 - `login web` supports local callback.
+- `--mock` (mock backend) state lives only in the current process memory: the canvas registry is invisible across processes and commands, so a new process reports `Mock project not found`. The mock serves this repository's own tests only and cannot be used for offline pipeline demos; mock state persistence is not implemented.

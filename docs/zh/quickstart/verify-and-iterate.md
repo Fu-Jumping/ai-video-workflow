@@ -12,6 +12,7 @@ ai-video-workflow verify --project <project-path> --ide <ide> --step 3
 
 - `--step N` 表示"项目当前只进行到第 N 步"：只校验 Step 0~N 的合同，跳过需要 Step N+1 之后产物才能成立的检查。
 - **Step 3 的预期中间态**：Step 3 镜头卡必须链接已存在的 Step 4 关键帧文件，因此 Step 3 刚完成、Step 4 尚未创建时，全量 `verify` 会报 `invalid-keyframe-mapping` / `broken-step3-step4-link`——这是预期中间态，不是错误；用 `--step 3` 校验即可，Step 4 文件创建后全量校验自动清零。
+- **内容树模式（项目声明 `content.format_version: 1`）没有这个中间态**：03 目录里只有一份索引，分镜正文与关键帧写在 `内容/` 目录的分镜文件里，04／05 执行文件由 `content assemble` 从内容树生成，不依赖"Step 3 链接到已存在的 Step 4 文件"；这一步的预期检查是内容树结构完整（缺总表、缺镜头汇总会报 `content-tree-incomplete`）。
 - 不带 `--step` 的全量校验行为不变，最终交付前务必跑全量。
 
 ## 内容审核预期（重要）

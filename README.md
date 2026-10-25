@@ -166,7 +166,7 @@ The project tracks `metadata.json`, `source-card.md`, and anonymized `comment-sa
 1. For a beginner-friendly path, use [Beginner start with an agent](docs/en/quickstart/beginner-agent-init.md).
 2. For manual setup, install dependencies with `pnpm install`.
 3. Build the CLI and docs with `pnpm build`.
-4. Run `node apps/cli/dist/index.js init` or the scripted CLI form from [Quickstart](docs/en/quickstart/index.md).
+4. Run `node apps/cli/dist/index.js init` or the scripted CLI form from [Quickstart](docs/en/quickstart/index.md). `init` creates the project as a subdirectory of your **current working directory** — `cd` into the parent directory where you want the project first, otherwise it will be created wherever you currently are (for example, the repository root).
 5. To make the `ai-video-workflow` command form (used across docs and `init` output) globally available, run `npm install -g apps/cli` after building; then `ai-video-workflow <command>` is equivalent to `node apps/cli/dist/index.js <command>`.
 
 ## Product Shape
