@@ -334,4 +334,23 @@ describe("迁移执行：保留原件、快照标注、不覆盖冲突目标", (
     expect(await fs.pathExists(path.join(projectRoot, "内容/场-001/镜头组-001/镜头-001/00_镜头-001.md"))).toBe(true);
     expect(await fs.pathExists(path.join(projectRoot, "内容/场-001/镜头组-001/镜头-001/分镜-01.md"))).toBe(true);
   });
+
+  test("迁移生成的场总览与 content assemble 共用同一份骨架（Q43）", async () => {
+    const projectRoot = await createLegacyProject();
+    await seedLegacyProject(projectRoot);
+
+    const preview = await buildMigrationPreview(projectRoot);
+    await applyMigration(projectRoot, preview);
+
+    const overview = await fs.readFile(path.join(projectRoot, "内容/场-001/00_场总览.md"), "utf8");
+    expect(overview).toContain("# 场-001 场总览");
+    expect(overview).not.toContain("# 场 001 总览");
+    expect(overview).toContain("## 对应剧本");
+    expect(overview).toContain("剧本文件：`01_概念策划/剧本.md`");
+    expect(overview).toContain("片段范围：<待补充>");
+
+    // 骨架对齐后，迁移项目要过完整的内容树检查与验收。
+    const verified = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    expect(verified.issues.map((issue) => issue.code)).not.toContain("content-summary-stale");
+  });
 });

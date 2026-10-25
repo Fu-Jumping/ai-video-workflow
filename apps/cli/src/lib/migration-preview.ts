@@ -15,7 +15,7 @@ import {
   renderManualBlock,
   resolveContentMode
 } from "./content-tree.js";
-import { assembleContentTree } from "./content-assemble.js";
+import { assembleContentTree, sceneOverviewSkeleton } from "./content-assemble.js";
 import { buildShotGraph } from "./shot-graph.js";
 import { readProjectConfig } from "./project-config.js";
 import type { VerificationIssue } from "./types.js";
@@ -593,11 +593,9 @@ export async function applyMigration(projectRoot: string, preview: MigrationPrev
   const sceneOverviewRelPath = path.posix.join("内容", sceneDirectoryForLegacy(), "00_场总览.md");
   if (!(await fs.pathExists(path.join(projectRoot, sceneOverviewRelPath)))) {
     await fs.ensureDir(path.dirname(path.join(projectRoot, sceneOverviewRelPath)));
-    await fs.writeFile(
-      path.join(projectRoot, sceneOverviewRelPath),
-      ["# 场 001 总览", "", "## 这一场讲什么", "", "（写这一场在故事里的位置与作用。）", "", renderAutoBlock("场镜头组表", "| 镜头组 | 内容 | 镜头数 | 打开 |\n| --- | --- | --- | --- |"), ""].join("\n"),
-      "utf8"
-    );
+    // 与 content assemble 共用同一份场总览骨架：标题「场-001 场总览」带「对应剧本」小节，
+    // 迁移项目与新建项目符合同一份内容树契约。
+    await fs.writeFile(path.join(projectRoot, sceneOverviewRelPath), sceneOverviewSkeleton("scene-001"), "utf8");
     written.push(sceneOverviewRelPath);
   }
 

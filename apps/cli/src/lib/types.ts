@@ -124,7 +124,9 @@ export type IssueCode =
   | "content-summary-stale"
   | "content-execution-stale"
   | "content-summary-execution-mismatch"
-  | "content-summary-manual-drift";
+  | "content-summary-manual-drift"
+  | "content-write-failed"
+  | "media-identity-conflict";
 
 export interface LibTvProjectConfig {
   image_model?: string;

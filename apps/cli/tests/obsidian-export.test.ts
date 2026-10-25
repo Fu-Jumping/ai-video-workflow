@@ -322,9 +322,41 @@ describe("Obsidian export of a content-tree project", () => {
     expect(verified.ok).toBe(true);
   });
 
+  test("force 重导出区分 created／updated／unchanged", async () => {
+    const projectRoot = await createContentTreeObsidianProject();
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-force-diff-vault-"));
+    tempRoots.push(outRoot);
+
+    const first = await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    expect(first.operations.filter((operation) => operation.status === "created").length).toBe(first.files.length);
+
+    // 什么都不改再 force 重跑：目录会被删除重建，但报告必须如实区分——
+    // 内容没变的文件报 unchanged，而不是像旧实现那样全部报 created。
+    const second = await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    expect(second.operations.some((operation) => operation.status === "created")).toBe(false);
+    expect(second.operations.some((operation) => operation.status === "updated")).toBe(false);
+    expect(second.operations.filter((operation) => operation.status === "unchanged").length).toBe(second.files.length);
+    // 删除重建后 vault 依然完整：unchanged 文件也要写回。
+    await expect(fs.pathExists(path.join(outRoot, "02_按镜头联查", "00_内容树.md"))).resolves.toBe(true);
+    const secondVerified = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+    expect(secondVerified.ok).toBe(true);
+
+    // 改一个源文件再 force：它投影出的页面报 updated，其余仍是 unchanged。
+    const storyboardPath = path.join(projectRoot, "内容", "场-001", "镜头组-001", "镜头-001", "分镜-01.md");
+    const original = await fs.readFile(storyboardPath, "utf8");
+    await fs.writeFile(storyboardPath, original.replace("停步抬头", "转身离开"), "utf8");
+    const third = await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    const updatedPaths = third.operations.filter((operation) => operation.status === "updated").map((operation) => operation.vaultPath);
+    expect(updatedPaths).toContain("01_阶段审核/内容/场-001/镜头组-001/镜头-001/分镜-01.md");
+    const thirdVerified = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+    expect(thirdVerified.ok).toBe(true);
+  });
+
   test("projects shot and storyboard media sections with four-state review", async () => {
     const projectRoot = await createContentTreeObsidianProject();
     await writeContentTreeMedia(projectRoot);
+    // 素材记录是执行文件「素材状态」行的输入，写完记录要重新整理再导出。
+    await assembleContentTree(projectRoot, { force: true });
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-content-media-vault-"));
     tempRoots.push(outRoot);
 
@@ -371,6 +403,8 @@ describe("Obsidian export of a content-tree project", () => {
   test("matches human-numbered media records to internal shot ids", async () => {
     const projectRoot = await createContentTreeObsidianProject();
     await writeHumanNumberedContentTreeMedia(projectRoot);
+    // 素材记录是执行文件「素材状态」行的输入，写完记录要重新整理再导出。
+    await assembleContentTree(projectRoot, { force: true });
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-content-human-media-vault-"));
     tempRoots.push(outRoot);
 
@@ -1211,7 +1245,8 @@ describe("exportObsidianVault", () => {
 
     await expect(fs.pathExists(userNote)).resolves.toBe(true);
     await expect(fs.readFile(userNote, "utf8")).resolves.toContain("Manual Review");
-    expect(result.operations.every((operation) => operation.status === "created")).toBe(true);
+    // force 重建后源没有变化：报告应如实区分，全部是 unchanged，不再把旧文件报成 created。
+    expect(result.operations.every((operation) => operation.status === "unchanged")).toBe(true);
   });
 
   test("force export refuses to remove an output directory containing .git", async () => {

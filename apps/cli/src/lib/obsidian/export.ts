@@ -302,11 +302,19 @@ async function removeSafeOrphanedGeneratedFiles(outRoot: string, operations: Obs
   }
 }
 
+/**
+ * 规划生成文件的写入操作。
+ *
+ * forceRebuild（--force）时磁盘还住在原状（删除发生在规划之后）：照常读真实哈希、
+ * 对照真实旧清单分类，报告才能区分 created／updated／unchanged；与普通导出的差别是
+ * 被手改的文件不跳过（--force 语义即覆盖重建，跳过会让删除后的 vault 缺文件），
+ * UI 配置也不再当作本地用户状态保留。
+ */
 async function planGeneratedFiles(
   outRoot: string,
   files: ObsidianGeneratedFile[],
   previousManifest: ObsidianProjectionManifest | null,
-  assumeCleanOutput: boolean
+  forceRebuild: boolean
 ): Promise<ObsidianExportOperation[]> {
   const operations: ObsidianExportOperation[] = [];
   const previousEntries = manifestByVaultPath(previousManifest);
@@ -315,14 +323,14 @@ async function planGeneratedFiles(
   for (const file of files) {
     const fullPath = vaultFsPath(outRoot, file.vaultPath);
     const nextHash = hashContent(file.content);
-    const currentHash = assumeCleanOutput ? null : await currentFileHash(fullPath);
+    const currentHash = await currentFileHash(fullPath);
     const previousEntry = previousEntries.get(file.vaultPath);
 
     if (currentHash === null) {
       operations.push({ status: "created", vaultPath: file.vaultPath, sourcePath: file.sourcePath });
       continue;
     }
-    if (isDirectObsidianUiConfigPath(file.vaultPath)) {
+    if (!forceRebuild && isDirectObsidianUiConfigPath(file.vaultPath)) {
       operations.push({
         status: "skipped-user-config-existing",
         vaultPath: file.vaultPath,
@@ -333,6 +341,18 @@ async function planGeneratedFiles(
     }
     if (currentHash === nextHash) {
       operations.push({ status: "unchanged", vaultPath: file.vaultPath, sourcePath: file.sourcePath });
+      continue;
+    }
+    if (forceRebuild) {
+      operations.push({
+        status: "updated",
+        vaultPath: file.vaultPath,
+        sourcePath: file.sourcePath,
+        reason:
+          previousEntry && currentHash !== previousEntry.contentHash
+            ? "force rebuild overwrites a locally modified generated file"
+            : "content differs from the current projection"
+      });
       continue;
     }
     if (!previousEntry) {
@@ -362,15 +382,17 @@ async function planGeneratedFiles(
 
   for (const entry of previousEntries.values()) {
     if (!nextPaths.has(entry.vaultPath)) {
-      const currentHash = assumeCleanOutput ? entry.contentHash : await currentFileHash(vaultFsPath(outRoot, entry.vaultPath));
-      if (currentHash !== null && currentHash !== entry.contentHash) {
-        operations.push({
-          status: "skipped-user-modified",
-          vaultPath: entry.vaultPath,
-          sourcePath: entry.sourcePath,
-          reason: "old generated file was modified and is retained for manual migration"
-        });
-        continue;
+      if (!forceRebuild) {
+        const currentHash = await currentFileHash(vaultFsPath(outRoot, entry.vaultPath));
+        if (currentHash !== null && currentHash !== entry.contentHash) {
+          operations.push({
+            status: "skipped-user-modified",
+            vaultPath: entry.vaultPath,
+            sourcePath: entry.sourcePath,
+            reason: "old generated file was modified and is retained for manual migration"
+          });
+          continue;
+        }
       }
       operations.push({
         status: "orphaned-generated",
@@ -456,8 +478,15 @@ export async function removeOrphanedMediaAssets(outRoot: string, plannedAssets: 
   }
 }
 
-async function writeGeneratedFiles(outRoot: string, files: ObsidianGeneratedFile[], operations: ObsidianExportOperation[]): Promise<void> {
-  const writablePaths = new Set(operations.filter((operation) => operation.status === "created" || operation.status === "updated").map((operation) => operation.vaultPath));
+async function writeGeneratedFiles(
+  outRoot: string,
+  files: ObsidianGeneratedFile[],
+  operations: ObsidianExportOperation[],
+  forceRebuild: boolean
+): Promise<void> {
+  const writablePaths = forceRebuild
+    ? new Set(files.map((file) => file.vaultPath))
+    : new Set(operations.filter((operation) => operation.status === "created" || operation.status === "updated").map((operation) => operation.vaultPath));
   for (const file of files.filter((generatedFile) => writablePaths.has(generatedFile.vaultPath))) {
     const fullPath = path.join(outRoot, ...file.vaultPath.split("/"));
     await fs.ensureDir(path.dirname(fullPath));
@@ -515,12 +544,6 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
     if (options.force) {
       await assertSafeForceOutput(outRoot);
     }
-    if (options.force && !options.dryRun) {
-      await fs.remove(outRoot);
-    }
-    if (!options.dryRun) {
-      await fs.ensureDir(outRoot);
-    }
 
     const sourceFiles = await scanProjectForObsidian(projectRoot);
     if (sourceFiles.length === 0) {
@@ -574,11 +597,16 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
       renderReviewMapCanvas(),
       ...(options.includeObsidianUi ? renderObsidianUiConfigFiles() : [])
     ];
-    const planningManifest = options.force ? null : previousManifest;
-    const operations = await planGeneratedFiles(outRoot, files, planningManifest, Boolean(options.force));
+    // --force 的目录删除放在规划之后：规划要靠旧清单与磁盘真实哈希区分 created／updated／unchanged，
+    // 删除后再全量重写（报告为 unchanged 的文件也要写回，否则重建后的 vault 缺文件）。
+    const operations = await planGeneratedFiles(outRoot, files, previousManifest, Boolean(options.force));
     const manifest = createManifest(projectRoot, outRoot, projectName, files, operations, previousManifest);
     if (!options.dryRun) {
-      await writeGeneratedFiles(outRoot, files, operations);
+      if (options.force) {
+        await fs.remove(outRoot);
+      }
+      await fs.ensureDir(outRoot);
+      await writeGeneratedFiles(outRoot, files, operations, Boolean(options.force));
       await copyMediaReviewAssets(outRoot, mediaReviewAssets);
       // 素材记录被删掉或候选被移除后，vault 里对应的旧副本要跟着清理（dryRun 分支不会走到这里）。
       await removeOrphanedMediaAssets(outRoot, mediaReviewAssets);
