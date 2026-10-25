@@ -1144,3 +1144,198 @@ describe("内容树：空文件与半文件", () => {
     expect(codesOf(tree.issues)).toContain("content-tree-incomplete");
   });
 });
+
+describe("内容树：镜内关键帧编号唯一（J1）", () => {
+  test("同镜两个分镜各写关键帧 01：解析层报可读冲突，整理不写争用文件", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    await seedShot(projectRoot, {
+      segments: [
+        { keyframes: [{ number: 1, mappedSegment: 1 }] },
+        { keyframes: [{ number: 1, mappedSegment: 2 }] }
+      ]
+    });
+
+    // 解析层：指明镜头与涉事分镜。
+    const tree = await buildContentTree(projectRoot);
+    const duplicates = tree.issues.filter(
+      (issue) => issue.code === "invalid-keyframe-mapping" && issue.message.includes("重复使用")
+    );
+    expect(duplicates).toHaveLength(1);
+    expect(duplicates[0]!.message).toContain("shot-001");
+    expect(duplicates[0]!.message).toContain("分镜-01");
+    expect(duplicates[0]!.message).toContain("分镜-02");
+    expect(duplicates[0]!.message).toContain("整镜连续");
+
+    // 整理：输出冲突并整份不写，不静默按其中一份渲染写入。
+    const result = await assembleContentTree(projectRoot, { force: true });
+    const conflicts = result.issues.filter((issue) => issue.message.includes("关键帧声明争用"));
+    expect(conflicts).toHaveLength(1);
+    expect(conflicts[0]!.path).toBe("04_图片提示词/镜头组-001/镜头-001-关键帧-01.md");
+    expect(await fs.pathExists(path.join(projectRoot, "04_图片提示词/镜头组-001/镜头-001-关键帧-01.md"))).toBe(false);
+    // 其余文件照常生成。
+    expect(await fs.pathExists(path.join(projectRoot, STEP5_FILE))).toBe(true);
+
+    // check 同样给出冲突输出。
+    const check = await checkContentConsistency(projectRoot);
+    expect(codesOf(check.issues)).toContain("invalid-keyframe-mapping");
+    expect(check.issues.map((issue) => issue.message).join("\n")).toContain("关键帧声明争用");
+  });
+
+  test("同镜两个分镜关键帧 01／02 连续不重复：整理收敛、verify 回绿", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    await seedShot(projectRoot, {
+      segments: [
+        { keyframes: [{ number: 1, mappedSegment: 1 }] },
+        { keyframes: [{ number: 2, mappedSegment: 2 }] }
+      ]
+    });
+
+    const first = await assembleContentTree(projectRoot, { force: true });
+    expect(first.issues).toEqual([]);
+    const second = await assembleContentTree(projectRoot, { force: true });
+    expect(second.changes.every((change) => change.kind === "unchanged")).toBe(true);
+
+    const verified = await verify(projectRoot);
+    expect(verified.ok).toBe(true);
+    expect(verified.issues).toEqual([]);
+  });
+});
+
+describe("content check 恢复指引（I1）", () => {
+  test("手改可复制提示词后 check 的恢复文案提示 --force，裸 assemble --force 能恢复", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    await seedShot(projectRoot, { segments: [{}] });
+    await assembleContentTree(projectRoot, { force: true });
+
+    // 手改 05 执行文件：删掉可复制提示词代码块。
+    const step5 = await readFile(projectRoot, STEP5_FILE);
+    await writeFile(projectRoot, STEP5_FILE, dropCopyableFence(step5));
+
+    const check = await checkContentConsistency(projectRoot);
+    const mismatch = check.issues.filter((issue) => issue.code === "content-summary-execution-mismatch");
+    expect(mismatch.length).toBeGreaterThan(0);
+    expect(mismatch.map((issue) => issue.message).join("\n")).toContain("--force");
+
+    // 按提示用 --force 恢复后 check 干净。
+    await assembleContentTree(projectRoot, { force: true });
+    const after = await checkContentConsistency(projectRoot);
+    expect(after.issues).toEqual([]);
+  });
+
+  test("素材状态变化导致执行文件陈旧时，stale 文案提示 --force", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    await seedShot(projectRoot, { segments: [{}] });
+    await assembleContentTree(projectRoot, { force: true });
+
+    // assemble 之后登记素材记录：执行文件里的「素材状态」行应更新而尚未刷新。
+    await seedHumanNumberedMedia(projectRoot);
+    const check = await checkContentConsistency(projectRoot);
+    const stale = check.issues.filter((issue) => issue.code === "content-execution-stale");
+    expect(stale.length).toBeGreaterThan(0);
+    expect(stale.map((issue) => issue.message).join("\n")).toContain("--force");
+  });
+});
+
+describe("midjourney 平台执行参数口径（J3）", () => {
+  const LONG_CHINESE_PROMPT =
+    "清晨的雾塔门前，年轻的画师阿岚背着旧画筒停步抬头，冷调自然光从薄雾里漫过来，" +
+    "石阶上还留着夜雨冲刷过的水痕，青苔沿着砖缝爬上塔基，她望向塔顶的一线天光，" +
+    "衣摆被风轻轻掀起，画筒的背带从肩头滑落半寸，远处檐角挂着的铜铃静默不动，" +
+    "画面保持写实电影质感，中景构图，主体位于画面中央偏左，背景塔身轮廓被雾气柔化成灰蓝色层次，" +
+    "前景留出湿润的石板路引导视线，情绪安静而克制，像一次迟到的告别，" +
+    "光线的方向从右后方逆射，在发丝边缘留出极细的轮廓光，无文字无水印。";
+
+  async function createMidjourneyProject(): Promise<string> {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "avw-content-tree-midjourney-"));
+    tempRoots.push(root);
+    await createProject({
+      targetRoot: root,
+      projectName: "midjourney-project",
+      pack: "official-ai-video",
+      ide: "codex",
+      imagePlatform: "midjourney",
+      videoPlatform: "seedance"
+    });
+    const projectRoot = path.join(root, "midjourney-project");
+    await syncProject({ repoRoot, projectRoot, ide: "codex", pack: "official-ai-video" });
+    return projectRoot;
+  }
+
+  test("04 执行文件平台执行参数渲染枚举小写 midjourney，显示名另起一行", async () => {
+    const projectRoot = await createMidjourneyProject();
+    await seedScene(projectRoot);
+    await seedShot(projectRoot, { segments: [{ keyframes: [{ number: 1, mappedSegment: 1 }] }] });
+    await assembleContentTree(projectRoot, { force: true });
+
+    const step4 = await readFile(projectRoot, "04_图片提示词/镜头组-001/镜头-001-关键帧-01.md");
+    expect(step4).toContain("| 图片平台 | midjourney |");
+    expect(step4).toContain("| 平台显示名 | Midjourney |");
+  });
+
+  test("midjourney 项目 assemble 后 verify 通过（不再报 missing-step4-platform-execution-setting）", async () => {
+    const projectRoot = await createMidjourneyProject();
+    await seedScene(projectRoot);
+    const directory = "内容/场-001/镜头组-001/镜头-001";
+    await writeFile(projectRoot, directory + "/00_镜头-001.md", shotOverviewContent("雾塔门前", 1));
+    await writeFile(
+      projectRoot,
+      directory + "/分镜-01.md",
+      [
+        "# 分镜-01：停步抬头",
+        "",
+        "## 一、本段正文（画面与动作）",
+        "",
+        "- **景别与视角**：中景正面。",
+        "- **人物与位置**：阿岚居中。",
+        "",
+        "## 二、关键帧",
+        "",
+        "#### 关键帧 01",
+        "",
+        "- 对应分镜：分镜 1",
+        "- 关键时刻：抬头的一瞬",
+        "",
+        FENCE + "text",
+        LONG_CHINESE_PROMPT,
+        FENCE,
+        "",
+        FENCE + "text",
+        "A young painter stands before the misty tower gate at dawn, looking up, cold natural light, " +
+          "cinematic realism, medium shot, wet stone steps, fog softening the tower outline, quiet mood, " +
+          "no text, no watermark --v 8.2 --ar 16:9 --style raw --stylize 200",
+        FENCE,
+        "",
+        "## 三、视频提示词片段",
+        "",
+        FENCE + "text",
+        "镜头1：中景正面，阿岚在雾塔门前停步抬头，风声。",
+        FENCE,
+        ""
+      ].join("\n")
+    );
+
+    const result = await assembleContentTree(projectRoot, { force: true });
+    expect(result.issues).toEqual([]);
+
+    const verified = await verify(projectRoot);
+    expect(codesOf(verified.issues)).not.toContain("missing-step4-platform-execution-setting");
+    expect(verified.issues).toEqual([]);
+    expect(verified.ok).toBe(true);
+  });
+
+  test("gpt-image-2 平台的平台执行参数渲染不受影响", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    await seedShot(projectRoot, { segments: [{ keyframes: [{ number: 1, mappedSegment: 1 }] }] });
+    await assembleContentTree(projectRoot, { force: true });
+
+    const step4 = await readFile(projectRoot, "04_图片提示词/镜头组-001/镜头-001-关键帧-01.md");
+    expect(step4).toContain("| 图片平台 | GPT Image 2（LibTV） |");
+    expect(step4).toContain("gpt-image-2");
+    expect(step4).not.toContain("midjourney");
+  });
+});

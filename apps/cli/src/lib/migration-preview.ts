@@ -106,6 +106,19 @@ export function legacyKeyframeSegment(content: string): number | null {
   return match ? Number.parseInt(match[1] ?? "", 10) : null;
 }
 
+/**
+ * 从旧 04 文件名里取关键帧编号：`镜头-015-关键帧-02.md` → 2。
+ *
+ * 旧项目的关键帧编号在镜头内全局唯一（跨分镜连续），迁移必须原样保留；
+ * 若按分镜重排成各分镜的「01」，同一镜头的两个分镜会各写一张「关键帧 01」，
+ * 04 执行文件路径互相争用（J1）。取不到编号时回退 1。
+ */
+export function legacyKeyframeNumber(fileName: string): number {
+  const match = /关键帧[-_ ]?(\d+)/iu.exec(path.basename(fileName));
+  const number = match ? Number.parseInt(match[1] ?? "", 10) : NaN;
+  return Number.isFinite(number) && number > 0 ? number : 1;
+}
+
 /** 从旧 04 文件里取「关键时刻」。 */
 export function legacyKeyframeMoment(content: string): string | null {
   const match = /关键时刻\s*[：:]\s*(.+)$/mu.exec(content);
@@ -513,7 +526,8 @@ export async function applyMigration(projectRoot: string, preview: MigrationPrev
       const keyframeSection = keyframeFile
         ? [
             // 关键帧用四级标题：三级会和「## 二、本段关键帧」一起被当成小节边界，```关键帧区块就取不到内容。
-            `#### 关键帧 01`,
+            // 编号沿用旧 04 文件名里的编号（整镜唯一、跨分镜不重启），不按分镜重排。
+            `#### 关键帧 ${String(legacyKeyframeNumber(keyframeFile.fileName)).padStart(2, "0")}`,
             "",
             `- 对应分镜：分镜 ${String(number)}`,
             `- 关键时刻：${legacyKeyframeMoment(keyframeFile.content) ?? "（迁移时未标注）"}`,

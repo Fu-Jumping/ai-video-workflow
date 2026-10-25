@@ -1239,7 +1239,7 @@ async function verifyContentTree(
       pushIssue(issues, {
         code: "content-execution-stale",
         message:
-          shotLabel + " 缺少 05 执行文件（" + STEP_DIR_BY_NUMBER[5] + " 下应有一份由内容树生成的完整执行文件）；请重新整理。",
+          shotLabel + " 缺少 05 执行文件（" + STEP_DIR_BY_NUMBER[5] + " 下应有一份由内容树生成的完整执行文件）；请重新整理（content assemble）。自动区块被手改时需 content assemble --force（覆盖前会备份到 .tmp/）。",
         path: path.posix.join(STEP_DIR_BY_NUMBER[5], shotGroupDirectoryName(shot.groupId), shotLabel + ".md")
       });
       continue;
@@ -1251,7 +1251,7 @@ async function verifyContentTree(
         code: "content-summary-execution-mismatch",
         message:
           "「" + step5RelPath + "」没有「## 可复制提示词」代码块，无法与镜头汇总「" + shot.relPath + "」逐字核对；" +
-          "05 执行文件必须保持 Step 5 文件合同。",
+          "05 执行文件必须保持 Step 5 文件合同。区块被手改删除时需 content assemble --force（覆盖前会备份到 .tmp/）恢复。",
         path: step5RelPath
       });
       continue;
@@ -1262,7 +1262,7 @@ async function verifyContentTree(
           code: "content-execution-stale",
           message:
             "「" + step5RelPath + "」的可复制提示词与镜头 " + shotLabel + " 的当前拼装结果不一致（汇总「" +
-            shot.relPath + "」已是最新）；05 执行文件落后，请重新整理，不要手改执行文件。",
+            shot.relPath + "」已是最新）；05 执行文件落后，请重新整理（content assemble）。自动区块被手改时需 content assemble --force（覆盖前会备份到 .tmp/），不要手改执行文件。",
           path: step5RelPath
         });
       } else if (step5Copyable !== summaryWholeText) {
@@ -1270,7 +1270,7 @@ async function verifyContentTree(
           code: "content-summary-execution-mismatch",
           message:
             "镜头 " + shotLabel + " 的汇总「" + shot.relPath + "」与 05 执行文件「" + step5RelPath +
-            "」展示的整镜正文互不相等，且都与当前拼装结果不一致；请重新整理后再核对。",
+            "」展示的整镜正文互不相等，且都与当前拼装结果不一致；请重新整理后再核对。自动区块被手改时需 content assemble --force（覆盖前会备份到 .tmp/）。",
           path: step5RelPath
         });
       }

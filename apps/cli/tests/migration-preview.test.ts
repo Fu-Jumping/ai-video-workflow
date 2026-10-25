@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { createProject } from "../src/lib/init.js";
+import { assembleContentTree } from "../src/lib/content-assemble.js";
 import {
   applyMigration,
   buildMigrationPreview,
@@ -352,5 +353,116 @@ describe("迁移执行：保留原件、快照标注、不覆盖冲突目标", (
     // 骨架对齐后，迁移项目要过完整的内容树检查与验收。
     const verified = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
     expect(verified.issues.map((issue) => issue.code)).not.toContain("content-summary-stale");
+  });
+});
+
+describe("迁移保留镜内关键帧编号（J1）", () => {
+  test("旧项目镜内关键帧 01／02 迁移后保留原编号，不按分镜重排；迁移后 check 收敛", async () => {
+    const projectRoot = await createLegacyProject();
+    // 干净的旧项目：两个关键帧文件都写明对应分镜（分镜 1 / 分镜 2），无冲突。
+    await writeFile(
+      projectRoot,
+      "03_分镜脚本/镜头组-001/镜头-001.md",
+      [
+        "# 镜头 001：雾塔门前",
+        "",
+        "## 镜头组与目标",
+        "",
+        "- 镜头组：group-001",
+        "- 镜头编号：shot-001",
+        "- 目标时长：15 秒",
+        "",
+        "## 分镜编排",
+        "",
+        "### 分镜 1",
+        "",
+        "阿岚站在雾塔门前，停顿后抬头。",
+        "",
+        "### 分镜 2",
+        "",
+        "阿岚抬脚迈过门槛，雾气从身后合上。",
+        ""
+      ].join(NL)
+    );
+    await writeFile(
+      projectRoot,
+      "04_图片提示词/镜头组-001/镜头-001-关键帧-01.md",
+      [
+        "# 镜头 001 关键帧 01 图片提示词",
+        "",
+        "## 维护元信息",
+        "",
+        "- 镜头组：group-001",
+        "- 镜头编号：shot-001",
+        "- 对应分镜：分镜 1",
+        "- 关键时刻：抬头前",
+        "",
+        "## 可复制提示词",
+        "",
+        FENCE + "text",
+        "阿岚站在雾塔门前，冷调自然光。",
+        FENCE,
+        ""
+      ].join(NL)
+    );
+    await writeFile(
+      projectRoot,
+      "04_图片提示词/镜头组-001/镜头-001-关键帧-02.md",
+      [
+        "# 镜头 001 关键帧 02 图片提示词",
+        "",
+        "## 维护元信息",
+        "",
+        "- 镜头组：group-001",
+        "- 镜头编号：shot-001",
+        "- 对应分镜：分镜 2",
+        "- 关键时刻：迈过门槛",
+        "",
+        "## 可复制提示词",
+        "",
+        FENCE + "text",
+        "阿岚迈过门槛，雾气合上，冷调自然光。",
+        FENCE,
+        ""
+      ].join(NL)
+    );
+    await writeFile(
+      projectRoot,
+      "05_视频提示词/镜头组-001/镜头-001.md",
+      [
+        "# 镜头 001 视频提示词",
+        "",
+        "## 可复制提示词",
+        "",
+        FENCE + "text",
+        "镜头1：中景正面视角，阿岚停顿后抬头，风声。",
+        "",
+        "镜头2：阿岚迈过门槛，雾气合上，风声。",
+        FENCE,
+        ""
+      ].join(NL)
+    );
+
+    const preview = await buildMigrationPreview(projectRoot);
+    expect(preview.canApply).toBe(true);
+    const applied = await applyMigration(projectRoot, preview);
+    expect(applied.ok).toBe(true);
+
+    const storyboardDir = "内容/场-001/镜头组-001/镜头-001";
+    const storyboardOne = await fs.readFile(path.join(projectRoot, storyboardDir, "分镜-01.md"), "utf8");
+    const storyboardTwo = await fs.readFile(path.join(projectRoot, storyboardDir, "分镜-02.md"), "utf8");
+    // 旧项目镜内全局编号原样保留：分镜 1 拿关键帧 01，分镜 2 拿关键帧 02。
+    expect(storyboardOne).toContain("#### 关键帧 01");
+    expect(storyboardTwo).toContain("#### 关键帧 02");
+
+    // 迁移后整理收敛：二次整理不再报更新（旧迁移器重排编号会让 04 执行文件永不收敛）。
+    const first = await assembleContentTree(projectRoot, { force: true });
+    expect(first.issues).toEqual([]);
+    const second = await assembleContentTree(projectRoot, { force: true });
+    expect(second.changes.every((change) => change.kind === "unchanged")).toBe(true);
+
+    const verified = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    expect(verified.ok).toBe(true);
+    expect(verified.issues).toEqual([]);
   });
 });

@@ -461,7 +461,10 @@ function platformExecutionBlock(platform: Platform): string[] {
     return [
       "| 项目 | 值 |",
       "| --- | --- |",
-      "| 图片平台 | " + PLATFORM_DISPLAY_NAMES.midjourney + " |",
+      // 平台行用枚举小写：校验器合同（verify）按字面小写 midjourney 检查本小节，
+      // 显示名另起一行保留，不参与校验。
+      "| 图片平台 | midjourney |",
+      "| 平台显示名 | " + PLATFORM_DISPLAY_NAMES.midjourney + " |",
       "| 版本参数 | --v 8.2 |",
       "| 画幅参数 | --ar 16:9 |",
       "| 风格参数 | --style raw |",
@@ -497,6 +500,31 @@ export function step4FileRelPath(shot: ContentTreeShot, keyframeId: string): str
   );
 }
 
+/**
+ * 同镜跨分镜关键帧同号时的 04 执行文件路径冲突：同一 relPath 被多个分镜的关键帧声明争用。
+ *
+ * 返回 relPath → 涉事分镜标签列表；整理与新鲜度检查都要跳过这些路径并显式报错，
+ * 不能静默按其中一份渲染写入（会表现为「每轮都更新却永不收敛」）。
+ */
+export function step4PathConflicts(tree: ContentTree): Map<string, string[]> {
+  const sourcesByPath = new Map<string, string[]>();
+  for (const shot of tree.shots) {
+    for (const storyboard of shot.storyboards) {
+      for (const keyframe of storyboard.document.keyframes) {
+        const relPath = step4FileRelPath(shot, keyframe.id);
+        const sources = sourcesByPath.get(relPath) ?? [];
+        sources.push(storyboardLabel(storyboard.document.storyboardId));
+        sourcesByPath.set(relPath, sources);
+      }
+    }
+  }
+  const conflicts = new Map<string, string[]>();
+  for (const [relPath, sources] of sourcesByPath) {
+    if (sources.length > 1) conflicts.set(relPath, sources);
+  }
+  return conflicts;
+}
+
 /** 05 执行文件相对路径：05_视频提示词/镜头组-NNN/镜头-NNN.md。 */
 export function step5FileRelPath(shot: ContentTreeShot): string {
   return toPosix(path.join(STEP_DIR_BY_NUMBER[5], shotGroupDirectoryName(shot.groupId), shotLabel(shot) + ".md"));
@@ -512,12 +540,16 @@ export async function expectedExecutionPaths(projectRoot: string): Promise<Set<s
   const resolution = await resolveContentMode(projectRoot);
   if (resolution.mode !== "content-tree") return new Set();
   const tree = await buildContentTree(projectRoot);
+  const conflicts = step4PathConflicts(tree);
   const paths = new Set<string>();
   for (const shot of tree.shots) {
     paths.add(step5FileRelPath(shot));
     for (const storyboard of shot.storyboards) {
       for (const keyframe of storyboard.document.keyframes) {
-        paths.add(step4FileRelPath(shot, keyframe.id));
+        const relPath = step4FileRelPath(shot, keyframe.id);
+        // 冲突路径（同镜关键帧同号）无法唯一对应一份执行文件，不算当前执行文件。
+        if (conflicts.has(relPath)) continue;
+        paths.add(relPath);
       }
     }
   }
@@ -978,6 +1010,10 @@ export async function assembleContentTree(projectRoot: string, options: Assemble
   }
 
   const tree = await buildContentTree(projectRoot);
+  // 镜内关键帧编号重复（J1）随整理输出：它是同镜跨分镜执行文件争用的根因，
+  // 用户不用再跑一次 verify 才能看到。其余结构问题仍由 verify 负责（整理会重建骨架，
+  // 「文件缺失」这类问题在重建后不成立，不能照搬）。
+  issues.push(...tree.issues.filter((issue) => issue.code === "invalid-keyframe-mapping" && issue.message.includes("重复使用")));
   const index = await loadMaterialIndex(projectRoot);
   for (const conflict of index.identityConflicts) {
     issues.push({
@@ -1066,10 +1102,24 @@ export async function assembleContentTree(projectRoot: string, options: Assemble
     }
   }
 
+  // 同镜跨分镜关键帧同号时，同一 04 执行文件被多份渲染争用：显式报错并整份不写，
+  // 不静默按其中一份写入（写入哪份都错，用户必须先改编号）。
+  const pathConflicts = step4PathConflicts(tree);
+  for (const [conflictRelPath, sources] of pathConflicts) {
+    issues.push({
+      code: "content-identity-invalid",
+      message:
+        "「" + conflictRelPath + "」被 " + sources.join("、") +
+        " 的关键帧声明争用（同一镜头里的关键帧编号重复）；关键帧编号必须整镜连续、跨分镜不重启。本次整理不写这份文件，改好编号后重新整理。",
+      path: conflictRelPath
+    });
+  }
+
   for (const shot of tree.shots) {
     for (const storyboard of shot.storyboards) {
       for (const keyframe of storyboard.document.keyframes) {
         const relPath = step4FileRelPath(shot, keyframe.id);
+        if (pathConflicts.has(relPath)) continue;
         const content = renderStep4File(shot, storyboard.relPath, keyframe.id, platforms.image, index);
         if (content) plans.push({ relPath, content: stampGeneratedFile(content), generated: true });
       }
@@ -1205,14 +1255,18 @@ export async function checkExecutionFileFreshness(
   tree: ContentTree,
   index: MaterialIndex,
   platforms: { image: Platform; video: Platform },
-  issues: VerificationIssue[]
+  issues: VerificationIssue[],
+  /** 同镜关键帧同号的争用路径：跳过逐字比对，冲突由调用方显式报错。 */
+  pathConflicts?: ReadonlyMap<string, unknown>
 ): Promise<void> {
   const rendered: Array<{ relPath: string; content: string }> = [];
   for (const shot of tree.shots) {
     for (const storyboard of shot.storyboards) {
       for (const keyframe of storyboard.document.keyframes) {
+        const relPath = step4FileRelPath(shot, keyframe.id);
+        if (pathConflicts?.has(relPath)) continue;
         const content = renderStep4File(shot, storyboard.relPath, keyframe.id, platforms.image, index);
-        if (content) rendered.push({ relPath: step4FileRelPath(shot, keyframe.id), content });
+        if (content) rendered.push({ relPath, content });
       }
     }
     rendered.push({ relPath: step5FileRelPath(shot), content: renderStep5File(shot, platforms.video, index) });
@@ -1230,7 +1284,7 @@ export async function checkExecutionFileFreshness(
       issues.push({
         code: "content-execution-stale",
         message:
-          "「" + plan.relPath + "」与内容树当前正文不一致（正文或素材状态改过之后没有重新整理）；请重新整理（content assemble），不要手改执行文件。",
+          "「" + plan.relPath + "」与内容树当前正文不一致（正文或素材状态改过之后没有重新整理）；请重新整理（content assemble）。自动区块被手改时需 content assemble --force（覆盖前会备份到 .tmp/），不要手改执行文件。",
         path: plan.relPath
       });
     }
@@ -1250,6 +1304,8 @@ export async function checkContentConsistency(projectRoot: string): Promise<Cons
   if (!resolution.contentRootExists) return { issues };
 
   const tree = await buildContentTree(projectRoot);
+  // 镜内关键帧编号重复（J1）在 check 里可见：它是执行文件争用的根因。
+  issues.push(...tree.issues.filter((issue) => issue.code === "invalid-keyframe-mapping" && issue.message.includes("重复使用")));
   const index = await loadMaterialIndex(projectRoot);
   for (const conflict of index.identityConflicts) {
     issues.push({
@@ -1262,7 +1318,18 @@ export async function checkContentConsistency(projectRoot: string): Promise<Cons
     });
   }
   const { config } = await readProjectConfig(projectRoot);
-  await checkExecutionFileFreshness(projectRoot, tree, index, platformDefaults(config), issues);
+  // 同镜关键帧同号的争用路径无法唯一渲染：跳过逐字比对，改报可读的冲突错误。
+  const pathConflicts = step4PathConflicts(tree);
+  for (const [conflictRelPath, sources] of pathConflicts) {
+    issues.push({
+      code: "content-identity-invalid",
+      message:
+        "「" + conflictRelPath + "」被 " + sources.join("、") +
+        " 的关键帧声明争用（同一镜头里的关键帧编号重复）；关键帧编号必须整镜连续、跨分镜不重启。改好编号后重新整理。",
+      path: conflictRelPath
+    });
+  }
+  await checkExecutionFileFreshness(projectRoot, tree, index, platformDefaults(config), issues, pathConflicts);
 
   const overviewSpecs: Array<{ relPath: string; name: string; body: string }> = [
     { relPath: tree.shotOverviewRelPath, name: BLOCK.shotOverview, body: renderShotOverviewBody(tree, index) },
@@ -1304,7 +1371,7 @@ export async function checkContentConsistency(projectRoot: string): Promise<Cons
     if (!(await fs.pathExists(absPath))) {
       issues.push({
         code: "content-execution-stale",
-        message: "镜头 " + shotLabel(shot) + " 缺少 05 执行文件「" + step5RelPath + "」；请重新整理。",
+        message: "镜头 " + shotLabel(shot) + " 缺少 05 执行文件「" + step5RelPath + "」；请重新整理（content assemble）。自动区块被手改时需 content assemble --force（覆盖前会备份到 .tmp/）。",
         path: step5RelPath
       });
       continue;
@@ -1315,7 +1382,7 @@ export async function checkContentConsistency(projectRoot: string): Promise<Cons
     if (copyable === null) {
       issues.push({
         code: "content-summary-execution-mismatch",
-        message: "「" + step5RelPath + "」没有「## 可复制提示词」区块；05 必须保持 Step 5 文件合同五区块。",
+        message: "「" + step5RelPath + "」没有「## 可复制提示词」区块；05 必须保持 Step 5 文件合同五区块。区块被手改删除时需 content assemble --force（覆盖前会备份到 .tmp/）恢复。",
         path: step5RelPath
       });
       continue;
@@ -1324,7 +1391,7 @@ export async function checkContentConsistency(projectRoot: string): Promise<Cons
       issues.push({
         code: "content-summary-execution-mismatch",
         message:
-          "「" + step5RelPath + "」的可复制提示词与镜头汇总的整镜正文不是逐字一致；请重新整理，不要手改执行文件。",
+          "「" + step5RelPath + "」的可复制提示词与镜头汇总的整镜正文不是逐字一致；请重新整理（content assemble）。自动区块被手改时需 content assemble --force（覆盖前会备份到 .tmp/），不要手改执行文件。",
         path: step5RelPath
       });
     }

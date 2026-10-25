@@ -673,6 +673,28 @@ export function validateShotKeyframes(shot: ShotDocument, storyboards: Storyboar
     });
   }
 
+  // 关键帧编号整镜唯一、跨分镜连续不重启：同一镜头里两个分镜各写「关键帧 01」
+  // 会让 04 执行文件路径互相争用（同 relPath 双渲染），整理与校验永不收敛。
+  const keyframesByNumber = new Map<number, Array<{ storyboard: StoryboardDocument; keyframe: StoryboardKeyframe }>>();
+  for (const entry of allKeyframes) {
+    const sameNumber = keyframesByNumber.get(entry.keyframe.number) ?? [];
+    sameNumber.push(entry);
+    keyframesByNumber.set(entry.keyframe.number, sameNumber);
+  }
+  for (const [number, entries] of keyframesByNumber) {
+    if (entries.length <= 1) continue;
+    const locations = entries
+      .map((entry) => "分镜-" + padNumber(entry.storyboard.storyboardNumber, 2))
+      .join("、");
+    issues.push({
+      code: "invalid-keyframe-mapping",
+      message:
+        "镜头 " + shot.shotId + " 里关键帧编号 " + padNumber(number, 2) + " 被 " + String(entries.length) +
+        " 个分镜重复使用（" + locations + "）；关键帧编号必须整镜连续、跨分镜不重启，请把重复的编号改成不重复的新编号。",
+      path: entries[0]!.storyboard.relPath
+    });
+  }
+
   for (const entry of allKeyframes) {
     const keyframe = entry.keyframe;
     const storyboard = entry.storyboard;
