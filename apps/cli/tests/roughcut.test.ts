@@ -5,9 +5,10 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import { renderAutoBlock, renderManualBlock } from "../src/lib/content-tree.js";
 import { createProject } from "../src/lib/init.js";
-import { mediaOutputDirectory, mediaRecordPath, renderMediaRecord, type MediaCandidateRecord, type MediaIdentity, type MediaRecord } from "../src/lib/media-records.js";
+import { mediaOutputDirectory, mediaRecordPath, renderMediaRecord, verifyMediaRecords, type MediaCandidateRecord, type MediaIdentity, type MediaRecord } from "../src/lib/media-records.js";
 import { checkRoughCutPlan, exportMediaPack, refreshRoughCutPlan, ROUGH_CUT_PLAN_FILE } from "../src/lib/roughcut.js";
 import { syncProject } from "../src/lib/sync.js";
+import type { VerificationIssue } from "../src/lib/types.js";
 
 const repoRoot = path.resolve(__dirname, "..", "..", "..");
 const tempRoots: string[] = [];
@@ -289,5 +290,25 @@ describe("roughcut plan（D1 顺序与选用）", () => {
     expect(stale.issues.map((issue) => issue.message).join("\n")).toContain("选用版本已从");
     // 被拒绝的导出没有留下任何文件。
     expect(await fs.pathExists(path.join(path.dirname(projectRoot), "pack-stale"))).toBe(false);
+  });
+});
+
+describe("roughcut 取径与素材记录自检同源（J2）", () => {
+  test("文件只放记录身份目录（outputs/video/镜头-001/）时 plan 时长可读、自检不报缺文件", async () => {
+    const projectRoot = await createContentProject();
+    await seedShot(projectRoot, "镜头-001", 1, "镜头1：开门。");
+    // 记录用项目内人读编号（镜头-001）登记；文件只放在记录身份对应的目录，
+    // 不再需要同时放一份到内部编号目录（outputs/video/shot-001/）。
+    await seedVideoRecord(projectRoot, "镜头-001", [candidate({ fileName: "镜头-001_v001_c01.mp4", reviewStatus: "accepted" })]);
+    await placeVideo(projectRoot, "镜头-001", "镜头-001_v001_c01.mp4", 2000);
+
+    const result = await refreshRoughCutPlan(projectRoot);
+    expect(result.rows[0]!.videoFile).toBe("镜头-001_v001_c01.mp4");
+    expect(result.rows[0]!.durationSeconds).toBeCloseTo(2, 6);
+
+    // 素材记录自检同口径：文件在记录身份目录，不报 media-record-missing-file。
+    const issues: VerificationIssue[] = [];
+    await verifyMediaRecords(projectRoot, issues);
+    expect(issues.map((issue) => issue.code)).not.toContain("media-record-missing-file");
   });
 });

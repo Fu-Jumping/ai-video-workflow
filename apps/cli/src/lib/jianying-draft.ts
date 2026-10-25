@@ -5,7 +5,7 @@ import path from "node:path";
 
 import { mp4VideoTrackSize } from "./media-duration.js";
 import { mediaOutputDirectory, videoPurpose } from "./media-records.js";
-import { checkRoughCutPlan, rowShotObjectId, type RoughCutRow } from "./roughcut.js";
+import { checkRoughCutPlan, type RoughCutRow } from "./roughcut.js";
 import type { VerificationIssue } from "./types.js";
 
 /* ------------------------------------------------------------------ *
@@ -194,7 +194,10 @@ export async function buildDraftPlan(projectRoot: string, draftName?: string): P
       });
       continue;
     }
-    const identity = { category: "video" as const, objectId: rowShotObjectId(row.shotKey), purpose: videoPurpose };
+    // 与素材记录自检同源：优先用行上携带的记录身份取径；缺失时按 shotKey 的人读编号（镜头-NNN）回退。
+    const fallbackObjectId = row.shotKey.split("/")[2] ?? row.shotKey;
+    const identity =
+      row.videoIdentity ?? { category: "video" as const, objectId: fallbackObjectId, purpose: videoPurpose };
     const absPath = path.join(projectRoot, mediaOutputDirectory(identity), row.videoFile);
     if (!(await fs.pathExists(absPath))) {
       skipped.push({ shotKey: row.shotKey, reason: "选用文件在项目里不存在（" + mediaOutputDirectory(identity) + "）" });

@@ -20,6 +20,7 @@ import {
   mediaIdentityCanonicalKey,
   mediaOutputDirectory,
   videoPurpose,
+  type MediaIdentity,
   type MediaRecord
 } from "./media-records.js";
 import { primaryMediaCandidate } from "./media-human-state.js";
@@ -56,6 +57,13 @@ export interface RoughCutRow {
   storyboardNames: string[];
   /** 当前选用的视频文件名；缺素材时 null。 */
   videoFile: string | null;
+  /**
+   * 选用的素材记录身份（运行时携带，不写入顺序表）。
+   *
+   * 已下载文件的取径口径以记录身份为唯一标准（与素材记录自检同源）：
+   * 文件放在 outputs/video/<记录对象编号>/ 下，不按镜头内部编号另找一路径。
+   */
+  videoIdentity: MediaIdentity | null;
   /** 选用状态：accepted=已审可用；unreviewed=未审试用；missing=缺素材（含已审不可用）。 */
   availability: "accepted" | "unreviewed" | "missing";
   /** 探测到的视频时长（秒）；未知为 undefined。 */
@@ -109,12 +117,15 @@ export async function buildRoughCutRows(projectRoot: string): Promise<{ rows: Ro
     const current = currentVideoForShot(records, shot);
     let availability: RoughCutRow["availability"] = "missing";
     let videoFile: string | null = null;
+    // 取径与素材记录自检同源：按记录身份（如 镜头-001）拼目录，不再按镜头内部编号（shot-001）另找一路径。
+    let videoIdentity: MediaIdentity | null = null;
     let durationSeconds: number | undefined;
     if (current === null) {
       // 无素材记录或无候选：缺素材。
     } else if (current.accepted) {
       availability = "accepted";
       videoFile = current.file;
+      videoIdentity = current.record.identity;
     } else {
       const currentCandidate = primaryMediaCandidate(current.record)!;
       if (currentCandidate.reviewStatus === "rejected") {
@@ -126,11 +137,11 @@ export async function buildRoughCutRows(projectRoot: string): Promise<{ rows: Ro
         // 当前选用未审：用户要求试用时可见，标注不改审核状态。
         availability = "unreviewed";
         videoFile = current.file;
+        videoIdentity = current.record.identity;
       }
     }
-    if (videoFile !== null) {
-      const identity = { category: "video" as const, objectId: shot.shotId, purpose: videoPurpose };
-      const absPath = path.join(projectRoot, mediaOutputDirectory(identity), videoFile);
+    if (videoFile !== null && videoIdentity !== null) {
+      const absPath = path.join(projectRoot, mediaOutputDirectory(videoIdentity), videoFile);
       durationSeconds = mediaDurationSeconds(absPath);
     }
     return {
@@ -139,6 +150,7 @@ export async function buildRoughCutRows(projectRoot: string): Promise<{ rows: Ro
       shotKey: roughCutShotKey(shot),
       storyboardNames: shot.storyboards.map((storyboard) => storyboard.document.storyboardId.replace(/^storyboard-/u, "分镜-")),
       videoFile,
+      videoIdentity,
       availability,
       durationSeconds,
       startSeconds: undefined,
@@ -445,7 +457,10 @@ export async function exportMediaPack(projectRoot: string, outDir: string): Prom
     await fs.ensureDir(segmentDir);
     const copiedFiles: string[] = [];
     if (row.videoFile !== null) {
-      const identity = { category: "video" as const, objectId: rowShotObjectId(row.shotKey), purpose: videoPurpose };
+      // 与素材记录自检同源：优先用行上携带的记录身份取径；缺失时按 shotKey 的人读编号（镜头-NNN）回退。
+      const fallbackObjectId = row.shotKey.split("/")[2] ?? row.shotKey;
+      const identity =
+        row.videoIdentity ?? { category: "video" as const, objectId: fallbackObjectId, purpose: videoPurpose };
       const source = path.join(projectRoot, mediaOutputDirectory(identity), row.videoFile);
       if (await fs.pathExists(source)) {
         await fs.copy(source, path.join(segmentDir, row.videoFile));
