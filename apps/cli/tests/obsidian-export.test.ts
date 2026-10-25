@@ -1370,3 +1370,19 @@ describe("exportObsidianVault", () => {
     await expect(fs.pathExists(outRoot)).resolves.toBe(false);
   });
 });
+
+describe("Obsidian 单镜头页镜头组链接标签（I4）", () => {
+  test("内容树项目单镜头页的镜头组标签显示「镜头组-001」，不显示成分镜名", async () => {
+    const projectRoot = await createContentTreeObsidianProject();
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-group-label-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    const shotHub = await fs.readFile(path.join(outRoot, "02_按镜头联查", "单镜头", "shot-001.md"), "utf8");
+    expect(shotHub).toContain("镜头组：[[02_按镜头联查/镜头组/group-001.md|镜头组-001]]");
+    // 旧病灶：标签显示成分镜名（组内第一个分镜文件的标题）。
+    expect(shotHub).not.toMatch(/group-001\.md\|分镜-/);
+    // 内部 id 也不直接露出。
+    expect(shotHub).not.toContain("|group-001]");
+  });
+});

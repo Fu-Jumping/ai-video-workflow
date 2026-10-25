@@ -34,6 +34,7 @@ import { CONTENT_ROOT_DIRECTORY } from "../constants.js";
 import {
   sceneIdFromDirectory,
   shotGroupIdFromDirectory,
+  shotGroupDirectoryName,
   shotIdFromDirectory,
   storyboardIdFromFileName
 } from "../content-tree.js";
@@ -217,8 +218,18 @@ function shotNavigation(shotId: string, shotIds: string[], sourceFiles: Obsidian
 }
 
 function shotGroupDisplayName(groupId: string, sourceFiles: ObsidianSourceFile[]): string {
-  const description = sourceFiles.find((file) => file.shotGroupId === groupId && file.sourceKind === "storyboard" && !file.shotId);
-  return description?.headingTitle?.trim() || description?.title?.trim() || groupId;
+  // 组描述文件是镜头组说明／总览（storyboard 类型且不属于任何单镜头）。
+  // 内容树项目里分镜文件同样是 storyboard 类型且没有 shotId，不能当组描述，
+  // 否则单镜头页的「镜头组」链接会显示成分镜名（I4）。
+  const description = sourceFiles.find(
+    (file) =>
+      file.shotGroupId === groupId &&
+      file.sourceKind === "storyboard" &&
+      !file.shotId &&
+      !/分镜[-_ ]?\d+\.md$/iu.test(file.sourcePath)
+  );
+  // 找不到组描述时显示人读目录名（镜头组-001），不显示内部 id（group-001）。
+  return description?.headingTitle?.trim() || description?.title?.trim() || shotGroupDirectoryName(groupId);
 }
 
 function renderShotGroupHub(groupId: string, sourceFiles: ObsidianSourceFile[]): ObsidianGeneratedFile {
