@@ -15,7 +15,9 @@ export type ResearchPlatform =
   | "kuaishou"
   | "tieba"
   | "zhihu"
-  | "web";
+  | "web"
+  // 本地文件来源（非 URL）：由工具对 local-file 来源自动标注，CLI --platform 不接受该值。
+  | "local";
 
 export type ResearchRuntime = "auto" | "toolbox" | "ide-inbox";
 

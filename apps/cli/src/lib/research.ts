@@ -118,8 +118,9 @@ function inferPlatform(source: string, platform: ResearchPlatform): ResearchPlat
   if (platform !== "auto") {
     return platform;
   }
+  // 本地文件不是网页来源：标 local，与 source_kind=local-file 同口径（I7）。
   if (!isUrl(source)) {
-    return "web";
+    return "local";
   }
   const hostname = new URL(source).hostname.toLowerCase();
   if (hostname.includes("bilibili.com")) return "bilibili";
@@ -433,7 +434,8 @@ export async function ingestResearchInbox(options: ResearchInboxOptions): Promis
         {
           projectRoot,
           source: file,
-          platform: "web",
+          // 收件箱导入的都是本地文件：platform 标 local，与 source_kind=local-file 同口径（I7）。
+          platform: "local",
           runtime: "ide-inbox",
           withComments: false,
           commentLimit: 0,

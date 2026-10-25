@@ -155,3 +155,50 @@ describe("research ingest", () => {
     await expect(fs.pathExists(path.join(projectRoot, "00_前期研究", "_资料库", "SRC-0002"))).resolves.toBe(false);
   });
 });
+
+describe("本地文件来源的 platform 记 local（I7）", () => {
+  test("inbox 导入的来源卡 platform 为 local，不再记 web", async () => {
+    const projectRoot = await seedResearchProject();
+    const inboxRoot = path.join(projectRoot, "00_前期研究", "_inbox");
+    await fs.ensureDir(inboxRoot);
+    await fs.writeFile(path.join(inboxRoot, "manual-note.md"), "# Manual\n", "utf8");
+
+    const result = await ingestResearchInbox({ projectRoot });
+    expect(result.ingested[0]?.platform).toBe("local");
+
+    const metadata = await fs.readJson(path.join(projectRoot, "00_前期研究", "_资料库", "SRC-0001", "metadata.json"));
+    expect(metadata.source_kind).toBe("local-file");
+    expect(metadata.platform).toBe("local");
+    const sourceCard = await fs.readFile(path.join(projectRoot, "00_前期研究", "_资料库", "SRC-0001", "source-card.md"), "utf8");
+    expect(sourceCard).toContain("平台：local");
+    expect(sourceCard).not.toContain("平台：web");
+  });
+
+  test("显式 ingest 本地文件且 platform auto 时也标 local；URL 来源仍按域名识别", async () => {
+    const projectRoot = await seedResearchProject();
+    const sourceFile = path.join(path.dirname(projectRoot), "local-source.md");
+    await fs.writeFile(sourceFile, "# Local Source\n", "utf8");
+
+    const localResult = await ingestResearchSource({
+      projectRoot,
+      source: sourceFile,
+      platform: "auto",
+      runtime: "ide-inbox",
+      withComments: false,
+      commentLimit: 0
+    });
+    const localMetadata = await fs.readJson(path.join(projectRoot, localResult.sourceRoot, "metadata.json"));
+    expect(localMetadata.platform).toBe("local");
+
+    const webResult = await ingestResearchSource({
+      projectRoot,
+      source: "https://example.com/article",
+      platform: "auto",
+      runtime: "ide-inbox",
+      withComments: false,
+      commentLimit: 0
+    });
+    const webMetadata = await fs.readJson(path.join(projectRoot, webResult.sourceRoot, "metadata.json"));
+    expect(webMetadata.platform).toBe("web");
+  });
+});
