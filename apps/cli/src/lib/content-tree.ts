@@ -109,8 +109,9 @@ export function displayNameFromTitle(titleLine: string | null): string | null {
 }
 
 export function firstHeading(content: string): string | null {
-  const matched = /^#\s+.+$/mu.exec(content);
-  return matched ? matched[0] : null;
+  // 行尾可带 \r（整文件 CRLF 的文件，J9）；标题内容本身不含行终止符。
+  const matched = /^#\s+[^\r\n]+\r?$/mu.exec(content);
+  return matched ? matched[0].replace(/\r$/u, "") : null;
 }
 
 /* ------------------------------ 区块标记 ------------------------------ */
@@ -317,7 +318,8 @@ interface RawSection {
 function splitSections(content: string): RawSection[] {
   const sections: RawSection[] = [];
   let current: { heading: string; level: number; bodyLines: string[] } | null = null;
-  for (const line of content.split("\n")) {
+  // 整文件 CRLF 时行尾带 \r，会让 SECTION_HEADING_PATTERN 的 (.+)$ 失配（J9）；切行时一并归一。
+  for (const line of content.split(/\r?\n/u)) {
     const matched = SECTION_HEADING_PATTERN.exec(line);
     if (matched) {
       if (current) sections.push({ heading: current.heading, level: current.level, body: current.bodyLines.join("\n") });

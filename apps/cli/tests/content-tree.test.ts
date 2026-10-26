@@ -1269,6 +1269,31 @@ describe("内容树：CRLF 分镜项目 verify 与 check 双绿（J8）", () => 
     expect(codesOf(verified.issues)).not.toContain("content-summary-stale");
   });
 });
+describe("内容树：整文件 CRLF 分镜项目解析与 verify 双绿（J9）", () => {
+  test("分镜文件整体为 CRLF 行尾时，解析不报缺区块，assemble/check/verify 全绿", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    await seedShot(projectRoot, { segments: [{ keyframes: [{ number: 1, mappedSegment: 1 }] }] });
+
+    // 分镜文件整体转为 CRLF 行尾：Windows 编辑器保存或 autocrlf 检出的典型形态。
+    // 修复前（J9）：小节标题行尾带回车符导致 splitSections 一个小节都认不出，
+    // verify 连报三条 content-identity-invalid（缺本段正文/关键帧/视频提示词）。
+    const storyboardPath = path.join(projectRoot, "内容/场-001/镜头组-001/镜头-001/分镜-01.md");
+    const raw = await fs.readFile(storyboardPath, "utf8");
+    await fs.writeFile(storyboardPath, raw.split("\n").join("\r\n"), "utf8");
+    const rewritten = await fs.readFile(storyboardPath, "utf8");
+    expect(rewritten).toContain("\r\n");
+
+    await assembleContentTree(projectRoot, { force: true });
+    const check = await checkContentConsistency(projectRoot);
+    expect(check.issues).toEqual([]);
+
+    const verified = await verify(projectRoot);
+    expect(verified.ok).toBe(true);
+    expect(codesOf(verified.issues)).not.toContain("content-identity-invalid");
+    expect(codesOf(verified.issues)).not.toContain("content-execution-stale");
+  });
+});
 describe("midjourney 平台执行参数口径（J3）", () => {
   const LONG_CHINESE_PROMPT =
     "清晨的雾塔门前，年轻的画师阿岚背着旧画筒停步抬头，冷调自然光从薄雾里漫过来，" +
