@@ -136,6 +136,8 @@ node apps/cli/dist/index.js impact "雨中告别" --project <project-path>
 ai-video-workflow init --name <project-name> --start-from script
 ```
 
+> `init` 会在**当前工作目录**下新建项目子目录。执行前先用 `cd` 切到你想放项目的父目录，否则项目会建在仓库根或其他当前所在的位置。
+
 Step 0 采集归档命令：
 
 ```powershell
