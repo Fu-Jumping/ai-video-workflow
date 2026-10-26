@@ -77,6 +77,24 @@ describe("verifyObsidianVault", () => {
     expect(result.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "obsidian-vault-not-directory" })]));
   });
 
+  test("行内代码里的本地路径在观看层不再报绝对链接（与项目级同口径，K2）", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-k2-"));
+    tempRoots.push(root);
+    const projectRoot = path.join(root, "k2-project");
+    await fs.copy(officialExampleRoot(), projectRoot);
+    await fs.appendFile(
+      path.join(projectRoot, "01_概念策划", "故事内核.md"),
+      "\n本地路径示例（行内代码）：`C:\\Users\\demo\\notes.md` 与 `D:/refs/a.png`。\n",
+      "utf8"
+    );
+    const outRoot = path.join(root, "vault");
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+
+    const result = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+    expect(result.issues.filter((issue) => issue.code === "obsidian-absolute-link")).toEqual([]);
+    expect(result.ok).toBe(true);
+  });
+
   test("passes for exported official example", async () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-verify-"));
     tempRoots.push(outRoot);

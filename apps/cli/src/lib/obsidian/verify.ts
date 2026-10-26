@@ -70,7 +70,10 @@ const requiredShotReviewMarkers = [
   "## 7. 修改入口",
   "## 8. 审阅画布"
 ];
-const absoluteLinkPattern = /([A-Za-z]:\\|[A-Za-z]:\/|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
+// 盘符分支带负向后行：https:// 里的 s:/ 不再误判（K1）；markdown 根链接分支不受断言影响。
+const absoluteLinkPattern = /(?:(?<![A-Za-z])[A-Za-z]:[\\/]|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
+// 与项目级 verify 同口径：检测前剥离行内代码，投影忠实复制的内容不再被两套口径区别对待（K2）。
+const inlineCodePattern = /`[^`\r\n]*`/g;
 const unsafeLocalPathStringPattern = /(^|[^A-Za-z])[A-Za-z]:[\\/]|file:\/\/|vscode:\/\//i;
 
 interface VerifyObsidianOptions {
@@ -582,7 +585,7 @@ async function verifyGeneratedMarkdown(
 async function verifyNoAbsoluteLinks(vaultRoot: string, files: string[], issues: VerificationIssue[]): Promise<void> {
   for (const file of files) {
     const content = await fs.readFile(vaultFsPath(vaultRoot, file), "utf8");
-    if (absoluteLinkPattern.test(content)) {
+    if (absoluteLinkPattern.test(content.replace(inlineCodePattern, ""))) {
       pushIssue(issues, { code: "obsidian-absolute-link", message: "Found absolute link in Obsidian projection", path: file });
     }
   }

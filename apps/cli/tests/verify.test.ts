@@ -1517,6 +1517,31 @@ test("accepts a custom pack name in project.config.yaml", async () => {
     );
   });
 
+  test("正文裸 https 外链不再误判绝对路径，盘符路径仍被拦（K1）", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-k1-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+
+    await fs.ensureDir(path.join(projectRoot, "01_概念策划"));
+    await fs.writeFile(
+      path.join(projectRoot, "01_概念策划", "参考来源.md"),
+      "官网与示例：https://example.com/a，另见 HTTPS://example.com/b。\n",
+      "utf8"
+    );
+    await fs.writeFile(
+      path.join(projectRoot, "01_概念策划", "坏链.md"),
+      "本地盘符路径 C:/Users/example/demo.md 不应出现。\n",
+      "utf8"
+    );
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    const absoluteLinkPaths = result.issues
+      .filter((issue) => issue.code === "absolute-path-link")
+      .map((issue) => issue.path);
+    expect(absoluteLinkPaths).toHaveLength(1);
+    expect(absoluteLinkPaths[0]).toContain("坏链.md");
+  });
+
   test("finds broken relative Markdown link targets in Step 6 files", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-relative-link-checks-"));
     tempRoots.push(root);

@@ -116,7 +116,8 @@ const ignoredMarkdownDirs = new Set(["node_modules", ".git", ".tmp"]);
 const ignoredGeneratedViewRootDirs = ["_views", ".obsidian", MIGRATED_SNAPSHOT_DIRECTORY] as const;
 const ignoredRootMarkdownDirs = new Set([...cherryHostSurfaceDirs, ...ignoredGeneratedViewRootDirs]);
 const ignoredRootMarkdownFiles = new Set(cherryHostSurfaceFiles);
-const absoluteLinkPattern = /([A-Za-z]:\\|[A-Za-z]:\/|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
+// 盘符分支带负向后行：https:// 里的 s:/ 不再误判为绝对路径（K1）；markdown 根链接分支不受断言影响。
+const absoluteLinkPattern = /(?:(?<![A-Za-z])[A-Za-z]:[\\/]|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
 const inlineCodePattern = /`[^`\r\n]*`/g;
 const runtimeTruthConflictPattern =
   /(runtime mirror|运行镜像).{0,40}(source of truth|事实源|project truth)|(source of truth|事实源|project truth).{0,40}(runtime mirror|运行镜像)/i;
