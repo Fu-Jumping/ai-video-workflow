@@ -522,22 +522,30 @@ export async function applyMigration(projectRoot: string, preview: MigrationPrev
     const wholeVideoPrompt = videoCopyable && videoParts.segments.length === 0 ? videoCopyable.trim() : "";
 
     for (const number of shot.storyboardSegments) {
-      const keyframeFile = shot.imagePrompts.find((file) => legacyKeyframeSegment(file.content) === number);
-      const keyframeSection = keyframeFile
-        ? [
-            // 关键帧用四级标题：三级会和「## 二、本段关键帧」一起被当成小节边界，```关键帧区块就取不到内容。
-            // 编号沿用旧 04 文件名里的编号（整镜唯一、跨分镜不重启），不按分镜重排。
-            `#### 关键帧 ${String(legacyKeyframeNumber(keyframeFile.fileName)).padStart(2, "0")}`,
-            "",
-            `- 对应分镜：分镜 ${String(number)}`,
-            `- 关键时刻：${legacyKeyframeMoment(keyframeFile.content) ?? "（迁移时未标注）"}`,
-            "",
-            `${F}text`,
-            legacyFencedBlock(keyframeFile.content) ?? "（旧文件里没有可复制的提示词，需要补写）",
-            `${F}`,
-            ""
-          ].join("\n")
-        : "本段没有单独关键帧。\n";
+      // 同一分镜可能挂多张关键帧：全部迁入并按旧编号排序（不再只取第一张）。
+      const keyframeFiles = shot.imagePrompts
+        .filter((file) => legacyKeyframeSegment(file.content) === number)
+        .sort((a, b) => legacyKeyframeNumber(a.fileName) - legacyKeyframeNumber(b.fileName));
+      const keyframeSection =
+        keyframeFiles.length > 0
+          ? keyframeFiles
+              .map((keyframeFile) =>
+                [
+                  // 关键帧用四级标题：三级会和「## 二、本段关键帧」一起被当成小节边界，```关键帧区块就取不到内容。
+                  // 编号沿用旧 04 文件名里的编号（整镜唯一、跨分镜不重启），不按分镜重排。
+                  `#### 关键帧 ${String(legacyKeyframeNumber(keyframeFile.fileName)).padStart(2, "0")}`,
+                  "",
+                  `- 对应分镜：分镜 ${String(number)}`,
+                  `- 关键时刻：${legacyKeyframeMoment(keyframeFile.content) ?? "（迁移时未标注）"}`,
+                  "",
+                  `${F}text`,
+                  legacyFencedBlock(keyframeFile.content) ?? "（旧文件里没有可复制的提示词，需要补写）",
+                  `${F}`,
+                  ""
+                ].join("\n")
+              )
+              .join("\n")
+          : "本段没有单独关键帧。\n";
       const body = storyboardFileContent(
         number,
         segmentTexts.get(number) ?? "（旧文件里没有这一段正文，需要补写）",

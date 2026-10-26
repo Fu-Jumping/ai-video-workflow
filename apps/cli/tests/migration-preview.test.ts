@@ -466,3 +466,98 @@ describe("迁移保留镜内关键帧编号（J1）", () => {
     expect(verified.issues).toEqual([]);
   });
 });
+
+describe("迁移支持同一分镜多张关键帧", () => {
+  test("两张关键帧都对应分镜 1 时全部迁入该分镜，编号保留，迁移后 check 收敛、verify 通过", async () => {
+    const projectRoot = await createLegacyProject();
+    await writeFile(
+      projectRoot,
+      "03_分镜脚本/镜头组-001/镜头-001.md",
+      [
+        "# 镜头 001：雾塔门前",
+        "",
+        "## 镜头组与目标",
+        "",
+        "- 镜头组：group-001",
+        "- 镜头编号：shot-001",
+        "- 目标时长：15 秒",
+        "",
+        "## 分镜编排",
+        "",
+        "### 分镜 1",
+        "",
+        "阿岚站在雾塔门前，停顿后抬头。",
+        "",
+        "### 分镜 2",
+        "",
+        "阿岚抬脚迈过门槛，雾气从身后合上。",
+        ""
+      ].join(NL)
+    );
+    for (const keyframe of [
+      { file: "04_图片提示词/镜头组-001/镜头-001-关键帧-01.md", title: "镜头 001 关键帧 01 图片提示词", moment: "抬头前", prompt: "阿岚站在雾塔门前，冷调自然光。" },
+      { file: "04_图片提示词/镜头组-001/镜头-001-关键帧-02.md", title: "镜头 001 关键帧 02 图片提示词", moment: "抬手推门", prompt: "阿岚抬手推门，门缝透光。" }
+    ]) {
+      await writeFile(
+        projectRoot,
+        keyframe.file,
+        [
+          "# " + keyframe.title,
+          "",
+          "## 维护元信息",
+          "",
+          "- 镜头组：group-001",
+          "- 镜头编号：shot-001",
+          "- 对应分镜：分镜 1",
+          "- 关键时刻：" + keyframe.moment,
+          "",
+          "## 可复制提示词",
+          "",
+          FENCE + "text",
+          keyframe.prompt,
+          FENCE,
+          ""
+        ].join(NL)
+      );
+    }
+    await writeFile(
+      projectRoot,
+      "05_视频提示词/镜头组-001/镜头-001.md",
+      [
+        "# 镜头 001 视频提示词",
+        "",
+        "## 可复制提示词",
+        "",
+        FENCE + "text",
+        "镜头1：中景正面视角，阿岚停顿后抬头，风声。",
+        "",
+        "镜头2：阿岚迈过门槛，雾气合上，风声。",
+        FENCE,
+        ""
+      ].join(NL)
+    );
+
+    const preview = await buildMigrationPreview(projectRoot);
+    expect(preview.canApply).toBe(true);
+    const applied = await applyMigration(projectRoot, preview);
+    expect(applied.ok).toBe(true);
+
+    const storyboard1 = await fs.readFile(
+      path.join(projectRoot, "内容/场-001/镜头组-001/镜头-001/分镜-01.md"),
+      "utf8"
+    );
+    expect(storyboard1).toContain("#### 关键帧 01");
+    expect(storyboard1).toContain("阿岚站在雾塔门前，冷调自然光。");
+    expect(storyboard1).toContain("#### 关键帧 02");
+    expect(storyboard1).toContain("阿岚抬手推门，门缝透光。");
+    const storyboard2 = await fs.readFile(
+      path.join(projectRoot, "内容/场-001/镜头组-001/镜头-001/分镜-02.md"),
+      "utf8"
+    );
+    expect(storyboard2).toContain("本段没有单独关键帧");
+
+    await assembleContentTree(projectRoot, { force: true });
+    const verified = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    expect(verified.ok).toBe(true);
+  });
+});
