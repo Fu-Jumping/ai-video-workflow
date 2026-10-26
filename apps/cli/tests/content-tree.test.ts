@@ -1240,6 +1240,35 @@ describe("content check 恢复指引（I1）", () => {
   });
 });
 
+describe("内容树：CRLF 分镜项目 verify 与 check 双绿（J8）", () => {
+  test("分镜视频提示词代码块含 CRLF 时，assemble 后 check 与 verify 一致判绿，不误报 content-execution-stale", async () => {
+    const projectRoot = await createContentProject();
+    await seedScene(projectRoot);
+    await seedShot(projectRoot, {
+      segments: [{ prompt: "第一行：中景正面，主体停步抬头。" + "\n" + "第二行：风声，冷调自然光。", keyframes: [{ number: 1, mappedSegment: 1 }] }]
+    });
+
+    // 模拟旧项目迁移保留的 CRLF 内容：分镜文件的视频提示词代码块内行尾带回车符（\r），
+    // 拼装正文因此保留回车符，而 verify 取 05 小节时把它规范成 LF（J8 的现场形态）。
+    // 整文件 CRLF 会连小节解析一起失败，属 J9，另行登记。
+    const storyboardPath = path.join(projectRoot, "内容/场-001/镜头组-001/镜头-001/分镜-01.md");
+    const firstLine = "第一行：中景正面，主体停步抬头。";
+    const raw = await fs.readFile(storyboardPath, "utf8");
+    expect(raw).toContain(firstLine);
+    await fs.writeFile(storyboardPath, raw.replace(firstLine + "\n", firstLine + "\r\n"), "utf8");
+    const rewritten = await fs.readFile(storyboardPath, "utf8");
+    expect(rewritten).toContain("\r\n");
+
+    await assembleContentTree(projectRoot, { force: true });
+    const check = await checkContentConsistency(projectRoot);
+    expect(check.issues).toEqual([]);
+
+    const verified = await verify(projectRoot);
+    expect(verified.ok).toBe(true);
+    expect(codesOf(verified.issues)).not.toContain("content-execution-stale");
+    expect(codesOf(verified.issues)).not.toContain("content-summary-stale");
+  });
+});
 describe("midjourney 平台执行参数口径（J3）", () => {
   const LONG_CHINESE_PROMPT =
     "清晨的雾塔门前，年轻的画师阿岚背着旧画筒停步抬头，冷调自然光从薄雾里漫过来，" +

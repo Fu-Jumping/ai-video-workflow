@@ -105,6 +105,11 @@ function sectionAfterHeading(content: string, headingText: string): string {
   }
   return body.join("\n");
 }
+
+/** 逐字比对前统一行尾：小节提取经 split/join 已是 LF，拼装正文保留分镜文件原样（可能是 CRLF，J8）。 */
+function normalizeLineEndings(text: string): string {
+  return text.replace(/\r\n/gu, "\n");
+}
 // .tmp 是工具自己的临时区（整理前的备份、探针与夹具），不属于项目正文。
 const ignoredMarkdownDirs = new Set(["node_modules", ".git", ".tmp"]);
 // 迁移快照目录：迁移后的旧文件在这里保留为只读快照，不参与当前内容的链接检查与投影。
@@ -1207,7 +1212,8 @@ async function verifyContentTree(
       .join("\n\n");
     const summaryBlock = shot.document.segmentsBody;
     const summaryActual = summaryBlock === null ? null : stripBlockHash(summaryBlock).replace(/\n+$/u, "");
-    const summaryFresh = summaryActual !== null && summaryActual === assembledSegments;
+    const summaryFresh =
+      summaryActual !== null && normalizeLineEndings(summaryActual) === normalizeLineEndings(assembledSegments);
     const summaryWholeText = joinPromptParts([shot.document.promptBefore, summaryActual, shot.document.promptAfter]);
 
     if (summaryBlock === null) {
@@ -1256,7 +1262,7 @@ async function verifyContentTree(
       });
       continue;
     }
-    if (step5Copyable !== shot.assembly.text) {
+    if (normalizeLineEndings(step5Copyable) !== normalizeLineEndings(shot.assembly.text)) {
       if (summaryFresh) {
         pushIssue(issues, {
           code: "content-execution-stale",
@@ -1265,7 +1271,7 @@ async function verifyContentTree(
             shot.relPath + "」已是最新）；05 执行文件落后，请重新整理（content assemble）。自动区块被手改时需 content assemble --force（覆盖前会备份到 .tmp/），不要手改执行文件。",
           path: step5RelPath
         });
-      } else if (step5Copyable !== summaryWholeText) {
+      } else if (normalizeLineEndings(step5Copyable) !== normalizeLineEndings(summaryWholeText)) {
         pushIssue(issues, {
           code: "content-summary-execution-mismatch",
           message:
