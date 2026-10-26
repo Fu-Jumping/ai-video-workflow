@@ -372,12 +372,21 @@
 - 现象：init 在当前工作目录下建项目，快速上手未提醒先 `cd` 到目标父目录；R5 两轮（子代理与主对话）各误建一次（均已删除重建）。
 - 修复方向：README/quickstart 补一句操作提醒。
 
-#### J8 verify 整镜正文比对对 CRLF 敏感，旧项目迁移场景误报 content-execution-stale（一般，阶段 05 第一批发现，待修）
+#### J8 verify 整镜正文比对对 CRLF 敏感，旧项目迁移场景误报 content-execution-stale（一般，阶段 05 第一批发现）——✅ 已修（2026-10-26 主线小批 `a760d8f`）
 - 现象：分镜文件含 CRLF 行尾时（Windows 旧项目迁移场景典型状态），`verify` 对 05 执行文件报 `content-execution-stale`，而同一状态下 `content check` 判一致、`content assemble` 幂等——两个命令结论相反。
 - 根因（实证，阶段 05 执行对话）：`verify.ts` `sectionAfterHeading` 用 `content.split(/\r?\n/)` + `join("\n")` 取「可复制提示词」小节，把 CRLF 规范成 LF；比对对象 `shot.assembly.text` 保留分镜文件原样 CRLF → 逐字比较不等（实测两值 1026 vs 1038 字符，差异处为 `\r\n` vs `\n`；LF 规范化后归零）。`content-assemble.ts` 的 `extractCopyablePrompt` 用正则直接切原文（保留 `\r`），故 check 判等。
 - 最小复现：任一项目把任一分镜文件转为 CRLF 行尾 → `content assemble` → `content check` 通过而 `verify` 报 1 条 `content-execution-stale`。
 - 修复方向（用户 2026-10-26 拍板）：a) `verify` 比较前对两侧统一规范化行尾（改动最小）。回归测试须覆盖「CRLF 分镜项目 verify 与 content check 双绿」。
 - 备注：不影响 J1 验收点；测试项目全为 LF，故 R4/R5 未暴露。
+- 修复回填：verify 三处比较（summaryFresh、05 可复制提示词 vs 拼装正文、vs 汇总整段）前对两侧统一 LF 规范化；回归测试「CRLF 分镜项目 verify 与 check 双绿」红绿对照成立（修复前 verify.ok=false）；门禁 build / test（43 文件 562 用例）/ example:verify 全绿，docs 未动豁免 docs:build。
+
+#### J9 content-tree 小节解析对整文件 CRLF 失效（一般，2026-10-26 J8 小批发现，待拍板）
+- 现象：分镜文件整份为 CRLF 行尾时（Windows 编辑器保存或 git autocrlf 检出即触发），小节一个都识别不出：verify 连报三条 content-identity-invalid（缺本段正文/关键帧/视频提示词区块），内容树完全不可用。
+- 根因（J8 小批实测）：JS 正则的 `.` 不把回车符当普通字符，`SECTION_HEADING_PATTERN = /^(#{2,3})\s+(.+)$/u` 在行尾带 \r 时不命中 → `splitSections` 切不出任何小节。探针：LF 解析 0 问题，同内容整文件 CRLF 解析连报 3 条 content-identity-invalid（临时探针测试已复现并移除）。
+- 最小复现：任一项目把任一分镜文件整体转为 CRLF 行尾 → verify / content check 连报缺区块。
+- 修复方向（候选，待拍板）：`splitSections` 改 `content.split(/\r?\n/)`（与 verify 的 sectionAfterHeading 同法）；KEYFRAME_HEADING_PATTERN 等按行匹配的正则同步核对；回归测试「整文件 CRLF 分镜项目解析与 verify 双绿」。注意与 J8 的现场差异：迁移器产出的文件是「标题 LF + 块内 CRLF」混合形态，J8 只覆盖比对层。
+/)`（与 verify 的 sectionAfterHeading 同法）；KEYFRAME_HEADING_PATTERN 等按行匹配的正则同步核对；回归测试「整文件 CRLF 分镜项目解析与 verify 双绿」。注意与 J8 的现场差异：迁移器产出的文件是「标题 LF + 块内 CRLF」混合形态，J8 只覆盖比对层。
+- 本批未修：超出 J8 任务书白名单（content-tree.ts），按停止条件登记。
 
 ### 验收门槛（本节）
 
