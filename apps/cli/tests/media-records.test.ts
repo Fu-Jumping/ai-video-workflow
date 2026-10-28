@@ -10,6 +10,7 @@ import {
   canonicalMediaObjectId,
   canonicalMediaPurpose,
   describeMediaFile,
+  describeMediaIdentityKeyError,
   existingMediaVersions,
   formatMediaCandidate,
   formatMediaVersion,
@@ -23,6 +24,7 @@ import {
   mediaTimecodeSeconds,
   nextMediaVersion,
   parseMediaFileName,
+  parseMediaIdentityKey,
   parseMediaRecord,
   renderMediaRecord,
   reserveMediaBatch,
@@ -33,6 +35,8 @@ import {
 } from "../src/lib/media-records.js";
 
 const tempRoots: string[] = [];
+
+const repoRoot = path.resolve(__dirname, "..", "..", "..");
 
 afterEach(async () => {
   await Promise.all(tempRoots.splice(0).map((dir) => fs.remove(dir)));
@@ -549,5 +553,62 @@ describe("素材记录：项目初始化与既有项目兼容", () => {
     const projectRoot = await makeProject();
     const result = await verifyProject({ projectRoot, ide: "codex" });
     expect(result.issues.filter((issue) => issue.code.includes("media"))).toEqual([]);
+  });
+});
+
+describe("素材记录：身份键报错与说明（K4）", () => {
+  test("身份键缺槽位段时，校验报错带字段名、原值与期望格式示例", async () => {
+    const projectRoot = await makeProject();
+    const recordFile = path.join(projectRoot, "素材记录", "镜头-001_视频.md");
+    await fs.writeFile(
+      recordFile,
+      ["---", "记录类型: 素材", "身份键: video:镜头-001", "---", "", "# 镜头-001", ""].join("\n"),
+      "utf8"
+    );
+
+    const issues: Parameters<typeof verifyMediaRecords>[1] = [];
+    await verifyMediaRecords(projectRoot, issues);
+
+    const issue = issues.find((item) => item.code === "invalid-media-record");
+    expect(issue).toBeDefined();
+    expect(issue!.message).toContain("身份键");
+    expect(issue!.message).toContain("`video:镜头-001`");
+    expect(issue!.message).toContain("video:镜头-001/视频");
+  });
+
+  test("身份键缺失字段时报错指名「身份键」与期望格式", async () => {
+    const projectRoot = await makeProject();
+    const recordFile = path.join(projectRoot, "素材记录", "镜头-001_视频.md");
+    await fs.writeFile(recordFile, ["---", "记录类型: 素材", "---", "", "# 镜头-001", ""].join("\n"), "utf8");
+
+    const issues: Parameters<typeof verifyMediaRecords>[1] = [];
+    await verifyMediaRecords(projectRoot, issues);
+
+    const issue = issues.find((item) => item.code === "invalid-media-record");
+    expect(issue?.message).toContain("缺少「身份键」字段");
+    expect(issue?.message).toContain("video:镜头-001/视频");
+  });
+
+  test("describeMediaIdentityKeyError：合法键不报，非法键带原值与期望格式", () => {
+    expect(describeMediaIdentityKeyError("video:镜头-001/视频")).toBeUndefined();
+    expect(describeMediaIdentityKeyError("character:角色-001/造型-01")).toBeUndefined();
+    expect(parseMediaIdentityKey("video:镜头-001")).toBeUndefined();
+
+    const error = describeMediaIdentityKeyError("video:镜头-001");
+    expect(error).toContain("身份键");
+    expect(error).toContain("`video:镜头-001`");
+    expect(error).toContain("video:镜头-001/视频");
+  });
+
+  test("素材记录说明包含身份键小节、合法取值、示例与反例", async () => {
+    const guide = await fs.readFile(
+      path.join(repoRoot, "packs", "official-ai-video", "templates", "素材记录", "00_素材记录说明.md"),
+      "utf8"
+    );
+    expect(guide).toMatch(/^## 身份键/m);
+    expect(guide).toContain("video:镜头-001/视频");
+    expect(guide).toContain("character:角色-001/造型-01");
+    expect(guide).toContain("keyframe:镜头-015/关键帧-01");
+    expect(guide).toContain("`video:镜头-001`");
   });
 });

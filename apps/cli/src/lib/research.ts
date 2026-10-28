@@ -10,6 +10,7 @@ import type { ResearchPlatform, ResearchRuntime } from "./types.js";
 const researchDir = "00_前期研究";
 const researchLibraryDir = "_资料库";
 const researchInboxDir = "_inbox";
+const researchIndexFileName = "01_资料索引.md";
 const sourceIdPattern = /^SRC-\d{4}$/;
 const supportedResearchPlatforms: ResearchPlatform[] = [
   "auto",
@@ -133,18 +134,35 @@ function inferPlatform(source: string, platform: ResearchPlatform): ResearchPlat
   return "web";
 }
 
-function nextSourceId(existingNames: string[]): string {
-  const max = existingNames
+function nextSourceId(existingIds: string[]): string {
+  const max = existingIds
     .filter((name) => sourceIdPattern.test(name))
     .map((name) => Number.parseInt(name.slice(4), 10))
     .reduce((current, value) => Math.max(current, value), 0);
   return `SRC-${String(max + 1).padStart(4, "0")}`;
 }
 
-async function allocateSourceId(projectRoot: string): Promise<string> {
+async function existingLibrarySourceIds(projectRoot: string): Promise<string[]> {
   const libraryRoot = path.join(projectRoot, researchDir, researchLibraryDir);
-  const existingNames = (await fs.pathExists(libraryRoot)) ? await fs.readdir(libraryRoot) : [];
-  return nextSourceId(existingNames);
+  return (await fs.pathExists(libraryRoot)) ? fs.readdir(libraryRoot) : [];
+}
+
+/**
+ * 资料索引里手工登记的 SRC-xxxx 是已占用的号：来源卡目录可能还没建。
+ * 自动编号必须同时避开索引占号与现有目录，否则会与手工登记撞号（K3）。
+ */
+async function indexReservedSourceIds(projectRoot: string): Promise<string[]> {
+  const indexPath = path.join(projectRoot, researchDir, researchIndexFileName);
+  if (!(await fs.pathExists(indexPath))) {
+    return [];
+  }
+  const content = await fs.readFile(indexPath, "utf8");
+  return [...content.matchAll(/SRC-(\d{4})/g)].map((match) => "SRC-" + match[1]);
+}
+
+async function allocateSourceId(projectRoot: string): Promise<string> {
+  const reserved = [...(await existingLibrarySourceIds(projectRoot)), ...(await indexReservedSourceIds(projectRoot))];
+  return nextSourceId(reserved);
 }
 
 async function assertResearchProject(projectRoot: string): Promise<void> {
@@ -417,8 +435,8 @@ export async function ingestResearchInbox(options: ResearchInboxOptions): Promis
   const files = await listInboxFiles(inboxRoot);
   const ingested: ResearchIngestResult[] = [];
   const skipped: string[] = [];
-  const libraryRoot = path.join(projectRoot, researchDir, researchLibraryDir);
-  const simulatedNames = (await fs.pathExists(libraryRoot)) ? await fs.readdir(libraryRoot) : [];
+  // 预演分配的起点同样要含索引占号：否则 dry-run 报的号会与真实分配口径不一致（K3）。
+  const simulatedNames = [...(await existingLibrarySourceIds(projectRoot)), ...(await indexReservedSourceIds(projectRoot))];
   for (const file of files) {
     const ext = path.extname(file).toLowerCase();
     if (![".md", ".txt", ".html", ".json", ".csv", ".pdf"].includes(ext)) {

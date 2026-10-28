@@ -202,3 +202,56 @@ describe("本地文件来源的 platform 记 local（I7）", () => {
     expect(webMetadata.platform).toBe("web");
   });
 });
+
+describe("自动编号避开资料索引手工占号（K3）", () => {
+  /** 资料库里建出 SRC-0001 目录，并在资料索引里手工登记给定的占号（有索引行、无目录）。 */
+  async function seedLibraryAndManualIds(projectRoot: string, manualIds: string[]): Promise<void> {
+    await fs.ensureDir(path.join(projectRoot, "00_前期研究", "_资料库", "SRC-0001"));
+    const rows = manualIds.map((id) => `| ${id} | 本地文件 | 手工登记占号 | 待补 | 待核验 |`).join("\n");
+    await fs.appendFile(
+      path.join(projectRoot, "00_前期研究", "01_资料索引.md"),
+      `\n## 手工登记\n\n| 来源 ID | 来源类型 | 标题 | 可复查位置 | 可信度 |\n| --- | --- | --- | --- | --- |\n${rows}\n`,
+      "utf8"
+    );
+  }
+
+  async function ingestPlannedId(projectRoot: string): Promise<string> {
+    const result = await ingestResearchSource({
+      projectRoot,
+      source: "https://example.com/next-source",
+      platform: "web",
+      runtime: "toolbox",
+      withComments: false,
+      commentLimit: 0,
+      dryRun: true
+    });
+    return result.sourceId;
+  }
+
+  test("索引里手工占号 SRC-0002 而资料库只有 SRC-0001 时，下一个编号为 SRC-0003", async () => {
+    const projectRoot = await seedResearchProject();
+    await seedLibraryAndManualIds(projectRoot, ["SRC-0002"]);
+
+    expect(await ingestPlannedId(projectRoot)).toBe("SRC-0003");
+  });
+
+  test("下一个编号取索引占号与现有目录的最大值加一（索引占号 SRC-0003 → SRC-0004）", async () => {
+    const projectRoot = await seedResearchProject();
+    await seedLibraryAndManualIds(projectRoot, ["SRC-0003"]);
+
+    expect(await ingestPlannedId(projectRoot)).toBe("SRC-0004");
+  });
+
+  test("inbox 预演分配同样避开索引占号", async () => {
+    const projectRoot = await seedResearchProject();
+    await seedLibraryAndManualIds(projectRoot, ["SRC-0002"]);
+    const inboxRoot = path.join(projectRoot, "00_前期研究", "_inbox");
+    await fs.ensureDir(inboxRoot);
+    await fs.writeFile(path.join(inboxRoot, "first.md"), "# First\n", "utf8");
+    await fs.writeFile(path.join(inboxRoot, "second.txt"), "Second\n", "utf8");
+
+    const result = await ingestResearchInbox({ projectRoot, dryRun: true });
+
+    expect(result.ingested.map((item) => item.sourceId)).toEqual(["SRC-0003", "SRC-0004"]);
+  });
+});

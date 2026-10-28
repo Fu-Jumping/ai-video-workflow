@@ -222,6 +222,16 @@ export function parseMediaIdentityKey(key: string): MediaIdentity | undefined {
   return { category, objectId: match[2], purpose: match[3] };
 }
 
+/** 身份键期望格式的人读口径：校验报错与素材记录说明共用同一段话（K4）。 */
+export const mediaIdentityKeyHint =
+  "期望格式「类别:对象编号/用途」，如 video:镜头-001/视频 或 character:角色-001/造型-01；类别取值 character/scene/prop/style/keyframe/video";
+
+/** 身份键解析失败时给出含字段名与原值的可读原因；能正常解析时返回 undefined。 */
+export function describeMediaIdentityKeyError(key: string): string | undefined {
+  if (parseMediaIdentityKey(key)) return undefined;
+  return "「身份键」的值 `" + key + "` 无法解析；" + mediaIdentityKeyHint;
+}
+
 const mediaSegmentPattern = /^[^\\/:*?"<>|\r\n]{1,60}$/u;
 
 export function isSafeMediaSegment(value: string): boolean {
@@ -909,6 +919,22 @@ export async function describeMediaFile(filePath: string): Promise<{ bytes: numb
   return { bytes: stat.size, sha256: mediaFileSha256(await fs.readFile(filePath)) };
 }
 
+/** 记录解析失败时的报错：能定位到身份键问题时带上字段名、原值与期望格式（K4）。 */
+function invalidMediaRecordMessage(content: string, fileName: string): string {
+  const block = frontmatterBlock(content);
+  if (block && asText(block.frontmatter["记录类型"]) === "素材") {
+    const keyText = asText(block.frontmatter["身份键"]);
+    if (!keyText) {
+      return "素材记录无法解析：frontmatter 缺少「身份键」字段；" + mediaIdentityKeyHint;
+    }
+    const keyError = describeMediaIdentityKeyError(keyText);
+    if (keyError) {
+      return "素材记录无法解析：" + keyError;
+    }
+  }
+  return "素材记录无法解析：" + fileName;
+}
+
 /**
  * 素材记录自检。项目里没有 素材记录/ 时完全不介入，不影响既有项目。
  */
@@ -926,7 +952,7 @@ export async function verifyMediaRecords(projectRoot: string, issues: Verificati
     if (!record) {
       issues.push({
         code: "invalid-media-record",
-        message: "素材记录无法解析：" + entry.name,
+        message: invalidMediaRecordMessage(content, entry.name),
         path: relPath
       });
       continue;

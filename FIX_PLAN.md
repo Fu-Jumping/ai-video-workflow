@@ -407,8 +407,8 @@
 | --- | --- | --- | --- |
 | K1 | 正文裸 `https://` 链接被误判为绝对路径链接（`[A-Za-z]:\/` 命中 URL 里的 `s:/`） | 一般 | ✅ 已修（`098c862`：盘符分支负向后行断言，两处同改） |
 | K2 | 项目级校验剥离行内代码而观看层校验不剥离，同一内容两套口径，投影侧无法自修 | 一般 | ✅ 已修（`098c862`：verify-obsidian 同口径剥离） |
-| K3 | `research ingest` 自动编号只看 `_资料库/` 现有目录，不读资料索引手工占号，易撞号 | 提示 | 待修 |
-| K4 | 素材记录「身份键」内部格式（如 `video:镜头-001/视频`）未写入说明；解析失败报错不含字段 | 提示 | 待修 |
+| K3 | `research ingest` 自动编号只看 `_资料库/` 现有目录，不读资料索引手工占号，易撞号 | 提示 | ✅ 已修（2026-10-28 小批，见下方修复登记；主对话复核 579 用例全绿后提交） |
+| K4 | 素材记录「身份键」内部格式（如 `video:镜头-001/视频`）未写入说明；解析失败报错不含字段 | 提示 | ✅ 已修（2026-10-28 小批，见下方修复登记；主对话复核 579 用例全绿后提交） |
 | K5 | 中文 `README.zh-CN.md` 与新手页缺「先 cd 到父目录再 init」提醒（J7 覆盖面遗漏） | 提示 | ✅ 已修（`4d5693e`：两处中文入口补同款提醒） |
 
 #### K1/K2 详情
@@ -421,6 +421,16 @@
 ### 验收门槛（本节）
 
 - K1/K2/K5 已修并有回归测试与门禁记录；K3/K4 择机修（建议与下次小批合并），修复时按 §一 原则执行并回填状态。
+
+#### K3/K4 修复登记（2026-10-28）
+
+- **K3 根因**：`apps/cli/src/lib/research.ts` 的 `allocateSourceId` 只 `readdir` `00_前期研究/_资料库/` 现有目录喂给 `nextSourceId` 取最大号 +1；资料索引 `01_资料索引.md` 里手工登记的占号（有索引行、尚未建目录）不参与取数，自动编号会分出与手工占号相同的 SRC-xxxx。
+- **K3 改法**：新增 `indexReservedSourceIds`（整文件解析 `SRC-\d{4}`）与 `existingLibrarySourceIds`，`allocateSourceId` 与 `ingestResearchInbox` 的预演分配（dry-run 起始名单）都改为「目录 + 索引占号」并集取最大 +1。配套把索引模板 `packs/official-ai-video/templates/00_前期研究/01_资料索引.md` 的示例行与规则句里的字面 `SRC-0001`/`SRC-0002` 改为 `SRC-xxxx` 形态（否则全新项目首号会被模板示例顶成 SRC-0003），并在模板「来源 ID 规则」写明「索引登记过的号一律视为已占用」。
+- **K3 测试**：`tests/research.test.ts` 新增 3 用例（索引占号 SRC-0002 → 下一号 SRC-0003；索引占号 SRC-0003 → SRC-0004；inbox dry-run 连续分配避开占号）。红绿对照：暂存 `research.ts` 修复后红跑，3 用例全红且失败值恰为撞号的 `SRC-0002`（既有 8 例不受影响），恢复修复后 11 例全绿。
+- **K4 根因**：`apps/cli/src/lib/media-records.ts` 的 `parseMediaIdentityKey` 解析失败静默返回 undefined，`verifyMediaRecords` 的 `invalid-media-record` 报错只有「素材记录无法解析：<文件名>」，不含字段名、原值与期望格式；说明模板 `packs/official-ai-video/templates/素材记录/00_素材记录说明.md` 只有概念性「身份怎么认」，未写内部格式。
+- **K4 改法**：新增导出 `mediaIdentityKeyHint`（期望格式人读口径）与 `describeMediaIdentityKeyError`（含字段名与原值的失败原因）；`verifyMediaRecords` 改经 `invalidMediaRecordMessage` 出报错——frontmatter 缺「身份键」字段、或身份键解析失败（非法格式/非法类别）时，报错带字段名、原值与期望格式示例，其余解析失败维持原文案。说明模板补「身份键（工具内部格式）」小节：格式 `类别:对象编号/用途`、六个类别合法取值、三个示例与一个反例（`video:镜头-001` 缺用途段）。
+- **K4 测试**：`tests/media-records.test.ts` 新增 4 用例（身份键缺槽位段时校验报错含字段名/原值/示例；缺「身份键」字段同口径；`describeMediaIdentityKeyError` 合法不报/非法带原值；说明模板含身份键小节与示例反例）。红绿对照：把报错调用点临时还原为旧文案后红跑，2 个报错断言用例红，恢复后该文件 35 例全绿。
+- **门禁**：`pnpm build` 绿；`pnpm --filter ./apps/cli test` 43 文件 579 用例全绿（572 + 7 新增；首跑即绿，未触发 O2）；`pnpm example:verify` 通过。
 
 ## 十二、Issue #3 提案落地：Step 1 动笔前决策访谈门禁（2026-10-26，L1—L3）
 
