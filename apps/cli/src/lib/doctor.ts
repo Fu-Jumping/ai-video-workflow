@@ -71,7 +71,10 @@ const groups: Record<string, string> = {
   "obsidian-manifest-hash-mismatch": "Obsidian Projection",
   "obsidian-manifest-source-mismatch": "Obsidian Projection",
   "obsidian-view-stale": "Obsidian Projection",
-  "unsafe-obsidian-force-target": "Obsidian Projection"
+  "unsafe-obsidian-force-target": "Obsidian Projection",
+  "step1-assumption-markers": "Step 1 Decisions",
+  "step1-decision-log-missing": "Step 1 Decisions",
+  "step1-decision-log-unconfirmed": "Step 1 Decisions"
 };
 
 function ideForRuntimeIssue(issue: VerificationIssue): string {
@@ -90,9 +93,11 @@ function ideForRuntimeIssue(issue: VerificationIssue): string {
 
 export async function diagnoseProject({
   issues,
+  warnings,
   defaultVideoPlatform = "seedance"
 }: {
   issues: VerificationIssue[];
+  warnings?: VerificationIssue[];
   defaultVideoPlatform?: string;
 }): Promise<string> {
   const byGroup = new Map<string, VerificationIssue[]>();
@@ -295,6 +300,13 @@ export async function diagnoseProject({
       }
     }
     lines.push("");
+  }
+  if (warnings?.length) {
+    lines.push("## Step 1 决策提醒（软警告，不阻塞 verify）", "");
+    for (const warning of warnings) {
+      lines.push(`- ${warning.message}${warning.path ? ` (${warning.path})` : ""}`);
+    }
+    lines.push("  下一步：先完成 Step 1 决策访谈（`01_概念策划/00_决策记录.md`），再进入 Step 2。", "");
   }
   return lines.join("\n");
 }

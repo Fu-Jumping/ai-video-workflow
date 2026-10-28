@@ -30,6 +30,9 @@ export const STORY_KERNEL_FILE = "故事内核.md";
 /** 按场完整剧本文件名；与故事内核同在 01_概念策划 下。 */
 export const SCRIPT_FILE = "剧本.md";
 
+/** Step 1 决策记录文件名（Issue #3：动笔前访谈的答复事实源）。 */
+export const DECISION_LOG_FILE = "00_决策记录.md";
+
 export const STEP6_FILES = [
   "00_执行计划.md",
   "01_图片执行计划.md",

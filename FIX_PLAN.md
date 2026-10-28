@@ -421,3 +421,21 @@
 ### 验收门槛（本节）
 
 - K1/K2/K5 已修并有回归测试与门禁记录；K3/K4 择机修（建议与下次小批合并），修复时按 §一 原则执行并回填状态。
+
+## 十二、Issue #3 提案落地：Step 1 动笔前决策访谈门禁（2026-10-26，L1—L3）
+
+- 依据：外部用户 KillZero12138 在 GitHub `Fu-Jumping/ai-video-workflow` 提交 Issue #3（2026-10-26）：剧本模式实测中，智能体不提问直接改写剧本并写完故事内核，`verify` 仍报通过——Step 1 只有"写后审核点"，没有"写前访谈门禁"。主对话已逐处核对，issue 引用的 10 处文件与行号和本地代码全部属实。
+- 用户拍板（2026-10-26）：按提案全盘采纳口径（提案中的"原始剧本.md"对齐本地命名 `剧本.md`）；verify 先软警告、稳定后再议硬拦截；主线小批直修（不开阶段工作树）；开修后统一回复 issue。
+
+| 编号 | 内容 | 状态 |
+| --- | --- | --- |
+| L1 | P0 契约与模板：workflow-spec Step 1 补"动笔前决策访谈"；quality-gates 补 Step 1 决策门槛（§2.5）与 §1.3/§8 归属；film-planner 长文源与 SKILL 补访谈协议；新增模板 `01_概念策划/00_决策记录.md`（P0 九问骨架，状态 `confirmed`/`pending`/`user-delegated default`）；故事内核模板加"先访谈"抬头；init 播种与首条消息、生成 AGENTS.md 对话引导、根 AGENTS.md 停下确认清单同步口径 | ✅ 已修（本地待提交） |
+| L2 | P1 校验信号：verify 新增警告通道（`warnings`，不阻塞 ok）与三条 Step 1 软检查——内核含 `[assumption]`、内核已填但无决策记录、决策记录仍有 `pending`；doctor 输出决策提醒与"先访谈再进 Step 2"提示 | ✅ 已修（本地待提交） |
+| L3 | P2 文档与测试：中英 quickstart 与 step-01 用户文档补"先访谈后动笔"；init/sync/verify-step 测试覆盖新模板、生成文本与三类警告；官方示例补一份已确认决策记录保持零警告 | ✅ 已修（本地待提交） |
+
+### 验收门槛（本节）
+
+- 全新 init 项目（两种起点）自带 `00_决策记录.md`；README、首条消息、生成的项目 AGENTS.md 都说"先访谈后动笔"（sync.test 断言钉住）。
+- verify 全绿语义不变（软警告不阻塞）：新项目零警告；"内核已填没决策记录 / 决策记录有 `pending` / 内核含 `[assumption]`"三态各出对应警告（红绿对照测试）。
+- 官方示例补决策记录后 example:verify 仍全绿零警告；`pnpm verify:v0.2`（build + 全量测试 + example:verify）通过。
+- **批次完成登记（2026-10-26，主对话直修）**：L1—L3 全部落地（未提交，等用户确认 commit）。门禁：`pnpm build`（CLI + docs:build）绿；测试 43 文件 571 用例全绿（新增 5 个 Step 1 决策门禁用例：新项目零警告、`[assumption]`/缺决策记录/`pending` 三态警告、全确认后零警告）；example:verify 通过且零警告；另以 dist CLI 冒烟验证真实输出——`verify` 打印 `Warnings (1, non-blocking)` 且仍 `Verification passed`，`doctor` 输出 Step 1 决策提醒与"先访谈再进 Step 2"下一步提示。实现要点：`VerificationResult` 新增可选 `warnings` 键（空时省略，兼容既有 `toEqual({ ok, issues })` 断言）；内核"已填写"判定用「字段：内容」非表格行计数（阈值 3），模板抬头（引用块/标题）中的 `[assumption]` 字样不算正文标记。

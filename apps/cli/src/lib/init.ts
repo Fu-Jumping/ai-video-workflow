@@ -7,6 +7,7 @@ import {
   CONTENT_ROOT_DIRECTORY,
   CONTENT_SHOT_OVERVIEW_FILE,
   CONTENT_STORYBOARD_OVERVIEW_FILE,
+  DECISION_LOG_FILE,
   DEFAULT_PACK,
   DEFAULT_VIDEO_PLATFORM,
   SCRIPT_FILE,
@@ -161,6 +162,11 @@ async function seedProjectDirectories(repoRoot: string, projectRoot: string, sta
     path.join(projectRoot, "01_概念策划", SCRIPT_FILE),
     await readPackTemplate(repoRoot, pack, path.join("01_概念策划", SCRIPT_FILE))
   );
+  // 决策记录（Issue #3）：动笔前访谈的答复事实源，与故事内核同段播种。
+  await writeSeededFile(
+    path.join(projectRoot, "01_概念策划", DECISION_LOG_FILE),
+    await readPackTemplate(repoRoot, pack, path.join("01_概念策划", DECISION_LOG_FILE))
+  );
   for (const file of STEP6_FILES) {
     await writeSeededFile(
       path.join(projectRoot, "06_执行计划", file),
@@ -219,7 +225,7 @@ function renderProjectReadme(projectName: string, ide: string, startFrom: StartF
     "",
     "1. 请在你的 AI 智能体中打开这个项目目录。",
     `2. 让智能体先读取 \`AGENTS.md\` 和 \`${sharedAgentDocsReadmePath}\`。`,
-    `3. 从 \`${startPath}\` 开始补全${startLabel}。`,
+    `3. 从 \`${startPath}\` 开始补全${startLabel}；进入 Step 1 时先做决策访谈，答复记入 \`01_概念策划/${DECISION_LOG_FILE}\`，P0 决策确认后再动笔。`,
     startFrom === "research" ? "4. 以步骤零到步骤七的源文件作为事实源。" : "4. 以步骤一到步骤七的源文件作为事实源。",
     `5. 按场完整剧情写在 \`01_概念策划/${SCRIPT_FILE}\`。`,
     "",
@@ -265,9 +271,11 @@ export function renderInitNextSteps({
     projectRoot,
     "",
     "可以复制给智能体的第一句话：",
-    `我想继续处理这个 ai-video-workflow 创作项目。请先读取 AGENTS.md 和 ${sharedAgentDocsReadmePath}，然后带我从 ${startPath} 开始。不要把 _views/obsidian 或 IDE 运行镜像当作源文件。`,
+    `我想继续处理这个 ai-video-workflow 创作项目。请先读取 AGENTS.md 和 ${sharedAgentDocsReadmePath}，然后带我从 ${startPath} 开始。进入创作前先和我完成决策访谈：逐组提问、把答复记入 01_概念策划/${DECISION_LOG_FILE}，P0 决策确认后再写故事内核。不要把 _views/obsidian 或 IDE 运行镜像当作源文件。`,
     "",
     `按场完整剧情写在 \`01_概念策划/${SCRIPT_FILE}\`。`,
+    "",
+    `进入 Step 1 时先完成决策访谈（\`01_概念策划/${DECISION_LOG_FILE}\`），P0 决策确认后再动笔写故事内核。`,
     "",
     "校验项目：",
     `ai-video-workflow verify --project ${quotedProjectRoot} --ide ${ide}`,

@@ -301,6 +301,12 @@ program
       process.exitCode = 1;
       return;
     }
+    if (result.warnings?.length) {
+      console.log(`Warnings (${result.warnings.length}, non-blocking):`);
+      for (const warning of result.warnings) {
+        console.log(`- ${warning.code}: ${warning.message}${warning.path ? ` (${warning.path})` : ""}`);
+      }
+    }
     console.log("Verification passed");
   }, () => program.opts<{ debug?: boolean }>().debug === true));
 
@@ -320,7 +326,7 @@ program
       pack: await readProjectPack(path.resolve(options.project))
     });
     const { config } = await readProjectConfig(path.resolve(options.project));
-    console.log(await diagnoseProject({ issues: result.issues, defaultVideoPlatform: config?.platforms.video.default }));
+    console.log(await diagnoseProject({ issues: result.issues, warnings: result.warnings, defaultVideoPlatform: config?.platforms.video.default }));
     if (!result.ok) {
       process.exitCode = 1;
     }

@@ -23,6 +23,7 @@ Use the `official-ai-video` pack as the default workflow pack.
 - 任何消耗生成额度的操作（图片/视频生成、LibTV 真实执行）。
 - 破坏性操作（`--force` 删除、重置、覆盖用户文件）。
 - 修改已完成的步骤内容（先做影响分析并回报）。
+- Step 1 创作决策未确认：进入 Step 1 先完成决策访谈（`01_概念策划/00_决策记录.md`），P0 决策未确认或未获用户委托前不写故事内核与剧本正文。
 - 登记偏离（deviations.yaml）或放宽默认契约。
 - commit / push。
 - 发现规则与实际代码或文档不一致：登记到 `docs/context-engineering/07-decisions-and-open-questions.md` 并报告，不擅自修改业务行为。

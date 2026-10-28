@@ -20,7 +20,7 @@
 | --- | --- |
 | 应读 | `packs/official-ai-video/skills-longform/film-planner.md`、对应模板、[03-step-contracts.md](./03-step-contracts.md) Step 1 |
 | 可改 | 创作项目 `01_概念策划/`；确认后逐级下游 |
-| 验证 | `verify --step 1`；人审故事内核后再进 Step 2 |
+| 验证 | `verify --step 1`；先完成 `01_概念策划/00_决策记录.md` 决策访谈（P0 确认或用户委托后再动笔），人审故事内核后进 Step 2 |
 
 ### A3 从研究资料开始（研究模式默认路径）
 

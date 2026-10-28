@@ -13,11 +13,13 @@ import {
 import {
   CONTENT_BLOCK_NAMES,
   CONTENT_INDEX_FILE,
+  DECISION_LOG_FILE,
   MIGRATED_SNAPSHOT_DIRECTORY,
   STEP0_FILES,
   STEP6_FILES,
   STEP7_FILES,
   STEP_DIR_BY_NUMBER,
+  STORY_KERNEL_FILE,
   researchStepEnabled
 } from "./constants.js";
 import {
@@ -1308,6 +1310,69 @@ async function verifyContentTree(
   }
 }
 
+/**
+ * Step 1 决策访谈软检查（Issue #3）：只产出 warnings，不阻塞 verify 通过。
+ * 模板抬头（引用块/标题）里的 `[assumption]` 字样不算正文标记。
+ */
+async function verifyStep1DecisionLog(projectRoot: string, warnings: VerificationIssue[]): Promise<void> {
+  const step1DirName = STEP_DIR_BY_NUMBER[1];
+  const kernelPath = path.join(projectRoot, step1DirName, STORY_KERNEL_FILE);
+  if (!(await fs.pathExists(kernelPath))) {
+    return;
+  }
+  const kernelContent = await fs.readFile(kernelPath, "utf8");
+  const assumptionInBody = kernelContent.split(/\r?\n/).some((rawLine) => {
+    const line = rawLine.trim();
+    return !line.startsWith(">") && !line.startsWith("#") && line.includes("[assumption]");
+  });
+  if (assumptionInBody) {
+    warnings.push({
+      code: "step1-assumption-markers",
+      message: "故事内核仍有 [assumption] 标记：存在未确认的创作判断，请完成决策访谈或确认后移除标记",
+      path: `${step1DirName}/${STORY_KERNEL_FILE}`
+    });
+  }
+  if (!storyKernelFilled(kernelContent)) {
+    return;
+  }
+  const decisionLogPath = path.join(projectRoot, step1DirName, DECISION_LOG_FILE);
+  if (!(await fs.pathExists(decisionLogPath))) {
+    warnings.push({
+      code: "step1-decision-log-missing",
+      message: "故事内核已填写但 00_决策记录.md 不存在：Step 1 可能跳过了动笔前决策访谈，请补记 P0 决策",
+      path: `${step1DirName}/${DECISION_LOG_FILE}`
+    });
+    return;
+  }
+  const decisionLogContent = await fs.readFile(decisionLogPath, "utf8");
+  if (/\|\s*pending\s*\|/.test(decisionLogContent)) {
+    warnings.push({
+      code: "step1-decision-log-unconfirmed",
+      message: "00_决策记录.md 仍有 pending 状态的决策项：完成访谈确认后再推进 Step 2",
+      path: `${step1DirName}/${DECISION_LOG_FILE}`
+    });
+  }
+}
+
+/**
+ * 判断故事内核是否已从模板填写为正文：统计「字段：内容」形态的非表格行。
+ * 模板基线（空字段、标题、占位表格、引用块抬头）计为 0；阈值取 3，防止单个字段误触发。
+ */
+function storyKernelFilled(content: string): boolean {
+  let filled = 0;
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (line.startsWith("|") || line.startsWith("#") || line.startsWith(">")) {
+      continue;
+    }
+    const separator = line.search(/[：:]/);
+    if (separator >= 0 && line.slice(separator + 1).trim().length > 0) {
+      filled += 1;
+    }
+  }
+  return filled >= 3;
+}
+
 export async function verifyProject({
   projectRoot,
   ide,
@@ -1367,10 +1432,14 @@ export async function verifyProject({
     }
   }
   await verifyNestedProjects(projectRoot, issues);
+  const warnings: VerificationIssue[] = [];
   if (step === undefined || step >= 0) {
     if (config && researchStepEnabled(config)) {
       await verifyStep0(projectRoot, issues);
     }
+  }
+  if (step === undefined || step >= 1) {
+    await verifyStep1DecisionLog(projectRoot, warnings);
   }
   if (step === undefined || step >= 2) {
     await verifyStep2ReferenceAssets(projectRoot, issues);
@@ -1432,6 +1501,7 @@ export async function verifyProject({
   return {
     ok: finalIssues.length === 0,
     issues: finalIssues,
+    ...(warnings.length > 0 ? { warnings } : {}),
     ...(acceptedDeviations.length > 0 ? { acceptedDeviations } : {})
   };
 }

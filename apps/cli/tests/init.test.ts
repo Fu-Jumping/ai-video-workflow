@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { DEFAULT_VIDEO_PLATFORM, SUPPORTED_PLATFORMS } from "../src/lib/constants.js";
-import { createProject } from "../src/lib/init.js";
+import { createProject, renderInitNextSteps } from "../src/lib/init.js";
 
 const tempRoots: string[] = [];
 
@@ -291,6 +291,7 @@ describe("createProject", () => {
 
     const readme = await fs.readFile(path.join(projectRoot, "README.md"), "utf8");
     expect(readme).toContain("这是一个由 `ai-video-workflow` 生成的 AI 视频创作项目");
+    expect(readme).toContain("决策访谈");
     expect(readme).toContain("00_前期研究/00_研究总览.md");
     expect(readme).toContain("01_概念策划/剧本.md");
     expect(readme).toContain("_views/obsidian/");
@@ -336,6 +337,12 @@ describe("createProject", () => {
     expect(storyKernel).toContain("故事内核模板");
     const script = await fs.readFile(path.join(projectRoot, "01_概念策划", "剧本.md"), "utf8");
     expect(script).toContain("剧本模板");
+    const decisionLog = await fs.readFile(path.join(projectRoot, "01_概念策划", "00_决策记录.md"), "utf8");
+    expect(decisionLog).toContain("决策记录模板");
+    expect(decisionLog).toContain("P0 决策");
+    expect(decisionLog).toContain("| pending |");
+    const storyKernelHeader = await fs.readFile(path.join(projectRoot, "01_概念策划", "故事内核.md"), "utf8");
+    expect(storyKernelHeader).toContain("00_决策记录.md");
     const executionPlan = await fs.readFile(path.join(projectRoot, "06_执行计划", "00_执行计划.md"), "utf8");
     expect(executionPlan).toContain("生产总控表模板");
 
@@ -351,6 +358,10 @@ describe("createProject", () => {
     expect(gitignore).toContain("ai-video-workflow generated and local surfaces");
     expect(gitignore).toContain("_views/");
     expect(gitignore).toContain("00_前期研究/_资料库/*/raw/");
+
+    const nextSteps = renderInitNextSteps({ projectName: "demo-project", projectRoot, ide: "codex", startFrom: "research" });
+    expect(nextSteps).toContain("决策访谈");
+    expect(nextSteps).toContain("01_概念策划/00_决策记录.md");
   });
 
   test("can initialize from a complete script without Step 0", async () => {
@@ -371,6 +382,7 @@ describe("createProject", () => {
     await expect(fs.pathExists(path.join(projectRoot, "00_前期研究"))).resolves.toBe(false);
     await expect(fs.pathExists(path.join(projectRoot, "01_概念策划", "故事内核.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, "01_概念策划", "剧本.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "01_概念策划", "00_决策记录.md"))).resolves.toBe(true);
 
     const readme = await fs.readFile(path.join(projectRoot, "README.md"), "utf8");
     expect(readme).toContain("01_概念策划/故事内核.md");

@@ -9,12 +9,13 @@ I want to create a new AI video creative project with the current ai-video-workf
 Please first check whether this tool repository has dependencies installed and the CLI built. If not, help me run the required setup.
 Then ask me for the project name, parent folder, AI IDE target, default image platform, default video platform, and whether I should start from research or already have a complete script.
 Use my answers to run the initialization command. After the project is created, tell me which directory to open. By default, guide me from Step 0 research; if I clearly already have a complete script, add --start-from script and guide me from Step 1 planning.
+Before any writing, run the Step 1 decision interview with me: ask questions group by group, record answers in 01_概念策划/00_决策记录.md, and write the story core only after the P0 decisions are confirmed.
 I do not have programming experience. Do not ask me to assemble complex commands myself; ask me only for the choices you need.
 ```
 
 The agent should run the CLI for you. The CLI remains the authoritative initializer because it creates `AGENTS.md`, `文档/智能体工作区/`, Step folders, templates, config, and IDE runtime files consistently.
 
-After initialization, open the generated creative project directory, not this tool repository. By default, start from `00_前期研究/00_研究总览.md`; complete-script projects start from `01_概念策划/故事内核.md`.
+After initialization, open the generated creative project directory, not this tool repository. By default, start from `00_前期研究/00_研究总览.md`; complete-script projects start from `01_概念策划/故事内核.md`. Whatever the starting point, Step 1 begins with a decision interview: the agent asks you questions group by group and records answers in `01_概念策划/00_决策记录.md`; the story core is written only after the core creative decisions are confirmed.
 
 For Obsidian, open only `_views/obsidian/` as the vault. Do not open the project root itself as an Obsidian vault. External vault mode is still available for advanced use with `--out <path>`.
 

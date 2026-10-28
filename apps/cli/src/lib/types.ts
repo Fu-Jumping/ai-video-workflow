@@ -60,6 +60,9 @@ export type IssueCode =
   | "invalid-step5-contract"
   | "invalid-research-source-id"
   | "research-sensitive-auth-material"
+  | "step1-assumption-markers"
+  | "step1-decision-log-missing"
+  | "step1-decision-log-unconfirmed"
   | "invalid-reference-asset-token"
   | "absolute-path-link"
   | "step4-forbidden-text"
@@ -215,4 +218,9 @@ export interface VerificationResult {
   ok: boolean;
   issues: VerificationIssue[];
   acceptedDeviations?: VerificationIssue[];
+  /**
+   * 软警告：提示但不阻塞 `ok`，也不参与偏离登记（Issue #3：Step 1 决策访谈）。
+   * 为空时省略该键，保持既有 `toEqual({ ok, issues })` 断言兼容。
+   */
+  warnings?: VerificationIssue[];
 }
