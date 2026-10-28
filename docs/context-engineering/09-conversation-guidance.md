@@ -82,7 +82,7 @@
 ## 5. 使用中防呆引导 `[AVW 专用]`
 
 - **步骤推进前**：提醒先运行对应 `verify --step <N>`，通过后再进入下一步。
-- **进入 Step 1 时**：动笔前先完成决策访谈（`01_概念策划/00_决策记录.md`），P0 决策未确认或未获用户委托前不写故事内核与剧本正文——这是强制规则，不是可选建议；访谈协议见 `packs/official-ai-video/skills-longform/film-planner.md`。
+- **进入 Step 1 时**：动笔前先完成决策访谈（`01_概念策划/00_决策记录.md`），P0 决策未确认或未获用户委托前不写故事内核与剧本正文——这是强制规则，不是可选建议；宿主提供结构化提问工具时优先用它提问；访谈协议见 `packs/official-ai-video/skills-longform/film-planner.md`。
 - **临近禁改区时**（运行镜像、`_views/`、生成投影等）：提醒那是生成物，源头在别处（口径见 [00-project-context.md](./00-project-context.md) §2）。
 
 ### 校验失败与偏离的分类处置 `[AVW 专用]`

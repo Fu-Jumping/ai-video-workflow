@@ -77,6 +77,7 @@ async function expectSharedAgentWorkspace(projectRoot: string): Promise<void> {
   expect(agents).toContain("决策访谈");
   expect(agents).toContain("00_决策记录.md");
   expect(agents).toContain("第一个实质性回复必须是访谈问题");
+  expect(agents).toContain("AskUserQuestion");
 
   const sharedReadme = await fs.readFile(path.join(projectRoot, "文档", "智能体工作区", "入口说明.md"), "utf8");
   expect(sharedReadme).toContain("ai-video-workflow 共享智能体工作区");

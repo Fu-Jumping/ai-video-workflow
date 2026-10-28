@@ -433,6 +433,7 @@
 | L2 | P1 校验信号：verify 新增警告通道（`warnings`，不阻塞 ok）与三条 Step 1 软检查——内核含 `[assumption]`、内核已填但无决策记录、决策记录仍有 `pending`；doctor 输出决策提醒与"先访谈再进 Step 2"提示 | ✅ 已修（`7dc2256`） |
 | L3 | P2 文档与测试：中英 quickstart 与 step-01 用户文档补"先访谈后动笔"；init/sync/verify-step 测试覆盖新模板、生成文本与三类警告；官方示例补一份已确认决策记录保持零警告 | ✅ 已修（`7dc2256`） |
 | L4 | 约束强化（第二拍板）：契约与生成文本钉死「进入 Step 1 的第一个实质性回复必须是访谈问题，不得先给分析、梗概或剧本改写」；决策记录模板"访谈记录"节改「日期+覆盖编号+答复要点」留痕格式；verify 新增第四条软警告 `step1-interview-log-empty`（访谈记录仍为模板占位）；官方示例访谈记录补日期 | ✅ 已修（2026-10-26 强化小批） |
+| L5 | 宿主提问工具指引（2026-10-26 第三拍板「结合、分层」）：film-planner 双文件、quality-gates §2.5、生成的项目 AGENTS.md（sync.test 钉住 `AskUserQuestion` 字样）、09 对话引导、step-01 中英用户文档加「宿主有结构化提问工具（如 Claude Code 的 `AskUserQuestion`）时优先用它提问，答复一律当场落决策记录」；分层定案：宿主工具＝可选交互层，`00_决策记录.md`＝唯一记忆层，桌面形态（E 批）只换交互层不换记录层 | ✅ 已修（2026-10-26 L5 小批） |
 
 ### 验收门槛（本节）
 
@@ -441,3 +442,5 @@
 - 官方示例补决策记录后 example:verify 仍全绿零警告；`pnpm verify:v0.2`（build + 全量测试 + example:verify）通过。
 - **批次完成登记（2026-10-26，主对话直修）**：L1—L3 全部落地（提交 `7dc2256`）。门禁：`pnpm build`（CLI + docs:build）绿；测试 43 文件 571 用例全绿（新增 5 个 Step 1 决策门禁用例：新项目零警告、`[assumption]`/缺决策记录/`pending` 三态警告、全确认后零警告）；example:verify 通过且零警告；另以 dist CLI 冒烟验证真实输出——`verify` 打印 `Warnings (1, non-blocking)` 且仍 `Verification passed`，`doctor` 输出 Step 1 决策提醒与"先访谈再进 Step 2"下一步提示。实现要点：`VerificationResult` 新增可选 `warnings` 键（空时省略，兼容既有 `toEqual({ ok, issues })` 断言）；内核"已填写"判定用「字段：内容」非表格行计数（阈值 3），模板抬头（引用块/标题）中的 `[assumption]` 字样不算正文标记。
 - **强化批登记（2026-10-26，第二拍板，L4）**：首答访谈规则写入 film-planner 长文源与 SKILL、quality-gates §2.5、生成的项目 AGENTS.md 对话引导（sync.test 断言钉住）、step-01 中英用户文档；决策记录模板访谈记录节改留痕格式（占位行形态为合同：`- 第 N 组（…）：` 冒号后无内容）；verify 新增 `step1-interview-log-empty`（内核已填 + 决策记录存在 + 访谈记录节缺失或仍为占位 → 软警告）；doctor 分组表同步。门禁：build 绿、43 文件 572 用例全绿（新增访谈占位警告用例，"全确认零警告"用例同步补留痕）、example:verify 零警告、dist 冒烟单条 `step1-interview-log-empty` 输出正确。边界说明：存在性检查抓不住"伪造已确认记录"（机器无法证明用户真的答复过），由留痕提高伪造成本 + E2E 行为验证兜底；E2E（粗剧本→先问再写）排入下次隔离测试轮，软警告升硬拦截待该轮后另议；Issue #3 已于同日回复（改动尚未推送远端，回复中已说明将随下次推送合入）。
+- 观察项 O2（随 L5 登记）：`pnpm --filter ./apps/cli test` 偶发首跑失败——L 批期间两次出现（各 7 例 / 2 例），用例名未捕获（管道过滤丢失），紧接的复跑均全绿（L5 后三连绿，43 文件 572 用例）；疑似构建后高负载下进程级用例（cli-dist 等子进程）超时。下次复现先全量留档再定位，不单独开编号。
+- **L5 批登记（2026-10-26，第三拍板）**：分层方案落地——路线一（宿主提问工具）做轻量增强，路线二（决策记录文件）保持唯一记忆层不动；七处文本同步（film-planner 长文源与 SKILL、quality-gates §2.5、生成 AGENTS.md、09 对话引导、step-01 中英），sync.test 钉住生成文本。门禁：全量 build（CLI+docs）绿、43 文件 572 用例三连绿、example:verify 通过。另记 O2 观察项（测试偶发首跑失败，见上）。
