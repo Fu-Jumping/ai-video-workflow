@@ -80,7 +80,7 @@ Step 4 midjourney 与 gpt-image-2 的平台执行参数、禁词、字数、语�
 - 宿主提供结构化提问工具时（如 Claude Code 的 `AskUserQuestion`）优先用它提问；交互层可换，答复一律当场落决策记录。
 - P0 决策未全部 `confirmed`、或未获用户明确委托（记 `user-delegated default`）前，不写故事内核与剧本正文。
 - 未确认的判断在故事内核标 `[assumption]` 并登记决策记录；每组访谈在决策记录"访谈记录"节留痕（日期、覆盖编号、答复要点）。
-- `verify` 对「内核已填但无决策记录 / 决策记录仍有 `pending` / 内核残留 `[assumption]` / 访谈记录节仍为模板占位」给软警告（不阻塞通过）。
+- `verify` 对以下状态给软警告（不阻塞通过）：`step1-decision-log-missing`（内核已填但无决策记录）、`step1-decision-log-unconfirmed`（决策记录仍有 `pending`）、`step1-assumption-markers`（内核残留 `[assumption]`）、`step1-interview-log-empty`（访谈记录节仍为模板占位）。
 
 ## 3. Step 3 门槛
 
