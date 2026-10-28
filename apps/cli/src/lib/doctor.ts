@@ -74,7 +74,8 @@ const groups: Record<string, string> = {
   "unsafe-obsidian-force-target": "Obsidian Projection",
   "step1-assumption-markers": "Step 1 Decisions",
   "step1-decision-log-missing": "Step 1 Decisions",
-  "step1-decision-log-unconfirmed": "Step 1 Decisions"
+  "step1-decision-log-unconfirmed": "Step 1 Decisions",
+  "step1-interview-log-empty": "Step 1 Decisions"
 };
 
 function ideForRuntimeIssue(issue: VerificationIssue): string {

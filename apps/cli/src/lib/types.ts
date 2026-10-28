@@ -63,6 +63,7 @@ export type IssueCode =
   | "step1-assumption-markers"
   | "step1-decision-log-missing"
   | "step1-decision-log-unconfirmed"
+  | "step1-interview-log-empty"
   | "invalid-reference-asset-token"
   | "absolute-path-link"
   | "step4-forbidden-text"

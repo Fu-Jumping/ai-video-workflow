@@ -1352,6 +1352,43 @@ async function verifyStep1DecisionLog(projectRoot: string, warnings: Verificatio
       path: `${step1DirName}/${DECISION_LOG_FILE}`
     });
   }
+  const interviewSection = sectionByHeadingKeyword(decisionLogContent, "访谈记录");
+  const interviewFilled =
+    interviewSection !== null &&
+    interviewSection.split(/\r?\n/).some((rawLine) => {
+      const line = rawLine.trim();
+      return line.startsWith("- ") && !interviewEntryPlaceholderPattern.test(line);
+    });
+  if (!interviewFilled) {
+    warnings.push({
+      code: "step1-interview-log-empty",
+      message: "00_决策记录.md 的访谈记录节仍为模板占位：请逐组补记日期、覆盖编号与用户答复要点",
+      path: `${step1DirName}/${DECISION_LOG_FILE}`
+    });
+  }
+}
+
+/**
+ * 访谈记录节的模板占位行形态：`- 第 1 组（日期，覆盖编号）：`，冒号后无内容。
+ * 模板（00_决策记录.md）的占位行必须保持该形态，否则"未留痕"检查失效（合同）。
+ */
+const interviewEntryPlaceholderPattern = /^-\s*第\s*\d*\s*组\s*（[^）]*）\s*[:：]\s*$/u;
+
+/** 取二级标题包含 keyword 的节正文（到下一个标题为止）；找不到返回 null。 */
+function sectionByHeadingKeyword(content: string, keyword: string): string | null {
+  const lines = content.split(/\r?\n/);
+  const startIndex = lines.findIndex((line) => /^##\s/u.test(line) && line.includes(keyword));
+  if (startIndex === -1) {
+    return null;
+  }
+  const body: string[] = [];
+  for (const line of lines.slice(startIndex + 1)) {
+    if (/^#{1,6}\s/u.test(line)) {
+      break;
+    }
+    body.push(line);
+  }
+  return body.join("\n");
 }
 
 /**

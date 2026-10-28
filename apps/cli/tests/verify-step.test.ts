@@ -370,6 +370,22 @@ describe("Step 1 decision gates", () => {
     );
   });
 
+  test("warns when the interview record stays a template placeholder", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-step1-interview-empty-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root);
+    await fillStoryKernel(projectRoot);
+    const logPath = path.join(projectRoot, "01_概念策划", "00_决策记录.md");
+    const log = await fs.readFile(logPath, "utf8");
+    await fs.writeFile(logPath, log.split("| pending |").join("| confirmed |"), "utf8");
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video", step: 1 });
+    expect(result.ok).toBe(true);
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "step1-interview-log-empty" })])
+    );
+  });
+
   test("emits no warnings once the decision log is fully confirmed", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-step1-confirmed-"));
     tempRoots.push(root);
@@ -377,7 +393,17 @@ describe("Step 1 decision gates", () => {
     await fillStoryKernel(projectRoot);
     const logPath = path.join(projectRoot, "01_概念策划", "00_决策记录.md");
     const log = await fs.readFile(logPath, "utf8");
-    await fs.writeFile(logPath, log.split("| pending |").join("| confirmed |"), "utf8");
+    await fs.writeFile(
+      logPath,
+      log
+        .split("| pending |")
+        .join("| confirmed |")
+        .replace(
+          "- 第 1 组（日期，覆盖编号）：",
+          "- 第 1 组（2026-10-26，覆盖 D1—D9）：用户逐条确认推荐项。"
+        ),
+      "utf8"
+    );
 
     const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video", step: 1 });
     expect(result.ok).toBe(true);
