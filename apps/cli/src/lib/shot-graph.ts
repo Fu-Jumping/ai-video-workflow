@@ -2,6 +2,7 @@ import fs from "fs-extra";
 import path from "node:path";
 
 import { STEP_DIR_BY_NUMBER } from "./constants.js";
+import { buildContentTree, resolveContentMode } from "./content-tree.js";
 
 export type ShotGraphStep = 3 | 4 | 5;
 
@@ -171,9 +172,16 @@ export function linkedStepFiles(file: ShotGraphFile, step: ShotGraphStep): strin
   return [...new Set(links)];
 }
 
-export async function buildShotGraph(projectRoot: string): Promise<ShotGraph> {
-  const stepFiles = await Promise.all([3, 4, 5].map((step) => listStepMarkdownFiles(projectRoot, step as ShotGraphStep)));
-  const files = stepFiles.flat();
+export interface ShotGraphBuildOptions {
+  /** 按镜头覆盖分镜序号（内容树模式下由分镜文件推导，而不是从「### 分镜 N」标题读）。 */
+  segmentOverrides?: Map<string, number[]>;
+  /** 按镜头组覆盖说明文件（内容树模式下是 00_镜头组总览.md）。 */
+  groupDescriptions?: Map<string, ShotGraphFile>;
+}
+
+function assembleShotGraph(files: ShotGraphFile[], options: ShotGraphBuildOptions = {}): ShotGraph {
+  const segmentOverrides = options.segmentOverrides ?? new Map<string, number[]>();
+  const groupDescriptions = options.groupDescriptions ?? new Map<string, ShotGraphFile>();
   const byShot = new Map<string, ShotGraphFile[]>();
   for (const file of files) {
     if (!file.shotId) {
@@ -218,7 +226,8 @@ export async function buildShotGraph(projectRoot: string): Promise<ShotGraph> {
         storyboard: shotFiles.find((file) => file.step === 3),
         imagePrompts,
         videoPrompt: shotFiles.find((file) => file.step === 5),
-        storyboardSegments: storyboardSegmentNumbers(shotFiles.find((file) => file.step === 3)?.content ?? ""),
+        storyboardSegments:
+          segmentOverrides.get(id) ?? storyboardSegmentNumbers(shotFiles.find((file) => file.step === 3)?.content ?? ""),
         videoPromptShots: videoPromptShotNumbers(shotFiles.find((file) => file.step === 5)?.content ?? ""),
         files: [...shotFiles].sort((left, right) => left.step - right.step || left.relPath.localeCompare(right.relPath))
       } satisfies ShotGraphShot;
@@ -230,9 +239,15 @@ export async function buildShotGraph(projectRoot: string): Promise<ShotGraph> {
     .map((id) => ({
       id,
       directoryName: shotGroupDirectoryName(id),
-      description: files.find(
-        (file) => file.step === 3 && file.groupId === id && !file.shotId && /^(?:00[-_ ])?(?:镜头组说明|shot-group-notes)\.md$/iu.test(file.fileName)
-      ),
+      description:
+        groupDescriptions.get(id) ??
+        files.find(
+          (file) =>
+            file.step === 3 &&
+            file.groupId === id &&
+            !file.shotId &&
+            /^(?:00[-_ ])?(?:镜头组说明|shot-group-notes)\.md$/iu.test(file.fileName)
+        ),
       shots: shots.filter((shot) => shot.groupId === id)
     }));
 
@@ -244,4 +259,90 @@ export async function buildShotGraph(projectRoot: string): Promise<ShotGraph> {
     duplicateShotFiles,
     groupMismatches
   };
+}
+/**
+ * 用内容树构建镜头图（content-tree 模式）。
+ *
+ * 与旧格式的差别只有三处：
+ * 1. Step 3 视图由内容树的镜头汇总文件（00_镜头-NNN.md）提供，不再读 03_分镜脚本 下的镜头文件；
+ * 2. 分镜序号由分镜文件（分镜-NN.md）推导，而不是从「### 分镜 N」标题读；
+ * 3. 镜头组说明由 00_镜头组总览.md 提供。
+ *
+ * Step 4／Step 5 仍然读真实的执行文件，这样文件合同（快速导读／中文完整版本／可复制提示词）
+ * 的检查口径与旧格式完全一致。
+ */
+export function buildContentTreeShotGraph(
+  projectRoot: string,
+  tree: {
+    shots: Array<{
+      relPath: string;
+      shotId: string;
+      groupId: string;
+      document: { raw: string };
+      storyboards: Array<{ document: { storyboardNumber: number } }>;
+    }>;
+    groups: Array<{ groupId: string; overviewRelPath: string }>;
+  },
+  extraFiles: ShotGraphFile[]
+): ShotGraph {
+  const files: ShotGraphFile[] = [];
+  const segmentOverrides = new Map<string, number[]>();
+  const groupDescriptions = new Map<string, ShotGraphFile>();
+
+  for (const shot of tree.shots) {
+    files.push({
+      step: 3,
+      relPath: normalizeRelPath(shot.relPath),
+      fileName: path.posix.basename(normalizeRelPath(shot.relPath)),
+      content: shot.document.raw,
+      groupId: shot.groupId,
+      shotId: shot.shotId
+    });
+    segmentOverrides.set(
+      shot.shotId,
+      shot.storyboards.map((storyboard) => storyboard.document.storyboardNumber)
+    );
+  }
+
+  for (const group of tree.groups) {
+    const relPath = normalizeRelPath(group.overviewRelPath);
+    const overview = extraFiles.find((file) => file.relPath === relPath);
+    const file: ShotGraphFile = overview ?? {
+      step: 3,
+      relPath,
+      fileName: path.posix.basename(relPath),
+      content: "",
+      groupId: group.groupId
+    };
+    files.push({ ...file, groupId: group.groupId });
+    groupDescriptions.set(group.groupId, { ...file, groupId: group.groupId });
+  }
+
+  for (const file of extraFiles) {
+    if (file.step === 4 || file.step === 5) files.push(file);
+  }
+
+  return assembleShotGraph(files, { segmentOverrides, groupDescriptions });
+}
+
+/** 项目当前的正文读取模式。读取方一律走这里，不自行判断格式。 */
+export async function resolveShotGraphMode(projectRoot: string) {
+  return resolveContentMode(projectRoot);
+}
+
+/**
+ * 判定并构建镜头图：内容树模式走内容树，旧格式走 03/04/05 目录。
+ */
+export async function buildShotGraph(projectRoot: string): Promise<ShotGraph> {
+  const resolution = await resolveContentMode(projectRoot);
+  if (resolution.mode === "content-tree") {
+    const tree = await buildContentTree(projectRoot);
+    const extraFiles = [
+      ...(await listStepMarkdownFiles(projectRoot, 4)),
+      ...(await listStepMarkdownFiles(projectRoot, 5))
+    ];
+    return buildContentTreeShotGraph(projectRoot, tree, extraFiles);
+  }
+  const stepFiles = await Promise.all([3, 4, 5].map((step) => listStepMarkdownFiles(projectRoot, step as ShotGraphStep)));
+  return assembleShotGraph(stepFiles.flat());
 }

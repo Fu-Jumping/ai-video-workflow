@@ -21,6 +21,32 @@ afterEach(async () => {
   await Promise.all(tempRoots.splice(0).map((dir) => fs.remove(dir)));
 });
 
+/**
+ * 本文件的用例检验的是旧的 03／04／05 目录合同，所以项目必须是「旧格式项目」：
+ * 建好之后删掉 project.config.yaml 里的 content 键（缺这个键＝按旧格式读取）。
+ * 新格式（内容树）的等价覆盖在 content-tree.test.ts。
+ */
+async function dropContentFormatVersion(projectRoot: string): Promise<void> {
+  const { parseYaml, stringifyYaml } = await import("../src/lib/yaml.js");
+  const configPath = path.join(projectRoot, "project.config.yaml");
+  const parsed = parseYaml<Record<string, unknown>>(await fs.readFile(configPath, "utf8"));
+  delete parsed.content;
+  await fs.writeFile(configPath, stringifyYaml(parsed), "utf8");
+}
+
+/**
+ * 旧格式项目在 Step 3 组目录必须有 `00_镜头组说明.md`（quality-gates §Step 3）。
+ * init 现在按内容树口径播种（03 只留索引，不再带这份组说明），所以旧格式夹具改回
+ * 旧口径时自己补回来：内容取自 pack 模板，与改动前 init 播种的完全一致。
+ */
+async function seedLegacyShotGroupDescription(projectRoot: string): Promise<void> {
+  await fs.outputFile(
+    path.join(projectRoot, "03_分镜脚本", shotGroupDir, "00_镜头组说明.md"),
+    await fs.readFile(path.join(repoRoot, "packs", "official-ai-video", "templates", "03_分镜脚本", "镜头组说明.md"), "utf8"),
+    "utf8"
+  );
+}
+
 async function createSyncedProject(root: string): Promise<string> {
   await createProject({
     targetRoot: root,
@@ -33,6 +59,8 @@ async function createSyncedProject(root: string): Promise<string> {
   });
   const projectRoot = path.join(root, "verify-step-project");
   await syncProject({ repoRoot, projectRoot, pack: "official-ai-video", ide: "codex" });
+  await dropContentFormatVersion(projectRoot);
+  await seedLegacyShotGroupDescription(projectRoot);
   return projectRoot;
 }
 
@@ -266,5 +294,119 @@ describe("Step 5 content gates", () => {
     expect(result.issues).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ code: "step5-generic-negative-only" })])
     );
+  });
+});
+
+describe("Step 1 decision gates", () => {
+  /**
+   * Issue #3：动笔前决策访谈的软警告。三种状态各有对应 code，但都不阻塞 verify 通过；
+   * 全新项目（模板内核 + 模板决策记录）必须零警告，保持既有验收语义。
+   */
+  async function fillStoryKernel(projectRoot: string): Promise<void> {
+    await fs.writeFile(
+      path.join(projectRoot, "01_概念策划", "故事内核.md"),
+      [
+        "# 测试故事内核",
+        "",
+        "- 项目名称：决策访谈测试项目",
+        "- 项目类型：奇幻生活短片",
+        "- 目标时长：约 90 秒"
+      ].join("\n"),
+      "utf8"
+    );
+  }
+
+  test("fresh project emits no Step 1 warnings", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-step1-clean-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root);
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video", step: 1 });
+    expect(result.ok).toBe(true);
+    expect(result.warnings).toBeUndefined();
+  });
+
+  test("warns when the story kernel still carries [assumption] markers", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-step1-assumption-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root);
+    await fs.appendFile(
+      path.join(projectRoot, "01_概念策划", "故事内核.md"),
+      "- 核心主题：[assumption] 待用户确认\n",
+      "utf8"
+    );
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video", step: 1 });
+    expect(result.ok).toBe(true);
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "step1-assumption-markers" })])
+    );
+  });
+
+  test("warns when the story kernel is filled but the decision log is missing", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-step1-no-log-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root);
+    await fillStoryKernel(projectRoot);
+    await fs.remove(path.join(projectRoot, "01_概念策划", "00_决策记录.md"));
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video", step: 1 });
+    expect(result.ok).toBe(true);
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "step1-decision-log-missing" })])
+    );
+  });
+
+  test("warns while the decision log still has pending rows", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-step1-pending-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root);
+    await fillStoryKernel(projectRoot);
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video", step: 1 });
+    expect(result.ok).toBe(true);
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "step1-decision-log-unconfirmed" })])
+    );
+  });
+
+  test("warns when the interview record stays a template placeholder", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-step1-interview-empty-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root);
+    await fillStoryKernel(projectRoot);
+    const logPath = path.join(projectRoot, "01_概念策划", "00_决策记录.md");
+    const log = await fs.readFile(logPath, "utf8");
+    await fs.writeFile(logPath, log.split("| pending |").join("| confirmed |"), "utf8");
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video", step: 1 });
+    expect(result.ok).toBe(true);
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "step1-interview-log-empty" })])
+    );
+  });
+
+  test("emits no warnings once the decision log is fully confirmed", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-step1-confirmed-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root);
+    await fillStoryKernel(projectRoot);
+    const logPath = path.join(projectRoot, "01_概念策划", "00_决策记录.md");
+    const log = await fs.readFile(logPath, "utf8");
+    await fs.writeFile(
+      logPath,
+      log
+        .split("| pending |")
+        .join("| confirmed |")
+        .replace(
+          "- 第 1 组（日期，覆盖编号）：",
+          "- 第 1 组（2026-10-26，覆盖 D1—D9）：用户逐条确认推荐项。"
+        ),
+      "utf8"
+    );
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video", step: 1 });
+    expect(result.ok).toBe(true);
+    expect(result.warnings).toBeUndefined();
   });
 });

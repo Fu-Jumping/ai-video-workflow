@@ -152,10 +152,16 @@ describe("libtv CLI", () => {
     );
     await writeBinding(projectRoot, { projectUuid: "mock-project" });
 
-    const dry = await runCli(entry, [
-      "libtv", "--mock", "apply", "--project", projectRoot, "--only", "keyframes"
-    ]);
-    expect(dry.stdout).toContain("--allow-generation");
+    // I6：缺 --allow-generation 的门禁在鉴权之前直接报错退出，不再「提示后空跑」。
+    let denied: { code?: number | null; stdout?: string; stderr?: string } = {};
+    try {
+      await runCli(entry, ["libtv", "--mock", "apply", "--project", projectRoot, "--only", "keyframes"]);
+      throw new Error("Expected apply without --allow-generation to fail");
+    } catch (error) {
+      denied = error as { code?: number | null; stdout?: string; stderr?: string };
+      expect(denied.code).not.toBe(0);
+    }
+    expect(denied.stderr).toContain("--allow-generation");
 
     const executed = await runCli(entry, [
       "libtv", "--mock", "apply", "--project", projectRoot, "--only", "keyframes",
@@ -163,6 +169,58 @@ describe("libtv CLI", () => {
     ]);
     expect(executed.stdout).toContain("生成关键帧");
     expect(executed.stdout).toContain("成功");
+  });
+
+  test("libtv apply gate fires before credential loading (I6)", { timeout: 30000 }, async () => {
+    const cliRoot = path.resolve(__dirname, "..");
+    const entry = await buildCliToTemp(cliRoot);
+    const repoRoot = path.resolve(cliRoot, "..", "..");
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-libtv-cli-gate-"));
+    tempRoots.push(projectRoot);
+    await fs.copy(path.join(repoRoot, "examples", "官方示例-云上早市"), projectRoot);
+    await fs.appendFile(
+      path.join(projectRoot, "project.config.yaml"),
+      "\nlibtv:\n  image_model: mj-v8.2\n  video_model: star-video2\n",
+      "utf8"
+    );
+    await writeBinding(projectRoot, { projectUuid: "mock-project" });
+
+    // LIBTV_CONFIG_DIR 指向空目录：没有可用凭据。缺 --allow-generation 时应先报门禁
+    // 而不是凭据错误（门禁文案本身可验证）；带旗标时才走到凭据加载并报凭据错误。
+    const emptyConfigDir = await fs.mkdtemp(path.join(os.tmpdir(), "avw-libtv-empty-credentials-"));
+    tempRoots.push(emptyConfigDir);
+    const env = { ...process.env, LIBTV_CONFIG_DIR: emptyConfigDir };
+
+    const gateFailure = await new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve) => {
+      const child = spawn(process.execPath, [entry, "libtv", "apply", "--project", projectRoot, "--only", "keyframes"], {
+        env,
+        stdio: ["pipe", "pipe", "pipe"]
+      });
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (chunk) => { stdout += String(chunk); });
+      child.stderr.on("data", (chunk) => { stderr += String(chunk); });
+      child.on("close", (code) => resolve({ code: code ?? 0, stdout, stderr }));
+    });
+    expect(gateFailure.code).not.toBe(0);
+    expect(gateFailure.stderr).toContain("--allow-generation");
+    expect(gateFailure.stderr).not.toContain("凭据");
+
+    const credentialFailure = await new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve) => {
+      const child = spawn(
+        process.execPath,
+        [entry, "libtv", "apply", "--project", projectRoot, "--only", "keyframes", "--allow-generation"],
+        { env, stdio: ["pipe", "pipe", "pipe"] }
+      );
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (chunk) => { stdout += String(chunk); });
+      child.stderr.on("data", (chunk) => { stderr += String(chunk); });
+      child.on("close", (code) => resolve({ code: code ?? 0, stdout, stderr }));
+    });
+    expect(credentialFailure.code).not.toBe(0);
+    expect(credentialFailure.stderr).toContain("未找到 LibTV 登录凭据");
+    expect(credentialFailure.stderr).not.toContain("--allow-generation");
   });
 
   test("libtv project delete refuses to run without --yes in non-interactive mode", { timeout: 30000 }, async () => {

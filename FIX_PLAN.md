@@ -272,3 +272,186 @@
 1. 定向测试（verify / libtv-credentials）+ 全量门禁 `pnpm verify:v0.2` 全绿（串行）+ `git diff --check` 通过。
 2. 手工重放两条最小复现路径（离线等价形式）确认修复生效。
 3. 更新 `docs/context-engineering/07-decisions-and-open-questions.md` Q14、Q15 状态与 CHANGELOG。
+
+---
+
+## 九、R4 隔离测试发现（2026-10-25，I1—I7，登记待修）
+
+- 依据：第 4 轮隔离端到端测试（坟场段同题重做，被测提交 `6519694`；测试根 `avw-r4-e2e-20261025/REPORT.md`，路径按 D12 机器映射解析；报告含主对话终审区）。用户 2026-10-25 拍板「登记」。LibTV 真实生成链因本机凭据失效未验证（外部状态，已拍板归档留待下次整测）。同轮拍板的「05 执行文件调序、可复制提示词前置」随本批直接修复，不占本节编号。
+
+| 编号 | 问题 | 严重度 | 状态 |
+| --- | --- | --- | --- |
+| I1 | content check 的恢复指引未提示手改后需 `--force` | 一般 | ✅ 已修（J 批同修，`83c9555`/`211dad9`：8 处文案补 --force 提示） |
+| I2 | `libtv --mock` 画布注册表为进程内存态，跨进程不可用 | 一般（限制） | ✅ 已修（文档口径：帮助与 zh/en 文档标注限制）；**持久化经用户 2026-10-26 拍板「不做、归入关闭项」** |
+| I3 | `libtv apply --dry-run` 与 `plan` 不一致：未绑定画布时无法预演 | 一般 | ✅ 已修（`83c9555`：dry-run 未绑定按「未绑定」出预演） |
+| I4 | Obsidian 单镜头页镜头组链接标签错（显示为分镜名） | 提示 | ✅ 已修（`dc7f7d3`：标签显示「镜头组-001」） |
+| I5 | 07_发布物料模板「来源亮点」仍指向旧结构路径 | 提示 | ✅ 已修（`47a3a79`：四模板改指内容树路径） |
+| I6 | `--allow-generation` 门禁检查位于鉴权之后 | 提示 | ✅ 已修（`83c9555`：门禁前移；行为变化=裸 apply 改报错退出，用户 2026-10-26 确认新口径） |
+| I7 | `research ingest` 对本地文件 platform 记为 web，与 source_kind 不一致 | 提示 | ✅ 已修（`1e62e5f`：本地来源记 local，仅工具自动标注） |
+
+#### I1 content check 的恢复指引未提示需要 --force（一般）
+- 现象：手改 05 执行文件后 `content check` 报「请重新整理」，但裸 `content assemble` 因 manual-drift 保护不覆盖手改内容，按提示操作后 mismatch 仍在。
+- 最小复现：手改任一 05 执行文件可复制提示词 → `content check` → `content assemble` → mismatch 仍在；须 `content assemble --force`（覆盖前备份到 `.tmp/`）才恢复。
+- 修复方向：`content-summary-execution-mismatch` / `content-execution-stale` 文案补充「自动区块被手改时需 `content assemble --force`」。
+
+#### I2 libtv --mock 非持久化，跨进程不可用（一般·限制）
+- 现象：`libtv --mock project create` 的画布注册表为进程内存态，新进程即报 `Mock project not found`；mock 实际只服务仓库自身测试，无法用于离线链路演示。
+- 修复方向：提供可选的 mock 状态持久化，或在 libtv 文档标注该限制。
+
+#### I3 libtv apply --dry-run 也要求画布绑定（一般）
+- 现象：`plan` 无需绑定即可出计划；`apply --dry-run` 未绑定时先报「缺少画布」，两者不一致，无法预演 apply。
+- 修复方向：dry-run 在未绑定时按「未绑定」出预演计划。
+
+#### I4 Obsidian 单镜头页链接标签错误（提示）
+- 现象：单镜头页指向镜头组文件的链接标签显示为分镜名（如「分镜-01」），应为「镜头组-001」。
+- 修复方向：修正投影层标签模板。
+
+#### I5 发布物料模板旧结构路径（提示）
+- 现象：07_发布物料模板的「来源亮点」引用 `../03_分镜脚本/镜头组-001/00_镜头组说明.md`，内容树模式下不存在。
+- 修复方向：模板路径改为指向 `../内容/…`。
+- 补注（2026-10-25 R5 复查，范围修正）：不止「来源亮点」一处——`07_发布物料/01_标题.md`、`02_简介正文.md`、`03_话题标签.md`、`04_封面文案.md` 四个模板文件均含 `../03_分镜脚本/镜头组-001/…` 旧路径引用。
+
+#### I6 --allow-generation 门禁检查位于鉴权之后（提示）
+- 现象：凭据失效时不带旗标先报「用户未授权」，门禁提示文案本身无法验证（R4 环境）。
+- 修复方向：把缺 `--allow-generation` 的检查前移到鉴权之前。
+
+#### I7 research ingest 本地文件 platform 记为 web（提示）
+- 现象：本地 md 导入后 source-card 的 platform 为 web 而 source_kind 为 local-file，字段语义不一致。
+- 修复方向：本地文件 platform 置空或标 local。
+
+### 验收门槛（本节）
+
+- I1—I7 逐项修复时按本文件 §一 修复原则（模板与文档服从校验器合同、最小改动、每项带回归测试），修复后更新本节状态与对应测试。
+
+## 十、R5 验证轮发现（2026-10-25，J1—J7，登记待修）
+
+- 依据：第 5 轮隔离验证（同题重做，被测提交 `257e7c9`；测试根 `avw-r5-verify-20261025/REPORT.md`，含主对话终审区）。两条独立验证线：隔离子代理全新创作项目（R1+R2 全绿，546 用例）与主对话构想符合性核对/I1—I7 复查（全新 init、官方示例、R4 存量副本、真实旧项目快照副本四种载体实测；证据见测试目录 `.tmp/主对话核对-任务AB.md`）。用户 2026-10-25 拍板：①登记本节并附最小复现与根因定位；②**J1—J7 与 §九 I1—I7 合并一个小批一次修完**；③当前版本推送 GitHub；④阶段 04 工作树清理。
+- 同轮复验：R4 拍板的 05 执行文件调序三侧生效（新项目/官方示例/存量自动迁移，二次整理幂等）；I1—I7 全部原样存在（I5 范围已在上节修正）。
+
+| 编号 | 问题 | 严重度 | 状态 |
+| --- | --- | --- | --- |
+| J1 | 同镜跨分镜关键帧同号 → 04 执行文件双渲染争用，assemble/check 永不收敛且无冲突报错 | 严重 | ✅ 已修（`211dad9`：解析校验+争用显式报错+迁移器保留旧编号，真实旧项目载体收敛复核通过） |
+| J2 | 素材文件路径双轨：记录自检按对象编号、粗剪时长探测按内部编号，且均未文档化 | 严重 | ✅ 已修（`22b1fb7`：以素材记录身份为唯一取径，说明补目录约定） |
+| J3 | midjourney 项目 04 执行文件渲染「Midjourney」，verify 要求字面小写 `midjourney` | 一般 | ✅ 已修（`211dad9`：渲染层枚举小写+显示名另起行，校验器未动） |
+| J4 | 关键帧「整镜连续编号」隐含规则未写入规范/模板/示例 | 一般 | ✅ 已修（`47a3a79`：workflow-spec §3.1 与分镜卡补规则） |
+| J5 | 素材记录「当前选用」应填候选文件名未文档化（写「是」显示「未选」） | 一般 | ✅ 已修（`22b1fb7`：说明补示例与反例） |
+| J6 | verify-and-iterate.md「Step 3 预期中间态」为旧版 03 镜头卡口径 | 提示 | ✅ 已修（`74b2b93`：zh/en 补内容树口径） |
+| J7 | init 在当前目录建项目，快速上手未提醒先切到目标父目录 | 提示 | ✅ 已修（`74b2b93`：README 与 quickstart zh/en 补提醒） |
+
+#### J1 同镜跨分镜关键帧同号，执行文件永不收敛（严重）
+- 现象：同一镜头的两个分镜各自声明「关键帧 01」时，`04_图片提示词/…/镜头-NNN-关键帧-01.md` 被两份不同渲染结果争用：`content assemble` 每轮报「更新 1 个文件」而文件字节数轮间不变，`content check` 永远报 `content-execution-stale`，verify 随之永红，全程无「编号冲突」提示。两条独立路径均触发：子代理全新项目按模板常识填写；主对话真实旧项目迁移（`seeyouinthesouth_test` 快照副本，迁移器把旧项目镜内全局唯一的关键帧-01/-02 重编为分镜各自的「01」，镜头-015 即现成案例）。
+- 根因（文件+函数级）：① 内容树解析不校验镜内关键帧编号唯一性；② `apps/cli/src/lib/content-assemble.ts` 按 (shot, storyboard, keyframe) 逐份渲染 step4 plan（约 :1108—1113），同 relPath 产生两条 plan；③ 写入侧 `changes.find(relPath)` 只认第一条（约 :1146/:1151），报告侧合并去重偏好 update（约 :1168）——「报更新、写一条、查两条」。
+- 最小复现：任一项目同一镜头两个分镜文件各写 `#### 关键帧 01` → `content assemble` → `content check` → 反复整理不收敛。
+- 修复方向：内容树解析对镜内关键帧编号做唯一性校验（重复即报错并指明分镜）；迁移器保留旧项目镜内全局关键帧编号、不按分镜重排；assemble 检测同 relPath 多 plan 冲突时显式报错而非静默双写。与 J4 文档规则同步落地。
+
+#### J2 素材文件路径双轨（严重）
+- 现象：同一支视频文件，verify 的素材记录自检按 `outputs/video/<记录对象编号>/`（如 `镜头-001`）查「已下载」，roughcut 时长探测按 `outputs/video/<内部编号>/`（如 `shot-001`）查同一文件；手工导入素材只放一处，则「verify 报 media-record-missing-file」或「粗剪时长列=未知」二者必居其一；两条路径约定均未写入 `素材记录/00_素材记录说明.md`。
+- 根因：`apps/cli/src/lib/media-records.ts:306` 以记录身份 objectId 拼路径；`apps/cli/src/lib/roughcut.ts:132—134` 以 shot 内部编号拼路径。
+- 最小复现：登记一条已下载视频记录（对象编号 镜头-001）→ 文件只放 `outputs/video/镜头-001/` → verify 通过但 `roughcut plan` 时长未知；文件只放 `outputs/video/shot-001/` → verify 报记录文件不存在。
+- 修复方向：统一取径（以素材记录身份为唯一口径，roughcut 复用同一函数）；`素材记录说明` 补目录约定。
+
+#### J3 midjourney 平台名大小写口径不一致（一般）
+- 现象：midjourney 项目 04 执行文件「平台执行参数」表渲染 `| 图片平台 | Midjourney |`，`verify` 报 `missing-step4-platform-execution-setting`（要求小节含字面小写 `midjourney`）；真实旧项目迁移实测 24 个文件全部命中。
+- 根因：`content-assemble.ts:464` 以 `PLATFORM_DISPLAY_NAMES.midjourney = "Midjourney"`（`constants.ts:58`）渲染；`verify.ts:58` 要求字面小写 `midjourney`。
+- 最小复现：`init --image midjourney` 的内容树项目推进到 Step 4 并 assemble → verify（迁移项目实测；全新项目为渲染路径共用的代码层推断，待实机复核）。
+- 修复方向：按 §一「模板与文档服从校验器合同」原则统一口径（校验器改大小写不敏感，或渲染层用枚举小写），择一后带回归测试。
+
+#### J4 关键帧整镜连续编号规则未文档化（一般）
+- 现象：关键帧编号须整镜连续（跨分镜不重启）是隐含规则，违反时表现为 J1 的「陈旧循环」而非「编号冲突」报错；`workflow-spec.md` §3.1、分镜模板与官方示例均未写明（官方示例全是单关键帧镜头）。
+- 修复方向：workflow-spec §3.1 与分镜模板补规则说明；模板合规测试覆盖跨分镜多关键帧编号（配合 J1 唯一性校验）。
+
+#### J5 素材记录「当前选用」语义未文档化（一般）
+- 现象：记录级「当前选用」应填所选候选的文件名；写成「是」时 media-list 显示「未选」，仅可从 media-list 输出与源码推知。
+- 修复方向：`素材记录/00_素材记录说明.md` 补示例与反例。
+
+#### J6 verify-and-iterate.md Step 3 预期中间态为旧口径（提示）
+- 现象：文档按旧版 03 镜头卡口径描述（invalid-keyframe-mapping / broken-step3-step4-link）；内容树项目 03 只有索引文件，实测 Step 3 无此中间态。
+- 修复方向：补内容树模式口径。
+
+#### J7 init 在当前目录建项目未提示（提示）
+- 现象：init 在当前工作目录下建项目，快速上手未提醒先 `cd` 到目标父目录；R5 两轮（子代理与主对话）各误建一次（均已删除重建）。
+- 修复方向：README/quickstart 补一句操作提醒。
+
+#### J8 verify 整镜正文比对对 CRLF 敏感，旧项目迁移场景误报 content-execution-stale（一般，阶段 05 第一批发现）——✅ 已修（2026-10-26 主线小批 `a760d8f`）
+- 现象：分镜文件含 CRLF 行尾时（Windows 旧项目迁移场景典型状态），`verify` 对 05 执行文件报 `content-execution-stale`，而同一状态下 `content check` 判一致、`content assemble` 幂等——两个命令结论相反。
+- 根因（实证，阶段 05 执行对话）：`verify.ts` `sectionAfterHeading` 用 `content.split(/\r?\n/)` + `join("\n")` 取「可复制提示词」小节，把 CRLF 规范成 LF；比对对象 `shot.assembly.text` 保留分镜文件原样 CRLF → 逐字比较不等（实测两值 1026 vs 1038 字符，差异处为 `\r\n` vs `\n`；LF 规范化后归零）。`content-assemble.ts` 的 `extractCopyablePrompt` 用正则直接切原文（保留 `\r`），故 check 判等。
+- 最小复现：任一项目把任一分镜文件转为 CRLF 行尾 → `content assemble` → `content check` 通过而 `verify` 报 1 条 `content-execution-stale`。
+- 修复方向（用户 2026-10-26 拍板）：a) `verify` 比较前对两侧统一规范化行尾（改动最小）。回归测试须覆盖「CRLF 分镜项目 verify 与 content check 双绿」。
+- 备注：不影响 J1 验收点；测试项目全为 LF，故 R4/R5 未暴露。
+- 修复回填：verify 三处比较（summaryFresh、05 可复制提示词 vs 拼装正文、vs 汇总整段）前对两侧统一 LF 规范化；回归测试「CRLF 分镜项目 verify 与 check 双绿」红绿对照成立（修复前 verify.ok=false）；门禁 build / test（43 文件 562 用例）/ example:verify 全绿，docs 未动豁免 docs:build。
+
+#### J9 content-tree 小节解析对整文件 CRLF 失效（一般，2026-10-26 J8 小批发现）——✅ 已修（2026-10-26 主线小批 `e9b9b64`）
+- 现象：分镜文件整份为 CRLF 行尾时（Windows 编辑器保存或 git autocrlf 检出即触发），小节一个都识别不出：verify 连报三条 content-identity-invalid（缺本段正文/关键帧/视频提示词区块），内容树完全不可用。
+- 根因（J8 小批实测）：JS 正则的 `.` 不把回车符当普通字符，`SECTION_HEADING_PATTERN = /^(#{2,3})\s+(.+)$/u` 在行尾带 \r 时不命中 → `splitSections` 切不出任何小节。探针：LF 解析 0 问题，同内容整文件 CRLF 解析连报 3 条 content-identity-invalid（临时探针测试已复现并移除）。
+- 最小复现：任一项目把任一分镜文件整体转为 CRLF 行尾 → verify / content check 连报缺区块。
+- 修复方向（候选，待拍板）：`splitSections` 改 `content.split(/\r?\n/)`（与 verify 的 sectionAfterHeading 同法）；KEYFRAME_HEADING_PATTERN 等按行匹配的正则同步核对；回归测试「整文件 CRLF 分镜项目解析与 verify 双绿」。注意与 J8 的现场差异：迁移器产出的文件是「标题 LF + 块内 CRLF」混合形态，J8 只覆盖比对层。
+/)`（与 verify 的 sectionAfterHeading 同法）；KEYFRAME_HEADING_PATTERN 等按行匹配的正则同步核对；回归测试「整文件 CRLF 分镜项目解析与 verify 双绿」。注意与 J8 的现场差异：迁移器产出的文件是「标题 LF + 块内 CRLF」混合形态，J8 只覆盖比对层。
+- 修复回填（2026-10-26 主线小批直修，用户拍板）：splitSections 切行改归一回车符 + firstHeading 行尾容忍回车符；区块标记解析（\s 容忍且依赖原始下标）不动。回归测试「整文件 CRLF 分镜项目解析与 verify 双绿」红绿对照成立（修复前必红）；全量 43 文件 563 用例、build、example:verify 全绿。
+
+#### J10 迁移器同一分镜多张关键帧只迁第一张（一般）——✅ 已修（2026-10-26 主线小批 `c803782`）
+- 现象：旧项目同一分镜挂多张关键帧时，迁移只取第一个匹配的旧 04 文件，其余关键帧静默丢失。
+- 根因：`migration-preview.ts` 用 `find` 取该分镜第一份关键帧文件。
+- 修复：收集该分镜全部旧 04 文件、按镜内编号排序逐张写入；编号沿用旧编号不重排（J1 口径）。回归测试覆盖两张关键帧同分镜全部迁入 + 迁移后 check 收敛 verify 通过，红绿对照成立；564 用例全绿。
+- 备注：此前「维持现状」的拍板（2026-10-26 阶段 05 回执 §8.4）由用户当日改为「可以做」，本条据此执行。
+### 验收门槛（本节）
+
+- J1—J7 与 §九 I1—I7 按用户拍板合并一个小批修复；逐项按 §一 修复原则执行（模板与文档服从校验器合同、最小改动、每项带回归测试）；修复后更新两节状态与对应测试。
+- **批次完成登记（2026-10-26，主对话独立检查后回填）**：J1—J7 与 I1—I7 全部修复于阶段 05 第一批（7 个分项提交 `211dad9`…`74b2b93`，15 个新增回归测试，基线 546 → 561 用例）；每项修复前红/修复后绿证据与逐项细节见阶段工作树交付报告（已抢救至主工作区 `.tmp/stage-05-archive/stage-05-batch1-report.md`）。快进合并 57a3c4d → `74b2b93`，合并后主工作区四道门禁全绿（build / test 43 文件 561 用例 / example:verify / docs:build）。独立检查另证实：J1 真实旧项目载体（midjourney）的 verify 平台报错 28→0、stale 2→0，绝对路径链接报错维持既有内容问题不变。I2 的 mock 持久化与「同分镜多关键帧迁移」维持现状（用户拍板）。J8 留待下批修复。
+
+
+## 十一、R6 快速复测轮发现（2026-10-26，K1—K5）
+
+- 依据：第 6 轮隔离复测（被测提交 `80ddab9`；测试根 `avw-r6-retest-20261026/REPORT.md`，含主对话终审区）。主链路全绿，B1—B11 修复点全部隔离复现生效（I/J 系列确认根治）。新发现 5 项均经主对话代码级核实；用户 2026-10-26 拍板：全部登记，K1/K2/K5 当轮直修，K3/K4 留待后续。
+
+| 编号 | 问题 | 严重度 | 状态 |
+| --- | --- | --- | --- |
+| K1 | 正文裸 `https://` 链接被误判为绝对路径链接（`[A-Za-z]:\/` 命中 URL 里的 `s:/`） | 一般 | ✅ 已修（`098c862`：盘符分支负向后行断言，两处同改） |
+| K2 | 项目级校验剥离行内代码而观看层校验不剥离，同一内容两套口径，投影侧无法自修 | 一般 | ✅ 已修（`098c862`：verify-obsidian 同口径剥离） |
+| K3 | `research ingest` 自动编号只看 `_资料库/` 现有目录，不读资料索引手工占号，易撞号 | 提示 | ✅ 已修（2026-10-28 小批，见下方修复登记；主对话复核 579 用例全绿后提交） |
+| K4 | 素材记录「身份键」内部格式（如 `video:镜头-001/视频`）未写入说明；解析失败报错不含字段 | 提示 | ✅ 已修（2026-10-28 小批，见下方修复登记；主对话复核 579 用例全绿后提交） |
+| K5 | 中文 `README.zh-CN.md` 与新手页缺「先 cd 到父目录再 init」提醒（J7 覆盖面遗漏） | 提示 | ✅ 已修（`4d5693e`：两处中文入口补同款提醒） |
+
+#### K1/K2 详情
+
+- K1 现象与根因：`verify.ts`/`obsidian/verify.ts` 的 `absoluteLinkPattern` 中 `[A-Za-z]:\/` 会把 `https://` 里的 `s:/` 当盘符路径；正文（非行内代码）裸外链只能塞进反引号绕过。修复：盘符分支加 `(?<![A-Za-z])` 断言（`someC:/x` 这类粘连写法随之放行，可接受）；`file://`、`vscode://`、markdown 根链接 `](/` 检测不变。
+- K2 现象与根因：项目级 `verify.ts` 检测前 `content.replace(inlineCodePattern, "")`，观看层 `verifyNoAbsoluteLinks` 直接测原文——行内代码里的路径在项目侧合法、投影侧报错且用户无从修复。修复：观看层同口径剥离。
+- 回归测试：verify.test.ts「K1」断言裸 https 不报、盘符路径仍报；obsidian-verify.test.ts「K2」断言行内代码路径过项目与观看层双校验；均红绿对照成立。
+- 观察项 O1（随登记留档）：`roughcut plan --check` 在缺素材时退出码 1 属交付门禁口径，建议后续在用户文档点明，不单开编号。
+
+### 验收门槛（本节）
+
+- K1/K2/K5 已修并有回归测试与门禁记录；K3/K4 择机修（建议与下次小批合并），修复时按 §一 原则执行并回填状态。
+
+#### K3/K4 修复登记（2026-10-28）
+
+- **K3 根因**：`apps/cli/src/lib/research.ts` 的 `allocateSourceId` 只 `readdir` `00_前期研究/_资料库/` 现有目录喂给 `nextSourceId` 取最大号 +1；资料索引 `01_资料索引.md` 里手工登记的占号（有索引行、尚未建目录）不参与取数，自动编号会分出与手工占号相同的 SRC-xxxx。
+- **K3 改法**：新增 `indexReservedSourceIds`（整文件解析 `SRC-\d{4}`）与 `existingLibrarySourceIds`，`allocateSourceId` 与 `ingestResearchInbox` 的预演分配（dry-run 起始名单）都改为「目录 + 索引占号」并集取最大 +1。配套把索引模板 `packs/official-ai-video/templates/00_前期研究/01_资料索引.md` 的示例行与规则句里的字面 `SRC-0001`/`SRC-0002` 改为 `SRC-xxxx` 形态（否则全新项目首号会被模板示例顶成 SRC-0003），并在模板「来源 ID 规则」写明「索引登记过的号一律视为已占用」。
+- **K3 测试**：`tests/research.test.ts` 新增 3 用例（索引占号 SRC-0002 → 下一号 SRC-0003；索引占号 SRC-0003 → SRC-0004；inbox dry-run 连续分配避开占号）。红绿对照：暂存 `research.ts` 修复后红跑，3 用例全红且失败值恰为撞号的 `SRC-0002`（既有 8 例不受影响），恢复修复后 11 例全绿。
+- **K4 根因**：`apps/cli/src/lib/media-records.ts` 的 `parseMediaIdentityKey` 解析失败静默返回 undefined，`verifyMediaRecords` 的 `invalid-media-record` 报错只有「素材记录无法解析：<文件名>」，不含字段名、原值与期望格式；说明模板 `packs/official-ai-video/templates/素材记录/00_素材记录说明.md` 只有概念性「身份怎么认」，未写内部格式。
+- **K4 改法**：新增导出 `mediaIdentityKeyHint`（期望格式人读口径）与 `describeMediaIdentityKeyError`（含字段名与原值的失败原因）；`verifyMediaRecords` 改经 `invalidMediaRecordMessage` 出报错——frontmatter 缺「身份键」字段、或身份键解析失败（非法格式/非法类别）时，报错带字段名、原值与期望格式示例，其余解析失败维持原文案。说明模板补「身份键（工具内部格式）」小节：格式 `类别:对象编号/用途`、六个类别合法取值、三个示例与一个反例（`video:镜头-001` 缺用途段）。
+- **K4 测试**：`tests/media-records.test.ts` 新增 4 用例（身份键缺槽位段时校验报错含字段名/原值/示例；缺「身份键」字段同口径；`describeMediaIdentityKeyError` 合法不报/非法带原值；说明模板含身份键小节与示例反例）。红绿对照：把报错调用点临时还原为旧文案后红跑，2 个报错断言用例红，恢复后该文件 35 例全绿。
+- **门禁**：`pnpm build` 绿；`pnpm --filter ./apps/cli test` 43 文件 579 用例全绿（572 + 7 新增；首跑即绿，未触发 O2）；`pnpm example:verify` 通过。
+
+## 十二、Issue #3 提案落地：Step 1 动笔前决策访谈门禁（2026-10-26，L1—L3）
+
+- 依据：外部用户 KillZero12138 在 GitHub `Fu-Jumping/ai-video-workflow` 提交 Issue #3（2026-10-26）：剧本模式实测中，智能体不提问直接改写剧本并写完故事内核，`verify` 仍报通过——Step 1 只有"写后审核点"，没有"写前访谈门禁"。主对话已逐处核对，issue 引用的 10 处文件与行号和本地代码全部属实。
+- 用户拍板（2026-10-26）：按提案全盘采纳口径（提案中的"原始剧本.md"对齐本地命名 `剧本.md`）；verify 先软警告、稳定后再议硬拦截；主线小批直修（不开阶段工作树）；开修后统一回复 issue。第二拍板（同日）：约束强化 1+2（首答必须是访谈问题 + 访谈留痕校验）当轮直修；E2E 行为验证排入下次测试轮；强化完成后回复 issue。
+
+| 编号 | 内容 | 状态 |
+| --- | --- | --- |
+| L1 | P0 契约与模板：workflow-spec Step 1 补"动笔前决策访谈"；quality-gates 补 Step 1 决策门槛（§2.5）与 §1.3/§8 归属；film-planner 长文源与 SKILL 补访谈协议；新增模板 `01_概念策划/00_决策记录.md`（P0 九问骨架，状态 `confirmed`/`pending`/`user-delegated default`）；故事内核模板加"先访谈"抬头；init 播种与首条消息、生成 AGENTS.md 对话引导、根 AGENTS.md 停下确认清单同步口径 | ✅ 已修（`7dc2256`） |
+| L2 | P1 校验信号：verify 新增警告通道（`warnings`，不阻塞 ok）与三条 Step 1 软检查——内核含 `[assumption]`、内核已填但无决策记录、决策记录仍有 `pending`；doctor 输出决策提醒与"先访谈再进 Step 2"提示 | ✅ 已修（`7dc2256`） |
+| L3 | P2 文档与测试：中英 quickstart 与 step-01 用户文档补"先访谈后动笔"；init/sync/verify-step 测试覆盖新模板、生成文本与三类警告；官方示例补一份已确认决策记录保持零警告 | ✅ 已修（`7dc2256`） |
+| L4 | 约束强化（第二拍板）：契约与生成文本钉死「进入 Step 1 的第一个实质性回复必须是访谈问题，不得先给分析、梗概或剧本改写」；决策记录模板"访谈记录"节改「日期+覆盖编号+答复要点」留痕格式；verify 新增第四条软警告 `step1-interview-log-empty`（访谈记录仍为模板占位）；官方示例访谈记录补日期 | ✅ 已修（2026-10-26 强化小批） |
+| L5 | 宿主提问工具指引（2026-10-26 第三拍板「结合、分层」）：film-planner 双文件、quality-gates §2.5、生成的项目 AGENTS.md（sync.test 钉住 `AskUserQuestion` 字样）、09 对话引导、step-01 中英用户文档加「宿主有结构化提问工具（如 Claude Code 的 `AskUserQuestion`）时优先用它提问，答复一律当场落决策记录」；分层定案：宿主工具＝可选交互层，`00_决策记录.md`＝唯一记忆层，桌面形态（E 批）只换交互层不换记录层 | ✅ 已修（2026-10-26 L5 小批） |
+
+### 验收门槛（本节）
+
+- 全新 init 项目（两种起点）自带 `00_决策记录.md`；README、首条消息、生成的项目 AGENTS.md 都说"先访谈后动笔"（sync.test 断言钉住）。
+- verify 全绿语义不变（软警告不阻塞）：新项目零警告；"内核已填没决策记录 / 决策记录有 `pending` / 内核含 `[assumption]`"三态各出对应警告（红绿对照测试）。
+- 官方示例补决策记录后 example:verify 仍全绿零警告；`pnpm verify:v0.2`（build + 全量测试 + example:verify）通过。
+- **批次完成登记（2026-10-26，主对话直修）**：L1—L3 全部落地（提交 `7dc2256`）。门禁：`pnpm build`（CLI + docs:build）绿；测试 43 文件 571 用例全绿（新增 5 个 Step 1 决策门禁用例：新项目零警告、`[assumption]`/缺决策记录/`pending` 三态警告、全确认后零警告）；example:verify 通过且零警告；另以 dist CLI 冒烟验证真实输出——`verify` 打印 `Warnings (1, non-blocking)` 且仍 `Verification passed`，`doctor` 输出 Step 1 决策提醒与"先访谈再进 Step 2"下一步提示。实现要点：`VerificationResult` 新增可选 `warnings` 键（空时省略，兼容既有 `toEqual({ ok, issues })` 断言）；内核"已填写"判定用「字段：内容」非表格行计数（阈值 3），模板抬头（引用块/标题）中的 `[assumption]` 字样不算正文标记。
+- **强化批登记（2026-10-26，第二拍板，L4）**：首答访谈规则写入 film-planner 长文源与 SKILL、quality-gates §2.5、生成的项目 AGENTS.md 对话引导（sync.test 断言钉住）、step-01 中英用户文档；决策记录模板访谈记录节改留痕格式（占位行形态为合同：`- 第 N 组（…）：` 冒号后无内容）；verify 新增 `step1-interview-log-empty`（内核已填 + 决策记录存在 + 访谈记录节缺失或仍为占位 → 软警告）；doctor 分组表同步。门禁：build 绿、43 文件 572 用例全绿（新增访谈占位警告用例，"全确认零警告"用例同步补留痕）、example:verify 零警告、dist 冒烟单条 `step1-interview-log-empty` 输出正确。边界说明：存在性检查抓不住"伪造已确认记录"（机器无法证明用户真的答复过），由留痕提高伪造成本 + E2E 行为验证兜底；E2E（粗剧本→先问再写）排入下次隔离测试轮，软警告升硬拦截待该轮后另议；Issue #3 已于同日回复（改动尚未推送远端，回复中已说明将随下次推送合入）。
+- 观察项 O2（随 L5 登记）：`pnpm --filter ./apps/cli test` 偶发首跑失败——L 批期间两次出现（各 7 例 / 2 例），用例名未捕获（管道过滤丢失），紧接的复跑均全绿（L5 后三连绿，43 文件 572 用例）；疑似构建后高负载下进程级用例（cli-dist 等子进程）超时。下次复现先全量留档再定位，不单独开编号。
+- **L5 批登记（2026-10-26，第三拍板）**：分层方案落地——路线一（宿主提问工具）做轻量增强，路线二（决策记录文件）保持唯一记忆层不动；七处文本同步（film-planner 长文源与 SKILL、quality-gates §2.5、生成 AGENTS.md、09 对话引导、step-01 中英），sync.test 钉住生成文本。门禁：全量 build（CLI+docs）绿、43 文件 572 用例三连绿、example:verify 通过。另记 O2 观察项（测试偶发首跑失败，见上）。
+- **行为验证轮（2026-10-28，主对话编排隔离子代理，测试根 `E:\develop-G\tests\avw-step1-interview-e2e-20261028\`）**：被测提交 `957867c`（L1—L5 全量），REPORT.md 含四场景记录。**总体评级：可用**。正例——面对「帮我分析这个剧本并优化」，智能体首个实质性回复即 3 组×3 问分组访谈（每问带选项与推荐，未先给分析/改写，依据为生成 AGENTS.md 对话引导节）；答复逐组落痕（D1—D9 逐批 confirmed + 访谈记录节日期/覆盖编号/答复要点）；P0 未全确认期间故事内核 SHA-256 保持模板原值不变（动笔门禁实证）；确认后填写，verify --step 1 通过且零警告。反例——决策记录模板原样：2 条软警告（`step1-decision-log-unconfirmed` + `step1-interview-log-empty`）；删除决策记录：1 条（`step1-decision-log-missing`）；doctor 两态均提示「先完成 Step 1 决策访谈再进 Step 2」；正例对照组 doctor 空报告（不误报）。遗留提示级 3 项：Q1 提示词层 vs 工具层边界（已知设计取舍，见上文边界说明）；Q2 警告编号未文档化——已随本批补进 quality-gates §2.5；Q3 pnpm v10 默认忽略 esbuild 构建脚本（未影响构建）——环境类留档不处理。**软警告升硬拦截的前提（行为验证通过）已具备，待用户拍板。**

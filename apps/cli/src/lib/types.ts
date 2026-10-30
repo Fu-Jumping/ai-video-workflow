@@ -15,7 +15,9 @@ export type ResearchPlatform =
   | "kuaishou"
   | "tieba"
   | "zhihu"
-  | "web";
+  | "web"
+  // 本地文件来源（非 URL）：由工具对 local-file 来源自动标注，CLI --platform 不接受该值。
+  | "local";
 
 export type ResearchRuntime = "auto" | "toolbox" | "ide-inbox";
 
@@ -58,6 +60,10 @@ export type IssueCode =
   | "invalid-step5-contract"
   | "invalid-research-source-id"
   | "research-sensitive-auth-material"
+  | "step1-assumption-markers"
+  | "step1-decision-log-missing"
+  | "step1-decision-log-unconfirmed"
+  | "step1-interview-log-empty"
   | "invalid-reference-asset-token"
   | "absolute-path-link"
   | "step4-forbidden-text"
@@ -103,7 +109,35 @@ export type IssueCode =
   | "obsidian-vault-not-directory"
   | "unsafe-obsidian-force-target"
   | "invalid-deviations-yaml"
-  | "invalid-deviation-entry";
+  | "invalid-deviation-entry"
+  | "invalid-media-record"
+  | "duplicate-media-record"
+  | "media-record-identity-mismatch"
+  | "duplicate-media-version"
+  | "media-record-missing-file"
+  | "media-record-empty-file"
+  | "media-record-size-mismatch"
+  | "media-record-selection-missing"
+  | "unsupported-content-format"
+  | "content-tree-missing"
+  | "content-tree-incomplete"
+  | "content-legacy-and-tree-coexist"
+  | "content-block-marker-invalid"
+  | "content-index-missing"
+  | "content-index-stale"
+  | "content-identity-invalid"
+  | "content-segment-prefix-mismatch"
+  | "content-summary-stale"
+  | "content-execution-stale"
+  | "content-summary-execution-mismatch"
+  | "content-summary-manual-drift"
+  | "content-write-failed"
+  | "media-identity-conflict"
+  | "roughcut-plan-mismatch"
+  | "roughcut-missing-material"
+  | "media-pack-conflict"
+  | "jianying-draft-error"
+  | "jianying-draft-skip";
 
 export interface LibTvProjectConfig {
   image_model?: string;
@@ -126,6 +160,9 @@ export interface ProjectConfig {
     enhanced_flow: {
       enabled: boolean;
     };
+  };
+  content?: {
+    format_version?: number;
   };
   libtv?: LibTvProjectConfig;
 }
@@ -156,6 +193,14 @@ export interface VerificationIssue {
 
 export type WorkflowMode = "standard" | "scene-basis" | "minimal-video" | "hybrid";
 
+/**
+ * 正文读取模式。
+ *
+ * legacy：项目没有 content.format_version，只读旧 03/04/05。
+ * content-tree：项目声明 content.format_version=1，只读 内容/ 内容树。
+ */
+export type ContentMode = "legacy" | "content-tree";
+
 export interface WorkflowDeviation {
   rule: string;
   scope?: string;
@@ -174,4 +219,9 @@ export interface VerificationResult {
   ok: boolean;
   issues: VerificationIssue[];
   acceptedDeviations?: VerificationIssue[];
+  /**
+   * 软警告：提示但不阻塞 `ok`，也不参与偏离登记（Issue #3：Step 1 决策访谈）。
+   * 为空时省略该键，保持既有 `toEqual({ ok, issues })` 断言兼容。
+   */
+  warnings?: VerificationIssue[];
 }

@@ -9,6 +9,7 @@ export const stageReviewDirectory = "01_阶段审核";
 export const shotLookupDirectory = "02_按镜头联查";
 export const reviewToolsDirectory = "03_审阅工具";
 export const userNotesDirectory = "04_个人笔记";
+export const mediaReviewDirectory = "05_素材审阅";
 
 export const stepDisplayDirectories: Readonly<Record<number, string>> = Object.freeze({
   0: "00_前期研究",
@@ -49,6 +50,23 @@ export function shotReviewCanvasPath(shotId: string): string {
 
 export const shotLookupIndexPath = `${shotLookupDirectory}/00_镜头联查.md`;
 
+// 内容树（内容/）在观看层里的入口：内容树是分层目录，按场／镜头组／镜头／分镜投影，
+// 让「这个镜头有几段分镜」可以直接点开看。
+export const contentTreeDirectory = `${shotLookupDirectory}/内容树`;
+export const contentTreeIndexPath = `${shotLookupDirectory}/00_内容树.md`;
+export const contentSceneDirectory = `${contentTreeDirectory}/场`;
+export const contentStoryboardDirectory = `${contentTreeDirectory}/分镜`;
+
+export function contentScenePagePath(sceneId: string): string {
+  return `${contentSceneDirectory}/${sceneId}.md`;
+}
+
+// 分镜身份在镜头内唯一（每个镜头都有自己的 分镜-01），所以路径按镜头分目录，避免不同镜头的
+// storyboard-01 撞到同一个 vault 文件。
+export function contentStoryboardPagePath(shotId: string, storyboardId: string): string {
+  return `${contentStoryboardDirectory}/${shotId}/${storyboardId}.md`;
+}
+
 export const reviewToolsDashboardDirectory = `${reviewToolsDirectory}/数据看板`;
 export const globalCanvasDirectory = `${reviewToolsDirectory}/全局画布`;
 export const collaborationTemplatesDirectory = `${reviewToolsDirectory}/协作模板`;
@@ -73,6 +91,23 @@ export function shotReviewNotePath(shotId: string): string {
 
 export const notesIndexPath = `${userNotesDirectory}/说明.md`;
 export const notesIndexLink = notesIndexPath.slice(0, -3);
+
+// 素材审阅（B3）：参考媒体与产出文件的独立查看器。每个素材一页，
+// 与素材记录同构：身份键决定页面位置，展示名只影响标题。
+export const mediaReviewIndexPath = `${mediaReviewDirectory}/00_素材总览.md`;
+export const mediaReviewReferenceDirectory = `${mediaReviewDirectory}/参考素材`;
+export const mediaReviewKeyframeDirectory = `${mediaReviewDirectory}/关键帧`;
+export const mediaReviewVideoDirectory = `${mediaReviewDirectory}/视频`;
+
+export function mediaReviewCategoryDirectory(category: string): string {
+  if (category === "keyframe") return mediaReviewKeyframeDirectory;
+  if (category === "video") return mediaReviewVideoDirectory;
+  return mediaReviewReferenceDirectory;
+}
+
+export function mediaReviewPagePath(category: string, objectId: string, purpose: string): string {
+  return `${mediaReviewCategoryDirectory(category)}/${objectId}/${purpose}.md`;
+}
 
 // Naming aliases keep the route contract readable at call sites that refer
 // to the top-level areas as entry, tools, or personal-notes directories.

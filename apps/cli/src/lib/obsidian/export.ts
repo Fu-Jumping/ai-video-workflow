@@ -12,8 +12,10 @@ import {
   renderProjectionManifest
 } from "./manifest.js";
 import { renderGeneratedWorkflowNote, workflowVaultPath } from "./markdown.js";
+import { buildMediaReviewDisplay, renderMediaReviewFiles, type MediaReviewAsset } from "./media-viewer.js";
 import { hasGeneratedFrontmatterMarker } from "./properties.js";
 import { sourcePathToFsPath } from "./paths.js";
+import { mediaReviewDirectory } from "./routes.js";
 import { scanProjectForObsidian } from "./scan.js";
 import type {
   ObsidianExportOperation,
@@ -34,6 +36,8 @@ import { verifyProject } from "../verify.js";
 
 const legacyUserNotesDirectory = "笔记";
 const userNotesDirectory = "04_个人笔记";
+// 素材副本的 vault 内子树（页面目录 05_素材审阅/关键帧 等存放页面，副本另起 _素材/）。
+const mediaReviewAssetsVaultDirectory = `${mediaReviewDirectory}/_素材`;
 
 function isInsidePath(child: string, parent: string): boolean {
   const relative = path.relative(path.resolve(parent), path.resolve(child));
@@ -94,7 +98,7 @@ async function assertSafeForceOutput(outRoot: string): Promise<void> {
   }
 }
 
-const currentVaultTopDirectories = ["00_开始审阅", "01_阶段审核", "02_按镜头联查", "03_审阅工具", "04_个人笔记"] as const;
+const currentVaultTopDirectories = ["00_开始审阅", "01_阶段审核", "02_按镜头联查", "03_审阅工具", "04_个人笔记", "05_素材审阅"] as const;
 
 function isCurrentVaultLayout(manifest: ObsidianProjectionManifest | null): boolean {
   return (manifest?.files ?? []).some((entry) =>
@@ -298,11 +302,19 @@ async function removeSafeOrphanedGeneratedFiles(outRoot: string, operations: Obs
   }
 }
 
+/**
+ * 规划生成文件的写入操作。
+ *
+ * forceRebuild（--force）时磁盘还住在原状（删除发生在规划之后）：照常读真实哈希、
+ * 对照真实旧清单分类，报告才能区分 created／updated／unchanged；与普通导出的差别是
+ * 被手改的文件不跳过（--force 语义即覆盖重建，跳过会让删除后的 vault 缺文件），
+ * UI 配置也不再当作本地用户状态保留。
+ */
 async function planGeneratedFiles(
   outRoot: string,
   files: ObsidianGeneratedFile[],
   previousManifest: ObsidianProjectionManifest | null,
-  assumeCleanOutput: boolean
+  forceRebuild: boolean
 ): Promise<ObsidianExportOperation[]> {
   const operations: ObsidianExportOperation[] = [];
   const previousEntries = manifestByVaultPath(previousManifest);
@@ -311,14 +323,14 @@ async function planGeneratedFiles(
   for (const file of files) {
     const fullPath = vaultFsPath(outRoot, file.vaultPath);
     const nextHash = hashContent(file.content);
-    const currentHash = assumeCleanOutput ? null : await currentFileHash(fullPath);
+    const currentHash = await currentFileHash(fullPath);
     const previousEntry = previousEntries.get(file.vaultPath);
 
     if (currentHash === null) {
       operations.push({ status: "created", vaultPath: file.vaultPath, sourcePath: file.sourcePath });
       continue;
     }
-    if (isDirectObsidianUiConfigPath(file.vaultPath)) {
+    if (!forceRebuild && isDirectObsidianUiConfigPath(file.vaultPath)) {
       operations.push({
         status: "skipped-user-config-existing",
         vaultPath: file.vaultPath,
@@ -329,6 +341,18 @@ async function planGeneratedFiles(
     }
     if (currentHash === nextHash) {
       operations.push({ status: "unchanged", vaultPath: file.vaultPath, sourcePath: file.sourcePath });
+      continue;
+    }
+    if (forceRebuild) {
+      operations.push({
+        status: "updated",
+        vaultPath: file.vaultPath,
+        sourcePath: file.sourcePath,
+        reason:
+          previousEntry && currentHash !== previousEntry.contentHash
+            ? "force rebuild overwrites a locally modified generated file"
+            : "content differs from the current projection"
+      });
       continue;
     }
     if (!previousEntry) {
@@ -358,15 +382,17 @@ async function planGeneratedFiles(
 
   for (const entry of previousEntries.values()) {
     if (!nextPaths.has(entry.vaultPath)) {
-      const currentHash = assumeCleanOutput ? entry.contentHash : await currentFileHash(vaultFsPath(outRoot, entry.vaultPath));
-      if (currentHash !== null && currentHash !== entry.contentHash) {
-        operations.push({
-          status: "skipped-user-modified",
-          vaultPath: entry.vaultPath,
-          sourcePath: entry.sourcePath,
-          reason: "old generated file was modified and is retained for manual migration"
-        });
-        continue;
+      if (!forceRebuild) {
+        const currentHash = await currentFileHash(vaultFsPath(outRoot, entry.vaultPath));
+        if (currentHash !== null && currentHash !== entry.contentHash) {
+          operations.push({
+            status: "skipped-user-modified",
+            vaultPath: entry.vaultPath,
+            sourcePath: entry.sourcePath,
+            reason: "old generated file was modified and is retained for manual migration"
+          });
+          continue;
+        }
       }
       operations.push({
         status: "orphaned-generated",
@@ -379,8 +405,88 @@ async function planGeneratedFiles(
   return operations;
 }
 
-async function writeGeneratedFiles(outRoot: string, files: ObsidianGeneratedFile[], operations: ObsidianExportOperation[]): Promise<void> {
-  const writablePaths = new Set(operations.filter((operation) => operation.status === "created" || operation.status === "updated").map((operation) => operation.vaultPath));
+/**
+ * 素材审阅（B3）：把 05_素材审阅 页面里引用的素材文件复制进 vault。
+ *
+ * 外部 vault 里没有项目的 outputs/ 目录，页面必须嵌入 vault 内的副本，
+ * 否则 Obsidian 显示不出图片。源文件缺失时跳过复制：页面那边已经写成
+ * 「文件缺失：<原相对路径>」，导出不因此失败。
+ */
+async function copyMediaReviewAssets(outRoot: string, assets: MediaReviewAsset[]): Promise<void> {
+  for (const asset of assets) {
+    if (!asset.exists) {
+      continue;
+    }
+    const destinationPath = vaultFsPath(outRoot, asset.vaultPath);
+    await fs.ensureDir(path.dirname(destinationPath));
+    await fs.copy(asset.sourcePath, destinationPath);
+  }
+}
+
+/**
+ * 素材审阅（B3）：清理 vault 里已经没有对应素材记录的旧副本。
+ *
+ * 复制只增不删，素材记录里删掉某个候选后 vault 会留下孤儿副本。清理范围严格限定在
+ * 05_素材审阅/_素材 这一棵子树内：先递归列出该目录下的所有文件，凡是 vault 路径
+ * （POSIX 形式）不在本次计划清单里的就删除，删完把空目录一并收掉。目录不存在时直接
+ * 返回。05_素材审阅 下的页面 md 与 04_个人笔记 等其它目录不在遍历起点之内，不会被碰到。
+ */
+export async function removeOrphanedMediaAssets(outRoot: string, plannedAssets: MediaReviewAsset[]): Promise<void> {
+  const assetsRoot = vaultFsPath(outRoot, mediaReviewAssetsVaultDirectory);
+  if (!(await fs.pathExists(assetsRoot))) {
+    return;
+  }
+  const plannedFullPaths = new Set(plannedAssets.map((asset) => path.resolve(vaultFsPath(outRoot, asset.vaultPath))));
+  const removedDirectories: string[] = [];
+
+  const walk = async (current: string): Promise<void> => {
+    const entries = await fs.readdir(current, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        await walk(fullPath);
+        removedDirectories.push(fullPath);
+        continue;
+      }
+      if (!entry.isFile()) {
+        continue;
+      }
+      // 安全边界：只删 _素材 子树内的文件，且只删这次没有计划到的。
+      if (!isInsidePath(fullPath, assetsRoot)) {
+        continue;
+      }
+      if (plannedFullPaths.has(path.resolve(fullPath))) {
+        continue;
+      }
+      await fs.remove(fullPath);
+    }
+  };
+
+  await walk(assetsRoot);
+  // 由深到浅收掉空目录（walk 是后序收集，_素材 本身排在最后）；非空目录保留。
+  for (const directory of [...removedDirectories, assetsRoot]) {
+    if (!isInsidePath(directory, assetsRoot) && !sameFsPath(directory, assetsRoot)) {
+      continue;
+    }
+    if (!(await fs.pathExists(directory))) {
+      continue;
+    }
+    const remaining = await fs.readdir(directory);
+    if (remaining.length === 0) {
+      await fs.remove(directory);
+    }
+  }
+}
+
+async function writeGeneratedFiles(
+  outRoot: string,
+  files: ObsidianGeneratedFile[],
+  operations: ObsidianExportOperation[],
+  forceRebuild: boolean
+): Promise<void> {
+  const writablePaths = forceRebuild
+    ? new Set(files.map((file) => file.vaultPath))
+    : new Set(operations.filter((operation) => operation.status === "created" || operation.status === "updated").map((operation) => operation.vaultPath));
   for (const file of files.filter((generatedFile) => writablePaths.has(generatedFile.vaultPath))) {
     const fullPath = path.join(outRoot, ...file.vaultPath.split("/"));
     await fs.ensureDir(path.dirname(fullPath));
@@ -438,12 +544,6 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
     if (options.force) {
       await assertSafeForceOutput(outRoot);
     }
-    if (options.force && !options.dryRun) {
-      await fs.remove(outRoot);
-    }
-    if (!options.dryRun) {
-      await fs.ensureDir(outRoot);
-    }
 
     const sourceFiles = await scanProjectForObsidian(projectRoot);
     if (sourceFiles.length === 0) {
@@ -472,9 +572,24 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
 
     const deviationContext = await readDeviations(projectRoot);
     const libtvState = await readState(projectRoot);
+    // 素材审阅（B3／C3）：读一次记录、算一次哈希，素材页、镜头页与分镜页共用这份展示数据。
+    // 项目里没有素材记录时 records 为空，导出结果与之前完全一致。
+    const mediaDisplay = await buildMediaReviewDisplay(projectRoot);
+    const mediaReviewFiles =
+      mediaDisplay.records.length > 0 ? await renderMediaReviewFiles(projectRoot, mediaDisplay) : [];
+    const mediaReviewAssets = [...mediaDisplay.assets.values()];
     const files = [
       ...workflowFiles,
-      ...renderDashboardFiles(projectName, sourceFiles, options.includePluginRecipes, deviationContext, libtvState),
+      ...renderDashboardFiles(
+        projectName,
+        sourceFiles,
+        options.includePluginRecipes,
+        deviationContext,
+        libtvState,
+        mediaReviewFiles.length > 0,
+        mediaDisplay
+      ),
+      ...mediaReviewFiles,
       ...renderBaseFiles(),
       renderWorkflowCanvas(sourceFiles),
       renderShotPipelineCanvas(sourceFiles),
@@ -482,11 +597,19 @@ export async function exportObsidianVault(options: ObsidianExportOptions): Promi
       renderReviewMapCanvas(),
       ...(options.includeObsidianUi ? renderObsidianUiConfigFiles() : [])
     ];
-    const planningManifest = options.force ? null : previousManifest;
-    const operations = await planGeneratedFiles(outRoot, files, planningManifest, Boolean(options.force));
+    // --force 的目录删除放在规划之后：规划要靠旧清单与磁盘真实哈希区分 created／updated／unchanged，
+    // 删除后再全量重写（报告为 unchanged 的文件也要写回，否则重建后的 vault 缺文件）。
+    const operations = await planGeneratedFiles(outRoot, files, previousManifest, Boolean(options.force));
     const manifest = createManifest(projectRoot, outRoot, projectName, files, operations, previousManifest);
     if (!options.dryRun) {
-      await writeGeneratedFiles(outRoot, files, operations);
+      if (options.force) {
+        await fs.remove(outRoot);
+      }
+      await fs.ensureDir(outRoot);
+      await writeGeneratedFiles(outRoot, files, operations, Boolean(options.force));
+      await copyMediaReviewAssets(outRoot, mediaReviewAssets);
+      // 素材记录被删掉或候选被移除后，vault 里对应的旧副本要跟着清理（dryRun 分支不会走到这里）。
+      await removeOrphanedMediaAssets(outRoot, mediaReviewAssets);
       await removeSafeOrphanedGeneratedFiles(outRoot, operations, false);
       await restoreUserNoteBackups(outRoot, userNoteBackups, false, operations);
       await fs.writeFile(vaultFsPath(outRoot, projectionManifestPath), renderProjectionManifest(manifest), "utf8");

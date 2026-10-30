@@ -1,10 +1,11 @@
 import path from "node:path";
 
+import { CONTENT_ROOT_DIRECTORY } from "../constants.js";
 import { formatReferenceAssets } from "../reference-assets.js";
 import { shotGroupDirectoryName } from "../shot-graph.js";
 import { sanitizeVaultFileName, toVaultPath } from "./paths.js";
 import { obsidianProperties, obsidianPropertyValues } from "./properties.js";
-import { singleShotPagePath, stageReviewPath, stepDisplayDirectory } from "./routes.js";
+import { singleShotPagePath, stageReviewDirectory, stageReviewPath, stepDisplayDirectory } from "./routes.js";
 import type { ObsidianSourceFile } from "./types.js";
 
 const stepNames: Record<number, string> = {
@@ -64,6 +65,11 @@ export function generatedFileName(sourceFile: ObsidianSourceFile): string {
 }
 
 export function workflowVaultPath(sourceFile: ObsidianSourceFile): string {
+  // 内容树页面按原目录结构投影到 01_阶段审核/内容/ 下：内容树自己就是分层目录，
+  // 重命名会让同一镜头下的 00_镜头-NNN.md 与 分镜-NN.md 撞名，也会让树内相对链接失真。
+  if (sourceFile.sourcePath === CONTENT_ROOT_DIRECTORY || sourceFile.sourcePath.startsWith(`${CONTENT_ROOT_DIRECTORY}/`)) {
+    return toVaultPath(path.posix.join(stageReviewDirectory, sourceFile.sourcePath));
+  }
   const groupDirectory = sourceFile.shotGroupId ? shotGroupDirectoryName(sourceFile.shotGroupId) : undefined;
   return toVaultPath(path.posix.join(stageReviewPath(sourceFile.step), ...(groupDirectory ? [groupDirectory] : []), generatedFileName(sourceFile)));
 }

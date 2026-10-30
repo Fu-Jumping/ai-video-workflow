@@ -1,6 +1,7 @@
 import type { LibTvBackend } from "./backend.js";
 import { buildLibTvPlan } from "./assets.js";
 import { readState, requireBinding } from "./project-binding.js";
+import { describeLibTvFailureClass } from "./failures.js";
 import type { LibTvStatusResult } from "./types.js";
 
 export async function buildStatus(projectRoot: string, backend: LibTvBackend): Promise<LibTvStatusResult> {
@@ -38,7 +39,10 @@ export async function buildStatus(projectRoot: string, backend: LibTvBackend): P
       taskId: stateItem?.taskId,
       progressPercent: stateItem?.progressPercent,
       generationError: stateItem?.generationError,
-      attempts: stateItem?.attempts
+      attempts: stateItem?.attempts,
+      failureClass: stateItem?.failureClass,
+      downloadError: stateItem?.downloadError,
+      localOutput: stateItem?.localOutput
     };
   });
 
@@ -55,11 +59,32 @@ export async function buildStatus(projectRoot: string, backend: LibTvBackend): P
       taskId: stateItem?.taskId,
       progressPercent: stateItem?.progressPercent,
       generationError: stateItem?.generationError,
-      attempts: stateItem?.attempts
+      attempts: stateItem?.attempts,
+      failureClass: stateItem?.failureClass,
+      downloadError: stateItem?.downloadError,
+      localOutput: stateItem?.localOutput
     };
   });
 
   return { projectUuid: binding.projectUuid, anchors, keyframes, videos };
+}
+
+function describeStatusSuffix(item: {
+  failureClass?: string;
+  downloadError?: string;
+  localOutput?: string;
+}): string {
+  const parts: string[] = [];
+  if (item.failureClass) {
+    parts.push(" failure=" + describeLibTvFailureClass(item.failureClass as never));
+  }
+  if (item.localOutput) {
+    parts.push(" local=" + item.localOutput);
+  }
+  if (item.downloadError) {
+    parts.push(" downloadError=" + item.downloadError);
+  }
+  return parts.join("");
 }
 
 export function renderStatus(status: LibTvStatusResult): string {
@@ -70,10 +95,10 @@ export function renderStatus(status: LibTvStatusResult): string {
     ...status.anchors.map((anchor) => `- ${anchor.token} local=${anchor.local ? "✓" : "✗"} remote=${anchor.remote ? "✓" : "✗"}${anchor.nodeId ? ` node=${anchor.nodeId}` : ""}${anchor.reviewDecision ? ` review=${anchor.reviewDecision}` : ""}${anchor.finalNodeId ? ` final=${anchor.finalNodeId}` : ""}${anchor.refineRounds ? ` rounds=${anchor.refineRounds}` : ""}`),
     "",
     `关键帧 ${status.keyframes.length}`,
-    ...status.keyframes.map((item) => `- ${item.id} remote=${item.remote ? "✓" : "✗"}${item.nodeId ? ` node=${item.nodeId}` : ""}${item.status ? ` status=${item.status}` : ""}${item.reviewDecision ? ` review=${item.reviewDecision}` : ""}${item.finalNodeId ? ` final=${item.finalNodeId}` : ""}${item.refineRounds ? ` rounds=${item.refineRounds}` : ""}${item.progressPercent !== undefined ? ` progress=${item.progressPercent}` : ""}${item.generationError ? ` error=${item.generationError}` : ""}${item.attempts !== undefined ? ` attempts=${item.attempts}` : ""}`),
+    ...status.keyframes.map((item) => `- ${item.id} remote=${item.remote ? "✓" : "✗"}${item.nodeId ? ` node=${item.nodeId}` : ""}${item.status ? ` status=${item.status}` : ""}${item.reviewDecision ? ` review=${item.reviewDecision}` : ""}${item.finalNodeId ? ` final=${item.finalNodeId}` : ""}${item.refineRounds ? ` rounds=${item.refineRounds}` : ""}${item.progressPercent !== undefined ? ` progress=${item.progressPercent}` : ""}${item.generationError ? ` error=${item.generationError}` : ""}${item.attempts !== undefined ? ` attempts=${item.attempts}` : ""}${describeStatusSuffix(item)}`),
     "",
     `视频 ${status.videos.length}`,
-    ...status.videos.map((item) => `- ${item.id} remote=${item.remote ? "✓" : "✗"}${item.nodeId ? ` node=${item.nodeId}` : ""}${item.status ? ` status=${item.status}` : ""}${item.progressPercent !== undefined ? ` progress=${item.progressPercent}` : ""}${item.generationError ? ` error=${item.generationError}` : ""}${item.attempts !== undefined ? ` attempts=${item.attempts}` : ""}`)
+    ...status.videos.map((item) => `- ${item.id} remote=${item.remote ? "✓" : "✗"}${item.nodeId ? ` node=${item.nodeId}` : ""}${item.status ? ` status=${item.status}` : ""}${item.progressPercent !== undefined ? ` progress=${item.progressPercent}` : ""}${item.generationError ? ` error=${item.generationError}` : ""}${item.attempts !== undefined ? ` attempts=${item.attempts}` : ""}${describeStatusSuffix(item)}`)
   ];
   return lines.join("\n");
 }

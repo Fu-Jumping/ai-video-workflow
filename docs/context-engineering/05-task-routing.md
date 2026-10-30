@@ -20,7 +20,7 @@
 | --- | --- |
 | 应读 | `packs/official-ai-video/skills-longform/film-planner.md`、对应模板、[03-step-contracts.md](./03-step-contracts.md) Step 1 |
 | 可改 | 创作项目 `01_概念策划/`；确认后逐级下游 |
-| 验证 | `verify --step 1`；人审故事内核后再进 Step 2 |
+| 验证 | `verify --step 1`；先完成 `01_概念策划/00_决策记录.md` 决策访谈（P0 确认或用户委托后再动笔），人审故事内核后进 Step 2 |
 
 ### A3 从研究资料开始（研究模式默认路径）
 
@@ -117,7 +117,7 @@
 | 项 | 内容 |
 | --- | --- |
 | 应读 | 仓库根 `AGENTS.md` Testing 章节、机器全局 skill `avw-isolated-e2e-testing`、[06-verification-gates.md](./06-verification-gates.md)、[templates/isolated-test-report.md](./templates/isolated-test-report.md) |
-| 可改 | `G:\develop-G\tests\` 下本轮测试目录（新建子文件夹） |
+| 可改 | 本机测试根目录（数据盘 `develop-G\tests\`，机器映射见 [07-decisions-and-open-questions.md](./07-decisions-and-open-questions.md) D12）下本轮测试目录（新建子文件夹） |
 | 验证 | 隔离红线全程遵守；不消耗生成额度；主对话做比对与终审 |
 
 ### B5 文档维护（docs/ 站点）

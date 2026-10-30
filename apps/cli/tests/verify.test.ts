@@ -12,6 +12,34 @@ import { verifyProject } from "../src/lib/verify.js";
 const tempRoots: string[] = [];
 const repoRoot = path.resolve(__dirname, "../../..");
 
+/**
+ * 把这个测试项目改回「旧格式项目」：删掉 project.config.yaml 里的 content 键。
+ *
+ * 本文件所有用例检验的都是旧的 03／04／05 目录合同，所以项目必须是缺
+ * content.format_version 的旧格式；新格式（内容树）的等价覆盖在 content-tree.test.ts。
+ */
+async function dropContentFormatVersion(projectRoot: string): Promise<void> {
+  const { parseYaml, stringifyYaml } = await import("../src/lib/yaml.js");
+  const configPath = path.join(projectRoot, "project.config.yaml");
+  const parsed = parseYaml<Record<string, unknown>>(await fs.readFile(configPath, "utf8"));
+  delete parsed.content;
+  await fs.writeFile(configPath, stringifyYaml(parsed), "utf8");
+}
+
+/**
+ * 旧格式项目在 Step 3 组目录必须有 `00_镜头组说明.md`（quality-gates §Step 3）。
+ * init 现在按内容树口径播种（03 只留索引，不再带这份组说明），所以旧格式夹具改回
+ * 旧口径时自己补回来：内容取自 pack 模板，与改动前 init 播种的完全一致。
+ */
+async function seedLegacyShotGroupDescription(projectRoot: string): Promise<void> {
+  await fs.outputFile(
+    path.join(projectRoot, "03_分镜脚本", shotGroupDir, "00_镜头组说明.md"),
+    await fs.readFile(path.join(repoRoot, "packs", "official-ai-video", "templates", "03_分镜脚本", "镜头组说明.md"), "utf8"),
+    "utf8"
+  );
+}
+
+/** 建一个同步好的旧格式项目（见 dropContentFormatVersion）。 */
 async function createSyncedProject(root: string, ide: Ide, videoPlatform: Platform = "veo"): Promise<string> {
   await createProject({
     targetRoot: root,
@@ -28,6 +56,8 @@ async function createSyncedProject(root: string, ide: Ide, videoPlatform: Platfo
     ide,
     pack: "official-ai-video"
   });
+  await dropContentFormatVersion(projectRoot);
+  await seedLegacyShotGroupDescription(projectRoot);
   return projectRoot;
 }
 
@@ -703,7 +733,8 @@ describe("verifyProject", () => {
       expect.arrayContaining([
         expect.objectContaining({
           code: "undeclared-reference-asset",
-          path: "03_分镜脚本/镜头组-001/镜头-001.md"
+          path: "03_分镜脚本/镜头组-001/镜头-001.md",
+          message: expect.stringContaining("主角色：是")
         })
       ])
     );
@@ -994,7 +1025,11 @@ test("accepts a custom pack name in project.config.yaml", async () => {
     expect(result.ok).toBe(false);
     expect(result.issues).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: "missing-step5-platform-execution-setting", path: videoPromptRelPath })
+        expect.objectContaining({
+          code: "missing-step5-platform-execution-setting",
+          path: videoPromptRelPath,
+          message: expect.stringContaining("素材上传顺序")
+        })
       ])
     );
   });
@@ -1038,17 +1073,67 @@ test("accepts a custom pack name in project.config.yaml", async () => {
     expect(result).toEqual({ ok: true, issues: [] });
   });
 
-  test("rejects a fifth storyboard segment", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-five-segment-shot-"));
+  test("accepts six storyboard segments, the product limit", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-six-segment-shot-"));
     tempRoots.push(root);
     const projectRoot = await createSyncedProject(root, "codex");
-    await seedSegmentContract(projectRoot, 5, [3]);
+    await seedSegmentContract(projectRoot, 6, [2, 6]);
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+
+    expect(result).toEqual({ ok: true, issues: [] });
+  });
+
+  test("rejects a seventh storyboard segment", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-seven-segment-shot-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await seedSegmentContract(projectRoot, 7, [3]);
 
     const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
 
     expect(result.ok).toBe(false);
     expect(result.issues).toEqual(
       expect.arrayContaining([expect.objectContaining({ code: "invalid-storyboard-segment-count", path: storyboardRelPath })])
+    );
+  });
+
+  test("rejects more keyframes than the shot has storyboard segments", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-keyframes-over-segments-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await seedSegmentContract(projectRoot, 2, [1, 1, 2]);
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "invalid-keyframe-mapping" })])
+    );
+  });
+
+  test("accepts one keyframe per storyboard segment up to the shot segment count", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-keyframes-equal-segments-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await seedSegmentContract(projectRoot, 2, [1, 2]);
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+
+    expect(result).toEqual({ ok: true, issues: [] });
+  });
+
+  test("rejects a keyframe that points at a storyboard segment the shot does not have", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-keyframe-unmapped-segment-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+    await seedSegmentContract(projectRoot, 2, [1, 3]);
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "invalid-keyframe-mapping" })])
     );
   });
 
@@ -1063,12 +1148,20 @@ test("accepts a custom pack name in project.config.yaml", async () => {
     const videoPath = path.join(projectRoot, "05_视频提示词", shotGroupDir, "镜头-001.md");
     const content = await fs.readFile(videoPath, "utf8");
     await fs.writeFile(videoPath, content.replace("无配乐、无字幕", replacement), "utf8");
+    // 被替换掉的那个词才是缺失项：音乐用例缺「无配乐」，字幕用例缺「无字幕」。
+    const missingWord = replacement === "无字幕" ? "无配乐" : "无字幕";
 
     const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
 
     expect(result.ok).toBe(false);
     expect(result.issues).toEqual(
-      expect.arrayContaining([expect.objectContaining({ code: "invalid-step5-contract", path: videoPromptRelPath })])
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "invalid-step5-contract",
+          path: videoPromptRelPath,
+          message: expect.stringContaining(missingWord)
+        })
+      ])
     );
   });
 
@@ -1422,6 +1515,31 @@ test("accepts a custom pack name in project.config.yaml", async () => {
         })
       ])
     );
+  });
+
+  test("正文裸 https 外链不再误判绝对路径，盘符路径仍被拦（K1）", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-k1-"));
+    tempRoots.push(root);
+    const projectRoot = await createSyncedProject(root, "codex");
+
+    await fs.ensureDir(path.join(projectRoot, "01_概念策划"));
+    await fs.writeFile(
+      path.join(projectRoot, "01_概念策划", "参考来源.md"),
+      "官网与示例：https://example.com/a，另见 HTTPS://example.com/b。\n",
+      "utf8"
+    );
+    await fs.writeFile(
+      path.join(projectRoot, "01_概念策划", "坏链.md"),
+      "本地盘符路径 C:/Users/example/demo.md 不应出现。\n",
+      "utf8"
+    );
+
+    const result = await verifyProject({ projectRoot, ide: "codex", pack: "official-ai-video" });
+    const absoluteLinkPaths = result.issues
+      .filter((issue) => issue.code === "absolute-path-link")
+      .map((issue) => issue.path);
+    expect(absoluteLinkPaths).toHaveLength(1);
+    expect(absoluteLinkPaths[0]).toContain("坏链.md");
   });
 
   test("finds broken relative Markdown link targets in Step 6 files", async () => {

@@ -6,7 +6,7 @@
     "ai-video-workflow": "dist/index.js"
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts",
+    "build": "tsup src/index.ts --format esm --dts && node -e \"require('node:fs').cpSync('vendor', 'dist/vendor', {recursive: true})\"",
     "test": "vitest run"
   },
   "dependencies": {

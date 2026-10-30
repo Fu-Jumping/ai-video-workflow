@@ -3,6 +3,7 @@ import { defineConfig } from "vitepress";
 export default defineConfig({
   title: "ai-video-workflow",
   description: "AI video workflow product docs",
+  srcExclude: ["context-engineering/**", "local-only/**", "plans/**"],
   themeConfig: {
     nav: [
       { text: "English", link: "/en/" },

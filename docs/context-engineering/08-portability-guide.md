@@ -55,7 +55,7 @@ docs/context-engineering/
 1. Step 0-7 的具体职责、三区块/五区块合同、镜头组/分镜/关键帧粒度、15 秒上限、"无配乐、无字幕"——这些是视频创作领域的契约，随 `packs/official-ai-video/` 走。
 2. `@角色名三视图` / `@场景名场景图` 口径、SRC-xxxx 来源 ID 格式、Seedance/midjourney 平台参数门槛。
 3. 具体命令名（verify/doctor/deviation/libtv…）、具体平台清单、具体目录名（`00_前期研究/` 等）。
-4. 与 VitePress、pnpm workspace、`G:\develop-G\tests\` 约定绑定的操作细节。
+4. 与 VitePress、pnpm workspace、测试根目录约定（数据盘 `develop-G\tests\`，机器映射见 [07-decisions-and-open-questions.md](./07-decisions-and-open-questions.md) D12）绑定的操作细节。
 5. 本项目的临时决策（D1-D5）与待确认事项（Q1-Q6）。
 
 ## 5. 迁移步骤建议 `[通用规则]`
@@ -64,4 +64,4 @@ docs/context-engineering/
 2. 按 §2 骨架建目录，但**逐文件判断**哪些层次在目标项目真实存在（没有的层不硬造，例如无多表面的项目不需要观看层术语）。
 3. 为目标项目建立自己的标注体系，从第一天就区分通用/专用/临时/待确认。
 4. 把根规则文件瘦身为入口，验证门禁对齐目标项目已有的真实命令。
-5. 首轮交付时附验收清单与决策记录（参照 `implementation-plan-2026-08-23.md` §12 的形态）。
+5. 首轮交付时附验收清单与决策记录（参照本地历史实施计划中 §12 的形态）。

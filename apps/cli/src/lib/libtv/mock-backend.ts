@@ -67,12 +67,15 @@ export class MockLibTvBackend implements LibTvBackend {
     failAfterPolls: number;
     failNodeKeys: Set<string>;
     timeoutNodeKeys: Set<string>;
+    /** 生成成功后节点上的媒体地址；不设则没有 data.url（用来区分「没地址」与「下载失败」）。 */
+    outputUrl?: string;
   } = {
     completeAfterPolls: 2,
     progressStep: 34,
     failAfterPolls: 1,
     failNodeKeys: new Set(),
-    timeoutNodeKeys: new Set()
+    timeoutNodeKeys: new Set(),
+    outputUrl: undefined
   };
   public createGenerationCalls = 0;
   public pollCalls = 0;
@@ -85,13 +88,15 @@ export class MockLibTvBackend implements LibTvBackend {
     failAfterPolls?: number;
     failNodeKeys?: string[];
     timeoutNodeKeys?: string[];
+    outputUrl?: string;
   } = {}): void {
     this.generationConfig = {
       completeAfterPolls: options.completeAfterPolls ?? this.generationConfig.completeAfterPolls,
       progressStep: options.progressStep ?? this.generationConfig.progressStep,
       failAfterPolls: options.failAfterPolls ?? this.generationConfig.failAfterPolls,
       failNodeKeys: new Set(options.failNodeKeys ?? []),
-      timeoutNodeKeys: new Set(options.timeoutNodeKeys ?? [])
+      timeoutNodeKeys: new Set(options.timeoutNodeKeys ?? []),
+      outputUrl: options.outputUrl ?? this.generationConfig.outputUrl
     };
   }
 
@@ -431,6 +436,7 @@ export class MockLibTvBackend implements LibTvBackend {
     const data = existing.data ?? {};
     existing.data = {
       ...data,
+      ...(this.generationConfig.outputUrl ? { url: [this.generationConfig.outputUrl] } : {}),
       taskInfo: {
         taskId: progress.taskId ?? "",
         loading: false,

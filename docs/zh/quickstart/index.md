@@ -10,7 +10,7 @@
 4. 运行 `node apps/cli/dist/index.js verify --project <project-path> --ide <ide>`。
 5. 如果校验失败，运行 `node apps/cli/dist/index.js doctor --project <project-path> --ide <ide>`。
 6. 如果缺少 IDE 运行文件，运行 `node apps/cli/dist/index.js sync --project <project-path> --ide <ide>`。
-7. 默认从 `00_前期研究/00_研究总览.md` 开始推进项目；如果已有完整剧本，可初始化时加 `--start-from script`，从 `01_概念策划/故事内核.md` 开始。
+7. 默认从 `00_前期研究/00_研究总览.md` 开始推进项目；如果已有完整剧本，可初始化时加 `--start-from script`，从 `01_概念策划/故事内核.md` 开始。按场完整剧情写到 `01_概念策划/剧本.md`。
 
 交互式初始化：
 
@@ -23,6 +23,8 @@ node apps/cli/dist/index.js init
 ```powershell
 node apps/cli/dist/index.js init --name my-ai-video-project --ide codex --image openai --video runway
 ```
+
+> `init` 会在**当前工作目录**下新建项目子目录（如 `./my-ai-video-project/`）。执行前先用 `cd` 切到你想放项目的父目录，否则项目会建在仓库根或其他当前所在的位置。
 
 默认 pack 是 `official-ai-video`。新建项目默认启用 Step 0 前期研究和增强流程；已有完整剧本时使用：
 

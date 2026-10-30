@@ -2,9 +2,35 @@ import fs from "fs-extra";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { DEFAULT_PACK, DEFAULT_VIDEO_PLATFORM, STEP0_FILES, STEP6_FILES, STEP7_FILES, STEP_DIR_BY_NUMBER, STORY_KERNEL_FILE, activeStepDirs } from "./constants.js";
+import {
+  CONTENT_FORMAT_VERSION,
+  CONTENT_ROOT_DIRECTORY,
+  CONTENT_SHOT_OVERVIEW_FILE,
+  CONTENT_STORYBOARD_OVERVIEW_FILE,
+  DECISION_LOG_FILE,
+  DEFAULT_PACK,
+  DEFAULT_VIDEO_PLATFORM,
+  SCRIPT_FILE,
+  STEP0_FILES,
+  STEP6_FILES,
+  STEP7_FILES,
+  STEP_DIR_BY_NUMBER,
+  STORY_KERNEL_FILE,
+  activeStepDirs
+} from "./constants.js";
+import { assembleContentTree } from "./content-assemble.js";
 import { CliUserError } from "./cli-errors.js";
 import { copyDirectory } from "./fs-utils.js";
+import {
+  mediaProjectDirectories,
+  mediaRecordGuideFileName,
+  mediaRecordsDirectory,
+  workRecordGuideFileName,
+  workRecordHandoverDirectory,
+  workRecordHandoverTemplateFileName,
+  workRecordProposalTemplateFileName,
+  workRecordsDirectory
+} from "./media-records.js";
 import { validateSafeDirectoryName } from "./name-validation.js";
 import { packRootExists, resolvePackRoot, resolveRepoRoot } from "./paths.js";
 import { assertCanInitializeProject } from "./project-root.js";
@@ -57,13 +83,40 @@ async function seedProjectDirectories(repoRoot: string, projectRoot: string, sta
   for (const dir of activeStepDirs(config)) {
     await fs.ensureDir(path.join(projectRoot, dir));
   }
-  for (const step of [3, 4, 5]) {
-    await fs.ensureDir(path.join(projectRoot, STEP_DIR_BY_NUMBER[step], "镜头组-001"));
+  // 素材记录与产出目录（B1）：先建最小目录集，稳定身份规则写在说明文件里。
+  for (const dir of mediaProjectDirectories) {
+    await fs.ensureDir(path.join(projectRoot, dir));
   }
   await writeSeededFile(
-    path.join(projectRoot, STEP_DIR_BY_NUMBER[3], "镜头组-001", "00_镜头组说明.md"),
-    await readPackTemplate(repoRoot, pack, path.join("03_分镜脚本", "镜头组说明.md"))
+    path.join(projectRoot, mediaRecordsDirectory, mediaRecordGuideFileName),
+    await readPackTemplate(repoRoot, pack, path.join(mediaRecordsDirectory, mediaRecordGuideFileName))
   );
+  // 工作记录（C4／C6）：说明、修改提案模板与交接模板随项目一起播种。提案模板放在
+  // 「修改提案/」而不是「待确认/」：放进待确认会被误当成一份真的待确认提案。
+  const workRecordSeeds = [
+    {
+      templatePath: path.join(workRecordsDirectory, workRecordGuideFileName),
+      targetPath: path.join(workRecordsDirectory, workRecordGuideFileName)
+    },
+    {
+      templatePath: path.join(workRecordsDirectory, "修改提案", workRecordProposalTemplateFileName),
+      targetPath: path.join(workRecordsDirectory, "修改提案", workRecordProposalTemplateFileName)
+    },
+    {
+      templatePath: path.join(workRecordHandoverDirectory, workRecordHandoverTemplateFileName),
+      targetPath: path.join(workRecordHandoverDirectory, workRecordHandoverTemplateFileName)
+    }
+  ];
+  for (const seed of workRecordSeeds) {
+    await writeSeededFile(path.join(projectRoot, seed.targetPath), await readPackTemplate(repoRoot, pack, seed.templatePath));
+  }
+  // 03 只留内容树索引（规范 §9.3.2）：新建项目一律声明 content.format_version，镜头组
+  // 描述的唯一来源是 内容/场-XXX/镜头组-XXX/00_镜头组总览.md，所以这里不再往 03 下播种
+  // 00_镜头组说明.md，也不留空的 镜头组-001 目录（留空目录只会让人以为该往里放正文）。
+  // packs 的 templates/03_分镜脚本/镜头组说明.md 仍然保留：旧格式项目与迁移流程还要用它。
+  for (const step of [4, 5]) {
+    await fs.ensureDir(path.join(projectRoot, STEP_DIR_BY_NUMBER[step], "镜头组-001"));
+  }
   // Step 2 世界设定 templates are seeded directly: the character/scene setting files are the
   // deliverables themselves, filled in place rather than copied per shot.
   for (const file of ["角色设定.md", "场景设定.md"]) {
@@ -83,6 +136,15 @@ async function seedProjectDirectories(repoRoot: string, projectRoot: string, sta
     path.join(projectRoot, STEP_DIR_BY_NUMBER[5], "镜头组-001", "视频提示词.md"),
     await readPackTemplate(repoRoot, pack, path.join("05_视频提示词", "视频提示词.md"))
   );
+  // 内容树（C0）：新项目声明 content.format_version，所以必须自带「内容/」骨架，
+  // 否则一建出来就是「声明了新格式却没有内容树」。只播种两张总表：空项目本来没有场／
+  // 镜头组／镜头，场与组目录由创作过程按需建立（内容树校验不会因空树报错）。
+  for (const file of [CONTENT_SHOT_OVERVIEW_FILE, CONTENT_STORYBOARD_OVERVIEW_FILE]) {
+    await writeSeededFile(
+      path.join(projectRoot, CONTENT_ROOT_DIRECTORY, file),
+      await readPackTemplate(repoRoot, pack, path.join(CONTENT_ROOT_DIRECTORY, file))
+    );
+  }
   if (startFrom === "research") {
     for (const file of STEP0_FILES) {
       await writeSeededFile(
@@ -94,6 +156,16 @@ async function seedProjectDirectories(repoRoot: string, projectRoot: string, sta
   await writeSeededFile(
     path.join(projectRoot, "01_概念策划", STORY_KERNEL_FILE),
     await readPackTemplate(repoRoot, pack, path.join("01_概念策划", STORY_KERNEL_FILE))
+  );
+  // 按场完整剧本（C0.2 / D-487=A）：与故事内核同段播种，新建项目自带正式剧情源。
+  await writeSeededFile(
+    path.join(projectRoot, "01_概念策划", SCRIPT_FILE),
+    await readPackTemplate(repoRoot, pack, path.join("01_概念策划", SCRIPT_FILE))
+  );
+  // 决策记录（Issue #3）：动笔前访谈的答复事实源，与故事内核同段播种。
+  await writeSeededFile(
+    path.join(projectRoot, "01_概念策划", DECISION_LOG_FILE),
+    await readPackTemplate(repoRoot, pack, path.join("01_概念策划", DECISION_LOG_FILE))
   );
   for (const file of STEP6_FILES) {
     await writeSeededFile(
@@ -125,6 +197,9 @@ async function writeProjectConfig(projectRoot: string, options: CreateProjectOpt
       enhanced_flow: {
         enabled: true
       }
+    },
+    content: {
+      format_version: CONTENT_FORMAT_VERSION
     }
   };
   await fs.writeFile(path.join(projectRoot, "project.config.yaml"), stringifyYaml(config), "utf8");
@@ -150,8 +225,13 @@ function renderProjectReadme(projectName: string, ide: string, startFrom: StartF
     "",
     "1. 请在你的 AI 智能体中打开这个项目目录。",
     `2. 让智能体先读取 \`AGENTS.md\` 和 \`${sharedAgentDocsReadmePath}\`。`,
-    `3. 从 \`${startPath}\` 开始补全${startLabel}。`,
+    `3. 从 \`${startPath}\` 开始补全${startLabel}；进入 Step 1 时先做决策访谈，答复记入 \`01_概念策划/${DECISION_LOG_FILE}\`，P0 决策确认后再动笔。`,
     startFrom === "research" ? "4. 以步骤零到步骤七的源文件作为事实源。" : "4. 以步骤一到步骤七的源文件作为事实源。",
+    `5. 按场完整剧情写在 \`01_概念策划/${SCRIPT_FILE}\`。`,
+    "",
+    "## 提示词模板与执行文件",
+    "",
+    "`04_图片提示词/镜头组-001/图片提示词.md` 与 `05_视频提示词/镜头组-001/视频提示词.md` 只是参考模板，不是执行文件；每个镜头的执行文件由 `content assemble` 按镜头生成到对应步骤目录。",
     "",
     "## 常用命令",
     "",
@@ -191,10 +271,17 @@ export function renderInitNextSteps({
     projectRoot,
     "",
     "可以复制给智能体的第一句话：",
-    `我想继续处理这个 ai-video-workflow 创作项目。请先读取 AGENTS.md 和 ${sharedAgentDocsReadmePath}，然后带我从 ${startPath} 开始。不要把 _views/obsidian 或 IDE 运行镜像当作源文件。`,
+    `我想继续处理这个 ai-video-workflow 创作项目。请先读取 AGENTS.md 和 ${sharedAgentDocsReadmePath}，然后带我从 ${startPath} 开始。进入创作前先和我完成决策访谈：逐组提问、把答复记入 01_概念策划/${DECISION_LOG_FILE}，P0 决策确认后再写故事内核。不要把 _views/obsidian 或 IDE 运行镜像当作源文件。`,
+    "",
+    `按场完整剧情写在 \`01_概念策划/${SCRIPT_FILE}\`。`,
+    "",
+    `进入 Step 1 时先完成决策访谈（\`01_概念策划/${DECISION_LOG_FILE}\`），P0 决策确认后再动笔写故事内核。`,
     "",
     "校验项目：",
     `ai-video-workflow verify --project ${quotedProjectRoot} --ide ${ide}`,
+    "",
+    "素材记录（执行阶段的当前状态都看这里）：",
+    `${mediaRecordsDirectory}/${mediaRecordGuideFileName}`,
     "",
     "可选的 Obsidian 观看层：",
     `ai-video-workflow export-obsidian --project ${quotedProjectRoot} --in-project-view`,
@@ -214,6 +301,10 @@ export async function createProject(options: CreateProjectOptions): Promise<stri
   await seedStarterFiles(repoRoot, projectRoot, options.pack);
   await seedProjectDirectories(repoRoot, projectRoot, startFrom, options.pack);
   await writeProjectConfig(projectRoot, options);
+  // 内容树骨架播种完之后立刻整理一次：把两张总表的自动区块刷成当前数据，并生成
+  // 03_分镜脚本/00_内容树索引.md。整理是幂等的，空项目整理出来就是一份合法骨架，
+  // 所以「新建 → verify」能直接通过。此时没有旧内容可备份，跳过备份目录。
+  await assembleContentTree(projectRoot, { skipBackup: true });
   await fs.writeFile(path.join(projectRoot, "README.md"), renderProjectReadme(projectName, options.ide, startFrom), "utf8");
   await syncProject({
     repoRoot,

@@ -1,13 +1,28 @@
 import fs from "fs-extra";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterAll, afterEach, describe, expect, test } from "vitest";
 
+import { assembleContentTree } from "../src/lib/content-assemble.js";
+import { renderAutoBlock, renderManualBlock } from "../src/lib/content-tree.js";
+import { createProject } from "../src/lib/init.js";
+import {
+  mediaOutputDirectory,
+  mediaRecordPath,
+  renderMediaRecord,
+  type MediaCandidateRecord,
+  type MediaIdentity,
+  type MediaRecord
+} from "../src/lib/media-records.js";
 import { exportObsidianVault } from "../src/lib/obsidian/export.js";
 import { hashContent, projectionManifestPath, readProjectionManifest, renderProjectionManifest } from "../src/lib/obsidian/manifest.js";
 import { toVaultPath } from "../src/lib/obsidian/paths.js";
 import { scanProjectForObsidian } from "../src/lib/obsidian/scan.js";
 import type { ObsidianProjectionManifest } from "../src/lib/obsidian/types.js";
+import { verifyObsidianVault } from "../src/lib/obsidian/verify.js";
+import { syncProject } from "../src/lib/sync.js";
+
+import { disposeLegacyExampleRoots, legacyExampleRoot, officialExampleRoot } from "./legacy-example.js";
 
 const tempRoots: string[] = [];
 
@@ -15,9 +30,11 @@ afterEach(async () => {
   await Promise.all(tempRoots.splice(0).map((dir) => fs.remove(dir)));
 });
 
-function officialExampleRoot(): string {
-  return path.resolve(__dirname, "..", "..", "..", "examples", "官方示例-云上早市");
-}
+afterAll(async () => {
+  await disposeLegacyExampleRoots();
+});
+
+const repoRoot = path.resolve(__dirname, "..", "..", "..");
 
 function baseViewOrder(baseContent: string, viewName: string): string[] {
   const lines = baseContent.split(/\r?\n/);
@@ -62,6 +79,395 @@ function expectOnlyDefaultVisibleColumns(baseContent: string, viewNames: string[
   }
 }
 
+
+
+/* ---------------------- 内容树：Obsidian 投影 ---------------------- */
+
+const FENCE = "\u0060\u0060\u0060";
+const NL = String.fromCharCode(10);
+
+/** 内容树项目夹具：声明 content.format_version=1，正文在 内容/ 下，04／05 由内容树整理生成。 */
+async function createContentTreeObsidianProject(): Promise<string> {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-content-"));
+  tempRoots.push(root);
+  await createProject({
+    targetRoot: root,
+    projectName: "content-obsidian",
+    pack: "official-ai-video",
+    ide: "codex",
+    imagePlatform: "openai",
+    videoPlatform: "seedance"
+  });
+  const projectRoot = path.join(root, "content-obsidian");
+  await syncProject({ repoRoot, projectRoot, ide: "codex", pack: "official-ai-video" });
+
+  const shotDirectory = path.join(projectRoot, "内容", "场-001", "镜头组-001", "镜头-001");
+  await fs.ensureDir(shotDirectory);
+  await fs.writeFile(
+    path.join(projectRoot, "内容", "场-001", "00_场总览.md"),
+    "# 场-001 场总览" + NL + NL + "## 这一场讲什么" + NL + NL + "雾塔门前的清晨。" + NL,
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(projectRoot, "内容", "场-001", "镜头组-001", "00_镜头组总览.md"),
+    "# 镜头组-001 镜头组总览" + NL + NL + "## 这一组讲什么" + NL + NL + "开场。" + NL,
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(shotDirectory, "00_镜头-001.md"),
+    [
+      "# 镜头 001：雾塔门前",
+      "",
+      "- 观看顺序：1",
+      "- 目标时长：15 秒",
+      "",
+      "## 一、分镜速览",
+      "",
+      renderAutoBlock("分镜速览", "（待刷新）"),
+      "",
+      "## 二、图片提示词",
+      "",
+      renderAutoBlock("图片提示词", "（待刷新）"),
+      "",
+      "## 三、完整视频提示词",
+      "",
+      renderManualBlock("视频提示词前段", "整镜公共说明：@阿岚三视图 绑定到本镜。"),
+      "",
+      renderAutoBlock("镜头段拼装", "（待拼装）"),
+      "",
+      renderManualBlock("视频提示词后段", "写实电影画风，无配乐、无字幕。"),
+      ""
+    ].join(NL),
+    "utf8"
+  );
+  await fs.writeFile(
+    path.join(shotDirectory, "分镜-01.md"),
+    [
+      "# 分镜-01：停步抬头",
+      "",
+      "## 一、本段正文（画面与动作）",
+      "",
+      "- **景别与视角**：中景正面。",
+      "- **人物与位置**：阿岚居中。",
+      "",
+      "## 二、关键帧",
+      "",
+      "#### 关键帧 01",
+      "",
+      "- 对应分镜：分镜 1",
+      "- 关键时刻：抬头的一瞬",
+      "",
+      FENCE + "text",
+      "阿岚站在雾塔门前抬头，冷调自然光。",
+      FENCE,
+      "",
+      "## 三、视频提示词片段",
+      "",
+      FENCE + "text",
+      "镜头1：中景正面，阿岚在雾塔门前停步抬头，风声。",
+      FENCE,
+      ""
+    ].join(NL),
+    "utf8"
+  );
+
+  const assembled = await assembleContentTree(projectRoot, { force: true });
+  expect(assembled.ok).toBe(true);
+  return projectRoot;
+}
+
+function mediaCandidate(overrides: Partial<MediaCandidateRecord> = {}): MediaCandidateRecord {
+  return {
+    version: 1,
+    candidate: 1,
+    fileName: "shot-001_keyframe-01_v001_c01.png",
+    platformStatus: "completed",
+    downloadStatus: "downloaded",
+    reviewStatus: "unreviewed",
+    selected: false,
+    ...overrides
+  };
+}
+
+async function writeContentTreeMedia(projectRoot: string): Promise<void> {
+  const keyframeIdentity: MediaIdentity = { category: "keyframe", objectId: "shot-001", purpose: "keyframe-01" };
+  const keyframeFile = "shot-001_keyframe-01_v001_c01.png";
+  const keyframeRecord: MediaRecord = {
+    identity: keyframeIdentity,
+    displayName: "镜头-001 关键帧 01",
+    source: "generated",
+    currentSelection: keyframeFile,
+    candidates: [mediaCandidate({ fileName: keyframeFile, selected: true })],
+    createdAt: "2026-10-24T00:00:00.000Z",
+    updatedAt: "2026-10-24T00:00:00.000Z"
+  };
+  await fs.outputFile(
+    path.join(projectRoot, ...mediaRecordPath(keyframeIdentity).split("/")),
+    renderMediaRecord(keyframeRecord),
+    "utf8"
+  );
+  await fs.outputFile(
+    path.join(projectRoot, ...(mediaOutputDirectory(keyframeIdentity) + "/" + keyframeFile).split("/")),
+    "keyframe-bytes",
+    "utf8"
+  );
+
+  const videoIdentity: MediaIdentity = { category: "video", objectId: "shot-001", purpose: "视频" };
+  const videoFile = "shot-001_v001_c01.mp4";
+  const videoRecord: MediaRecord = {
+    identity: videoIdentity,
+    displayName: "镜头-001 视频",
+    source: "generated",
+    currentSelection: videoFile,
+    candidates: [mediaCandidate({ fileName: videoFile, timecode: "00:12", selected: true })],
+    createdAt: "2026-10-24T00:00:00.000Z",
+    updatedAt: "2026-10-24T00:00:00.000Z"
+  };
+  await fs.outputFile(
+    path.join(projectRoot, ...mediaRecordPath(videoIdentity).split("/")),
+    renderMediaRecord(videoRecord),
+    "utf8"
+  );
+  await fs.outputFile(
+    path.join(projectRoot, ...(mediaOutputDirectory(videoIdentity) + "/" + videoFile).split("/")),
+    "video-bytes",
+    "utf8"
+  );
+}
+
+/** 按播种说明写人读编号（镜头-001 / 关键帧-01）的素材记录。 */
+async function writeHumanNumberedContentTreeMedia(projectRoot: string): Promise<void> {
+  const keyframeIdentity: MediaIdentity = { category: "keyframe", objectId: "镜头-001", purpose: "关键帧-01" };
+  const keyframeFile = "镜头-001_关键帧-01_v001_c01.png";
+  const keyframeRecord: MediaRecord = {
+    identity: keyframeIdentity,
+    displayName: "镜头-001 关键帧 01",
+    source: "generated",
+    currentSelection: keyframeFile,
+    candidates: [mediaCandidate({ fileName: keyframeFile, selected: true })],
+    createdAt: "2026-10-24T00:00:00.000Z",
+    updatedAt: "2026-10-24T00:00:00.000Z"
+  };
+  await fs.outputFile(
+    path.join(projectRoot, ...mediaRecordPath(keyframeIdentity).split("/")),
+    renderMediaRecord(keyframeRecord),
+    "utf8"
+  );
+  await fs.outputFile(
+    path.join(projectRoot, ...(mediaOutputDirectory(keyframeIdentity) + "/" + keyframeFile).split("/")),
+    "keyframe-bytes",
+    "utf8"
+  );
+
+  const videoIdentity: MediaIdentity = { category: "video", objectId: "镜头-001", purpose: "视频" };
+  const videoFile = "镜头-001_v001_c01.mp4";
+  const videoRecord: MediaRecord = {
+    identity: videoIdentity,
+    displayName: "镜头-001 视频",
+    source: "generated",
+    currentSelection: videoFile,
+    candidates: [mediaCandidate({ fileName: videoFile, timecode: "00:12", selected: true })],
+    createdAt: "2026-10-24T00:00:00.000Z",
+    updatedAt: "2026-10-24T00:00:00.000Z"
+  };
+  await fs.outputFile(
+    path.join(projectRoot, ...mediaRecordPath(videoIdentity).split("/")),
+    renderMediaRecord(videoRecord),
+    "utf8"
+  );
+  await fs.outputFile(
+    path.join(projectRoot, ...(mediaOutputDirectory(videoIdentity) + "/" + videoFile).split("/")),
+    "video-bytes",
+    "utf8"
+  );
+}
+
+describe("Obsidian export of a content-tree project", () => {
+  test("projects the four content-tree layers and keeps every link resolvable", async () => {
+    const projectRoot = await createContentTreeObsidianProject();
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-content-vault-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+
+    // 内容树四层都要有可点击的页面。
+    await expect(fs.pathExists(path.join(outRoot, "02_按镜头联查", "00_内容树.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(outRoot, "02_按镜头联查", "内容树", "场", "scene-001.md"))).resolves.toBe(true);
+    await expect(
+      fs.pathExists(path.join(outRoot, "02_按镜头联查", "内容树", "分镜", "shot-001", "storyboard-01.md"))
+    ).resolves.toBe(true);
+
+    // 内容树源文件本身也要投影出来（镜头汇总与分镜）。
+    await expect(
+      fs.pathExists(path.join(outRoot, "01_阶段审核", "内容", "场-001", "镜头组-001", "镜头-001", "00_镜头-001.md"))
+    ).resolves.toBe(true);
+    await expect(
+      fs.pathExists(path.join(outRoot, "01_阶段审核", "内容", "场-001", "镜头组-001", "镜头-001", "分镜-01.md"))
+    ).resolves.toBe(true);
+
+    const index = await fs.readFile(path.join(outRoot, "02_按镜头联查", "00_内容树.md"), "utf8");
+    expect(index).toContain("## 1. 总表");
+    expect(index).toContain("## 2. 场");
+    expect(index).toContain("## 3. 分镜");
+    expect(index).toContain("scene-001");
+    expect(index).toContain("storyboard-01");
+
+    const shotHub = await fs.readFile(path.join(outRoot, "02_按镜头联查", "单镜头", "shot-001.md"), "utf8");
+    expect(shotHub).toContain("本镜分镜（内容树）");
+    expect(shotHub).toContain("02_按镜头联查/内容树/分镜/shot-001/storyboard-01");
+
+    // 投影里的相对链接必须真实存在，否则 verify-obsidian 会报断链。
+    const verified = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+    expect(verified.issues).toEqual([]);
+    expect(verified.ok).toBe(true);
+  });
+
+  test("force 重导出区分 created／updated／unchanged", async () => {
+    const projectRoot = await createContentTreeObsidianProject();
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-force-diff-vault-"));
+    tempRoots.push(outRoot);
+
+    const first = await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    expect(first.operations.filter((operation) => operation.status === "created").length).toBe(first.files.length);
+
+    // 什么都不改再 force 重跑：目录会被删除重建，但报告必须如实区分——
+    // 内容没变的文件报 unchanged，而不是像旧实现那样全部报 created。
+    const second = await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    expect(second.operations.some((operation) => operation.status === "created")).toBe(false);
+    expect(second.operations.some((operation) => operation.status === "updated")).toBe(false);
+    expect(second.operations.filter((operation) => operation.status === "unchanged").length).toBe(second.files.length);
+    // 删除重建后 vault 依然完整：unchanged 文件也要写回。
+    await expect(fs.pathExists(path.join(outRoot, "02_按镜头联查", "00_内容树.md"))).resolves.toBe(true);
+    const secondVerified = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+    expect(secondVerified.ok).toBe(true);
+
+    // 改一个源文件再 force：它投影出的页面报 updated，其余仍是 unchanged。
+    const storyboardPath = path.join(projectRoot, "内容", "场-001", "镜头组-001", "镜头-001", "分镜-01.md");
+    const original = await fs.readFile(storyboardPath, "utf8");
+    await fs.writeFile(storyboardPath, original.replace("停步抬头", "转身离开"), "utf8");
+    const third = await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    const updatedPaths = third.operations.filter((operation) => operation.status === "updated").map((operation) => operation.vaultPath);
+    expect(updatedPaths).toContain("01_阶段审核/内容/场-001/镜头组-001/镜头-001/分镜-01.md");
+    const thirdVerified = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+    expect(thirdVerified.ok).toBe(true);
+  });
+
+  test("projects shot and storyboard media sections with four-state review", async () => {
+    const projectRoot = await createContentTreeObsidianProject();
+    await writeContentTreeMedia(projectRoot);
+    // 素材记录是执行文件「素材状态」行的输入，写完记录要重新整理再导出。
+    await assembleContentTree(projectRoot, { force: true });
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-content-media-vault-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+
+    const shotHub = await fs.readFile(path.join(outRoot, "02_按镜头联查", "单镜头", "shot-001.md"), "utf8");
+    expect(shotHub).toContain("## 5.1 本镜媒体与版本");
+    expect(shotHub).toContain("- 人工审核：**等你看**");
+    expect(shotHub).toContain("- 素材审阅：[[05_素材审阅/00_素材总览|素材审阅]]");
+    // 原文件始终按项目内相对路径显示，不输出绝对路径。
+    expect(shotHub).toContain("原文件（项目内相对路径）：outputs/");
+    expect(shotHub).not.toContain(projectRoot.replace(/\\/g, "/"));
+    // 素材审阅页入口与选中版本嵌入
+    expect(shotHub).toContain("[[05_素材审阅/关键帧/shot-001/keyframe-01|打开素材审阅页（全部候选版本）]]");
+    expect(shotHub).toContain("![[05_素材审阅/_素材/关键帧/shot-001/shot-001_keyframe-01_v001_c01.png]]");
+    expect(shotHub).toContain("![[05_素材审阅/_素材/视频/shot-001/shot-001_v001_c01.mp4#t=12]]");
+    expect(shotHub).toContain("#### 关键帧 01（等你看）");
+    expect(shotHub).toContain("### 整镜视频");
+    // 候选版本表只列文字，不嵌入旧版本图片
+    expect(shotHub).toContain("| 版本 | 候选 | 人工审核 | 时间位置 | 文件 |");
+    expect(shotHub.match(/!\[\[05_素材审阅\/_素材\/关键帧\/shot-001\//g)).toHaveLength(1);
+
+    const storyboard = await fs.readFile(
+      path.join(outRoot, "02_按镜头联查", "内容树", "分镜", "shot-001", "storyboard-01.md"),
+      "utf8"
+    );
+    const frameIndex = storyboard.indexOf("## 2. 本段画面");
+    const promptIndex = storyboard.indexOf("## 3. 本段提示词");
+    const bodyIndex = storyboard.indexOf("## 4. 本段正文");
+    expect(frameIndex).toBeGreaterThanOrEqual(0);
+    expect(promptIndex).toBeGreaterThan(frameIndex);
+    expect(bodyIndex).toBeGreaterThan(promptIndex);
+    expect(storyboard).not.toContain("## 2. 本段正文");
+    expect(storyboard).toContain("#### 关键帧 01（等你看）");
+    expect(storyboard).toContain("Step 4 执行文件（关键帧图片提示词）：[[");
+    expect(storyboard).toContain("Step 5 执行文件（整镜视频提示词）：[[");
+    expect(storyboard).toContain("第 4 节「本段正文」");
+
+    const verified = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+    expect(verified.issues).toEqual([]);
+    expect(verified.ok).toBe(true);
+  });
+
+  test("matches human-numbered media records to internal shot ids", async () => {
+    const projectRoot = await createContentTreeObsidianProject();
+    await writeHumanNumberedContentTreeMedia(projectRoot);
+    // 素材记录是执行文件「素材状态」行的输入，写完记录要重新整理再导出。
+    await assembleContentTree(projectRoot, { force: true });
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-content-human-media-vault-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+
+    const shotHub = await fs.readFile(path.join(outRoot, "02_按镜头联查", "单镜头", "shot-001.md"), "utf8");
+    expect(shotHub).toContain("## 5.1 本镜媒体与版本");
+    expect(shotHub).toContain("- 人工审核：**等你看**");
+    expect(shotHub).toContain("#### 关键帧 01（等你看）");
+    // 人读记录自己的页面路径与素材副本路径保持不变。
+    expect(shotHub).toContain("[[05_素材审阅/关键帧/镜头-001/关键帧-01|打开素材审阅页（全部候选版本）]]");
+    expect(shotHub).toContain("![[05_素材审阅/_素材/关键帧/镜头-001/镜头-001_关键帧-01_v001_c01.png]]");
+
+    const storyboard = await fs.readFile(
+      path.join(outRoot, "02_按镜头联查", "内容树", "分镜", "shot-001", "storyboard-01.md"),
+      "utf8"
+    );
+    expect(storyboard).toContain("#### 关键帧 01（等你看）");
+    expect(storyboard).not.toContain("#### 关键帧 01（还没准备好）");
+
+    const verified = await verifyObsidianVault({ projectRoot, vaultRoot: outRoot });
+    expect(verified.issues).toEqual([]);
+    expect(verified.ok).toBe(true);
+  });
+
+  test("content-tree shots without media records say not ready", async () => {
+    const projectRoot = await createContentTreeObsidianProject();
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-content-no-media-vault-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+
+    const shotHub = await fs.readFile(path.join(outRoot, "02_按镜头联查", "单镜头", "shot-001.md"), "utf8");
+    expect(shotHub).toContain("## 5.1 本镜媒体与版本");
+    expect(shotHub).toContain("- 人工审核：**还没准备好**");
+    expect(shotHub).toContain("> 本镜媒体：还没准备好（还没有关键帧或视频素材记录）。");
+    expect(shotHub).not.toContain("- 素材审阅：");
+
+    const storyboard = await fs.readFile(
+      path.join(outRoot, "02_按镜头联查", "内容树", "分镜", "shot-001", "storyboard-01.md"),
+      "utf8"
+    );
+    expect(storyboard).toContain("## 2. 本段画面");
+    expect(storyboard).toContain("#### 关键帧 01（还没准备好）");
+  });
+
+  test("legacy projects still project only 03／04／05 and no content tree pages", async () => {
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-legacy-vault-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+
+    await expect(fs.pathExists(path.join(outRoot, "02_按镜头联查", "00_内容树.md"))).resolves.toBe(false);
+    await expect(fs.pathExists(path.join(outRoot, "01_阶段审核", "内容"))).resolves.toBe(false);
+
+    // 旧格式项目没有媒体记录也没有内容树：镜头页不多出任何媒体行或 5.1 小节。
+    const legacyShotHub = await fs.readFile(path.join(outRoot, "02_按镜头联查", "单镜头", "shot-001.md"), "utf8");
+    expect(legacyShotHub).not.toContain("## 5.1 本镜媒体与版本");
+    expect(legacyShotHub).not.toContain("人工审核");
+    expect(legacyShotHub).not.toContain("素材审阅");
+  });
+});
+
 describe("Obsidian export paths", () => {
   test("normalizes Windows paths to vault-relative POSIX paths", () => {
     expect(toVaultPath(path.join("流程", "步骤三 - 分镜脚本", "镜头 001.md"))).toBe(
@@ -98,7 +504,7 @@ describe("Obsidian projection manifests", () => {
 
 describe("scanProjectForObsidian", () => {
   test("scans the official example into workflow source files", async () => {
-    const files = await scanProjectForObsidian(officialExampleRoot());
+    const files = await scanProjectForObsidian(await legacyExampleRoot());
 
     expect(files).toEqual(
       expect.arrayContaining([
@@ -118,7 +524,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-stage-review-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const storyboardHub = await fs.readFile(path.join(outRoot, "01_阶段审核", "03_分镜脚本", "00_阶段审核.md"), "utf8");
     const imageHub = await fs.readFile(path.join(outRoot, "01_阶段审核", "04_图片提示词", "00_阶段审核.md"), "utf8");
@@ -155,7 +561,7 @@ describe("exportObsidianVault", () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-empty-source-"));
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-empty-vault-"));
     tempRoots.push(projectRoot, outRoot);
-    await fs.copy(officialExampleRoot(), projectRoot);
+    await fs.copy(await legacyExampleRoot(), projectRoot);
     for (const stepDir of ["01_概念策划", "02_世界设定", "03_分镜脚本", "04_图片提示词", "05_视频提示词", "06_执行计划"]) {
       await fs.emptyDir(path.join(projectRoot, stepDir));
     }
@@ -166,7 +572,7 @@ describe("exportObsidianVault", () => {
   test("rejects output paths that are files or ordinary project-internal directories", async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-output-safety-"));
     tempRoots.push(projectRoot);
-    await fs.copy(officialExampleRoot(), projectRoot);
+    await fs.copy(await legacyExampleRoot(), projectRoot);
     const fileOut = path.join(path.dirname(projectRoot), "vault.md");
     const internalOut = path.join(projectRoot, "notes-vault");
     const inProjectPathAsOut = path.join(projectRoot, "_views", "obsidian");
@@ -194,10 +600,10 @@ describe("exportObsidianVault", () => {
     await fs.writeFile(path.join(plainVault, "manual.md"), "# Manual\n", "utf8");
 
     await expect(
-      exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot: gitVault, force: true, includePluginRecipes: true, dryRun: true })
+      exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot: gitVault, force: true, includePluginRecipes: true, dryRun: true })
     ).rejects.toThrow("containing .git");
     await expect(
-      exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot: plainVault, force: true, includePluginRecipes: true })
+      exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot: plainVault, force: true, includePluginRecipes: true })
     ).rejects.toThrow("without 投影清单.json");
     await expect(fs.pathExists(path.join(gitVault, ".git", "config"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(plainVault, "manual.md"))).resolves.toBe(true);
@@ -206,11 +612,11 @@ describe("exportObsidianVault", () => {
   test("refuses to export into a vault owned by another project", async () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-ownership-"));
     tempRoots.push(outRoot);
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: false, includePluginRecipes: true });
 
     const otherProject = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-other-project-"));
     tempRoots.push(otherProject);
-    await fs.copy(officialExampleRoot(), otherProject);
+    await fs.copy(await legacyExampleRoot(), otherProject);
 
     await expect(exportObsidianVault({ projectRoot: otherProject, outRoot, force: false, includePluginRecipes: true })).rejects.toThrow(
       "owned by another project"
@@ -223,7 +629,7 @@ describe("exportObsidianVault", () => {
   test("refuses to export while another export lock is active and removes its own lock afterwards", async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-lock-project-"));
     tempRoots.push(projectRoot);
-    await fs.copy(officialExampleRoot(), projectRoot);
+    await fs.copy(await legacyExampleRoot(), projectRoot);
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-lock-"));
     tempRoots.push(outRoot);
     const lockPath = `${outRoot}.ai-video-workflow-export.lock`;
@@ -242,7 +648,7 @@ describe("exportObsidianVault", () => {
   test("writes a privacy-safe schema v2 manifest for in-project view exports", async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-in-project-manifest-"));
     tempRoots.push(projectRoot);
-    await fs.copy(officialExampleRoot(), projectRoot);
+    await fs.copy(await legacyExampleRoot(), projectRoot);
     const outRoot = path.join(projectRoot, "_views", "obsidian");
 
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true, inProjectView: true });
@@ -273,7 +679,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-external-manifest-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const manifest = await readProjectionManifest(outRoot);
     const manifestJson = JSON.stringify(manifest);
@@ -292,7 +698,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const storyboard = await fs.readFile(path.join(outRoot, "01_阶段审核", "03_分镜脚本", "镜头组-001", "镜头 001 - 分镜脚本.md"), "utf8");
     expect(storyboard).toContain("投影生成: 是");
@@ -333,7 +739,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-dashboard-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const home = await fs.readFile(path.join(outRoot, "00_开始审阅", "00_项目首页.md"), "utf8");
     expect(home).toContain("## 1. 打开路线");
@@ -401,7 +807,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-readme-path-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const readme = await fs.readFile(path.join(outRoot, "00_开始审阅", "02_观看层说明.md"), "utf8");
     expect(readme).toContain("[[00_开始审阅/00_项目首页.md|项目首页]]");
@@ -415,7 +821,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-agent-handoff-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const handoff = await fs.readFile(path.join(outRoot, "03_审阅工具", "01_智能体交接.md"), "utf8");
     expect(handoff).toContain("# 智能体交接");
@@ -444,7 +850,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-shot-review-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const shotReview = await fs.readFile(path.join(outRoot, "02_按镜头联查", "单镜头", "shot-001.md"), "utf8");
     expect(shotReview).toContain('标题: "镜头 001：清晨前的邀请"');
@@ -495,7 +901,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-bases-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const shotsBase = await fs.readFile(path.join(outRoot, "03_审阅工具", "数据看板", "镜头.base"), "utf8");
     expect(shotsBase).toContain("file.hasTag(\"ai-video/shot\")");
@@ -600,7 +1006,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-canvas-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     const workflowMap = await fs.readJson(path.join(outRoot, "03_审阅工具", "全局画布", "流程图.canvas"));
     expect(workflowMap.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "group", label: "步骤 3" })]));
@@ -677,10 +1083,10 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-incremental-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
     const userNote = path.join(outRoot, "04_个人笔记", "manual-review.md");
     await fs.writeFile(userNote, "# Manual Review\n\nKeep this note.\n", "utf8");
-    const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true });
+    const result = await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: false, includePluginRecipes: true });
 
     await expect(fs.readFile(userNote, "utf8")).resolves.toContain("Keep this note.");
     expect(result.operations).toEqual(expect.arrayContaining([expect.objectContaining({ status: "unchanged", vaultPath: "00_开始审阅/00_项目首页.md" })]));
@@ -716,7 +1122,7 @@ describe("exportObsidianVault", () => {
       "utf8"
     );
 
-    const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true });
+    const result = await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: false, includePluginRecipes: true });
     const manifest = await readProjectionManifest(outRoot);
 
     await expect(fs.pathExists(legacyGeneratedFullPath)).resolves.toBe(false);
@@ -754,7 +1160,7 @@ describe("exportObsidianVault", () => {
       "utf8"
     );
 
-    const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true });
+    const result = await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: false, includePluginRecipes: true });
     const manifest = await readProjectionManifest(outRoot);
 
     await expect(fs.readFile(legacyGeneratedFullPath, "utf8")).resolves.toContain("人工补充");
@@ -766,14 +1172,14 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-legacy-note-conflict-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
     const currentNote = path.join(outRoot, "04_个人笔记", "shared.md");
     const legacyNote = path.join(outRoot, "笔记", "shared.md");
     await fs.writeFile(currentNote, "# 新目录笔记\n", "utf8");
     await fs.ensureDir(path.dirname(legacyNote));
     await fs.writeFile(legacyNote, "# 旧目录笔记\n", "utf8");
 
-    const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    const result = await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     await expect(fs.readFile(currentNote, "utf8")).resolves.toContain("新目录笔记");
     await expect(fs.readFile(legacyNote, "utf8")).resolves.toContain("旧目录笔记");
@@ -790,10 +1196,10 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-conflict-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
     const generatedFile = path.join(outRoot, "01_阶段审核", "03_分镜脚本", "镜头组-001", "镜头 001 - 分镜脚本.md");
     await fs.appendFile(generatedFile, "\nUser edit inside Obsidian.\n", "utf8");
-    const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true });
+    const result = await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: false, includePluginRecipes: true });
 
     expect(result.operations).toEqual(
       expect.arrayContaining([
@@ -810,7 +1216,7 @@ describe("exportObsidianVault", () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-project-"));
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-update-"));
     tempRoots.push(projectRoot, outRoot);
-    await fs.copy(officialExampleRoot(), projectRoot);
+    await fs.copy(await legacyExampleRoot(), projectRoot);
 
     await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
     await fs.appendFile(path.join(projectRoot, "03_分镜脚本", "镜头组-001", "镜头-001.md"), "\nUpdated source beat.\n", "utf8");
@@ -832,14 +1238,15 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-force-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
     const userNote = path.join(outRoot, "04_个人笔记", "manual-review.md");
     await fs.writeFile(userNote, "# Manual Review\n", "utf8");
-    const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    const result = await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     await expect(fs.pathExists(userNote)).resolves.toBe(true);
     await expect(fs.readFile(userNote, "utf8")).resolves.toContain("Manual Review");
-    expect(result.operations.every((operation) => operation.status === "created")).toBe(true);
+    // force 重建后源没有变化：报告应如实区分，全部是 unchanged，不再把旧文件报成 created。
+    expect(result.operations.every((operation) => operation.status === "unchanged")).toBe(true);
   });
 
   test("force export refuses to remove an output directory containing .git", async () => {
@@ -849,7 +1256,7 @@ describe("exportObsidianVault", () => {
     await fs.writeFile(path.join(outRoot, ".git", "config"), "[core]\n", "utf8");
 
     await expect(
-      exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true })
+      exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true })
     ).rejects.toThrow("Refusing to force-remove an Obsidian output directory containing .git");
     await expect(fs.pathExists(path.join(outRoot, ".git", "config"))).resolves.toBe(true);
   });
@@ -859,7 +1266,7 @@ describe("exportObsidianVault", () => {
     tempRoots.push(parentRoot);
     const outRoot = path.join(parentRoot, "vault");
 
-    const result = await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: false, includePluginRecipes: true, dryRun: true });
+    const result = await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: false, includePluginRecipes: true, dryRun: true });
 
     expect(result.operations).toEqual(expect.arrayContaining([expect.objectContaining({ status: "created", vaultPath: "00_开始审阅/00_项目首页.md" })]));
     await expect(fs.pathExists(outRoot)).resolves.toBe(false);
@@ -869,7 +1276,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-ui-default-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true });
 
     await expect(fs.pathExists(path.join(outRoot, ".obsidian"))).resolves.toBe(false);
   });
@@ -878,7 +1285,7 @@ describe("exportObsidianVault", () => {
     const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-ui-"));
     tempRoots.push(outRoot);
 
-    await exportObsidianVault({ projectRoot: officialExampleRoot(), outRoot, force: true, includePluginRecipes: true, includeObsidianUi: true });
+    await exportObsidianVault({ projectRoot: await legacyExampleRoot(), outRoot, force: true, includePluginRecipes: true, includeObsidianUi: true });
 
     await expect(fs.pathExists(path.join(outRoot, ".obsidian", "bookmarks.json"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(outRoot, ".obsidian", "workspace.json"))).resolves.toBe(true);
@@ -926,7 +1333,7 @@ describe("exportObsidianVault", () => {
     await fs.writeFile(bookmarksPath, "{\"items\":[{\"title\":\"User Bookmark\"}]}\n", "utf8");
 
     const result = await exportObsidianVault({
-      projectRoot: officialExampleRoot(),
+      projectRoot: await legacyExampleRoot(),
       outRoot,
       force: false,
       includePluginRecipes: true,
@@ -951,7 +1358,7 @@ describe("exportObsidianVault", () => {
     const outRoot = path.join(parentRoot, "vault");
 
     const result = await exportObsidianVault({
-      projectRoot: officialExampleRoot(),
+      projectRoot: await legacyExampleRoot(),
       outRoot,
       force: false,
       includePluginRecipes: true,
@@ -961,5 +1368,21 @@ describe("exportObsidianVault", () => {
 
     expect(result.operations).toEqual(expect.arrayContaining([expect.objectContaining({ status: "created", vaultPath: ".obsidian/bookmarks.json" })]));
     await expect(fs.pathExists(outRoot)).resolves.toBe(false);
+  });
+});
+
+describe("Obsidian 单镜头页镜头组链接标签（I4）", () => {
+  test("内容树项目单镜头页的镜头组标签显示「镜头组-001」，不显示成分镜名", async () => {
+    const projectRoot = await createContentTreeObsidianProject();
+    const outRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-obsidian-group-label-"));
+    tempRoots.push(outRoot);
+
+    await exportObsidianVault({ projectRoot, outRoot, force: true, includePluginRecipes: true });
+    const shotHub = await fs.readFile(path.join(outRoot, "02_按镜头联查", "单镜头", "shot-001.md"), "utf8");
+    expect(shotHub).toContain("镜头组：[[02_按镜头联查/镜头组/group-001.md|镜头组-001]]");
+    // 旧病灶：标签显示成分镜名（组内第一个分镜文件的标题）。
+    expect(shotHub).not.toMatch(/group-001\.md\|分镜-/);
+    // 内部 id 也不直接露出。
+    expect(shotHub).not.toContain("|group-001]");
   });
 });

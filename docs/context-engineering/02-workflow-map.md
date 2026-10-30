@@ -22,6 +22,16 @@
 
 每步的详细契约（允许读取范围、回流方式、验证命令、失败模式、禁改项）见 [03-step-contracts.md](./03-step-contracts.md)。
 
+### 2.1 内容树模式下的目录分工 [AVW 专用]
+
+项目配置 `project.config.yaml` 写了 `content.format_version: 1` 时，Step 3/4/5 的正文位置按内容树读取（规范正文见 `packs/official-ai-video/workflow/workflow-spec.md` `9.3）：
+
+- **正文唯一事实源在 `内容/`**：`内容/00_镜头总表.md`、`内容/01_分镜总表.md`、`内容/场-XXX/00_场总览.md`、`内容/场-XXX/镜头组-XXX/00_镜头组总览.md`、`内容/场-XXX/镜头组-XXX/镜头-NNN/00_镜头-NNN.md`（镜头汇总）、`内容/场-XXX/镜头组-XXX/镜头-NNN/分镜-NN.md`（单分镜：本段正文 + 关键帧区块 + 视频提示词片段）。
+- **`03_分镜脚本/` 只放 `00_内容树索引.md`**：指向内容树，不复制正文。
+- **`04_图片提示词/`、`05_视频提示词/` 留完整执行文件**：由内容树生成，供平台直接复制，三区块／五区块合同不削减；05 的可复制提示词与 `00_镜头-NNN.md` 整镜正文逐字一致。
+- **两套正文并存**时报 `content-legacy-and-tree-coexist`，以内容树为准；缺 `content.format_version` 的旧项目仍按 `03/04/05` 同名目录读取。
+- 整理与检查命令：`content assemble`（刷新自动区块与执行文件）、`content check`（比对内容树／总表／执行文件）、`content migrate --preview`（旧项目迁移预览）。
+
 ## 3. 继承链 `[AVW 专用]`
 
 固定链条（workflow-spec.md §3）：

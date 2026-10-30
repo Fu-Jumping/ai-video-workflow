@@ -176,7 +176,7 @@ describe("libtv apply with mock backend", () => {
     expect(backend.getGenerationCallCount(failedNodeId)).toBe(callsAfterFailure + 1);
   });
 
-  test("timeout marks failed node and continues other nodes", async () => {
+  test("timeout marks the node as status-unknown and continues other nodes", async () => {
     const projectRoot = await makeProject();
     const backend = new MockLibTvBackend();
     await uploadAnchors(projectRoot, backend);
@@ -189,13 +189,21 @@ describe("libtv apply with mock backend", () => {
       only: ["keyframes"],
       allowGeneration: true,
       pollIntervalMs: 1,
-      timeoutMs: 30
+      // 预算需远大于正常节点耗时：满载并行时正常节点也可能被拖慢，避免第二个节点误判超时（Q45）；悬挂节点永不完成，任何预算都必然超时。
+      timeoutMs: 2000
     });
-    const failed = result.state.keyframes.find((item) => item.status === "failed");
-    expect(failed).toBeDefined();
-    expect(failed?.generationError).toContain("超时");
+    // B4：超时属于"远端状态未知"，不再写成 failed；先查状态再决定是否重跑。
+    const unknown = result.state.keyframes.find((item) => item.status === "unknown");
+    expect(unknown).toBeDefined();
+    expect(unknown?.failureClass).toBe("remote-unknown");
+    expect(unknown?.generationError).toContain("超时");
+    expect(result.state.keyframes.find((item) => item.status === "failed")).toBeUndefined();
+    expect(result.summary.keyframes.unknown).toBe(1);
+    expect(result.summary.keyframes.failed).toBe(0);
     expect(result.state.keyframes.filter((item) => item.status === "pending-approval").length).toBeGreaterThanOrEqual(1);
-    expect(result.summary.keyframes.failures.some((failure) => failure.reason === "timeout")).toBe(true);
+    expect(
+      result.summary.keyframes.failures.some((failure) => failure.reason === "timeout" && failure.failureClass === "remote-unknown")
+    ).toBe(true);
   });
 });
 
@@ -289,4 +297,32 @@ test("resumes an in-flight generation using existing taskId without submitting a
   expect(backend.getTotalGenerationCallCount()).toBe(0);
   expect(result.state.keyframes[0]?.status).toBe("pending-approval");
   expect(result.state.keyframes[0]?.taskId).toBe(`task-${nodes[0]!.nodeKey}`);
+});
+
+describe("libtv apply --dry-run 未绑定也能预演（I3）", () => {
+  test("未绑定画布时 dry-run 按未绑定出预演计划，真实执行仍要求绑定", async () => {
+    const repoRoot = path.resolve(__dirname, "..", "..", "..");
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "avw-libtv-unbound-"));
+    tempRoots.push(projectRoot);
+    await fs.copy(path.join(repoRoot, "examples", "官方示例-云上早市"), projectRoot);
+    // 与 makeProject 的区别：不写 .libtv/project.json，项目处于未绑定状态。
+
+    const backend = new MockLibTvBackend();
+    const dry = await applyPlan(projectRoot, backend, { dryRun: true });
+    expect(dry.summary.dryRun).toBe(true);
+    expect(dry.actions[0]).toContain("未绑定画布");
+    expect(dry.actions.join("\n")).toContain("锚点");
+    expect(backend.getTotalGenerationCallCount()).toBe(0);
+
+    // 真实执行路径的绑定要求不变：未绑定时仍报「缺少画布」。
+    await expect(applyPlan(projectRoot, backend, {})).rejects.toThrow(/缺少画布/);
+  });
+
+  test("已绑定时 dry-run 行为不变：输出项目 UUID 预演", async () => {
+    const projectRoot = await makeProject();
+    const backend = new MockLibTvBackend();
+    const dry = await applyPlan(projectRoot, backend, { dryRun: true });
+    expect(dry.summary.dryRun).toBe(true);
+    expect(dry.actions[0]).toContain("[dry-run] 项目 mock-project");
+  });
 });

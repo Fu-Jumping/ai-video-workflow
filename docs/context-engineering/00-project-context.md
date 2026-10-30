@@ -39,7 +39,7 @@ skill 双层：`packs/official-ai-video/skills-longform/*.md` 是内容源；`pa
 - 临时目录：`tmp/`、`.tmp/`、`temp/`、`*.log`。
 - 创作项目本地表面：`_views/`、`.obsidian/`、`.libtv/`、`outputs/`、`SOUL.md`、`USER.md`、`memory/`。
 - 研究原始采集：raw captures、媒体文件、完整评论转储、浏览器 profile、cookie（Step 0 边界，README.md "Step 0 Research"）。
-- 注意：新建的 `docs/plans/*.md` 也被 gitignore（历史 22 份已被跟踪）——计划类文档入库需放别处（如本目录）。`[待确认]`（详见 [07-decisions-and-open-questions.md](./07-decisions-and-open-questions.md)）
+- 本地规划与过程材料统一放在 Git 忽略的 `docs/local-only/`、`docs/plans/` 或 `docs/context-engineering/record/`；仅经筛选的公开候选文档继续跟踪。历史上已进入 Git 的文件不会因此从旧提交中消失。
 
 规范来源 vs 示例：`packs/` 是规范；`examples/官方示例-云上早市` 是**受 CI 验证的示例**，既是对规范的示范也是测试夹具，修改它需走 `pnpm example:verify` 验证。
 

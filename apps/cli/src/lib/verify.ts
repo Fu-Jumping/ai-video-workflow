@@ -10,9 +10,32 @@ import {
   sharedAgentDocsDir,
   sharedAgentEntryPath
 } from "./agent-workspace.js";
-import { STEP0_FILES, STEP6_FILES, STEP7_FILES, STEP_DIR_BY_NUMBER, researchStepEnabled } from "./constants.js";
+import {
+  CONTENT_BLOCK_NAMES,
+  CONTENT_INDEX_FILE,
+  DECISION_LOG_FILE,
+  MIGRATED_SNAPSHOT_DIRECTORY,
+  STEP0_FILES,
+  STEP6_FILES,
+  STEP7_FILES,
+  STEP_DIR_BY_NUMBER,
+  STORY_KERNEL_FILE,
+  researchStepEnabled
+} from "./constants.js";
+import {
+  autoBlockDrifted,
+  checkExecutionFileFreshness,
+  loadMaterialIndex,
+  platformDefaults,
+  renderShotSegmentDigest,
+  step4FileRelPath,
+  step5FileRelPath,
+  stripBlockHash
+} from "./content-assemble.js";
+import { buildContentTree, getContentBlockBody, hasMigrationSnapshot, resolveContentMode, shotGroupDirectoryName } from "./content-tree.js";
 import { applyAcceptedDeviations, readDeviations } from "./deviations.js";
-import { readProjectConfig } from "./project-config.js";
+import { verifyMediaRecords } from "./media-records.js";
+import { contentFormatVersion, isSupportedContentFormatVersion, readProjectConfig } from "./project-config.js";
 import { projectRootIssues } from "./project-root.js";
 import {
   declaredReferenceAssetTokens,
@@ -47,6 +70,9 @@ const step7AvoidHeadingPattern = /^##\s*避免[：:]\s*$/mu;
 // constraint beyond these defaults, otherwise the negative block is not per-shot customized.
 const step5GenericNegativeDefaults = [
   "不得超过 15 秒。",
+  "不得超过 6 个连续编号的镜头段。",
+  // Kept so projects written before the 4→6 contract change are still recognized as
+  // carrying only template-default negatives instead of looking customized.
   "不得超过 4 个连续编号的镜头段。",
   "不得丢失 Step 4 已选关键帧和语义参考素材。",
   "不得把 `{{Mixed n}}` 槽位号写成事实源引用。",
@@ -81,11 +107,19 @@ function sectionAfterHeading(content: string, headingText: string): string {
   }
   return body.join("\n");
 }
-const ignoredMarkdownDirs = new Set(["node_modules", ".git"]);
-const ignoredGeneratedViewRootDirs = ["_views", ".obsidian"] as const;
+
+/** 逐字比对前统一行尾：小节提取经 split/join 已是 LF，拼装正文保留分镜文件原样（可能是 CRLF，J8）。 */
+function normalizeLineEndings(text: string): string {
+  return text.replace(/\r\n/gu, "\n");
+}
+// .tmp 是工具自己的临时区（整理前的备份、探针与夹具），不属于项目正文。
+const ignoredMarkdownDirs = new Set(["node_modules", ".git", ".tmp"]);
+// 迁移快照目录：迁移后的旧文件在这里保留为只读快照，不参与当前内容的链接检查与投影。
+const ignoredGeneratedViewRootDirs = ["_views", ".obsidian", MIGRATED_SNAPSHOT_DIRECTORY] as const;
 const ignoredRootMarkdownDirs = new Set([...cherryHostSurfaceDirs, ...ignoredGeneratedViewRootDirs]);
 const ignoredRootMarkdownFiles = new Set(cherryHostSurfaceFiles);
-const absoluteLinkPattern = /([A-Za-z]:\\|[A-Za-z]:\/|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
+// 盘符分支带负向后行：https:// 里的 s:/ 不再误判为绝对路径（K1）；markdown 根链接分支不受断言影响。
+const absoluteLinkPattern = /(?:(?<![A-Za-z])[A-Za-z]:[\\/]|file:\/\/|vscode:\/\/|\]\(\/(?!\/))/;
 const inlineCodePattern = /`[^`\r\n]*`/g;
 const runtimeTruthConflictPattern =
   /(runtime mirror|运行镜像).{0,40}(source of truth|事实源|project truth)|(source of truth|事实源|project truth).{0,40}(runtime mirror|运行镜像)/i;
@@ -135,6 +169,10 @@ const ideSharedRuntimeEntryPaths: Record<Ide, string[]> = {
 
 function pushIssue(issues: VerificationIssue[], issue: VerificationIssue): void {
   issues.push(issue);
+}
+
+function stripTrailingNewlines(value: string): string {
+  return value.replace(/\n+$/u, "");
 }
 
 async function listMarkdownFiles(root: string, current = root): Promise<string[]> {
@@ -563,7 +601,12 @@ async function verifyStep5NegativeConstraints(graph: ShotGraph, issues: Verifica
   }
 }
 
-function verifyShotGraphContract(graph: ShotGraph, issues: VerificationIssue[], requireKeyframes: boolean): void {
+function verifyShotGraphContract(
+  graph: ShotGraph,
+  issues: VerificationIssue[],
+  requireKeyframes: boolean,
+  contentTreeMode = false
+): void {
   for (const group of graph.groups.filter((candidate) => candidate.shots.length > 0 && !candidate.description)) {
     pushIssue(issues, {
       code: "missing-shot-group",
@@ -598,17 +641,21 @@ function verifyShotGraphContract(graph: ShotGraph, issues: VerificationIssue[], 
     }
     const segments = shot.storyboardSegments;
     const consecutive = segments.every((value, index) => value === index + 1);
-    if (segments.length < 1 || segments.length > 4 || !consecutive) {
+    if (segments.length < 1 || segments.length > 6 || !consecutive) {
       pushIssue(issues, {
         code: "invalid-storyboard-segment-count",
-        message: `Storyboard ${shot.id} must declare 1-4 consecutive 分镜 sections — use \`### 分镜 N\` headings numbered 1..4 (entry-style \`- 分镜 1：...\` lines are not supported)`,
+        message: `Storyboard ${shot.id} must declare 1-6 consecutive 分镜 sections — use \`### 分镜 N\` headings numbered 1..6 (entry-style \`- 分镜 1：...\` lines are not supported)`,
         path: shot.storyboard.relPath
       });
     }
-    if (requireKeyframes && (shot.imagePrompts.length < 1 || shot.imagePrompts.length > Math.min(4, Math.max(segments.length, 1)))) {
+    // 内容树允许整镜没有独立关键帧（分镜里显式写明「本段没有单独关键帧」），
+    // 所以下限按内容树口径放到 0；上限仍是 min(4, max(分镜数, 1))，不重新定值。
+    const keyframeFloor = contentTreeMode ? 0 : 1;
+    const keyframeCeiling = Math.min(4, Math.max(segments.length, 1));
+    if (requireKeyframes && (shot.imagePrompts.length < keyframeFloor || shot.imagePrompts.length > keyframeCeiling)) {
       pushIssue(issues, {
         code: "invalid-keyframe-mapping",
-        message: `Shot ${shot.id} must select 1-${Math.min(4, Math.max(segments.length, 1))} keyframes`,
+        message: `Shot ${shot.id} must select ${keyframeFloor}-${keyframeCeiling} keyframes`,
         path: shot.storyboard.relPath
       });
     }
@@ -617,8 +664,16 @@ function verifyShotGraphContract(graph: ShotGraph, issues: VerificationIssue[], 
     }
     for (const imagePrompt of shot.imagePrompts) {
       const mappedSegment = keyframeMappedSegment(imagePrompt.content);
-      const declaredGroup = imagePrompt.content.match(/镜头组\s*[：:]\s*(group-\d{3})/iu)?.[1]?.toLowerCase();
-      const declaredShot = imagePrompt.content.match(/镜头编号\s*[：:]\s*(shot-\d{3})/iu)?.[1]?.toLowerCase();
+      // 元信息里的人读编号（镜头组-001 / 镜头-001）与内部标识（group-001 / shot-001）指向同一实体：
+      // 两种写法都接受，旧项目无需迁移，新项目按人读编号生成也能通过同一映射校验。
+      const declaredGroup = imagePrompt.content
+        .match(/镜头组\s*[：:]\s*((?:group|镜头组)-\d{3})/iu)?.[1]
+        ?.toLowerCase()
+        .replace(/^镜头组-/u, "group-");
+      const declaredShot = imagePrompt.content
+        .match(/镜头编号\s*[：:]\s*((?:shot|镜头)-\d{3})/iu)?.[1]
+        ?.toLowerCase()
+        .replace(/^镜头-/u, "shot-");
       const hasMoment = /关键时刻\s*[：:]\s*\S+/u.test(imagePrompt.content);
       if (
         !imagePrompt.keyframeId ||
@@ -638,10 +693,10 @@ function verifyShotGraphContract(graph: ShotGraph, issues: VerificationIssue[], 
     if (shot.videoPrompt) {
       const videoShots = shot.videoPromptShots;
       const videoConsecutive = videoShots.every((value, index) => value === index + 1);
-      if (videoShots.length < 1 || videoShots.length > 4 || !videoConsecutive || videoShots.length !== segments.length) {
+      if (videoShots.length < 1 || videoShots.length > 6 || !videoConsecutive || videoShots.length !== segments.length) {
         pushIssue(issues, {
           code: "invalid-step5-contract",
-          message: `Step 5 ${shot.id} must contain 1-4 continuous 镜头N sections matching Step 3 分镜 count`,
+          message: `Step 5 ${shot.id} must contain 1-6 continuous 镜头N sections matching Step 3 分镜 count`,
           path: shot.videoPrompt.relPath
         });
       }
@@ -708,7 +763,7 @@ async function verifyStep2DeclaredAssetUsage(projectRoot: string, graph: ShotGra
       if (!declaredTokens.has(asset.token)) {
         pushIssue(issues, {
           code: "undeclared-reference-asset",
-          message: `Reference asset ${asset.token} is used in Step ${file.step} but not declared in Step 2 (${asset.name})`,
+          message: `Reference asset ${asset.token} is used in Step ${file.step} but not declared in Step 2 (${asset.name}). Only sections with 主角色：是 or 需要场景图：是 declare a token.`,
           path: file.relPath
         });
       }
@@ -716,7 +771,12 @@ async function verifyStep2DeclaredAssetUsage(projectRoot: string, graph: ShotGra
   }
 }
 
-async function verifyStep3Step4Traceability(projectRoot: string, graph: ShotGraph, issues: VerificationIssue[]): Promise<void> {
+async function verifyStep3Step4Traceability(
+  projectRoot: string,
+  graph: ShotGraph,
+  issues: VerificationIssue[],
+  contentTreeMode = false
+): Promise<void> {
   const graphPaths = new Set(graph.files.map((file) => file.relPath));
   for (const shot of graph.shots) {
     if (!shot.storyboard) {
@@ -731,6 +791,28 @@ async function verifyStep3Step4Traceability(projectRoot: string, graph: ShotGrap
         message: "Storyboard reference asset section is empty; declare required @xx三视图 or @xx场景图 assets",
         path: relPath
       });
+    }
+    if (contentTreeMode) {
+      // 内容树模式：Step 4 目标由内容树的稳定身份推导（shot.imagePrompts 就是本镜的 04 执行文件），
+      // 不要求镜头汇总里再手写一遍 04 链接；缺文件由内容树检查负责报。
+      for (const imagePrompt of shot.imagePrompts) {
+        const targetPath = path.join(projectRoot, ...imagePrompt.relPath.split("/"));
+        if (!(await fs.pathExists(targetPath))) {
+          continue;
+        }
+        if (requiredReferenceAssets.length > 0) {
+          const step4Content = await fs.readFile(targetPath, "utf8");
+          const missingAssets = missingReferenceAssets(requiredReferenceAssets, extractReferenceAssets(step4Content));
+          for (const asset of missingAssets) {
+            pushIssue(issues, {
+              code: "missing-step4-reference-asset",
+              message: `Step 4 prompt must include required reference asset: ${asset.token}`,
+              path: imagePrompt.relPath
+            });
+          }
+        }
+      }
+      continue;
     }
     const linkedPaths = linkedStepFiles(shot.storyboard, 4);
     if (linkedPaths.length === 0) {
@@ -818,6 +900,17 @@ async function verifyStep5PlatformExecutionSettings(
     const seedanceSettingsMissing =
       defaultVideoPlatform === "seedance" && (!content.includes("Seedance 2.0") || !content.includes("全能参考模式"));
     const driftingMixedSlot = /\{\{Mixed\s*\d+\}\}/iu.test(content);
+    // 只改消息：把缺失项逐条点名，通过／失败条件与 issue code 仍由下面同一组布尔值决定。
+    const missingSeedanceSettings = ["Seedance 2.0", "全能参考模式"].filter(
+      (word) => defaultVideoPlatform === "seedance" && !content.includes(word)
+    );
+    const missingCopyPromptMarkers = ["无配乐", "无字幕"].filter((word) => !copyPrompt.includes(word));
+    const missingItems: string[] = [];
+    if (missingSection) missingItems.push("小节 " + missingSection);
+    if (missingMarker) missingItems.push("平台执行项 " + missingMarker);
+    if (!content.includes(defaultVideoPlatform)) missingItems.push("平台名 " + defaultVideoPlatform);
+    missingItems.push(...missingSeedanceSettings, ...missingCopyPromptMarkers);
+    if (driftingMixedSlot) missingItems.push("提示词里仍有 {{Mixed N}} 占位");
     if (
       missingSection ||
       missingMarker ||
@@ -831,7 +924,7 @@ async function verifyStep5PlatformExecutionSettings(
         code: missingSection || !copyPrompt.includes("无配乐") || !copyPrompt.includes("无字幕") || driftingMixedSlot
           ? "invalid-step5-contract"
           : "missing-step5-platform-execution-setting",
-        message: `Step 5 must use the formal prompt contract for ${defaultVideoPlatform}, semantic references, 无配乐 and 无字幕`,
+        message: `Step 5 缺少必需内容：${missingItems.join("、")}（平台 ${defaultVideoPlatform}；正式提示词契约见 workflow-spec Step 5）`,
         path: relPath
       });
     }
@@ -970,6 +1063,353 @@ async function verifyNestedProjects(projectRoot: string, issues: VerificationIss
   }
 }
 
+/* ------------------------------ 内容树校验 ------------------------------ */
+
+/** 旧格式镜头文件名：与 shot-graph 旧路径同一口径（03 递归、04／05 递归）。 */
+const legacyShotFileNamePattern = /(?:^|[-_ ])(?:镜头|shot)[-_ ]?(\d+)/iu;
+const fencedBlockPattern = new RegExp("\u0060{3,}[^\\n]*\\n([\\s\\S]*?)\u0060{3,}", "u");
+/** 已由 verifyShotGraphContract 用同一文件报过的错误码，合并内容树问题时不再重复。 */
+const contentTreeOverlappingCodes = new Set<string>(["invalid-storyboard-segment-count", "invalid-keyframe-mapping"]);
+
+/**
+ * 旧 03／04／05 目录下仍然存在的旧格式镜头文件（相对项目根、正斜杠）。
+ *
+ * 判定口径与 shot-graph 旧路径一致：03 递归、04／05 递归，文件名匹配「镜头N／shotN」。
+ * 内容树自己生成在 04／05 的执行文件（镜头-NNN.md、镜头-NNN-关键帧-NN.md）不算旧正文，
+ * 由 expectedExecution 排除，否则新格式项目会误报「两套正文并存」。
+ */
+async function listLegacyShotMarkdownFiles(projectRoot: string, expectedExecution: Set<string>): Promise<string[]> {
+  const found: string[] = [];
+  for (const step of [3, 4, 5] as const) {
+    const stepDir = STEP_DIR_BY_NUMBER[step];
+    const absDir = path.join(projectRoot, stepDir);
+    if (!(await fs.pathExists(absDir))) continue;
+    for (const relPath of await listMarkdownFiles(absDir)) {
+      if (!legacyShotFileNamePattern.test(path.basename(relPath))) continue;
+      const projectRelPath = normalizeProjectRelPath(path.join(stepDir, relPath));
+      if (expectedExecution.has(projectRelPath)) continue;
+      // 已迁移的旧正文在「已迁移/」里有只读快照：原件保留但不再参与检查与投影，
+      // 不算「两套正文并存」（规范 §7.8）。
+      if (await hasMigrationSnapshot(projectRoot, projectRelPath)) continue;
+      found.push(projectRelPath);
+    }
+  }
+  return found.sort();
+}
+
+/** 取「## 可复制提示词」里的第一个代码块正文；没有区块或没有代码块返回 null。 */
+function copyablePromptBody(content: string): string | null {
+  const section = sectionAfterHeading(content, "## 可复制提示词");
+  if (section.trim().length === 0) return null;
+  const matched = fencedBlockPattern.exec(section);
+  return matched ? (matched[1] ?? "").replace(/\n+$/u, "") : null;
+}
+
+function joinPromptParts(parts: Array<string | null>): string {
+  return parts
+    .map((part) => (part ?? "").trim())
+    .filter((part) => part.length > 0)
+    .join("\n\n");
+}
+
+/**
+ * 内容树模式下的专项校验。
+ *
+ * 结构问题直接并入 buildContentTree 的结果；本函数另外负责：
+ * 1. 新旧两套正文并存；
+ * 2. 汇总自动区块与拼装结果（过期／手工改动）；
+ * 3. 05 执行文件与拼装结果（过期）；
+ * 4. 汇总展示的整镜正文与 05 执行文件（互不相等）；
+ * 5. 03 内容树索引是否存在（链接存在性交给通用链接检查）。
+ *
+ * 同一处不一致只报一次：汇总文件与 05 文件各自最多一条。
+ */
+async function verifyContentTree(
+  projectRoot: string,
+  shotGraph: ShotGraph,
+  issues: VerificationIssue[]
+): Promise<void> {
+  const resolution = await resolveContentMode(projectRoot);
+  // 版本号这类问题在总入口已经报过一次；同一处只报一次，读的人不会被重复条目干扰。
+  const alreadyReported = new Set(issues.map((issue) => `${issue.code}::${issue.path ?? ""}`));
+  for (const issue of resolution.issues) {
+    const key = `${issue.code}::${issue.path ?? ""}`;
+    if (alreadyReported.has(key)) continue;
+    alreadyReported.add(key);
+    pushIssue(issues, issue);
+  }
+  if (resolution.mode !== "content-tree") {
+    return;
+  }
+  // 声明了新格式但没有「内容/」目录：上面已经报 content-tree-missing，不再叠加结构问题。
+  if (!resolution.contentRootExists) {
+    return;
+  }
+
+  const tree = await buildContentTree(projectRoot);
+  const reportedKeys = new Set(issues.map((issue) => `${issue.code}::${issue.path ?? ""}`));
+  for (const issue of tree.issues) {
+    if (contentTreeOverlappingCodes.has(issue.code)) {
+      const key = `${issue.code}::${issue.path ?? ""}`;
+      if (reportedKeys.has(key)) continue;
+      reportedKeys.add(key);
+    }
+    pushIssue(issues, issue);
+  }
+
+  // 内容树自己生成的 04／05 执行文件，不算「旧正文」。
+  const expectedExecution = new Set<string>();
+  for (const shot of tree.shots) {
+    expectedExecution.add(normalizeProjectRelPath(step5FileRelPath(shot)));
+    for (const storyboard of shot.storyboards) {
+      for (const keyframe of storyboard.document.keyframes) {
+        expectedExecution.add(normalizeProjectRelPath(step4FileRelPath(shot, keyframe.id)));
+      }
+    }
+  }
+
+  // 1. 新旧两套正文并存：内容树模式以内容树为准。
+  const legacyFiles = await listLegacyShotMarkdownFiles(projectRoot, expectedExecution);
+  if (legacyFiles.length > 0) {
+    pushIssue(issues, {
+      code: "content-legacy-and-tree-coexist",
+      message:
+        "项目已声明内容树格式（content.format_version），03／04／05 里却还留着旧格式镜头正文：" +
+        legacyFiles.join("、") +
+        "。以内容树「内容/」为准；旧正文请迁入「" +
+        MIGRATED_SNAPSHOT_DIRECTORY +
+        "/」作为只读快照，不要两套并存。",
+      path: legacyFiles[0]
+    });
+  }
+
+  // 5. Step 3 索引必须存在（索引里的相对链接由通用链接检查负责）。
+  const indexRelPath = normalizeProjectRelPath(path.join(STEP_DIR_BY_NUMBER[3], CONTENT_INDEX_FILE));
+  if (!(await fs.pathExists(path.join(projectRoot, indexRelPath)))) {
+    pushIssue(issues, {
+      code: "content-index-missing",
+      message: "内容树模式下 " + STEP_DIR_BY_NUMBER[3] + " 必须保留「" + CONTENT_INDEX_FILE + "」，指向内容树，不复制正文。",
+      path: indexRelPath
+    });
+  }
+
+  const step5ByShot = new Map<string, string>();
+  for (const graphShot of shotGraph.shots) {
+    if (graphShot.videoPrompt) {
+      step5ByShot.set(graphShot.id, normalizeProjectRelPath(graphShot.videoPrompt.relPath));
+    }
+  }
+
+  for (const shot of tree.shots) {
+    if (shot.assembly.text === null || shot.assembly.segments.length === 0) {
+      // 拼装本身失败：原因已由内容树结构检查报出，这里不再比对。
+      continue;
+    }
+    if (!(await fs.pathExists(path.join(projectRoot, shot.relPath)))) {
+      continue;
+    }
+
+    const shotLabel = shot.shotId.replace(/^shot-/u, "镜头-");
+    const assembledSegments = shot.assembly.segments
+      .map((segment) => segment.text.replace(/\n+$/u, ""))
+      .join("\n\n");
+    const summaryBlock = shot.document.segmentsBody;
+    const summaryActual = summaryBlock === null ? null : stripBlockHash(summaryBlock).replace(/\n+$/u, "");
+    const summaryFresh =
+      summaryActual !== null && normalizeLineEndings(summaryActual) === normalizeLineEndings(assembledSegments);
+    const summaryWholeText = joinPromptParts([shot.document.promptBefore, summaryActual, shot.document.promptAfter]);
+
+    if (summaryBlock === null) {
+      pushIssue(issues, {
+        code: "content-summary-stale",
+        message:
+          "「" + shot.relPath + "」缺少自动区块「镜头段拼装」；镜头汇总必须由各分镜片段拼装后刷新（content assemble）。",
+        path: shot.relPath
+      });
+    } else if (autoBlockDrifted(summaryBlock)) {
+      pushIssue(issues, {
+        code: "content-summary-manual-drift",
+        message:
+          "「" + shot.relPath + "」的自动区块「镜头段拼装」被手工改过（区块内记录的哈希与正文不符）；" +
+          "自动区块只能由工具刷新，正文请改对应的分镜文件。",
+        path: shot.relPath
+      });
+    } else if (!summaryFresh) {
+      pushIssue(issues, {
+        code: "content-summary-stale",
+        message:
+          "「" + shot.relPath + "」的自动区块「镜头段拼装」与按分镜重新拼装的结果不一致；正文改过之后要重新整理（content assemble）。",
+        path: shot.relPath
+      });
+    }
+
+    const step5RelPath = step5ByShot.get(shot.shotId);
+    if (step5RelPath === undefined) {
+      pushIssue(issues, {
+        code: "content-execution-stale",
+        message:
+          shotLabel + " 缺少 05 执行文件（" + STEP_DIR_BY_NUMBER[5] + " 下应有一份由内容树生成的完整执行文件）；请重新整理（content assemble）。自动区块被手改时需 content assemble --force（覆盖前会备份到 .tmp/）。",
+        path: path.posix.join(STEP_DIR_BY_NUMBER[5], shotGroupDirectoryName(shot.groupId), shotLabel + ".md")
+      });
+      continue;
+    }
+    const step5Content = await fs.readFile(path.join(projectRoot, step5RelPath), "utf8");
+    const step5Copyable = copyablePromptBody(step5Content);
+    if (step5Copyable === null) {
+      pushIssue(issues, {
+        code: "content-summary-execution-mismatch",
+        message:
+          "「" + step5RelPath + "」没有「## 可复制提示词」代码块，无法与镜头汇总「" + shot.relPath + "」逐字核对；" +
+          "05 执行文件必须保持 Step 5 文件合同。区块被手改删除时需 content assemble --force（覆盖前会备份到 .tmp/）恢复。",
+        path: step5RelPath
+      });
+      continue;
+    }
+    if (normalizeLineEndings(step5Copyable) !== normalizeLineEndings(shot.assembly.text)) {
+      if (summaryFresh) {
+        pushIssue(issues, {
+          code: "content-execution-stale",
+          message:
+            "「" + step5RelPath + "」的可复制提示词与镜头 " + shotLabel + " 的当前拼装结果不一致（汇总「" +
+            shot.relPath + "」已是最新）；05 执行文件落后，请重新整理（content assemble）。自动区块被手改时需 content assemble --force（覆盖前会备份到 .tmp/），不要手改执行文件。",
+          path: step5RelPath
+        });
+      } else if (normalizeLineEndings(step5Copyable) !== normalizeLineEndings(summaryWholeText)) {
+        pushIssue(issues, {
+          code: "content-summary-execution-mismatch",
+          message:
+            "镜头 " + shotLabel + " 的汇总「" + shot.relPath + "」与 05 执行文件「" + step5RelPath +
+            "」展示的整镜正文互不相等，且都与当前拼装结果不一致；请重新整理后再核对。自动区块被手改时需 content assemble --force（覆盖前会备份到 .tmp/）。",
+          path: step5RelPath
+        });
+      }
+    }
+  }
+
+  // 分镜速览区块与 04／05 执行文件的新鲜度，与 content check 同口径：
+  // 正文标注行、展示名、素材状态等改动后没有重新整理时，verify 也要能报出来。
+  const materialIndex = await loadMaterialIndex(projectRoot);
+  const { config } = await readProjectConfig(projectRoot);
+  await checkExecutionFileFreshness(projectRoot, tree, materialIndex, platformDefaults(config), issues);
+  for (const shot of tree.shots) {
+    const absPath = path.join(projectRoot, shot.relPath);
+    if (!(await fs.pathExists(absPath))) continue;
+    const content = await fs.readFile(absPath, "utf8");
+    const digestBody = getContentBlockBody(content, CONTENT_BLOCK_NAMES.shotSegmentDigest);
+    if (digestBody === null) continue;
+    const expected = stripTrailingNewlines(renderShotSegmentDigest(shot));
+    const actual = stripTrailingNewlines(stripBlockHash(digestBody));
+    if (actual !== expected) {
+      pushIssue(issues, {
+        code: "content-summary-stale",
+        message:
+          "「" + shot.relPath + "」的自动区块「" + CONTENT_BLOCK_NAMES.shotSegmentDigest + "」与分镜正文不一致；正文改过之后要重新整理（content assemble）。",
+        path: shot.relPath
+      });
+    }
+  }
+}
+
+/**
+ * Step 1 决策访谈软检查（Issue #3）：只产出 warnings，不阻塞 verify 通过。
+ * 模板抬头（引用块/标题）里的 `[assumption]` 字样不算正文标记。
+ */
+async function verifyStep1DecisionLog(projectRoot: string, warnings: VerificationIssue[]): Promise<void> {
+  const step1DirName = STEP_DIR_BY_NUMBER[1];
+  const kernelPath = path.join(projectRoot, step1DirName, STORY_KERNEL_FILE);
+  if (!(await fs.pathExists(kernelPath))) {
+    return;
+  }
+  const kernelContent = await fs.readFile(kernelPath, "utf8");
+  const assumptionInBody = kernelContent.split(/\r?\n/).some((rawLine) => {
+    const line = rawLine.trim();
+    return !line.startsWith(">") && !line.startsWith("#") && line.includes("[assumption]");
+  });
+  if (assumptionInBody) {
+    warnings.push({
+      code: "step1-assumption-markers",
+      message: "故事内核仍有 [assumption] 标记：存在未确认的创作判断，请完成决策访谈或确认后移除标记",
+      path: `${step1DirName}/${STORY_KERNEL_FILE}`
+    });
+  }
+  if (!storyKernelFilled(kernelContent)) {
+    return;
+  }
+  const decisionLogPath = path.join(projectRoot, step1DirName, DECISION_LOG_FILE);
+  if (!(await fs.pathExists(decisionLogPath))) {
+    warnings.push({
+      code: "step1-decision-log-missing",
+      message: "故事内核已填写但 00_决策记录.md 不存在：Step 1 可能跳过了动笔前决策访谈，请补记 P0 决策",
+      path: `${step1DirName}/${DECISION_LOG_FILE}`
+    });
+    return;
+  }
+  const decisionLogContent = await fs.readFile(decisionLogPath, "utf8");
+  if (/\|\s*pending\s*\|/.test(decisionLogContent)) {
+    warnings.push({
+      code: "step1-decision-log-unconfirmed",
+      message: "00_决策记录.md 仍有 pending 状态的决策项：完成访谈确认后再推进 Step 2",
+      path: `${step1DirName}/${DECISION_LOG_FILE}`
+    });
+  }
+  const interviewSection = sectionByHeadingKeyword(decisionLogContent, "访谈记录");
+  const interviewFilled =
+    interviewSection !== null &&
+    interviewSection.split(/\r?\n/).some((rawLine) => {
+      const line = rawLine.trim();
+      return line.startsWith("- ") && !interviewEntryPlaceholderPattern.test(line);
+    });
+  if (!interviewFilled) {
+    warnings.push({
+      code: "step1-interview-log-empty",
+      message: "00_决策记录.md 的访谈记录节仍为模板占位：请逐组补记日期、覆盖编号与用户答复要点",
+      path: `${step1DirName}/${DECISION_LOG_FILE}`
+    });
+  }
+}
+
+/**
+ * 访谈记录节的模板占位行形态：`- 第 1 组（日期，覆盖编号）：`，冒号后无内容。
+ * 模板（00_决策记录.md）的占位行必须保持该形态，否则"未留痕"检查失效（合同）。
+ */
+const interviewEntryPlaceholderPattern = /^-\s*第\s*\d*\s*组\s*（[^）]*）\s*[:：]\s*$/u;
+
+/** 取二级标题包含 keyword 的节正文（到下一个标题为止）；找不到返回 null。 */
+function sectionByHeadingKeyword(content: string, keyword: string): string | null {
+  const lines = content.split(/\r?\n/);
+  const startIndex = lines.findIndex((line) => /^##\s/u.test(line) && line.includes(keyword));
+  if (startIndex === -1) {
+    return null;
+  }
+  const body: string[] = [];
+  for (const line of lines.slice(startIndex + 1)) {
+    if (/^#{1,6}\s/u.test(line)) {
+      break;
+    }
+    body.push(line);
+  }
+  return body.join("\n");
+}
+
+/**
+ * 判断故事内核是否已从模板填写为正文：统计「字段：内容」形态的非表格行。
+ * 模板基线（空字段、标题、占位表格、引用块抬头）计为 0；阈值取 3，防止单个字段误触发。
+ */
+function storyKernelFilled(content: string): boolean {
+  let filled = 0;
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (line.startsWith("|") || line.startsWith("#") || line.startsWith(">")) {
+      continue;
+    }
+    const separator = line.search(/[：:]/);
+    if (separator >= 0 && line.slice(separator + 1).trim().length > 0) {
+      filled += 1;
+    }
+  }
+  return filled >= 3;
+}
+
 export async function verifyProject({
   projectRoot,
   ide,
@@ -1002,6 +1442,17 @@ export async function verifyProject({
     pushIssue(issues, issue);
   }
   if (config) {
+    const declaredContentVersion = contentFormatVersion(config);
+    if (!isSupportedContentFormatVersion(declaredContentVersion)) {
+      pushIssue(issues, {
+        code: "unsupported-content-format",
+        message:
+          "project.config.yaml 声明的内容树格式版本 " +
+          String(declaredContentVersion) +
+          " 本工具还不支持；请升级工具或改回受支持的版本（缺这个键的旧项目按旧格式读取，不受影响）",
+        path: "project.config.yaml"
+      });
+    }
     if (!config.platforms?.image?.default) {
       pushIssue(issues, {
         code: "missing-image-default-platform",
@@ -1018,17 +1469,24 @@ export async function verifyProject({
     }
   }
   await verifyNestedProjects(projectRoot, issues);
+  const warnings: VerificationIssue[] = [];
   if (step === undefined || step >= 0) {
     if (config && researchStepEnabled(config)) {
       await verifyStep0(projectRoot, issues);
     }
   }
+  if (step === undefined || step >= 1) {
+    await verifyStep1DecisionLog(projectRoot, warnings);
+  }
   if (step === undefined || step >= 2) {
     await verifyStep2ReferenceAssets(projectRoot, issues);
   }
+  const contentMode = await resolveContentMode(projectRoot);
+  const contentTreeMode = contentMode.mode === "content-tree";
   const shotGraph = await buildShotGraph(projectRoot);
   const requireKeyframes = step === undefined || step >= 4;
-  verifyShotGraphContract(shotGraph, issues, requireKeyframes);
+  verifyShotGraphContract(shotGraph, issues, requireKeyframes, contentTreeMode);
+  await verifyContentTree(projectRoot, shotGraph, issues);
   if (step === undefined || step >= 3) {
     await verifyStep2DeclaredAssetUsage(projectRoot, shotGraph, issues);
   }
@@ -1037,7 +1495,7 @@ export async function verifyProject({
     if (config?.platforms.image.default) {
       await verifyStep4PlatformExecutionSettings(shotGraph, config.platforms.image.default, issues);
     }
-    await verifyStep3Step4Traceability(projectRoot, shotGraph, issues);
+    await verifyStep3Step4Traceability(projectRoot, shotGraph, issues, contentTreeMode);
   }
   if (step === undefined || step >= 5) {
     await verifyStep4Step5ReferenceAssets(shotGraph, issues);
@@ -1057,6 +1515,7 @@ export async function verifyProject({
   await verifyRelativeMarkdownLinkTargets(projectRoot, issues, step);
   await verifyIdeRuntime(projectRoot, ide, issues);
   await verifySharedAgentWorkspace(projectRoot, ide, issues);
+  await verifyMediaRecords(projectRoot, issues);
 
   const { mode, deviations, shots, issues: deviationIssues } = await readDeviations(projectRoot);
   for (const issue of deviationIssues) {
@@ -1079,6 +1538,7 @@ export async function verifyProject({
   return {
     ok: finalIssues.length === 0,
     issues: finalIssues,
+    ...(warnings.length > 0 ? { warnings } : {}),
     ...(acceptedDeviations.length > 0 ? { acceptedDeviations } : {})
   };
 }

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { confirm, input, select } from "@inquirer/prompts";
 import { Command } from "commander";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -50,6 +51,24 @@ import { verifyProject } from "./lib/verify.js";
 import { assertCanInitializeProject, assertExistingDirectory } from "./lib/project-root.js";
 import { assertSingleObsidianTarget, resolveInProjectObsidianView } from "./lib/view-layer.js";
 import { registerLibTvCommands } from "./lib/libtv/register.js";
+import {
+  backupIssueKindLabels,
+  createMediaBackup,
+  inspectProjectReferences,
+  restoreMediaBackup,
+  verifyBackup
+} from "./lib/media-backup.js";
+import { listMediaRecords, renderMediaOverview } from "./lib/media-records.js";
+import { assembleContentTree, checkContentConsistency, renderAssembleSummary } from "./lib/content-assemble.js";
+import { checkRoughCutPlan, exportMediaPack, refreshRoughCutPlan, renderRoughCutSummary } from "./lib/roughcut.js";
+import {
+  defaultJianyingIndexFilePath,
+  discoverJianyingDir,
+  draftsRootFromIndex,
+  generateJianyingDraft,
+  renderJianyingDraftSummary
+} from "./lib/jianying-draft.js";
+import { buildMigrationPreview, renderMigrationPreview } from "./lib/migration-preview.js";
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -282,6 +301,12 @@ program
       process.exitCode = 1;
       return;
     }
+    if (result.warnings?.length) {
+      console.log(`Warnings (${result.warnings.length}, non-blocking):`);
+      for (const warning of result.warnings) {
+        console.log(`- ${warning.code}: ${warning.message}${warning.path ? ` (${warning.path})` : ""}`);
+      }
+    }
     console.log("Verification passed");
   }, () => program.opts<{ debug?: boolean }>().debug === true));
 
@@ -301,7 +326,7 @@ program
       pack: await readProjectPack(path.resolve(options.project))
     });
     const { config } = await readProjectConfig(path.resolve(options.project));
-    console.log(await diagnoseProject({ issues: result.issues, defaultVideoPlatform: config?.platforms.video.default }));
+    console.log(await diagnoseProject({ issues: result.issues, warnings: result.warnings, defaultVideoPlatform: config?.platforms.video.default }));
     if (!result.ok) {
       process.exitCode = 1;
     }
@@ -626,6 +651,244 @@ program
     console.log(renderRebuildViewSummary(result));
     if (options.dryRun) {
       console.log("Dry run complete for in-project Obsidian view rebuild; no files were written or deleted.");
+    }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+program
+  .command("media-list")
+  .description("List media records with platform, download, review and selection states kept separate")
+  .requiredOption("--project <path>")
+  .action((options) => runCliAction(async () => {
+    const records = await listMediaRecords(path.resolve(options.project));
+    console.log(renderMediaOverview(records));
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+program
+  .command("backup-media")
+  .description("Copy a project's media library, outputs and media records into a backup directory with a per-file hash manifest")
+  .requiredOption("--project <path>")
+  .requiredOption("--out <path>", "Backup directory; must be outside the project")
+  .action((options) => runCliAction(async () => {
+    const result = await createMediaBackup(path.resolve(options.project), path.resolve(options.out));
+    console.log("备份目录：" + result.backupRoot);
+    console.log("清单文件：" + result.manifestPath);
+    console.log("备份文件：" + result.manifest.entries.length + " 个，共 " + result.manifest.totalBytes + " 字节");
+    if (result.missingRoots.length > 0) {
+      console.log("项目里还不存在的内容：" + result.missingRoots.join("、") + "（不参与本次备份）");
+    }
+    if (result.excluded.length > 0) {
+      console.log("按规则排除：" + result.excluded.length + " 项（缓存、依赖、临时目录、凭证类文件不进备份）");
+    }
+    if (result.skipped.length > 0) {
+      console.log("跳过无法读取的条目：" + result.skipped.length + " 项");
+      for (const item of result.skipped) console.log("  [跳过] " + item);
+    }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+program
+  .command("verify-media-backup")
+  .description("Verify a media backup directory against its manifest")
+  .requiredOption("--backup <path>")
+  .action((options) => runCliAction(async () => {
+    const report = await verifyBackup(path.resolve(options.backup));
+    for (const line of report.lines) console.log(line);
+    if (!report.ok) {
+      for (const issue of report.issues) {
+        console.error("- [" + backupIssueKindLabels[issue.kind] + "] " + issue.message);
+      }
+      process.exitCode = 1;
+    }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+program
+  .command("restore-media-backup")
+  .description("Restore a media backup into a directory; verifies first and never overwrites existing files unless allowed")
+  .requiredOption("--backup <path>")
+  .requiredOption("--to <path>", "Target project directory to restore into")
+  .option("--allow-overwrite", "Overwrite files that already exist in the target directory", false)
+  .option("--no-rewrite-references", "Do not rewrite absolute paths in media records to the new location")
+  .action((options) => runCliAction(async () => {
+    const report = await restoreMediaBackup(path.resolve(options.backup), path.resolve(options.to), {
+      allowOverwrite: options.allowOverwrite === true,
+      rewriteReferences: options.rewriteReferences !== false
+    });
+    for (const line of report.lines) console.log(line);
+    if (!report.ok) {
+      process.exitCode = 1;
+    }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+program
+  .command("check-media-references")
+  .description("Check whether the file references inside media records still resolve after moving a project")
+  .requiredOption("--project <path>")
+  .action((options) => runCliAction(async () => {
+    const inspection = await inspectProjectReferences(path.resolve(options.project));
+    for (const line of inspection.lines) console.log(line);
+    if (!inspection.valid) {
+      process.exitCode = 1;
+    }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+const contentCommand = program
+  .command("content")
+  .description("Maintain the content tree (内容/) that holds the canonical shot and storyboard text");
+
+contentCommand
+  .command("assemble")
+  .description("Refresh the shot overview, storyboard overview, shot summaries and the 04/05 execution files from 内容/")
+  .requiredOption("--project <path>")
+  .option("--force", "Also overwrite auto blocks that were edited by hand (the old content is backed up first)", false)
+  .option("--dry-run", "Only report what would change, do not write anything", false)
+  .action((options) => runCliAction(async () => {
+    const result = await assembleContentTree(path.resolve(options.project), {
+      force: options.force === true,
+      dryRun: options.dryRun === true
+    });
+    console.log(renderAssembleSummary(result));
+    if (!result.ok) {
+      process.exitCode = 1;
+    }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+contentCommand
+  .command("check")
+  .description("Check that the content tree, the overview tables and the 04/05 execution files still agree")
+  .requiredOption("--project <path>")
+  .action((options) => runCliAction(async () => {
+    const result = await checkContentConsistency(path.resolve(options.project));
+    if (result.issues.length === 0) {
+      console.log("内容树、总表与执行文件一致。");
+      return;
+    }
+    for (const issue of result.issues) {
+      console.log(`[${issue.code}] ${issue.message}`);
+    }
+    process.exitCode = 1;
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+contentCommand
+  .command("migrate")
+  .description("Move legacy 03/04/05 text into the content tree and keep a read-only snapshot of the old files")
+  .requiredOption("--project <path>")
+  .option("--preview", "Only show the per-file migration plan, write nothing", false)
+  .option("--apply", "Write the migration (requires --yes)", false)
+  .option("--yes", "Confirm the migration described by the preview", false)
+  .action((options) => runCliAction(async () => {
+    const projectRoot = path.resolve(options.project);
+    const preview = await buildMigrationPreview(projectRoot);
+    console.log(renderMigrationPreview(preview));
+    // 不认识的格式版本属于「拒绝」，不是「可预览的问题」：命令必须报错退出，
+    // 不能降级猜测，也不能让调用方以为拿到了可执行的迁移计划。
+    if (preview.issues.some((issue) => issue.code === "unsupported-content-format")) {
+      console.error("项目声明了本工具还不支持的内容树格式版本，迁移不会执行。请升级工具或改回受支持的版本。");
+      process.exitCode = 1;
+      return;
+    }
+    if (options.apply === true) {
+      if (options.yes !== true) {
+        console.error("迁移会写入文件。确认无误后请加 --yes 再执行。");
+        process.exitCode = 1;
+        return;
+      }
+      if (preview.issues.length > 0) {
+        console.error("预览里还有冲突或问题，先处理完再执行迁移。");
+        process.exitCode = 1;
+        return;
+      }
+      const { applyMigration } = await import("./lib/migration-preview.js");
+      const applied = await applyMigration(projectRoot, preview);
+      console.log(applied.summary);
+      if (!applied.ok) process.exitCode = 1;
+    }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+const roughcutCommand = program
+  .command("roughcut")
+  .description("Rough-cut delivery: shot order and version selection (D1), media pack (D2), JianYing draft (D3)");
+
+roughcutCommand
+  .command("plan")
+  .description("Create or refresh 06_执行计划/00_粗剪顺序表.md from the content tree and media records; the cut-order column may be edited by hand")
+  .requiredOption("--project <path>")
+  .option("--check", "Only validate the existing plan against the content tree and media records, do not write", false)
+  .action((options) => runCliAction(async () => {
+    const projectRoot = path.resolve(options.project);
+    const result = options.check === true ? await checkRoughCutPlan(projectRoot) : await refreshRoughCutPlan(projectRoot);
+    console.log(renderRoughCutSummary(result));
+    if (!result.ok) {
+      process.exitCode = 1;
+    }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+roughcutCommand
+  .command("pack")
+  .description("Export the media pack (D2): per-cut-order segment folders plus a top-level manifest; read-only snapshot, never overwrites")
+  .requiredOption("--project <path>")
+  .requiredOption("--out <path>")
+  .action((options) => runCliAction(async () => {
+    const result = await exportMediaPack(path.resolve(options.project), path.resolve(options.out));
+    for (const segment of result.segments) {
+      console.log("  " + segment.directoryName + "/  " + (segment.copiedFiles.join("、") || "（缺素材，已写说明）"));
+    }
+    console.log("素材包清单：" + result.manifestPath);
+    if (result.issues.length > 0) {
+      for (const issue of result.issues) {
+        console.error("! [" + issue.code + "] " + issue.message);
+      }
+    } else {
+      console.log("素材包导出完成（只读快照，未改动项目内任何原件）。");
+    }
+    if (!result.ok) {
+      process.exitCode = 1;
+    }
+  }, () => program.opts<{ debug?: boolean }>().debug === true));
+
+roughcutCommand
+  .command("draft")
+  .description("Generate a native JianYing 11.6 draft (D3) from the rough-cut plan: fresh ids, encrypted via the bundled jycrypto tool, registered in root_meta_info.json")
+  .requiredOption("--project <path>")
+  .option("--name <name>", "Draft name shown in JianYing (default avw-draft-<timestamp>)")
+  .option("--jianying-dir <path>", "JianYing version directory containing videoeditor.dll (default: auto-discover; override with AVW_JIANYING_DIR)")
+  .option("--drafts-root <path>", "JianYing drafts root directory (default: derived from the draft index)")
+  .option("--index-file <path>", "Path of root_meta_info.json (default: %LOCALAPPDATA%\\JianyingPro\\...\\root_meta_info.json)")
+  .option("--jycrypto <path>", "Path of the bundled jycrypto.exe (default: vendor/win-x64 next to the CLI)")
+  .action((options) => runCliAction(async () => {
+    const jianyingDir = options.jianyingDir !== undefined ? path.resolve(options.jianyingDir) : discoverJianyingDir();
+    if (jianyingDir === null) {
+      console.error("! [jianying-draft-error] 没能自动找到剪映安装目录；请用 --jianying-dir 指定剪映版本目录（形如 …\\JianyingPro\\11.6.0.14552），或设置环境变量 AVW_JIANYING_DIR。");
+      process.exitCode = 1;
+      return;
+    }
+    const indexFilePath = options.indexFile !== undefined ? path.resolve(options.indexFile) : defaultJianyingIndexFilePath();
+    if (indexFilePath === "") {
+      console.error("! [jianying-draft-error] 没有可用的剪映草稿索引路径（LOCALAPPDATA 未定义）；请用 --index-file 指定 root_meta_info.json。");
+      process.exitCode = 1;
+      return;
+    }
+    const draftsRoot = options.draftsRoot !== undefined ? path.resolve(options.draftsRoot) : await draftsRootFromIndex(indexFilePath);
+    if (draftsRoot === null) {
+      console.error("! [jianying-draft-error] 没能从草稿索引推断草稿根目录；请用 --drafts-root 指定（剪映「全局设置」里的草稿位置）。");
+      process.exitCode = 1;
+      return;
+    }
+    // 默认工具位置：随包分发的 <模块目录>/vendor；源码树运行（src 或未复制的 dist）回退 <上级>/vendor。
+    const defaultJycrypto = path.join(moduleDir, "vendor", "win-x64", "jycrypto.exe");
+    const fallbackJycrypto = path.join(moduleDir, "..", "vendor", "win-x64", "jycrypto.exe");
+    const jycryptoPath = options.jycrypto !== undefined
+      ? path.resolve(options.jycrypto)
+      : fs.existsSync(defaultJycrypto) ? defaultJycrypto : fallbackJycrypto;
+    const result = await generateJianyingDraft({
+      projectRoot: path.resolve(options.project),
+      jianyingDir,
+      jycryptoPath,
+      draftsRoot,
+      indexFilePath,
+      ...(options.name !== undefined ? { draftName: options.name } : {})
+    });
+    console.log(renderJianyingDraftSummary(result));
+    if (!result.ok) {
+      process.exitCode = 1;
     }
   }, () => program.opts<{ debug?: boolean }>().debug === true));
 

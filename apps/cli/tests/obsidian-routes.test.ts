@@ -2,6 +2,10 @@ import { describe, expect, test } from "vitest";
 
 import { workflowVaultPath } from "../src/lib/obsidian/markdown.js";
 import {
+  contentScenePagePath,
+  contentStoryboardPagePath,
+  contentTreeDirectory,
+  contentTreeIndexPath,
   agentHandoffPath,
   notesIndexLink,
   notesIndexPath,
@@ -123,3 +127,37 @@ describe("Obsidian viewing-layer route contract", () => {
     }
   });
 });
+
+describe("Obsidian content-tree viewing-layer routes", () => {
+  test("keeps the content tree inside the shot-lookup root", () => {
+    expect(contentTreeDirectory).toBe("02_按镜头联查/内容树");
+    expect(contentTreeIndexPath).toBe("02_按镜头联查/00_内容树.md");
+    expect(contentScenePagePath("scene-001")).toBe("02_按镜头联查/内容树/场/scene-001.md");
+    expect(contentStoryboardPagePath("shot-001", "storyboard-01")).toBe(
+      "02_按镜头联查/内容树/分镜/shot-001/storyboard-01.md"
+    );
+  });
+
+  test("gives every storyboard of the same number its own page", () => {
+    // 每个镜头都有自己的 storyboard-01，平铺会互相覆盖，所以按镜头分目录。
+    const first = contentStoryboardPagePath("shot-001", "storyboard-01");
+    const second = contentStoryboardPagePath("shot-002", "storyboard-01");
+    expect(first).not.toBe(second);
+  });
+
+  test("content-tree routes are vault-relative and carry no absolute path", () => {
+    const routes = [
+      contentTreeDirectory,
+      contentTreeIndexPath,
+      contentScenePagePath("scene-001"),
+      contentStoryboardPagePath("shot-001", "storyboard-01")
+    ];
+    for (const route of routes) {
+      expect(route).not.toContain("\\");
+      expect(route).not.toMatch(/[A-Za-z]:/);
+      expect(route).not.toMatch(/^(?:file|vscode):/);
+      expect(route.startsWith("/")).toBe(false);
+    }
+  });
+});
+

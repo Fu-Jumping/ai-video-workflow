@@ -51,7 +51,7 @@
 
 ### 4.2 编排流程（AGENTS.md Testing 必守过程）
 
-主对话 = 编排者：准备隔离目录（`G:\develop-G\tests\` 下新建子文件夹，命名 `avw-<轮次>-e2e-<日期>` 或 `avw-retest-<日期>`）→ 准备初期构想文件 → 准备裸镜像/仓库链接 → 启动 general-purpose 子代理（任务书自包含且只含：仓库链接、测试目录、构想路径、场景清单、报告要求）→ 子代理返回后由主对话做比对、问题分类、终审。
+主对话 = 编排者：准备隔离目录（**本机测试根目录**——数据盘 `develop-G\tests\`，机器映射见 [07-decisions-and-open-questions.md](./07-decisions-and-open-questions.md) D12——下新建子文件夹，命名 `avw-<轮次>-e2e-<日期>` 或 `avw-retest-<日期>`）→ 准备初期构想文件 → 准备裸镜像/仓库链接 → 启动 general-purpose 子代理（任务书自包含且只含：仓库链接、测试目录、构想路径、场景清单、报告要求）→ 子代理返回后由主对话做比对、问题分类、终审。
 
 子代理任务书**不得**包含：本地工作树作为源、参考项目材料、历史测试报告、既有生产产物。
 
@@ -69,10 +69,14 @@
 修复未推送远程时，用本地快照 + 裸镜像构造"克隆已发布状态"，全程不移动本地 HEAD、不产生本地分支提交（Git Bash 示例）：
 
 ```text
-TESTDIR="/g/develop-G/tests/<本轮目录>"
+# TESTROOT=本机测试根目录（数据盘 develop-G\tests，机器映射见 07-decisions D12，Git Bash 盘符映射写法）
+# REPO=工具仓库本机路径（Git Bash 写法）
+TESTROOT="/e/develop-G/tests"
+REPO="/e/project/code/ai-video-workflow"
+TESTDIR="$TESTROOT/<本轮目录>"
 mkdir -p "$TESTDIR"
 
-cd /g/develop-G/ai-video-workflow
+cd "$REPO"
 git add -A                                  # 快照暂存（结束前 reset，不影响工作树）
 TREE=$(git write-tree)
 git reset -q

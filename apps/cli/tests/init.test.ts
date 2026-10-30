@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { DEFAULT_VIDEO_PLATFORM, SUPPORTED_PLATFORMS } from "../src/lib/constants.js";
-import { createProject } from "../src/lib/init.js";
+import { createProject, renderInitNextSteps } from "../src/lib/init.js";
 
 const tempRoots: string[] = [];
 
@@ -275,7 +275,9 @@ describe("createProject", () => {
     await expect(fs.pathExists(path.join(projectRoot, "00_前期研究", "00_研究总览.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, "00_前期研究", "04_创作简报.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, "01_概念策划"))).resolves.toBe(true);
-    await expect(fs.pathExists(path.join(projectRoot, "03_分镜脚本", "镜头组-001", "00_镜头组说明.md"))).resolves.toBe(true);
+    // 内容树项目 03 只留索引（规范 §9.3.2）：不播种 00_镜头组说明.md，也不留空的 镜头组-001。
+    await expect(fs.readdir(path.join(projectRoot, "03_分镜脚本"))).resolves.toEqual(["00_内容树索引.md"]);
+    await expect(fs.pathExists(path.join(projectRoot, "03_分镜脚本", "镜头组-001"))).resolves.toBe(false);
     await expect(fs.pathExists(path.join(projectRoot, "04_图片提示词", "镜头组-001"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, "05_视频提示词", "镜头组-001"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, "06_执行计划", "00_执行计划.md"))).resolves.toBe(true);
@@ -289,13 +291,58 @@ describe("createProject", () => {
 
     const readme = await fs.readFile(path.join(projectRoot, "README.md"), "utf8");
     expect(readme).toContain("这是一个由 `ai-video-workflow` 生成的 AI 视频创作项目");
+    expect(readme).toContain("决策访谈");
     expect(readme).toContain("00_前期研究/00_研究总览.md");
+    expect(readme).toContain("01_概念策划/剧本.md");
     expect(readme).toContain("_views/obsidian/");
+    expect(readme).toContain("只是参考模板");
+
+    const imagePromptTemplate = await fs.readFile(path.join(projectRoot, "04_图片提示词", "镜头组-001", "图片提示词.md"), "utf8");
+    expect(imagePromptTemplate).toContain("参考模板，不是执行文件");
+    const videoPromptTemplate = await fs.readFile(path.join(projectRoot, "05_视频提示词", "镜头组-001", "视频提示词.md"), "utf8");
+    expect(videoPromptTemplate).toContain("参考模板，不是执行文件");
+
+    // 工作记录（C4／C6）：说明、修改提案模板与交接模板随初始化播种；提案模板不得落进 待确认/。
+    await expect(fs.pathExists(path.join(projectRoot, "工作记录", "探索"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "工作记录", "交接"))).resolves.toBe(true);
+    const workRecordGuidePath = path.join(projectRoot, "工作记录", "00_工作记录说明.md");
+    await expect(fs.pathExists(workRecordGuidePath)).resolves.toBe(true);
+    const workRecordGuide = await fs.readFile(workRecordGuidePath, "utf8");
+    expect(workRecordGuide).toContain("工作记录/修改提案/待确认/");
+    expect(workRecordGuide).toContain("未确认的提案不得写入正式文件");
+
+    const proposalTemplatePath = path.join(projectRoot, "工作记录", "修改提案", "00_修改提案模板.md");
+    await expect(fs.pathExists(proposalTemplatePath)).resolves.toBe(true);
+    const proposalTemplate = await fs.readFile(proposalTemplatePath, "utf8");
+    expect(proposalTemplate).toContain("未确认不得写入正式文件");
+    expect(proposalTemplate).toContain("## 2. 原文与基线");
+    expect(proposalTemplate).toContain("## 3. 逐文件改法");
+    expect(proposalTemplate).toContain("## 5. 确认范围");
+    expect(proposalTemplate).toContain("## 6. 实际写入结果");
+
+    const handoverTemplatePath = path.join(projectRoot, "工作记录", "交接", "00_交接模板.md");
+    await expect(fs.pathExists(handoverTemplatePath)).resolves.toBe(true);
+    const handoverTemplate = await fs.readFile(handoverTemplatePath, "utf8");
+    expect(handoverTemplate).toContain("## 2. 已确认结论");
+    expect(handoverTemplate).toContain("## 3. 提案位置");
+    expect(handoverTemplate).toContain("## 4. 实际改动");
+    expect(handoverTemplate).toContain("## 5. 下一动作");
+
+    const pendingProposalFiles = await fs.readdir(path.join(projectRoot, "工作记录", "修改提案", "待确认"));
+    expect(pendingProposalFiles).not.toContain("00_修改提案模板.md");
 
     const researchOverview = await fs.readFile(path.join(projectRoot, "00_前期研究", "00_研究总览.md"), "utf8");
     expect(researchOverview).toContain("前期研究总览模板");
     const storyKernel = await fs.readFile(path.join(projectRoot, "01_概念策划", "故事内核.md"), "utf8");
     expect(storyKernel).toContain("故事内核模板");
+    const script = await fs.readFile(path.join(projectRoot, "01_概念策划", "剧本.md"), "utf8");
+    expect(script).toContain("剧本模板");
+    const decisionLog = await fs.readFile(path.join(projectRoot, "01_概念策划", "00_决策记录.md"), "utf8");
+    expect(decisionLog).toContain("决策记录模板");
+    expect(decisionLog).toContain("P0 决策");
+    expect(decisionLog).toContain("| pending |");
+    const storyKernelHeader = await fs.readFile(path.join(projectRoot, "01_概念策划", "故事内核.md"), "utf8");
+    expect(storyKernelHeader).toContain("00_决策记录.md");
     const executionPlan = await fs.readFile(path.join(projectRoot, "06_执行计划", "00_执行计划.md"), "utf8");
     expect(executionPlan).toContain("生产总控表模板");
 
@@ -311,6 +358,10 @@ describe("createProject", () => {
     expect(gitignore).toContain("ai-video-workflow generated and local surfaces");
     expect(gitignore).toContain("_views/");
     expect(gitignore).toContain("00_前期研究/_资料库/*/raw/");
+
+    const nextSteps = renderInitNextSteps({ projectName: "demo-project", projectRoot, ide: "codex", startFrom: "research" });
+    expect(nextSteps).toContain("决策访谈");
+    expect(nextSteps).toContain("01_概念策划/00_决策记录.md");
   });
 
   test("can initialize from a complete script without Step 0", async () => {
@@ -330,9 +381,12 @@ describe("createProject", () => {
     const projectRoot = path.join(root, "script-project");
     await expect(fs.pathExists(path.join(projectRoot, "00_前期研究"))).resolves.toBe(false);
     await expect(fs.pathExists(path.join(projectRoot, "01_概念策划", "故事内核.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "01_概念策划", "剧本.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, "01_概念策划", "00_决策记录.md"))).resolves.toBe(true);
 
     const readme = await fs.readFile(path.join(projectRoot, "README.md"), "utf8");
     expect(readme).toContain("01_概念策划/故事内核.md");
+    expect(readme).toContain("01_概念策划/剧本.md");
     expect(readme).not.toContain("00_前期研究/00_研究总览.md");
 
     const config = await fs.readFile(path.join(projectRoot, "project.config.yaml"), "utf8");

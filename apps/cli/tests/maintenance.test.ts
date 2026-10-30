@@ -1,7 +1,7 @@
 import fs from "fs-extra";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterAll, afterEach, describe, expect, test } from "vitest";
 
 import { createProject } from "../src/lib/init.js";
 import {
@@ -16,15 +16,17 @@ import { projectionManifestPath, readProjectionManifest } from "../src/lib/obsid
 import { verifyObsidianVault } from "../src/lib/obsidian/verify.js";
 import { resolveInProjectObsidianView } from "../src/lib/view-layer.js";
 
+import { disposeLegacyExampleRoots, legacyExampleRoot, officialExampleRoot } from "./legacy-example.js";
+
 const tempRoots: string[] = [];
 
 afterEach(async () => {
   await Promise.all(tempRoots.splice(0).map((dir) => fs.remove(dir)));
 });
 
-function officialExampleRoot(): string {
-  return path.resolve(__dirname, "..", "..", "..", "examples", "官方示例-云上早市");
-}
+afterAll(async () => {
+  await disposeLegacyExampleRoots();
+});
 
 async function seedProject(projectName = "demo-project"): Promise<string> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-maintenance-"));
@@ -45,6 +47,15 @@ async function seedOfficialExampleProject(): Promise<string> {
   tempRoots.push(root);
   const projectRoot = path.join(root, "官方示例-云上早市");
   await fs.copy(officialExampleRoot(), projectRoot);
+  return projectRoot;
+}
+
+/** 旧格式口径的官方示例副本（03／04／05 同名目录），供断言旧投影路径的用例使用。 */
+async function seedLegacyExampleProject(): Promise<string> {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "ai-video-workflow-maintenance-legacy-"));
+  tempRoots.push(root);
+  const projectRoot = path.join(root, "官方示例-云上早市");
+  await fs.copy(await legacyExampleRoot(), projectRoot);
   return projectRoot;
 }
 
@@ -191,7 +202,7 @@ describe("cleanInProjectObsidianView", () => {
   });
 
   test("dry-run can be scoped by shot id", async () => {
-    const projectRoot = await seedOfficialExampleProject();
+    const projectRoot = await seedLegacyExampleProject();
     await exportView(projectRoot);
 
     const result = await cleanInProjectObsidianView({

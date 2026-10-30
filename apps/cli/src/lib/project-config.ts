@@ -2,7 +2,7 @@ import fs from "fs-extra";
 import path from "node:path";
 import { z } from "zod";
 
-import { DEFAULT_PACK, SUPPORTED_IDES, SUPPORTED_PLATFORMS } from "./constants.js";
+import { DEFAULT_PACK, SUPPORTED_CONTENT_FORMAT_VERSIONS, SUPPORTED_IDES, SUPPORTED_PLATFORMS } from "./constants.js";
 import type { ProjectConfig, VerificationIssue } from "./types.js";
 import { parseYaml } from "./yaml.js";
 
@@ -36,6 +36,9 @@ const projectConfigSchema = z.object({
       enabled: z.boolean()
     })
   }),
+  content: z.object({
+    format_version: z.number().int().positive().optional()
+  }).optional(),
   libtv: z.object({
     image_model: z.string().optional(),
     video_model: z.string().optional(),
@@ -47,6 +50,22 @@ const projectConfigSchema = z.object({
 export interface ProjectConfigReadResult {
   config: ProjectConfig | null;
   issues: VerificationIssue[];
+}
+
+/**
+ * 读取项目声明的内容树格式版本。
+ *
+ * 返回 null 表示旧项目：没有 content.format_version 这个键，按旧格式（legacy）读取，
+ * 不报错也不提示。返回数字表示项目明确声明了新结构，只有版本号在本工具支持范围内
+ * 才能按新结构读取。
+ */
+export function contentFormatVersion(config: ProjectConfig | null): number | null {
+  const declared = config?.content?.format_version;
+  return typeof declared === "number" ? declared : null;
+}
+
+export function isSupportedContentFormatVersion(version: number | null): boolean {
+  return version === null || SUPPORTED_CONTENT_FORMAT_VERSIONS.includes(version);
 }
 
 function formatZodIssue(issue: z.ZodIssue): string {

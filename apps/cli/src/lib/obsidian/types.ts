@@ -20,6 +20,8 @@ export interface ObsidianSourceFile {
   shotGroupId?: string;
   shotId?: string;
   referenceAssets?: ReferenceAssetToken[];
+  /** 内容树分镜文件里声明的关键帧（keyframe-01 形式），供分镜页定位素材。 */
+  keyframeIds?: string[];
 }
 
 export interface ObsidianGeneratedFile {

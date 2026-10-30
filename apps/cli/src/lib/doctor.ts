@@ -71,7 +71,11 @@ const groups: Record<string, string> = {
   "obsidian-manifest-hash-mismatch": "Obsidian Projection",
   "obsidian-manifest-source-mismatch": "Obsidian Projection",
   "obsidian-view-stale": "Obsidian Projection",
-  "unsafe-obsidian-force-target": "Obsidian Projection"
+  "unsafe-obsidian-force-target": "Obsidian Projection",
+  "step1-assumption-markers": "Step 1 Decisions",
+  "step1-decision-log-missing": "Step 1 Decisions",
+  "step1-decision-log-unconfirmed": "Step 1 Decisions",
+  "step1-interview-log-empty": "Step 1 Decisions"
 };
 
 function ideForRuntimeIssue(issue: VerificationIssue): string {
@@ -90,9 +94,11 @@ function ideForRuntimeIssue(issue: VerificationIssue): string {
 
 export async function diagnoseProject({
   issues,
+  warnings,
   defaultVideoPlatform = "seedance"
 }: {
   issues: VerificationIssue[];
+  warnings?: VerificationIssue[];
   defaultVideoPlatform?: string;
 }): Promise<string> {
   const byGroup = new Map<string, VerificationIssue[]>();
@@ -217,7 +223,7 @@ export async function diagnoseProject({
         lines.push("  保证镜头编号在项目内全局唯一，并让同一镜头的 Step 3/4/5 文件位于同一个镜头组。");
       }
       if (issue.code === "invalid-storyboard-segment-count") {
-        lines.push("  在 Step 3 使用 1-4 个从 `分镜 1` 开始连续编号的分镜；默认 1-2 个，复杂内容最多 4 个。");
+        lines.push("  在 Step 3 使用 1-6 个从 `分镜 1` 开始连续编号的分镜；默认 1-2 个，复杂内容最多 6 个。");
       }
       if (issue.code === "invalid-keyframe-mapping") {
         lines.push("  使用 `镜头-001-关键帧-01.md`，在 Step 4 元信息写清镜头组、镜头编号、对应分镜和关键时刻，并让 Step 3 链接全部已选关键帧。");
@@ -295,6 +301,13 @@ export async function diagnoseProject({
       }
     }
     lines.push("");
+  }
+  if (warnings?.length) {
+    lines.push("## Step 1 决策提醒（软警告，不阻塞 verify）", "");
+    for (const warning of warnings) {
+      lines.push(`- ${warning.message}${warning.path ? ` (${warning.path})` : ""}`);
+    }
+    lines.push("  下一步：先完成 Step 1 决策访谈（`01_概念策划/00_决策记录.md`），再进入 Step 2。", "");
   }
   return lines.join("\n");
 }
